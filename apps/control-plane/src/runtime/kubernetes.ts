@@ -104,6 +104,7 @@ export class KubernetesRuntime {
                 // Safe because Kata runs this inside an isolated VM
                 securityContext: {
                   privileged: true,
+                  readOnlyRootFilesystem: false,
                 },
                 ports: [{ containerPort: 3002, name: "http" }],
                 env: [
