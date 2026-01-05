@@ -116,7 +116,7 @@ export class KubernetesRuntime {
                   { name: "workspace", mountPath: "/workspace" },
                 ],
                 resources: {
-                  requests: { cpu: "1", memory: "1Gi" },
+                  requests: { cpu: "100m", memory: "256Mi" },
                   limits: { cpu: "2", memory: "4Gi" },
                 },
                 readinessProbe: {
