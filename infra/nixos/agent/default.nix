@@ -3,6 +3,9 @@
 # This configuration is used to build the OCI image that runs inside
 # Kata Containers (Cloud Hypervisor) VMs.
 #
+# Note: Kata mounts the container rootfs read-only via virtio-fs.
+# We use a custom init script to set up tmpfs overlays before NixOS boots.
+#
 {
   config,
   lib,
