@@ -34,6 +34,7 @@ const server = createServer(async (req, res) => {
 
     try {
       send({ type: "start" });
+      console.error("[prompt] Calling SDK...");
 
       for await (const message of query({
         prompt: text,
@@ -43,6 +44,7 @@ const server = createServer(async (req, res) => {
           model: "claude-opus-4-5-20251101",
         },
       })) {
+        console.error("[prompt] Got message:", message.type);
         switch (message.type) {
           case "system":
             send({ type: "agent.system", subtype: message.subtype });
