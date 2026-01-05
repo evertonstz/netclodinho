@@ -34,16 +34,18 @@ const server = createServer(async (req, res) => {
 
     try {
       send({ type: "start" });
-      console.error("[prompt] Calling SDK...");
-
-      for await (const message of query({
+      console.error("[prompt] Creating SDK query...");
+      const sdkQuery = query({
         prompt: text,
         options: {
           cwd,
           dangerouslySkipPermissions: true,
           model: "claude-opus-4-5-20251101",
         },
-      })) {
+      });
+      console.error("[prompt] Starting iteration...");
+
+      for await (const message of sdkQuery) {
         console.error("[prompt] Got message:", message.type);
         switch (message.type) {
           case "system":
