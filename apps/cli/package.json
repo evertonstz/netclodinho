@@ -1,0 +1,19 @@
+{
+  "name": "@netclode/cli",
+  "version": "0.0.1",
+  "type": "module",
+  "bin": {
+    "netclode": "./src/index.ts"
+  },
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@netclode/protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.7.2"
+  }
+}

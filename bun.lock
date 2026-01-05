@@ -22,6 +22,20 @@
         "typescript": "^5.7.2",
       },
     },
+    "apps/cli": {
+      "name": "@netclode/cli",
+      "version": "0.0.1",
+      "bin": {
+        "netclode": "./src/index.ts",
+      },
+      "dependencies": {
+        "@netclode/protocol": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+        "typescript": "^5.7.2",
+      },
+    },
     "apps/control-plane": {
       "name": "@netclode/control-plane",
       "version": "0.0.1",
@@ -205,6 +219,8 @@
     "@kubernetes/client-node": ["@kubernetes/client-node@1.4.0", "", { "dependencies": { "@types/js-yaml": "^4.0.1", "@types/node": "^24.0.0", "@types/node-fetch": "^2.6.13", "@types/stream-buffers": "^3.0.3", "form-data": "^4.0.0", "hpagent": "^1.2.0", "isomorphic-ws": "^5.0.0", "js-yaml": "^4.1.0", "jsonpath-plus": "^10.3.0", "node-fetch": "^2.7.0", "openid-client": "^6.1.3", "rfc4648": "^1.3.0", "socks-proxy-agent": "^8.0.4", "stream-buffers": "^3.0.2", "tar-fs": "^3.0.9", "ws": "^8.18.2" } }, "sha512-Zge3YvF7DJi264dU1b3wb/GmzR99JhUpqTvp+VGHfwZT+g7EOOYNScDJNZwXy9cszyIGPIs0VHr+kk8e95qqrA=="],
 
     "@netclode/agent": ["@netclode/agent@workspace:apps/agent"],
+
+    "@netclode/cli": ["@netclode/cli@workspace:apps/cli"],
 
     "@netclode/control-plane": ["@netclode/control-plane@workspace:apps/control-plane"],
 
