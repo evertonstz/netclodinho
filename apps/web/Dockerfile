@@ -1,10 +1,7 @@
 # Web App Dockerfile
-FROM node:22-alpine AS builder
+FROM oven/bun:1.3-alpine AS builder
 
 WORKDIR /app
-
-# Install bun
-RUN npm install -g bun
 
 # Copy workspace files
 COPY package.json bun.lock ./
