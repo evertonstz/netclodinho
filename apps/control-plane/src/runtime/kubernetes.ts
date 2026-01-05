@@ -121,9 +121,9 @@ export class KubernetesRuntime {
                 volumeMounts: [
                   { name: "workspace", mountPath: "/workspace" },
                 ],
-                resources: {
-                  requests: { cpu: "100m", memory: "256Mi" },
-                },
+                // resources: {
+                //   requests: { cpu: "100m", memory: "256Mi" },
+                // },
                 readinessProbe: {
                   httpGet: { path: "/health", port: 3002 },
                   initialDelaySeconds: 10,
