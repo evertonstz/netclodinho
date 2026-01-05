@@ -22,13 +22,7 @@ try {
   const q = query({
     prompt: input.text,
     options: {
-      tools: { type: "preset", preset: "claude_code" },
-      allowedTools: ["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
-      permissionMode: "bypassPermissions",
-      allowDangerouslySkipPermissions: true,
       cwd,
-      model: "claude-sonnet-4-20250514",
-      persistSession: false,
     },
   });
 
