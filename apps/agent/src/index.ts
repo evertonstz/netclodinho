@@ -17,37 +17,32 @@ const server = Bun.serve({
     if (url.pathname === "/prompt" && req.method === "POST") {
       const body = (await req.json()) as { sessionId: string; text: string };
       const { text } = body;
+      console.error(`[prompt] Received: ${text.slice(0, 50)}...`);
 
-      // Stream response via SSE
-      const stream = new ReadableStream({
-        async start(controller) {
-          const encoder = new TextEncoder();
-          const send = (data: object) => {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
-          };
+      // Use TransformStream for better streaming support
+      const { readable, writable } = new TransformStream();
+      const writer = writable.getWriter();
+      const encoder = new TextEncoder();
 
-          // Capture emitted events by temporarily replacing emit
-          const originalWrite = process.stdout.write.bind(process.stdout);
-          process.stdout.write = (chunk: any) => {
-            try {
-              const msg = JSON.parse(chunk.toString().trim());
-              send(msg);
-            } catch {
-              // Not JSON, ignore
-            }
-            return true;
-          };
+      const send = async (data: object) => {
+        const chunk = `data: ${JSON.stringify(data)}\n\n`;
+        await writer.write(encoder.encode(chunk));
+      };
 
-          try {
-            await agent.run(text);
-          } finally {
-            process.stdout.write = originalWrite;
-            controller.close();
-          }
-        },
-      });
+      // Run agent in background, streaming events
+      (async () => {
+        try {
+          await agent.run(text, send);
+          await send({ type: "done" });
+        } catch (error) {
+          console.error(`[prompt] Error:`, error);
+          await send({ type: "error", error: String(error) });
+        } finally {
+          await writer.close();
+        }
+      })();
 
-      return new Response(stream, {
+      return new Response(readable, {
         headers: {
           "Content-Type": "text/event-stream",
           "Cache-Control": "no-cache",

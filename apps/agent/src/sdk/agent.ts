@@ -1,9 +1,10 @@
 import { query, type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
-import { emit } from "../events/emitter";
 import { config } from "../config";
 
+export type EventSender = (data: object) => Promise<void>;
+
 export interface AgentInstance {
-  run(prompt: string): Promise<void>;
+  run(prompt: string, send: EventSender): Promise<void>;
   interrupt(): void;
 }
 
@@ -11,7 +12,7 @@ let currentQuery: ReturnType<typeof query> | null = null;
 
 export function createAgent(): AgentInstance {
   return {
-    async run(prompt: string) {
+    async run(prompt: string, send: EventSender) {
       try {
         currentQuery = query({
           prompt,
@@ -27,16 +28,15 @@ export function createAgent(): AgentInstance {
         });
 
         for await (const message of currentQuery) {
-          handleMessage(message);
+          await handleMessage(message, send);
         }
-
-        emit("agent.done", {});
       } catch (error) {
         if (error instanceof Error && error.message.includes("abort")) {
-          emit("agent.interrupted", {});
+          await send({ type: "agent.interrupted" });
         } else {
           console.error("[agent] Error:", error);
-          emit("agent.error", {
+          await send({
+            type: "agent.error",
             error: error instanceof Error ? error.message : String(error),
           });
         }
@@ -51,19 +51,20 @@ export function createAgent(): AgentInstance {
   };
 }
 
-function handleMessage(message: SDKMessage) {
+async function handleMessage(message: SDKMessage, send: EventSender) {
   switch (message.type) {
     case "system":
-      emit("agent.system", { subtype: message.subtype });
+      await send({ type: "agent.system", subtype: message.subtype });
       break;
 
     case "assistant":
       if (message.message?.content) {
         for (const block of message.message.content) {
           if (block.type === "text") {
-            emit("agent.message", { content: block.text, partial: false });
+            await send({ type: "agent.message", content: block.text, partial: false });
           } else if (block.type === "tool_use") {
-            emit("agent.event", {
+            await send({
+              type: "agent.event",
               event: {
                 kind: "tool_start",
                 tool: block.name,
@@ -81,7 +82,8 @@ function handleMessage(message: SDKMessage) {
       if (message.message?.content && Array.isArray(message.message.content)) {
         for (const block of message.message.content) {
           if (typeof block === "object" && block.type === "tool_result") {
-            emit("agent.event", {
+            await send({
+              type: "agent.event",
               event: {
                 kind: "tool_end",
                 toolUseId: block.tool_use_id,
@@ -95,7 +97,8 @@ function handleMessage(message: SDKMessage) {
 
     case "result":
       if (message.subtype === "success") {
-        emit("agent.result", {
+        await send({
+          type: "agent.result",
           result: message.result,
           numTurns: message.num_turns,
           costUsd: message.total_cost_usd,
@@ -107,7 +110,7 @@ function handleMessage(message: SDKMessage) {
       if (message.event.type === "content_block_delta") {
         const delta = message.event.delta;
         if (delta && "text" in delta) {
-          emit("agent.message", { content: delta.text, partial: true });
+          await send({ type: "agent.message", content: delta.text, partial: true });
         }
       }
       break;
