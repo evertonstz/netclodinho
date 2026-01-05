@@ -74,9 +74,6 @@ export class KubernetesRuntime {
     const { sessionId, env = {} } = vmConfig;
     const name = `sess-${sessionId}`;
 
-    // Create PVC for workspace
-    await this.createWorkspacePVC(sessionId);
-
     // Create secret for environment variables
     await this.createEnvSecret(sessionId, {
       SESSION_ID: sessionId,
@@ -84,7 +81,7 @@ export class KubernetesRuntime {
       ...env,
     });
 
-    // Create Sandbox directly with full pod spec
+    // Create Sandbox with volumeClaimTemplates (controller creates PVCs)
     const sandbox = {
       apiVersion: "agents.x-k8s.io/v1alpha1",
       kind: "Sandbox",
@@ -129,16 +126,28 @@ export class KubernetesRuntime {
                 },
               },
             ],
-            volumes: [
-              {
-                name: "workspace",
-                persistentVolumeClaim: {
-                  claimName: `${name}-workspace`,
-                },
-              },
-            ],
           },
         },
+        // Controller will create PVC from this template
+        volumeClaimTemplates: [
+          {
+            metadata: {
+              name: "workspace",
+              labels: {
+                "netclode.io/session": sessionId,
+              },
+            },
+            spec: {
+              accessModes: ["ReadWriteOnce"],
+              storageClassName: STORAGE_CLASS,
+              resources: {
+                requests: {
+                  storage: "10Gi",
+                },
+              },
+            },
+          },
+        ],
       },
     };
 
@@ -219,10 +228,10 @@ export class KubernetesRuntime {
       // Ignore errors
     }
 
-    // Delete PVC (if not handled by reclaimPolicy)
+    // Delete PVC (volumeClaimTemplate naming: {volumeName}-{sandboxName})
     try {
       await this.coreApi.deleteNamespacedPersistentVolumeClaim({
-        name: `sess-${sessionId}-workspace`,
+        name: `workspace-sess-${sessionId}`,
         namespace: getNamespace(),
       });
     } catch {
@@ -294,37 +303,6 @@ export class KubernetesRuntime {
   async isSandboxRunning(sessionId: string): Promise<boolean> {
     const info = await this.getSandboxStatus(sessionId);
     return info?.status === "ready";
-  }
-
-  private async createWorkspacePVC(sessionId: string): Promise<void> {
-    const namespace = getNamespace();
-    console.log(`[${sessionId}] Creating PVC with namespace="${namespace}"`);
-    const pvc: k8s.V1PersistentVolumeClaim = {
-      apiVersion: "v1",
-      kind: "PersistentVolumeClaim",
-      metadata: {
-        name: `sess-${sessionId}-workspace`,
-        namespace,
-        labels: {
-          "netclode.io/session": sessionId,
-        },
-      },
-      spec: {
-        accessModes: ["ReadWriteOnce"],
-        storageClassName: STORAGE_CLASS,
-        resources: {
-          requests: {
-            storage: "10Gi",
-          },
-        },
-      },
-    };
-
-    await this.coreApi.createNamespacedPersistentVolumeClaim({
-      namespace,
-      body: pvc,
-    });
-    console.log(`[${sessionId}] PVC created`);
   }
 
   private async createEnvSecret(
