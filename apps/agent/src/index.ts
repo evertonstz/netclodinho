@@ -1,9 +1,9 @@
-import { config } from "./config";
-import { query } from "@anthropic-ai/claude-agent-sdk";
+#!/usr/bin/env bun
 import { createServer } from "http";
+import { query } from "@anthropic-ai/claude-agent-sdk";
 
-const cwd = config.workspacePath || "/workspace";
-const port = config.port || 3002;
+const port = parseInt(process.env.AGENT_PORT || "3002", 10);
+const workspace = process.env.WORKSPACE || "/workspace";
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url || "/", `http://localhost:${port}`);
@@ -34,19 +34,18 @@ const server = createServer(async (req, res) => {
 
     try {
       send({ type: "start" });
-      console.error("[prompt] Creating SDK query...");
-      const sdkQuery = query({
+
+      const q = query({
         prompt: text,
         options: {
-          cwd,
+          cwd: workspace,
           dangerouslySkipPermissions: true,
           model: "claude-opus-4-5-20251101",
+          executable: "/nix/var/nix/profiles/default/bin/node",
         },
       });
-      console.error("[prompt] Starting iteration...");
 
-      for await (const message of sdkQuery) {
-        console.error("[prompt] Got message:", message.type);
+      for await (const message of q) {
         switch (message.type) {
           case "system":
             send({ type: "agent.system", subtype: message.subtype });
@@ -57,7 +56,10 @@ const server = createServer(async (req, res) => {
                 if (block.type === "text") {
                   send({ type: "agent.message", content: block.text, partial: false });
                 } else if (block.type === "tool_use") {
-                  send({ type: "agent.event", event: { kind: "tool_start", tool: block.name, toolUseId: block.id, input: block.input } });
+                  send({
+                    type: "agent.event",
+                    event: { kind: "tool_start", tool: block.name, toolUseId: block.id, input: block.input },
+                  });
                 }
               }
             }
@@ -74,6 +76,14 @@ const server = createServer(async (req, res) => {
           case "result":
             if (message.subtype === "success") {
               send({ type: "agent.result", result: message.result, numTurns: message.num_turns, costUsd: message.total_cost_usd });
+            }
+            break;
+          case "stream_event":
+            if (message.event.type === "content_block_delta") {
+              const delta = message.event.delta;
+              if (delta && "text" in delta) {
+                send({ type: "agent.message", content: delta.text, partial: true });
+              }
             }
             break;
         }
