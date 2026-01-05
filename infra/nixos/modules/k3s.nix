@@ -70,16 +70,19 @@ in {
 
   # k3s service configuration for Kata
   systemd.services.k3s = {
-    path = [pkgs.kata-runtime];
+    path = [pkgs.kata-runtime pkgs.nftables];
     serviceConfig = {
-      # Device access for Kata VMs
+      # Device access for Kata VMs and kubelet
       DeviceAllow = [
         "/dev/kvm rwm"
         "/dev/vhost-vsock rwm"
         "/dev/vhost-net rwm"
         "/dev/net/tun rwm"
+        "/dev/kmsg r"
       ];
       Delegate = "yes";
+      # Allow access to kernel logs (kubelet needs this)
+      ProtectKernelLogs = false;
     };
   };
 
