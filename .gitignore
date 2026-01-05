@@ -6,6 +6,8 @@ node_modules/
 dist/
 build/
 *.tsbuildinfo
+result
+result-*
 
 # Bun
 bun.lockb
@@ -39,7 +41,16 @@ coverage/
 # Turbo
 .turbo/
 
+# Nix
+.direnv/
+.devenv/
+
 # iOS (if added later)
 *.xcworkspace
 *.xcuserdata
 Pods/
+
+# Secrets (never commit)
+*.pem
+*.key
+secrets/
