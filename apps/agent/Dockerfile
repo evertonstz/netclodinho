@@ -5,13 +5,18 @@
 FROM alpine:3.21 AS base
 
 # Install base dependencies
+# Note: coreutils required for Nix installer (BusyBox cp is incompatible)
 RUN apk add --no-cache \
     bash \
     curl \
     git \
     openssh-client \
     ca-certificates \
-    xz
+    xz \
+    coreutils \
+    findutils \
+    gawk \
+    gnupg
 
 # Create /nix directory (required before Nix install)
 RUN mkdir -m 0755 /nix && chown root /nix
