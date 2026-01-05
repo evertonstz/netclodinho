@@ -13,8 +13,11 @@ RUN apk add --no-cache \
     ca-certificates \
     xz
 
+# Create /nix directory (required before Nix install)
+RUN mkdir -m 0755 /nix && chown root /nix
+
 # Install Nix (single-user mode for containers)
-RUN curl -L https://nixos.org/nix/install | sh -s -- --no-daemon
+RUN curl -L https://nixos.org/nix/install | sh -s -- --no-daemon --no-channel-add
 
 # Set up Nix environment
 ENV PATH="/root/.nix-profile/bin:/nix/var/nix/profiles/default/bin:${PATH}"
