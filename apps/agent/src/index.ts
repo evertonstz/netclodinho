@@ -19,30 +19,52 @@ const server = Bun.serve({
       const { text } = body;
       console.error(`[prompt] Received: ${text.slice(0, 50)}...`);
 
-      // Use TransformStream for better streaming support
-      const { readable, writable } = new TransformStream();
-      const writer = writable.getWriter();
-      const encoder = new TextEncoder();
+      // Use ReadableStream with pull-based approach
+      let done = false;
+      const queue: string[] = [];
+      let resolve: (() => void) | null = null;
 
       const send = async (data: object) => {
         const chunk = `data: ${JSON.stringify(data)}\n\n`;
-        await writer.write(encoder.encode(chunk));
+        console.error(`[prompt] Sending: ${chunk.slice(0, 80)}...`);
+        queue.push(chunk);
+        if (resolve) {
+          resolve();
+          resolve = null;
+        }
       };
 
-      // Run agent in background, streaming events
+      // Start agent processing
       (async () => {
         try {
+          await send({ type: "start" });
           await agent.run(text, send);
           await send({ type: "done" });
         } catch (error) {
           console.error(`[prompt] Error:`, error);
           await send({ type: "error", error: String(error) });
         } finally {
-          await writer.close();
+          done = true;
+          if (resolve) resolve();
         }
       })();
 
-      return new Response(readable, {
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        async pull(controller) {
+          while (queue.length === 0 && !done) {
+            await new Promise<void>((r) => (resolve = r));
+          }
+          while (queue.length > 0) {
+            controller.enqueue(encoder.encode(queue.shift()!));
+          }
+          if (done && queue.length === 0) {
+            controller.close();
+          }
+        },
+      });
+
+      return new Response(stream, {
         headers: {
           "Content-Type": "text/event-stream",
           "Cache-Control": "no-cache",
