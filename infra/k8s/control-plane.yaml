@@ -73,7 +73,7 @@ spec:
   selector:
     app: control-plane
   ports:
-    - port: 443
+    - port: 80
       targetPort: 3000
-      name: https
+      name: http
 # Secret 'netclode-secrets' is created by scripts/deploy-secrets.sh
