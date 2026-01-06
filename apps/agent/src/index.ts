@@ -5,6 +5,9 @@ import { query } from "@anthropic-ai/claude-agent-sdk";
 const port = parseInt(process.env.AGENT_PORT || "3002", 10);
 const workspace = process.env.WORKSPACE || "/workspace";
 
+// Map control plane session IDs to SDK session IDs
+const sessionMap = new Map<string, string>();
+
 const server = createServer(async (req, res) => {
   const url = new URL(req.url || "/", `http://localhost:${port}`);
 
@@ -35,21 +38,34 @@ const server = createServer(async (req, res) => {
     try {
       send({ type: "start" });
 
+      // Look up the SDK session ID from our mapping
+      const sdkSessionId = sessionId ? sessionMap.get(sessionId) : undefined;
+      console.error(`[prompt] SDK session lookup: ${sessionId} -> ${sdkSessionId || "(new session)"}`);
+
       const q = query({
         prompt: text,
         options: {
           cwd: workspace,
-          dangerouslySkipPermissions: true,
+          permissionMode: "bypassPermissions",
+          allowDangerouslySkipPermissions: true,
           model: "claude-opus-4-5-20251101",
           executable: "/nix/var/nix/profiles/default/bin/node" as "node",
           persistSession: true,
-          ...(sessionId && { sessionId }),
+          ...(sdkSessionId && { resume: sdkSessionId }),
         },
       });
 
       for await (const message of q) {
         switch (message.type) {
           case "system":
+            // Capture the SDK session ID from the init message
+            if (message.subtype === "init" && sessionId && message.session_id) {
+              const existingMapping = sessionMap.get(sessionId);
+              if (!existingMapping) {
+                sessionMap.set(sessionId, message.session_id);
+                console.error(`[prompt] Stored session mapping: ${sessionId} -> ${message.session_id}`);
+              }
+            }
             send({ type: "agent.system", subtype: message.subtype });
             break;
           case "assistant":
