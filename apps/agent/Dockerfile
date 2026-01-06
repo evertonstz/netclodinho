@@ -39,20 +39,30 @@ COPY apps/agent apps/agent
 # =============================================================================
 FROM base AS runtime
 
-# Create workspace
-RUN mkdir -p /workspace /opt/agent
+# Create non-root user for running claude with --dangerously-skip-permissions
+RUN echo "agent:x:1000:1000::/home/agent:/bin/sh" >> /etc/passwd && \
+    echo "agent:x:1000:" >> /etc/group && \
+    mkdir -p /home/agent && chown 1000:1000 /home/agent
+
+# Create workspace and app directories
+RUN mkdir -p /workspace /opt/agent && chown -R agent:agent /workspace /opt/agent
 
 # Copy app
 COPY --from=builder /tmp/app/node_modules /opt/agent/node_modules
 COPY --from=builder /tmp/app/apps/agent /opt/agent/apps/agent
 COPY --from=builder /tmp/app/packages /opt/agent/packages
-COPY --from=builder /root/.bun /root/.bun
+COPY --from=builder /root/.bun /home/agent/.bun
+RUN chown -R agent:agent /home/agent/.bun /opt/agent
+
+# Switch to non-root user
+USER agent
 
 WORKDIR /opt/agent/apps/agent
 
 ENV NODE_ENV=production
 ENV WORKSPACE=/workspace
-ENV PATH="/root/.bun/bin:${PATH}"
+ENV PATH="/home/agent/.bun/bin:/nix/var/nix/profiles/default/bin:${PATH}"
+ENV HOME=/home/agent
 
 EXPOSE 3002
 
