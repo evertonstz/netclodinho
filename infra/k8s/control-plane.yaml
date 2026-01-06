@@ -39,6 +39,8 @@ spec:
                 secretKeyRef:
                   name: netclode-secrets
                   key: anthropic-api-key
+            - name: REDIS_URL
+              value: "redis://redis-sessions.netclode.svc.cluster.local:6379"
           # resources:
           #   requests:
           #     cpu: "100m"

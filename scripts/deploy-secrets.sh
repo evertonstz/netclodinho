@@ -49,8 +49,8 @@ fi
 
 # JuiceFS configuration
 JUICEFS_BUCKET="${JUICEFS_BUCKET:-https://nyc3.digitaloceanspaces.com/netclode}"
-# CSI node runs on host, so localhost works for Redis
-JUICEFS_META_URL="${JUICEFS_META_URL:-redis://127.0.0.1:6379/0}"
+# Use cluster-internal Redis service for JuiceFS metadata
+JUICEFS_META_URL="${JUICEFS_META_URL:-redis://redis-juicefs.netclode.svc.cluster.local:6379/0}"
 
 echo ""
 log "Deploying secrets..."

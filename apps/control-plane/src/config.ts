@@ -15,4 +15,11 @@ export const config = {
   // VM defaults
   defaultCpus: Number(process.env.DEFAULT_CPUS) || 2,
   defaultMemoryMB: Number(process.env.DEFAULT_MEMORY_MB) || 2048,
+
+  // Redis Sessions
+  redisUrl:
+    process.env.REDIS_URL ||
+    "redis://redis-sessions.netclode.svc.cluster.local:6379",
+  maxMessagesPerSession: Number(process.env.MAX_MESSAGES_PER_SESSION) || 1000,
+  maxEventsPerSession: Number(process.env.MAX_EVENTS_PER_SESSION) || 50,
 };

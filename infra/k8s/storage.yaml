@@ -37,7 +37,7 @@
 #
 # 3. Create the juicefs-secret in netclode namespace with:
 #    - name: filesystem name
-#    - metaurl: redis://<host>:6379/0 (MUST be cluster-accessible, NOT localhost)
+#    - metaurl: redis://redis-juicefs.netclode.svc.cluster.local:6379/0
 #    - storage: s3 (or other object storage type)
 #    - bucket: bucket URL
 #    - access-key: object storage access key
@@ -45,9 +45,6 @@
 #
 # Secret is created by scripts/deploy-secrets.sh
 # Run: ./scripts/deploy-secrets.sh
-#
-# IMPORTANT: The metaurl MUST point to a Redis server accessible from pods.
-# Using redis://localhost:6379 will cause mount failures with "juicefs status timed out"
 #
 ---
 # StorageClass for JuiceFS CSI

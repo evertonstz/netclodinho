@@ -1,0 +1,85 @@
+# Redis for JuiceFS metadata (separate from session storage)
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-juicefs-data
+  namespace: netclode
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path  # k3s default storage class
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-juicefs
+  namespace: netclode
+  labels:
+    app: redis-juicefs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-juicefs
+  template:
+    metadata:
+      labels:
+        app: redis-juicefs
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+          args:
+            - redis-server
+            - --appendonly
+            - "yes"
+            - --appendfsync
+            - everysec
+            - --maxmemory
+            - 256mb
+            - --maxmemory-policy
+            - noeviction
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          livenessProbe:
+            exec:
+              command: [redis-cli, ping]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: [redis-cli, ping]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: redis-juicefs-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-juicefs
+  namespace: netclode
+  labels:
+    app: redis-juicefs
+spec:
+  selector:
+    app: redis-juicefs
+  ports:
+    - port: 6379
+      targetPort: 6379

@@ -1,5 +1,6 @@
 import type { Session } from "./session";
 import type { AgentEvent } from "./events";
+import type { PersistedMessage, PersistedEvent, SessionWithMeta } from "./storage";
 
 // Client -> Server messages
 export type ClientMessage =
@@ -11,7 +12,10 @@ export type ClientMessage =
   | { type: "prompt"; sessionId: string; text: string }
   | { type: "prompt.interrupt"; sessionId: string }
   | { type: "terminal.input"; sessionId: string; data: string }
-  | { type: "terminal.resize"; sessionId: string; cols: number; rows: number };
+  | { type: "terminal.resize"; sessionId: string; cols: number; rows: number }
+  // Sync messages
+  | { type: "sync" }
+  | { type: "session.open"; id: string; lastMessageId?: string };
 
 // Server -> Client messages
 export type ServerMessage =
@@ -27,9 +31,19 @@ export type ServerMessage =
       sessionId: string;
       content: string;
       partial?: boolean;
+      messageId?: string;
     }
   | { type: "agent.done"; sessionId: string }
   | { type: "agent.error"; sessionId: string; error: string }
-  | { type: "error"; message: string };
+  | { type: "error"; message: string }
+  // Sync responses
+  | { type: "sync.response"; sessions: SessionWithMeta[]; serverTime: string }
+  | {
+      type: "session.state";
+      session: Session;
+      messages: PersistedMessage[];
+      events: PersistedEvent[];
+      hasMore: boolean;
+    };
 
 export type WSMessage = ClientMessage | ServerMessage;
