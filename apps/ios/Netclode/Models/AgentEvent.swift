@@ -1,0 +1,301 @@
+import Foundation
+
+protocol AgentEventProtocol: Identifiable, Codable, Sendable {
+    var id: UUID { get }
+    var kind: AgentEventKind { get }
+    var timestamp: Date { get }
+}
+
+enum AgentEventKind: String, Codable, Sendable {
+    case toolStart = "tool_start"
+    case toolEnd = "tool_end"
+    case fileChange = "file_change"
+    case commandStart = "command_start"
+    case commandEnd = "command_end"
+    case thinking
+    case portDetected = "port_detected"
+
+    var displayName: String {
+        switch self {
+        case .toolStart: "Tool Started"
+        case .toolEnd: "Tool Finished"
+        case .fileChange: "File Changed"
+        case .commandStart: "Command Started"
+        case .commandEnd: "Command Finished"
+        case .thinking: "Thinking"
+        case .portDetected: "Port Detected"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .toolStart, .toolEnd: "wrench.and.screwdriver.fill"
+        case .fileChange: "doc.fill"
+        case .commandStart, .commandEnd: "terminal.fill"
+        case .thinking: "brain.head.profile"
+        case .portDetected: "network"
+        }
+    }
+}
+
+enum FileAction: String, Codable, Sendable {
+    case create
+    case edit
+    case delete
+
+    var displayName: String {
+        rawValue.capitalized
+    }
+
+    var systemImage: String {
+        switch self {
+        case .create: "plus.circle.fill"
+        case .edit: "pencil.circle.fill"
+        case .delete: "minus.circle.fill"
+        }
+    }
+}
+
+enum AgentEvent: Identifiable, Sendable {
+    case toolStart(ToolStartEvent)
+    case toolEnd(ToolEndEvent)
+    case fileChange(FileChangeEvent)
+    case commandStart(CommandStartEvent)
+    case commandEnd(CommandEndEvent)
+    case thinking(ThinkingEvent)
+    case portDetected(PortDetectedEvent)
+
+    var id: UUID {
+        switch self {
+        case .toolStart(let e): e.id
+        case .toolEnd(let e): e.id
+        case .fileChange(let e): e.id
+        case .commandStart(let e): e.id
+        case .commandEnd(let e): e.id
+        case .thinking(let e): e.id
+        case .portDetected(let e): e.id
+        }
+    }
+
+    var kind: AgentEventKind {
+        switch self {
+        case .toolStart: .toolStart
+        case .toolEnd: .toolEnd
+        case .fileChange: .fileChange
+        case .commandStart: .commandStart
+        case .commandEnd: .commandEnd
+        case .thinking: .thinking
+        case .portDetected: .portDetected
+        }
+    }
+
+    var timestamp: Date {
+        switch self {
+        case .toolStart(let e): e.timestamp
+        case .toolEnd(let e): e.timestamp
+        case .fileChange(let e): e.timestamp
+        case .commandStart(let e): e.timestamp
+        case .commandEnd(let e): e.timestamp
+        case .thinking(let e): e.timestamp
+        case .portDetected(let e): e.timestamp
+        }
+    }
+}
+
+struct ToolStartEvent: AgentEventProtocol {
+    let id: UUID
+    let kind: AgentEventKind = .toolStart
+    let timestamp: Date
+    let tool: String
+    let toolUseId: String
+    let input: [String: AnyCodableValue]
+}
+
+struct ToolEndEvent: AgentEventProtocol {
+    let id: UUID
+    let kind: AgentEventKind = .toolEnd
+    let timestamp: Date
+    let tool: String
+    let toolUseId: String
+    let result: String?
+    let error: String?
+
+    var isSuccess: Bool { error == nil }
+}
+
+struct FileChangeEvent: AgentEventProtocol {
+    let id: UUID
+    let kind: AgentEventKind = .fileChange
+    let timestamp: Date
+    let path: String
+    let action: FileAction
+    let linesAdded: Int?
+    let linesRemoved: Int?
+
+    var fileName: String {
+        (path as NSString).lastPathComponent
+    }
+
+    var changeDescription: String {
+        var parts: [String] = []
+        if let added = linesAdded, added > 0 {
+            parts.append("+\(added)")
+        }
+        if let removed = linesRemoved, removed > 0 {
+            parts.append("-\(removed)")
+        }
+        return parts.isEmpty ? action.displayName : parts.joined(separator: " ")
+    }
+}
+
+struct CommandStartEvent: AgentEventProtocol {
+    let id: UUID
+    let kind: AgentEventKind = .commandStart
+    let timestamp: Date
+    let command: String
+    let cwd: String?
+}
+
+struct CommandEndEvent: AgentEventProtocol {
+    let id: UUID
+    let kind: AgentEventKind = .commandEnd
+    let timestamp: Date
+    let command: String
+    let exitCode: Int
+    let output: String?
+
+    var isSuccess: Bool { exitCode == 0 }
+}
+
+struct ThinkingEvent: AgentEventProtocol {
+    let id: UUID
+    let kind: AgentEventKind = .thinking
+    let timestamp: Date
+    let content: String
+}
+
+struct PortDetectedEvent: AgentEventProtocol {
+    let id: UUID
+    let kind: AgentEventKind = .portDetected
+    let timestamp: Date
+    let port: Int
+    let process: String?
+    let previewUrl: String?
+}
+
+// MARK: - AnyCodableValue for dynamic JSON
+
+enum AnyCodableValue: Codable, Sendable, CustomStringConvertible {
+    case string(String)
+    case int(Int)
+    case double(Double)
+    case bool(Bool)
+    case array([AnyCodableValue])
+    case dictionary([String: AnyCodableValue])
+    case null
+
+    var description: String {
+        switch self {
+        case .string(let s): return s
+        case .int(let i): return String(i)
+        case .double(let d): return String(d)
+        case .bool(let b): return String(b)
+        case .array(let a): return a.map(\.description).joined(separator: ", ")
+        case .dictionary(let d): return d.map { "\($0): \($1)" }.joined(separator: ", ")
+        case .null: return "null"
+        }
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if container.decodeNil() {
+            self = .null
+        } else if let bool = try? container.decode(Bool.self) {
+            self = .bool(bool)
+        } else if let int = try? container.decode(Int.self) {
+            self = .int(int)
+        } else if let double = try? container.decode(Double.self) {
+            self = .double(double)
+        } else if let string = try? container.decode(String.self) {
+            self = .string(string)
+        } else if let array = try? container.decode([AnyCodableValue].self) {
+            self = .array(array)
+        } else if let dict = try? container.decode([String: AnyCodableValue].self) {
+            self = .dictionary(dict)
+        } else {
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Cannot decode AnyCodableValue")
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .string(let s): try container.encode(s)
+        case .int(let i): try container.encode(i)
+        case .double(let d): try container.encode(d)
+        case .bool(let b): try container.encode(b)
+        case .array(let a): try container.encode(a)
+        case .dictionary(let d): try container.encode(d)
+        case .null: try container.encodeNil()
+        }
+    }
+}
+
+// MARK: - Preview Data
+
+extension AgentEvent {
+    static let previewToolStart = AgentEvent.toolStart(ToolStartEvent(
+        id: UUID(),
+        timestamp: Date(),
+        tool: "Read",
+        toolUseId: "tool_123",
+        input: ["file_path": .string("/src/auth/AuthService.swift")]
+    ))
+
+    static let previewToolEnd = AgentEvent.toolEnd(ToolEndEvent(
+        id: UUID(),
+        timestamp: Date(),
+        tool: "Read",
+        toolUseId: "tool_123",
+        result: "File contents...",
+        error: nil
+    ))
+
+    static let previewFileChange = AgentEvent.fileChange(FileChangeEvent(
+        id: UUID(),
+        timestamp: Date(),
+        path: "/src/auth/AuthService.swift",
+        action: .edit,
+        linesAdded: 25,
+        linesRemoved: 10
+    ))
+
+    static let previewCommandStart = AgentEvent.commandStart(CommandStartEvent(
+        id: UUID(),
+        timestamp: Date(),
+        command: "npm run build",
+        cwd: "/workspace"
+    ))
+
+    static let previewCommandEnd = AgentEvent.commandEnd(CommandEndEvent(
+        id: UUID(),
+        timestamp: Date(),
+        command: "npm run build",
+        exitCode: 0,
+        output: "Build successful!"
+    ))
+
+    static let previewThinking = AgentEvent.thinking(ThinkingEvent(
+        id: UUID(),
+        timestamp: Date(),
+        content: "Analyzing the codebase structure..."
+    ))
+
+    static let previewList: [AgentEvent] = [
+        previewToolStart,
+        previewToolEnd,
+        previewFileChange,
+        previewCommandStart,
+        previewCommandEnd
+    ]
+}
