@@ -1,0 +1,255 @@
+# Kubernetes Infrastructure for Netclode
+
+## Overview
+
+This directory contains Kubernetes manifests for deploying the Netclode agent sandbox infrastructure.
+
+## Kubeconfig Setup
+
+**IMPORTANT:** Always use explicit contexts to avoid deploying to the wrong cluster.
+
+### 1. Copy k3s config from the netclode host
+
+```bash
+# On the netclode host (e.g., via SSH)
+cat /etc/rancher/k3s/k3s.yaml
+
+# Copy the output and save locally, replacing the server address
+# Change: server: https://127.0.0.1:6443
+# To:     server: https://<netclode-host>:6443
+```
+
+### 2. Configure kubeconfig with named contexts
+
+```bash
+# Backup existing config
+cp ~/.kube/config ~/.kube/config.backup
+
+# Create a merged config with explicit contexts
+# Option A: Use KUBECONFIG env var to merge
+export KUBECONFIG=~/.kube/config:~/.kube/netclode.yaml
+kubectl config view --flatten > ~/.kube/config.merged
+mv ~/.kube/config.merged ~/.kube/config
+
+# Option B: Manually add the netclode context
+kubectl config set-cluster netclode --server=https://<netclode-host>:6443 --certificate-authority=...
+kubectl config set-credentials netclode-admin --client-certificate=... --client-key=...
+kubectl config set-context netclode --cluster=netclode --user=netclode-admin
+```
+
+### 3. Rename your current context to 'silo' (or appropriate name)
+
+```bash
+# Check current context name
+kubectl config current-context
+
+# Rename it (e.g., if it's "default")
+kubectl config rename-context default silo
+```
+
+### 4. Disable default context (require explicit --context)
+
+```bash
+# Unset the current context - kubectl will error without --context flag
+kubectl config unset current-context
+```
+
+### 5. Usage
+
+```bash
+# Always specify context explicitly
+kubectl --context=netclode get pods -n netclode
+kubectl --context=silo get pods
+
+# Or set for current shell session only
+export KUBECTL_CONTEXT=netclode
+kubectl get pods -n netclode  # uses $KUBECTL_CONTEXT
+```
+
+## Components
+
+### Agent Sandbox Controller
+
+The agent-sandbox-controller manages Sandbox, SandboxClaim, SandboxTemplate, and SandboxWarmPool CRDs.
+
+**Files:**
+- `extensions.controller.yaml` - StatefulSet for the controller
+- `extensions.yaml` - ClusterRoleBindings
+- `extensions-rbac.generated.yaml` - ClusterRole for extensions controller
+- `rbac.generated.yaml` - ClusterRole for core controller
+
+**Custom Image:**
+We use a custom-built controller image (`ghcr.io/angristan/agent-sandbox-controller:volumeclaim-v7`)
+that includes:
+- volumeClaimTemplates support for SandboxTemplate
+- Fix for PVC explosion bug in warm pools (see below)
+- PVC adoption: when SandboxClaim adopts a warm pool pod, it also adopts its PVCs
+
+### Warm Pool
+
+SandboxWarmPool keeps pre-warmed pods with PVCs ready for instant allocation.
+
+**Files:**
+- `sandbox-warmpool.yaml` - SandboxWarmPool resource
+- `sandbox-template.yaml` - SandboxTemplate with volumeClaimTemplates
+
+### Storage
+
+**Files:**
+- `storage.yaml` - JuiceFS StorageClass
+
+**Requirements:**
+- JuiceFS CSI driver must be installed: `helm install juicefs-csi juicefs/juicefs-csi-driver -n kube-system`
+- `juicefs-secret` must exist in the netclode namespace with valid Redis metadata URL
+
+### Runtime
+
+**Files:**
+- `runtime-class.yaml` - RuntimeClass for Kata Containers (kata-clh)
+
+## Deployment Order
+
+**Always use `--context=netclode`** to ensure you're deploying to the correct cluster.
+
+```bash
+# Set context for all commands (or add --context=netclode to each)
+CTX="--context=netclode"
+
+# 1. Create namespaces
+kubectl $CTX apply -f namespace.yaml
+
+# 2. Install CRDs
+kubectl $CTX apply -f agents.x-k8s.io_sandboxes.yaml
+kubectl $CTX apply -f extensions.agents.x-k8s.io_sandboxclaims.yaml
+kubectl $CTX apply -f extensions.agents.x-k8s.io_sandboxtemplates.yaml
+kubectl $CTX apply -f extensions.agents.x-k8s.io_sandboxwarmpools.yaml
+
+# 3. Install RBAC
+kubectl $CTX apply -f rbac.generated.yaml
+kubectl $CTX apply -f extensions-rbac.generated.yaml
+kubectl $CTX apply -f extensions.yaml
+
+# 4. Install controller
+kubectl $CTX apply -f extensions.controller.yaml
+
+# 5. Install runtime and storage prerequisites
+kubectl $CTX apply -f runtime-class.yaml
+kubectl $CTX apply -f storage.yaml
+
+# 6. Deploy sandbox template and warm pool
+kubectl $CTX apply -f sandbox-template.yaml
+kubectl $CTX apply -f sandbox-warmpool.yaml
+```
+
+## Cleanup
+
+To remove all netclode k8s resources:
+
+```bash
+CTX="--context=netclode"
+
+# Delete namespace (removes controller, serviceaccount, etc.)
+kubectl $CTX delete ns agent-sandbox-system
+
+# Delete CRDs
+kubectl $CTX delete crd sandboxclaims.extensions.agents.x-k8s.io
+kubectl $CTX delete crd sandboxes.agents.x-k8s.io
+kubectl $CTX delete crd sandboxtemplates.extensions.agents.x-k8s.io
+kubectl $CTX delete crd sandboxwarmpools.extensions.agents.x-k8s.io
+
+# Delete ClusterRoles and ClusterRoleBindings
+kubectl $CTX delete clusterrolebinding agent-sandbox-controller agent-sandbox-controller-extensions
+kubectl $CTX delete clusterrole agent-sandbox-controller agent-sandbox-controller-extensions
+
+# Delete RuntimeClass and StorageClass
+kubectl $CTX delete runtimeclass kata-clh
+kubectl $CTX delete sc juicefs-sc
+
+# Delete any orphaned PVs (if PVC explosion occurred)
+kubectl $CTX get pv --no-headers | grep Released | awk '{print $1}' | xargs kubectl $CTX delete pv
+```
+
+## Known Issues and Learnings
+
+### PVC Explosion Bug (Fixed in volumeclaim-v6)
+
+**Problem:** The warm pool controller was creating thousands of PVCs in a loop.
+
+**Root Cause:** The controller watches PVCs it owns (`Owns(&corev1.PersistentVolumeClaim{})`).
+When a PVC is created:
+1. PVC creation triggers a reconcile
+2. The reconcile runs before the pod is created
+3. Reconcile sees 0 pods, thinks it needs to create one
+4. Creates a NEW PVC (with new random suffix) and pod
+5. New PVC triggers another reconcile... infinite loop
+
+**Fix:** Before creating new pods, count owned PVCs and compare to pod count.
+If `ownedPVCs > currentPods`, a creation is in progress - skip creating more.
+
+```go
+// If there are more PVCs than pods, a creation is in progress
+creationInProgress := ownedPVCs > currentReplicas
+if currentReplicas < desiredReplicas && !creationInProgress {
+    // Safe to create new pods
+}
+```
+
+### JuiceFS Configuration
+
+The JuiceFS secret must have a valid `metaurl` pointing to an accessible Redis server.
+`redis://localhost:6379` will NOT work from inside pods.
+
+Example working secret:
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: juicefs-secret
+  namespace: netclode
+stringData:
+  name: netclode-vol
+  metaurl: redis://<redis-host>:6379/0
+  storage: s3
+  bucket: <bucket-url>
+  access-key: <access-key>
+  secret-key: <secret-key>
+```
+
+### Kata Containers
+
+The sandbox pods use `runtimeClassName: kata-clh` for VM-level isolation.
+Ensure Kata Containers is installed on the cluster nodes.
+
+### Warm Pool Pods Stuck in Pending
+
+If warm pool pods stay in Pending state, check:
+
+1. **Insufficient CPU** - Check `kubectl describe node` for allocated resources
+   - JuiceFS mount pods request 1 CPU by default (see `storage.yaml` for fix)
+   - On small nodes, scale down coredns: `kubectl scale deployment coredns -n kube-system --replicas=2`
+
+2. **Unbound PVCs** - The scheduler may fail before PVC is bound
+   - Check PVC status: `kubectl get pvc -n netclode`
+   - If PVC is Bound but pod is Pending, delete pod to trigger reschedule
+
+3. **Orphaned PVCs blocking controller** - If `ownedPVCs > currentPods`, controller thinks creation is in progress
+   - Check controller logs: `kubectl logs -n agent-sandbox-system agent-sandbox-controller-0`
+   - Delete orphaned PVCs: `kubectl delete pvc -n netclode -l agents.x-k8s.io/pool`
+
+4. **JuiceFS delvol jobs consuming CPU** - When PVCs are deleted, JuiceFS creates cleanup jobs
+   - These jobs request 1 CPU each and can exhaust node resources
+   - Clean up stuck jobs: `kubectl get jobs -n kube-system -o name | grep delvol | xargs kubectl delete -n kube-system`
+
+### Small Node Configuration (2 CPU)
+
+On a 2-CPU node, resource management is critical:
+
+```bash
+CTX="--context=netclode"
+
+# Scale down coredns (default 5 replicas is too many)
+kubectl $CTX scale deployment coredns -n kube-system --replicas=2
+
+# Configure JuiceFS mount pods to use less CPU (see storage.yaml for details)
+# Default is 1 CPU per mount pod - with multiple PVCs this exhausts the node
+```

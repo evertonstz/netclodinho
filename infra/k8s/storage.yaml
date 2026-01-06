@@ -1,7 +1,53 @@
 # JuiceFS Storage Configuration
 #
+# Prerequisites:
+# 1. Install JuiceFS CSI driver:
+#    helm repo add juicefs https://juicedata.github.io/charts/
+#    helm install juicefs-csi juicefs/juicefs-csi-driver -n kube-system
+#
+# 2. Configure mount pod resources (IMPORTANT for small nodes):
+#    By default JuiceFS mount pods request 1 CPU each. On a 2-CPU node with
+#    multiple PVCs, this will exhaust all CPU. Apply this ConfigMap to reduce:
+#
+#    kubectl apply -f - <<EOF
+#    apiVersion: v1
+#    kind: ConfigMap
+#    metadata:
+#      name: juicefs-csi-driver-config
+#      namespace: kube-system
+#    data:
+#      config.yaml: |
+#        mountPodPatch:
+#          - resources:
+#              requests:
+#                cpu: 100m
+#                memory: 256Mi
+#          - lifecycle:
+#              preStop:
+#                exec:
+#                  command:
+#                  - sh
+#                  - -c
+#                  - +e
+#                  - umount \${MOUNT_POINT} -l; rmdir \${MOUNT_POINT}; exit 0
+#    EOF
+#
+#    Then restart the CSI controller:
+#    kubectl rollout restart statefulset juicefs-csi-controller -n kube-system
+#
+# 3. Create the juicefs-secret in netclode namespace with:
+#    - name: filesystem name
+#    - metaurl: redis://<host>:6379/0 (MUST be cluster-accessible, NOT localhost)
+#    - storage: s3 (or other object storage type)
+#    - bucket: bucket URL
+#    - access-key: object storage access key
+#    - secret-key: object storage secret key
+#
 # Secret is created by scripts/deploy-secrets.sh
 # Run: ./scripts/deploy-secrets.sh
+#
+# IMPORTANT: The metaurl MUST point to a Redis server accessible from pods.
+# Using redis://localhost:6379 will cause mount failures with "juicefs status timed out"
 #
 ---
 # StorageClass for JuiceFS CSI
