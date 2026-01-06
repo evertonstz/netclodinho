@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSessionStore } from "../stores/sessionStore";
 import { SessionList } from "../components/SessionList";
@@ -11,19 +11,25 @@ import styles from "./SessionsPage.module.css";
 
 export function SessionsPage() {
   const navigate = useNavigate();
-  const { sessions, setSessions, addSession } = useSessionStore();
+  const { sessions, setSessions, addSession, updateSession } = useSessionStore();
   const { send, connected } = useWebSocket();
+  const [creating, setCreating] = useState(false);
 
   const handleMessage = useCallback(
     (msg: ServerMessage) => {
       if (msg.type === "session.list") {
         setSessions(msg.sessions);
       } else if (msg.type === "session.created") {
+        setCreating(false);
         addSession(msg.session);
         navigate(`/session/${msg.session.id}`);
+      } else if (msg.type === "session.updated") {
+        updateSession(msg.session);
+      } else if (msg.type === "session.error") {
+        setCreating(false);
       }
     },
-    [setSessions, addSession, navigate]
+    [setSessions, addSession, updateSession, navigate]
   );
 
   useWebSocketMessages(handleMessage);
@@ -34,7 +40,15 @@ export function SessionsPage() {
     }
   }, [connected, send]);
 
+  useEffect(() => {
+    if (!connected) {
+      setCreating(false);
+    }
+  }, [connected]);
+
   const handleCreateSession = () => {
+    if (!connected || creating) return;
+    setCreating(true);
     send({ type: "session.create" });
   };
 
@@ -54,9 +68,9 @@ export function SessionsPage() {
         <button
           className={styles.createButton}
           onClick={handleCreateSession}
-          disabled={!connected}
+          disabled={!connected || creating}
         >
-          + New Session
+          {creating ? "Creating..." : "+ New Session"}
         </button>
       </main>
     </div>

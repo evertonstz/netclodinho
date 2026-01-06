@@ -1,14 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import type { AgentEvent } from "@netclode/protocol";
+import type { ChatMessage } from "../stores/sessionStore";
 import styles from "./ChatPanel.module.css";
 
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-}
-
 interface ChatPanelProps {
-  messages: Message[];
+  messages: ChatMessage[];
   events: AgentEvent[];
   onSend: (text: string) => void;
   onInterrupt?: () => void;

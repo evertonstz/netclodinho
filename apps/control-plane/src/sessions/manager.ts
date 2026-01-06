@@ -3,7 +3,12 @@
  *
  * Manages Claude Code agent sessions using Kubernetes and agent-sandbox
  */
-import type { Session, SessionCreateRequest, ServerMessage } from "@netclode/protocol";
+import type {
+  AgentEvent,
+  Session,
+  SessionCreateRequest,
+  ServerMessage,
+} from "@netclode/protocol";
 import { KubernetesRuntime } from "../runtime/kubernetes";
 import { config } from "../config";
 
@@ -44,41 +49,9 @@ export class SessionManager {
       messageHandlers: new Set(),
     });
 
-    try {
-      // Create sandbox via Kubernetes
-      console.log(`[${id}] Creating sandbox...`);
-      await runtime.createSandbox({
-        sessionId: id,
-        cpus: config.defaultCpus,
-        memoryMB: config.defaultMemoryMB,
-        env: request.repo ? { GIT_REPO: request.repo } : undefined,
-      });
-
-      // Wait for sandbox to be ready
-      console.log(`[${id}] Waiting for sandbox to be ready...`);
-      const serviceFQDN = await runtime.waitForReady(id, 120000);
-      if (!serviceFQDN) {
-        session.status = "error";
-        throw new Error("Sandbox failed to become ready");
-      }
-
-      // Store agent connection so prompts work immediately
-      const state = this.sessions.get(id)!;
-      state.agent = {
-        serviceFQDN,
-        connected: true,
-        close: () => {
-          if (state.agent) state.agent.connected = false;
-        },
-      };
-
-      session.status = "running";
-      console.log(`[${id}] Session running at ${serviceFQDN}`);
-    } catch (e) {
-      console.error(`[${id}] Failed to create session:`, e);
-      session.status = "error";
-      throw e;
-    }
+    this.startSessionCreation(id, request).catch((error) => {
+      console.error(`[${id}] Failed to create session:`, error);
+    });
 
     return session;
   }
@@ -112,7 +85,17 @@ export class SessionManager {
     let sandboxInfo = await runtime.getSandboxStatus(id);
     let serviceFQDN = sandboxInfo?.serviceFQDN;
 
-    if (!serviceFQDN || sandboxInfo?.status !== "ready") {
+    if (state.session.status === "creating" && sandboxInfo?.status !== "ready") {
+      serviceFQDN = (await runtime.waitForReady(id, 120000)) ?? undefined;
+      if (!serviceFQDN) {
+        state.session.status = "error";
+        this.emitSession(state, {
+          type: "session.updated",
+          session: state.session,
+        });
+        throw new Error("Failed to resume session");
+      }
+    } else if (!serviceFQDN || sandboxInfo?.status !== "ready") {
       // Recreate sandbox
       console.log(`[${id}] Sandbox not running, recreating...`);
 
@@ -130,6 +113,10 @@ export class SessionManager {
       serviceFQDN = (await runtime.waitForReady(id, 120000)) ?? undefined;
       if (!serviceFQDN) {
         state.session.status = "error";
+        this.emitSession(state, {
+          type: "session.updated",
+          session: state.session,
+        });
         throw new Error("Failed to resume session");
       }
     }
@@ -227,6 +214,69 @@ export class SessionManager {
       const decoder = new TextDecoder();
       let buffer = "";
 
+      const emit = (message: ServerMessage) => {
+        for (const handler of state.messageHandlers) {
+          handler(message);
+        }
+      };
+
+      const handleSseData = (data: unknown) => {
+        if (!data || typeof data !== "object") return;
+        const payload = data as {
+          type?: string;
+          content?: unknown;
+          partial?: unknown;
+          event?: unknown;
+          error?: unknown;
+          message?: unknown;
+        };
+
+        switch (payload.type) {
+          case "agent.message": {
+            const content = typeof payload.content === "string" ? payload.content : "";
+            const partial = typeof payload.partial === "boolean" ? payload.partial : undefined;
+            emit({
+              type: "agent.message",
+              sessionId: id,
+              content,
+              ...(partial !== undefined ? { partial } : {}),
+            });
+            return;
+          }
+          case "agent.event": {
+            if (payload.event) {
+              emit({
+                type: "agent.event",
+                sessionId: id,
+                event: payload.event as AgentEvent,
+              });
+            }
+            return;
+          }
+          case "error":
+          case "agent.error": {
+            const errorMessage =
+              typeof payload.error === "string"
+                ? payload.error
+                : typeof payload.message === "string"
+                  ? payload.message
+                  : "Unknown error";
+            emit({
+              type: "agent.error",
+              sessionId: id,
+              error: errorMessage,
+            });
+            return;
+          }
+          case "agent.system":
+          case "agent.result":
+          case "start":
+          case "done":
+          default:
+            return;
+        }
+      };
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -238,34 +288,22 @@ export class SessionManager {
         buffer = lines.pop() || ""; // Keep incomplete line in buffer
 
         for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              for (const handler of state.messageHandlers) {
-                handler({
-                  type: "agent.event",
-                  sessionId: id,
-                  event: data,
-                });
-              }
-            } catch {
-              // Not valid JSON, might be a message
-              for (const handler of state.messageHandlers) {
-                handler({
-                  type: "agent.message",
-                  sessionId: id,
-                  content: line.slice(6),
-                });
-              }
-            }
+          if (!line.startsWith("data: ")) continue;
+          const payload = line.slice(6);
+          try {
+            handleSseData(JSON.parse(payload));
+          } catch {
+            emit({
+              type: "agent.message",
+              sessionId: id,
+              content: payload,
+            });
           }
         }
       }
 
       // Notify completion
-      for (const handler of state.messageHandlers) {
-        handler({ type: "agent.done", sessionId: id });
-      }
+      emit({ type: "agent.done", sessionId: id });
 
       state.session.status = "ready";
     } catch (error) {
@@ -307,6 +345,76 @@ export class SessionManager {
 
     state.messageHandlers.add(handler);
     return () => state.messageHandlers.delete(handler);
+  }
+
+  private emitSession(state: SessionState, message: ServerMessage): void {
+    for (const handler of state.messageHandlers) {
+      handler(message);
+    }
+  }
+
+  private async startSessionCreation(
+    id: string,
+    request: SessionCreateRequest
+  ): Promise<void> {
+    const state = this.sessions.get(id);
+    if (!state) return;
+
+    try {
+      // Create sandbox via Kubernetes
+      console.log(`[${id}] Creating sandbox...`);
+      await runtime.createSandbox({
+        sessionId: id,
+        cpus: config.defaultCpus,
+        memoryMB: config.defaultMemoryMB,
+        env: request.repo ? { GIT_REPO: request.repo } : undefined,
+      });
+
+      // Wait for sandbox to be ready
+      console.log(`[${id}] Waiting for sandbox to be ready...`);
+      const serviceFQDN = await runtime.waitForReady(id, 120000);
+      if (!serviceFQDN) {
+        state.session.status = "error";
+        this.emitSession(state, {
+          type: "session.updated",
+          session: state.session,
+        });
+        this.emitSession(state, {
+          type: "session.error",
+          id,
+          error: "Sandbox failed to become ready",
+        });
+        return;
+      }
+
+      state.agent = {
+        serviceFQDN,
+        connected: true,
+        close: () => {
+          if (state.agent) state.agent.connected = false;
+        },
+      };
+
+      state.session.status = "running";
+      state.session.lastActiveAt = new Date().toISOString();
+      console.log(`[${id}] Session running at ${serviceFQDN}`);
+      this.emitSession(state, {
+        type: "session.updated",
+        session: state.session,
+      });
+    } catch (error) {
+      state.session.status = "error";
+      this.emitSession(state, {
+        type: "session.updated",
+        session: state.session,
+      });
+      this.emitSession(state, {
+        type: "session.error",
+        id,
+        error: error instanceof Error ? error.message : "Failed to create session",
+      });
+      throw error;
+    }
   }
 
   // TODO: Implement snapshots using Kubernetes VolumeSnapshots

@@ -22,7 +22,12 @@ export type ServerMessage =
   | { type: "session.error"; id?: string; error: string }
   | { type: "terminal.output"; sessionId: string; data: string }
   | { type: "agent.event"; sessionId: string; event: AgentEvent }
-  | { type: "agent.message"; sessionId: string; content: string }
+  | {
+      type: "agent.message";
+      sessionId: string;
+      content: string;
+      partial?: boolean;
+    }
   | { type: "agent.done"; sessionId: string }
   | { type: "agent.error"; sessionId: string; error: string }
   | { type: "error"; message: string };
