@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { AgentEvent, Session } from "@netclode/protocol";
+import type { AgentEvent, Session, PersistedMessage, PersistedEvent } from "@netclode/protocol";
 
 export interface ChatMessage {
   role: "user" | "assistant";
@@ -21,6 +21,9 @@ interface SessionStore {
   appendAssistantPartial: (sessionId: string, delta: string) => void;
   appendEvent: (sessionId: string, event: AgentEvent) => void;
   clearEvents: (sessionId: string) => void;
+  // Sync from server
+  setMessages: (sessionId: string, messages: PersistedMessage[]) => void;
+  setEvents: (sessionId: string, events: PersistedEvent[]) => void;
 }
 
 export const useSessionStore = create<SessionStore>()(
@@ -113,6 +116,27 @@ export const useSessionStore = create<SessionStore>()(
           eventsBySession: {
             ...state.eventsBySession,
             [sessionId]: [],
+          },
+        })),
+
+      // Sync from server - replace all messages for a session
+      setMessages: (sessionId, messages) =>
+        set((state) => ({
+          messagesBySession: {
+            ...state.messagesBySession,
+            [sessionId]: messages.map((m) => ({
+              role: m.role,
+              content: m.content,
+            })),
+          },
+        })),
+
+      // Sync from server - replace all events for a session
+      setEvents: (sessionId, events) =>
+        set((state) => ({
+          eventsBySession: {
+            ...state.eventsBySession,
+            [sessionId]: events.map((e) => e.event),
           },
         })),
     }),

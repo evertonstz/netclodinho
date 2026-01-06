@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   useWebSocket,
   useWebSocketMessages,
@@ -14,6 +14,8 @@ export function WorkspacePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [_historyLoaded, setHistoryLoaded] = useState(false);
+  const lastOpenedIdRef = useRef<string | null>(null);
   const {
     sessions,
     updateSession,
@@ -23,6 +25,8 @@ export function WorkspacePage() {
     appendAssistantPartial,
     appendEvent,
     clearEvents,
+    setMessages,
+    setEvents,
   } = useSessionStore();
   const { send, connected } = useWebSocket();
 
@@ -39,6 +43,15 @@ export function WorkspacePage() {
       switch (msg.type) {
         case "session.updated":
           updateSession(msg.session);
+          break;
+        case "session.state":
+          // Server sync response - load history from server
+          if (msg.session.id === id) {
+            updateSession(msg.session);
+            setMessages(msg.session.id, msg.messages);
+            setEvents(msg.session.id, msg.events);
+            setHistoryLoaded(true);
+          }
           break;
         case "agent.message":
           if (msg.sessionId === id) {
@@ -79,14 +92,21 @@ export function WorkspacePage() {
       appendMessage,
       appendAssistantPartial,
       appendEvent,
+      setMessages,
+      setEvents,
     ]
   );
 
   useWebSocketMessages(handleMessage);
 
-  // Resume session when entering workspace
+  // Open session and load history when entering workspace
   useEffect(() => {
-    if (connected && id) {
+    if (connected && id && lastOpenedIdRef.current !== id) {
+      lastOpenedIdRef.current = id;
+      setHistoryLoaded(false);
+      // Send session.open to get history and subscribe
+      send({ type: "session.open", id });
+      // Also resume the session to ensure sandbox is running
       send({ type: "session.resume", id });
     }
   }, [connected, id, send]);
