@@ -14,6 +14,7 @@
 		A10000000000000000000005 /* AgentEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000005 /* AgentEvent.swift */; };
 		A10000000000000000000006 /* ClientMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000006 /* ClientMessage.swift */; };
 		A10000000000000000000007 /* ServerMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000007 /* ServerMessage.swift */; };
+		A10000000000000000000036 /* PersistedMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000036 /* PersistedMessage.swift */; };
 		A10000000000000000000008 /* WebSocketService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000008 /* WebSocketService.swift */; };
 		A10000000000000000000009 /* MessageRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000009 /* MessageRouter.swift */; };
 		A10000000000000000000010 /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000010 /* SessionStore.swift */; };
@@ -51,6 +52,7 @@
 		B10000000000000000000005 /* AgentEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentEvent.swift; sourceTree = "<group>"; };
 		B10000000000000000000006 /* ClientMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientMessage.swift; sourceTree = "<group>"; };
 		B10000000000000000000007 /* ServerMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerMessage.swift; sourceTree = "<group>"; };
+		B10000000000000000000036 /* PersistedMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistedMessage.swift; sourceTree = "<group>"; };
 		B10000000000000000000008 /* WebSocketService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSocketService.swift; sourceTree = "<group>"; };
 		B10000000000000000000009 /* MessageRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageRouter.swift; sourceTree = "<group>"; };
 		B10000000000000000000010 /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
@@ -136,6 +138,7 @@
 				B10000000000000000000005 /* AgentEvent.swift */,
 				B10000000000000000000006 /* ClientMessage.swift */,
 				B10000000000000000000007 /* ServerMessage.swift */,
+				B10000000000000000000036 /* PersistedMessage.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -358,6 +361,7 @@
 				A10000000000000000000005 /* AgentEvent.swift in Sources */,
 				A10000000000000000000006 /* ClientMessage.swift in Sources */,
 				A10000000000000000000007 /* ServerMessage.swift in Sources */,
+				A10000000000000000000036 /* PersistedMessage.swift in Sources */,
 				A10000000000000000000008 /* WebSocketService.swift in Sources */,
 				A10000000000000000000009 /* MessageRouter.swift in Sources */,
 				A10000000000000000000010 /* SessionStore.swift in Sources */,
