@@ -19,8 +19,8 @@ const server = createServer(async (req, res) => {
     for await (const chunk of req) {
       body += chunk;
     }
-    const { text } = JSON.parse(body) as { text: string };
-    console.error(`[prompt] Received: ${text.slice(0, 50)}...`);
+    const { text, sessionId } = JSON.parse(body) as { text: string; sessionId?: string };
+    console.error(`[prompt] Received (session=${sessionId}): ${text.slice(0, 50)}...`);
 
     res.writeHead(200, {
       "Content-Type": "text/event-stream",
@@ -43,6 +43,7 @@ const server = createServer(async (req, res) => {
           model: "claude-opus-4-5-20251101",
           executable: "/nix/var/nix/profiles/default/bin/node",
           persistSession: true,
+          ...(sessionId && { sessionId }),
         },
       });
 
