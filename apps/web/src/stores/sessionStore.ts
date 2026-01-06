@@ -82,7 +82,7 @@ export const useSessionStore = create<SessionStore>()(
         set((state) => {
           const prev = state.messagesBySession[sessionId] ?? [];
           const last = prev[prev.length - 1];
-          const next =
+          const next: ChatMessage[] =
             last?.role === "assistant"
               ? [
                   ...prev.slice(0, -1),
