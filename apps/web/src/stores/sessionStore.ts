@@ -24,7 +24,7 @@ interface SessionStore {
 }
 
 export const useSessionStore = create<SessionStore>()(
-  persist(
+  persist<SessionStore, Pick<SessionStore, "messagesBySession">>(
     (set) => ({
       sessions: [],
       currentSessionId: null,
@@ -118,7 +118,7 @@ export const useSessionStore = create<SessionStore>()(
     }),
     {
       name: "netclode-session-store",
-      partialize: (state): Pick<SessionStore, "messagesBySession"> => ({
+      partialize: (state) => ({
         messagesBySession: state.messagesBySession,
       }),
     }
