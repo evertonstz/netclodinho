@@ -12,7 +12,7 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "control-plane": "bun run --cwd apps/control-plane dev",
-    "agent": "bun run --cwd apps/agent dev",
+    "agent": "npm run --prefix apps/agent dev",
     "web": "bun run --cwd apps/web dev"
   },
   "devDependencies": {

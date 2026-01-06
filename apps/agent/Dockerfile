@@ -19,9 +19,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 ENV PATH="/root/.local/bin:/root/.local/share/mise/shims:${PATH}"
 
-# Install bun and node via mise, set global versions
-RUN mise install bun@latest node@22 && \
-    mise use -g bun@latest node@22 && \
+# Install node via mise
+RUN mise install node@22 && \
+    mise use -g node@22 && \
     mise reshim
 
 # =============================================================================
@@ -31,20 +31,23 @@ FROM base AS builder
 
 WORKDIR /build
 
-COPY package.json bun.lock ./
-COPY packages/protocol/package.json packages/protocol/
-COPY apps/agent/package.json apps/agent/
+# Install esbuild for bundling
+RUN npm install -g esbuild
 
-RUN bun install
-
+# Copy source files
 COPY packages/protocol packages/protocol
 COPY apps/agent apps/agent
 
-# Bundle agent
-RUN cd apps/agent && bun build src/index.ts --target bun --outfile dist/agent.js
+# Install agent dependencies (fresh package.json without workspace protocol)
+WORKDIR /build/apps/agent
+RUN echo '{"type":"module"}' > package.json && \
+    npm install @anthropic-ai/claude-agent-sdk @anthropic-ai/sdk
+
+# Bundle agent (inline local dependencies)
+RUN esbuild src/index.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/agent.js
 
 # Claude CLI
-RUN bun add -g @anthropic-ai/claude-code
+RUN npm install -g @anthropic-ai/claude-code
 
 # =============================================================================
 # Runtime
@@ -63,22 +66,23 @@ RUN mkdir -p /home/agent/.local /home/agent/.config && \
     cp -r /root/.config/mise /home/agent/.config/ 2>/dev/null || true && \
     chown -R agent:agent /home/agent/.local /home/agent/.config
 
-# Copy bundled app
+# Copy bundled app and dependencies
 COPY --from=builder --chown=agent:agent /build/apps/agent/dist/agent.js /opt/agent/
+COPY --from=builder --chown=agent:agent /build/apps/agent/node_modules /opt/agent/node_modules
 
-# Copy claude CLI
-COPY --from=builder --chown=agent:agent /root/.bun/install/global /home/agent/.bun/install/global
-COPY --from=builder --chown=agent:agent /root/.bun/bin /home/agent/.bun/bin
+# Copy global npm modules (claude CLI)
+COPY --from=builder --chown=agent:agent /root/.local/share/mise/installs/node/22/lib/node_modules /home/agent/.local/share/mise/installs/node/22/lib/node_modules
+COPY --from=builder --chown=agent:agent /root/.local/share/mise/installs/node/22/bin /home/agent/.local/share/mise/installs/node/22/bin
 
 USER agent
 WORKDIR /opt/agent
 
 ENV NODE_ENV=production
 ENV WORKSPACE=/workspace
-ENV PATH="/home/agent/.bun/bin:/home/agent/.local/bin:/home/agent/.local/share/mise/shims:${PATH}"
+ENV PATH="/home/agent/.local/share/mise/installs/node/22/bin:/home/agent/.local/bin:/home/agent/.local/share/mise/shims:${PATH}"
 ENV HOME=/home/agent
 ENV MISE_DATA_DIR=/home/agent/.local/share/mise
 
 EXPOSE 3002
 
-CMD ["bun", "run", "agent.js"]
+CMD ["node", "agent.js"]
