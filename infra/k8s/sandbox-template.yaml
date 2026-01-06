@@ -42,10 +42,6 @@ spec:
           volumeMounts:
             - name: workspace
               mountPath: /workspace
-          resources:
-            requests:
-              cpu: "100m"
-              memory: "256Mi"
           readinessProbe:
             httpGet:
               path: /health

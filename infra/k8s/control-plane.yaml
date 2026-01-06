@@ -41,13 +41,6 @@ spec:
                   key: anthropic-api-key
             - name: REDIS_URL
               value: "redis://redis-sessions.netclode.svc.cluster.local:6379"
-          # resources:
-          #   requests:
-          #     cpu: "100m"
-          #     memory: "256Mi"
-          #   limits:
-          #     cpu: "500m"
-          #     memory: "512Mi"
           readinessProbe:
             httpGet:
               path: /health

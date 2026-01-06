@@ -48,13 +48,6 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /data
-          resources:
-            requests:
-              cpu: 50m
-              memory: 64Mi
-            limits:
-              cpu: 200m
-              memory: 256Mi
           livenessProbe:
             exec:
               command: [redis-cli, ping]
