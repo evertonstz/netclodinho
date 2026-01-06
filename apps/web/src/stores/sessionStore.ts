@@ -118,7 +118,7 @@ export const useSessionStore = create<SessionStore>()(
     }),
     {
       name: "netclode-session-store",
-      partialize: (state) => ({
+      partialize: (state): Pick<SessionStore, "messagesBySession"> => ({
         messagesBySession: state.messagesBySession,
       }),
     }
