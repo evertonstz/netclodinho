@@ -12,7 +12,7 @@ function buildSystemPrompt(): { type: "preset"; preset: "claude_code"; append: s
     "",
     "You are running inside an isolated sandbox (Kata Container microVM).",
     `- Working directory: ${workspace}`,
-    "- This directory is persistent across sessions",
+    "- Everything in /workspace persists across sessions (files, Docker images, installed tools)",
     "- You have full shell, network, and Docker access",
     "- It is safe to run any commands - the sandbox is isolated",
     "",

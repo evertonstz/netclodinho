@@ -84,9 +84,22 @@ WORKDIR /opt/agent
 
 ENV NODE_ENV=production
 ENV WORKSPACE=/workspace
-ENV PATH="/home/agent/.local/share/mise/installs/node/22/bin:/home/agent/.local/bin:/home/agent/.local/share/mise/shims:${PATH}"
-ENV HOME=/home/agent
-ENV MISE_DATA_DIR=/home/agent/.local/share/mise
+ENV HOME=/workspace
+
+# Persist all tool data and caches on /workspace (JuiceFS)
+ENV MISE_DATA_DIR=/workspace/.mise
+ENV MISE_CACHE_DIR=/workspace/.cache/mise
+ENV GOPATH=/workspace/.go
+ENV GOMODCACHE=/workspace/.go/pkg/mod
+ENV CARGO_HOME=/workspace/.cargo
+ENV RUSTUP_HOME=/workspace/.rustup
+ENV PIP_CACHE_DIR=/workspace/.cache/pip
+ENV COMPOSER_HOME=/workspace/.composer
+ENV PNPM_HOME=/workspace/.pnpm
+ENV NPM_CONFIG_CACHE=/workspace/.npm
+ENV YARN_CACHE_FOLDER=/workspace/.cache/yarn
+
+ENV PATH="/workspace/.mise/shims:/workspace/.go/bin:/workspace/.cargo/bin:/workspace/.pnpm:/home/agent/.local/share/mise/installs/node/22/bin:/home/agent/.local/bin:/home/agent/.local/share/mise/shims:${PATH}"
 
 EXPOSE 3002
 

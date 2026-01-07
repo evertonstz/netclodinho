@@ -1,9 +1,13 @@
 #!/bin/bash
 set -e
 
-# Start Docker daemon in background with overlay2 storage driver
+# Ensure workspace directories exist and are owned by agent
+mkdir -p /workspace/.docker /workspace/.mise /workspace/.cache /workspace/.local
+chown -R agent:agent /workspace
+
+# Start Docker daemon in background with overlay2, data on JuiceFS
 echo "[entrypoint] Starting Docker daemon..."
-dockerd --storage-driver=overlay2 &
+dockerd --storage-driver=overlay2 --data-root=/workspace/.docker &
 
 # Wait for Docker socket to be ready
 echo "[entrypoint] Waiting for Docker socket..."

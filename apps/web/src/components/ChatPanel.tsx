@@ -170,11 +170,11 @@ function getEventSummary(event: AgentEvent): string {
     case "file_change":
       return `${event.action} ${event.path.split("/").pop()}`;
     case "command_start":
-      return event.command.slice(0, 40) + (event.command.length > 40 ? "..." : "");
+      return (event.command ?? "").slice(0, 40) + ((event.command?.length ?? 0) > 40 ? "..." : "");
     case "command_end":
       return `exit ${event.exitCode}`;
     case "thinking":
-      return event.content.slice(0, 40) + (event.content.length > 40 ? "..." : "");
+      return (event.content ?? "").slice(0, 40) + ((event.content?.length ?? 0) > 40 ? "..." : "");
     case "port_detected":
       return `Port ${event.port}`;
     default:
