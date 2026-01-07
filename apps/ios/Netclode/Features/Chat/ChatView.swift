@@ -4,19 +4,19 @@ import SwiftUI
 
 /// Represents an item in the unified chat timeline
 enum TimelineItem: Identifiable {
-    case message(ChatMessage, isStreaming: Bool)
+    case message(ChatMessage, isStreaming: Bool, turnDuration: TimeInterval?)
     case event(GroupedEvent)
 
     var id: UUID {
         switch self {
-        case .message(let msg, _): return msg.id
+        case .message(let msg, _, _): return msg.id
         case .event(let grouped): return grouped.id
         }
     }
 
     var timestamp: Date {
         switch self {
-        case .message(let msg, _): return msg.timestamp
+        case .message(let msg, _, _): return msg.timestamp
         case .event(let grouped): return grouped.timestamp
         }
     }
@@ -60,10 +60,42 @@ struct ChatView: View {
     var timeline: [TimelineItem] {
         var items: [TimelineItem] = []
 
-        // Add messages
+        // Add messages with turn duration calculation
+        var precedingUserTimestamp: Date?
         for (index, message) in messages.enumerated() {
             let isLastAssistant = message.role == .assistant && index == messages.count - 1
-            items.append(.message(message, isStreaming: isLastAssistant && isProcessing))
+            let isStreaming = isLastAssistant && isProcessing
+
+            var turnDuration: TimeInterval? = nil
+
+            if message.role == .user {
+                precedingUserTimestamp = message.timestamp
+            } else if message.role == .assistant, !isStreaming, let userTime = precedingUserTimestamp {
+                // Find the end of this turn
+                let turnEndTime: Date?
+
+                if index < messages.count - 1 {
+                    // Find next user message to bound this turn
+                    let nextUserTime = messages[(index + 1)...].first { $0.role == .user }?.timestamp
+
+                    if let nextUserTime {
+                        // Find the last event before the next user message
+                        turnEndTime = events.last { $0.timestamp < nextUserTime }?.timestamp
+                    } else {
+                        // No more user messages, use last event
+                        turnEndTime = events.last?.timestamp
+                    }
+                } else {
+                    // Last message - use last event timestamp
+                    turnEndTime = events.last?.timestamp
+                }
+
+                if let endTime = turnEndTime {
+                    turnDuration = endTime.timeIntervalSince(userTime)
+                }
+            }
+
+            items.append(.message(message, isStreaming: isStreaming, turnDuration: turnDuration))
         }
 
         // Add grouped events
@@ -129,8 +161,8 @@ struct ChatView: View {
     @ViewBuilder
     private func timelineItemView(_ item: TimelineItem) -> some View {
         switch item {
-        case .message(let message, let isStreaming):
-            ChatMessageRow(message: message, isStreaming: isStreaming)
+        case .message(let message, let isStreaming, let turnDuration):
+            ChatMessageRow(message: message, isStreaming: isStreaming, turnDuration: turnDuration)
         case .event(let grouped):
             groupedEventView(grouped)
         }

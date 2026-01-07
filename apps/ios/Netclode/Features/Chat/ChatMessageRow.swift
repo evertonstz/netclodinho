@@ -3,22 +3,32 @@ import SwiftUI
 struct ChatMessageRow: View {
     let message: ChatMessage
     var isStreaming: Bool = false
+    var turnDuration: TimeInterval? = nil
 
     var body: some View {
-        HStack(alignment: .top, spacing: Theme.Spacing.sm) {
-            // Content
-            if message.role == .user {
-                Text(message.content)
-                    .font(.netclodeBody)
-                    .foregroundStyle(.primary)
-                    .textSelection(.enabled)
-            } else {
-                MessageContent(content: message.content, isStreaming: isStreaming)
+        VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+            HStack(alignment: .top, spacing: Theme.Spacing.sm) {
+                // Content
+                if message.role == .user {
+                    Text(message.content)
+                        .font(.netclodeBody)
+                        .foregroundStyle(.primary)
+                        .textSelection(.enabled)
+                } else {
+                    MessageContent(content: message.content, isStreaming: isStreaming)
+                }
+
+                if isStreaming {
+                    ProgressView()
+                        .scaleEffect(0.6)
+                }
             }
 
-            if isStreaming {
-                ProgressView()
-                    .scaleEffect(0.6)
+            // Duration indicator for completed assistant messages
+            if message.role == .assistant, !isStreaming, let duration = turnDuration {
+                Text(formatDuration(duration))
+                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.quaternary)
             }
         }
         .padding(Theme.Spacing.sm)
@@ -36,6 +46,18 @@ struct ChatMessageRow: View {
                 : nil,
             alignment: .leading
         )
+    }
+
+    private func formatDuration(_ duration: TimeInterval) -> String {
+        if duration < 1 {
+            return String(format: "%.0fms", duration * 1000)
+        } else if duration < 60 {
+            return String(format: "%.1fs", duration)
+        } else {
+            let minutes = Int(duration) / 60
+            let seconds = Int(duration) % 60
+            return "\(minutes)m \(seconds)s"
+        }
     }
 }
 
