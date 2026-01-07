@@ -8,7 +8,6 @@ A beautiful iOS 26 app for Netclode - your self-hosted Claude Code Cloud platfor
 - **Session Management** - Create, pause, resume, and delete coding sessions
 - **Real-time Chat** - Stream responses from Claude with live updates
 - **Terminal Emulator** - Full terminal access to your sandbox
-- **Events Timeline** - Track agent activity (tool use, file changes, commands)
 - **Configurable Server** - Connect to any Netclode instance on your Tailscale network
 
 ## Requirements
@@ -26,11 +25,10 @@ Netclode/
 ├── Services/               # WebSocket connection & message routing
 ├── Stores/                 # State management (@Observable)
 ├── Features/               # Feature modules
-│   ├── Sessions/           # Session list & creation
-│   ├── Workspace/          # Workspace container
+│   ├── Sessions/           # Session list & prompt sheet
+│   ├── Workspace/          # Workspace container (Chat + Terminal tabs)
 │   ├── Chat/               # Chat interface
 │   ├── Terminal/           # Terminal emulator
-│   ├── Events/             # Events timeline
 │   └── Settings/           # App settings
 ├── Components/             # Reusable UI components
 ├── Design/                 # Theme, colors, animations
@@ -97,7 +95,7 @@ ServerMessage.terminalOutput(sessionId: "id", data: "...")
 ## Configuration
 
 1. Launch the app
-2. Go to Settings tab
+2. Tap the gear icon in the top-right toolbar
 3. Enter your Netclode server URL (e.g., `netclode.your-tailnet.ts.net`)
 4. Tap Connect
 
