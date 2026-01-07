@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     build-essential \
     docker.io \
+    iptables \
     && rm -rf /var/lib/apt/lists/* \
     && curl https://mise.run | sh
 
@@ -75,7 +76,10 @@ COPY --from=builder --chown=agent:agent /build/apps/agent/node_modules /opt/agen
 COPY --from=builder --chown=agent:agent /root/.local/share/mise/installs/node/22/lib/node_modules /home/agent/.local/share/mise/installs/node/22/lib/node_modules
 COPY --from=builder --chown=agent:agent /root/.local/share/mise/installs/node/22/bin /home/agent/.local/share/mise/installs/node/22/bin
 
-USER agent
+# Copy entrypoint script
+COPY apps/agent/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 WORKDIR /opt/agent
 
 ENV NODE_ENV=production
@@ -86,4 +90,5 @@ ENV MISE_DATA_DIR=/home/agent/.local/share/mise
 
 EXPOSE 3002
 
-CMD ["node", "agent.js"]
+# Start as root to run dockerd, then drop to agent user
+ENTRYPOINT ["/entrypoint.sh"]
