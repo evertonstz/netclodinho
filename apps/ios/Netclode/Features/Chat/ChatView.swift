@@ -56,6 +56,7 @@ struct ChatView: View {
                     }
                     .padding()
                 }
+                .scrollDismissesKeyboard(.interactively)
                 .onChange(of: messages.count) {
                     withAnimation(.glassSpring) {
                         proxy.scrollTo("bottom", anchor: .bottom)
