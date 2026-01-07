@@ -28,7 +28,7 @@ struct ChatMessageRow: View {
             if message.role == .assistant, !isStreaming, let duration = turnDuration {
                 Text(formatDuration(duration))
                     .font(.system(size: 10, weight: .medium, design: .monospaced))
-                    .foregroundStyle(.quaternary)
+                    .foregroundStyle(.tertiary)
             }
         }
         .padding(Theme.Spacing.sm)
