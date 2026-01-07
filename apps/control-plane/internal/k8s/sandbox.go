@@ -226,13 +226,19 @@ func (r *k8sRuntime) checkAndNotify(sessionID string, sandbox *Sandbox) {
 		return
 	}
 
-	if sandbox.IsReady() && sandbox.Status.ServiceFQDN != "" {
+	if sandbox.IsReady() {
+		fqdn := sandbox.Status.ServiceFQDN
+		// Construct FQDN if not set (warm pool controller doesn't populate it)
+		if fqdn == "" {
+			fqdn = fmt.Sprintf("%s.%s.svc.cluster.local", sandbox.Name, r.namespace)
+		}
+
 		// Remove callback before invoking to prevent double-call
 		r.callbacksMu.Lock()
 		delete(r.readyCallbacks, sessionID)
 		r.callbacksMu.Unlock()
 
-		callback(sessionID, sandbox.Status.ServiceFQDN, nil)
+		callback(sessionID, fqdn, nil)
 	} else if errMsg := sandbox.GetError(); errMsg != "" {
 		r.callbacksMu.Lock()
 		delete(r.readyCallbacks, sessionID)
@@ -394,8 +400,13 @@ func (r *k8sRuntime) WaitForReady(ctx context.Context, sessionID string, timeout
 	sandbox, exists := r.sandboxCache[sessionID]
 	r.cacheMu.RUnlock()
 
-	if exists && sandbox.IsReady() && sandbox.Status.ServiceFQDN != "" {
-		return sandbox.Status.ServiceFQDN, nil
+	if exists && sandbox.IsReady() {
+		fqdn := sandbox.Status.ServiceFQDN
+		// Construct FQDN if not set (warm pool controller doesn't populate it)
+		if fqdn == "" {
+			fqdn = fmt.Sprintf("%s.%s.svc.cluster.local", sandbox.Name, r.namespace)
+		}
+		return fqdn, nil
 	}
 
 	// Setup callback channel
@@ -443,8 +454,13 @@ func (r *k8sRuntime) WatchSandboxReady(sessionID string, callback SandboxReadyCa
 	sandbox, exists := r.sandboxCache[sessionID]
 	r.cacheMu.RUnlock()
 
-	if exists && sandbox.IsReady() && sandbox.Status.ServiceFQDN != "" {
-		go callback(sessionID, sandbox.Status.ServiceFQDN, nil)
+	if exists && sandbox.IsReady() {
+		fqdn := sandbox.Status.ServiceFQDN
+		// Construct FQDN if not set (warm pool controller doesn't populate it)
+		if fqdn == "" {
+			fqdn = fmt.Sprintf("%s.%s.svc.cluster.local", sandbox.Name, r.namespace)
+		}
+		go callback(sessionID, fqdn, nil)
 		return
 	}
 
