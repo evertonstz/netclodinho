@@ -6,16 +6,12 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "turbo run dev",
-    "build": "turbo run build",
-    "lint": "turbo run lint",
-    "typecheck": "turbo run typecheck",
-    "control-plane-ts": "npm run --prefix apps/control-plane-ts dev",
-    "agent": "npm run --prefix apps/agent dev",
-    "web": "npm run --prefix apps/web dev"
+    "dev:agent": "npm run dev --workspace=@netclode/agent",
+    "dev:web": "npm run dev --workspace=@netclode/web",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "devDependencies": {
-    "turbo": "^2.3.0",
     "typescript": "^5.7.2"
   }
 }
