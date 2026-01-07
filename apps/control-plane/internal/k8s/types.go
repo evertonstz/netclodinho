@@ -1,6 +1,8 @@
 package k8s
 
 import (
+	"strings"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -217,10 +219,18 @@ func (s *Sandbox) IsReady() bool {
 	return false
 }
 
-// GetError returns the error message if not ready
+// GetError returns the error message only for actual failures, not transient states
 func (s *Sandbox) GetError() string {
 	for _, c := range s.Status.Conditions {
 		if c.Type == "Ready" && c.Status == "False" {
+			// Don't treat pending/creating states as errors
+			if c.Reason == "DependenciesPending" || c.Reason == "PodPending" || c.Reason == "Creating" {
+				return ""
+			}
+			// Check if message indicates a transient state
+			if strings.Contains(c.Message, "phase: Pending") || strings.Contains(c.Message, "phase: ContainerCreating") {
+				return ""
+			}
 			return c.Message
 		}
 	}
