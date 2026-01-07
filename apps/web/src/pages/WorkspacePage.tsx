@@ -136,16 +136,23 @@ export function WorkspacePage() {
 
   const getStatusText = () => {
     if (!connected) return "Disconnected";
+    if (!session) return "Connecting";
     if (isProcessing) return "Processing";
-    return session?.status || "Connecting";
+    if (session.status === "creating") return "Starting sandbox...";
+    if (session.status === "ready") return "Ready";
+    if (session.status === "running") return "Running";
+    if (session.status === "error") return "Error";
+    return session.status;
   };
 
   const getStatusColor = () => {
     if (!connected) return "gray";
+    if (!session) return "blue";
     if (isProcessing) return "yellow";
-    if (session?.status === "running") return "green";
-    if (session?.status === "error") return "red";
-    return "blue";
+    if (session.status === "running" || session.status === "ready") return "green";
+    if (session.status === "error") return "red";
+    if (session.status === "creating") return "blue";
+    return "gray";
   };
 
   return (
@@ -181,7 +188,7 @@ export function WorkspacePage() {
                 events={events}
                 onSend={handleSendPrompt}
                 onInterrupt={handleInterrupt}
-                disabled={!connected || session?.status !== "running"}
+                disabled={!connected || (session?.status !== "running" && session?.status !== "ready")}
                 isProcessing={isProcessing}
               />
             </Box>

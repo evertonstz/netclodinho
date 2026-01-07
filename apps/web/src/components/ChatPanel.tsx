@@ -8,7 +8,6 @@ import {
   Group,
   Stack,
   ScrollArea,
-  Collapse,
   Badge,
   Code,
   Loader,
@@ -16,6 +15,7 @@ import {
   useMantineColorScheme,
 } from "@mantine/core";
 import type { AgentEvent } from "@netclode/protocol";
+import { StreamingMarkdown } from "./StreamingMarkdown";
 
 export interface ChatMessage {
   role: "user" | "assistant";
@@ -35,15 +35,22 @@ function EventDetails({ event }: { event: AgentEvent }) {
           </Code>
         </Stack>
       );
+    case "tool_input":
+      return (
+        <Stack gap="xs" p="xs">
+          <Text size="xs" c="dimmed">Streaming input...</Text>
+          <Code block style={{ fontSize: 11, maxHeight: 100, overflow: "auto", opacity: 0.7 }}>
+            {event.inputDelta}
+          </Code>
+        </Stack>
+      );
     case "tool_end":
       return (
         <Stack gap="xs" p="xs">
           {event.result && (
             <>
               <Text size="xs" c="dimmed">Result:</Text>
-              <Code block style={{ fontSize: 11, maxHeight: 200, overflow: "auto" }}>
-                {event.result}
-              </Code>
+              <TerminalOutput content={event.result} maxHeight={200} />
             </>
           )}
           {event.error && (
@@ -59,37 +66,37 @@ function EventDetails({ event }: { event: AgentEvent }) {
     case "file_change":
       return (
         <Stack gap="xs" p="xs">
-          <Group gap="xs">
-            <Text size="xs" c="dimmed">Path:</Text>
-            <Code style={{ fontSize: 11 }}>{event.path}</Code>
+          <Group gap="xs" wrap="nowrap">
+            <Badge
+              size="xs"
+              color={event.action === "create" ? "green" : event.action === "delete" ? "red" : "blue"}
+              variant="light"
+            >
+              {event.action}
+            </Badge>
+            <Code style={{ fontSize: 11, flex: 1 }}>{event.path}</Code>
+            {(event.linesAdded !== undefined || event.linesRemoved !== undefined) && (
+              <Group gap={4}>
+                {event.linesAdded !== undefined && event.linesAdded > 0 && (
+                  <Text size="xs" c="green" fw={500}>+{event.linesAdded}</Text>
+                )}
+                {event.linesRemoved !== undefined && event.linesRemoved > 0 && (
+                  <Text size="xs" c="red" fw={500}>-{event.linesRemoved}</Text>
+                )}
+              </Group>
+            )}
           </Group>
-          <Group gap="xs">
-            <Text size="xs" c="dimmed">Action:</Text>
-            <Text size="xs">{event.action}</Text>
-          </Group>
-          {(event.linesAdded !== undefined || event.linesRemoved !== undefined) && (
-            <Group gap="xs">
-              <Text size="xs" c="dimmed">Changes:</Text>
-              {event.linesAdded !== undefined && (
-                <Text size="xs" c="green">+{event.linesAdded}</Text>
-              )}
-              {event.linesRemoved !== undefined && (
-                <Text size="xs" c="red">-{event.linesRemoved}</Text>
-              )}
-            </Group>
+          {event.diff && (
+            <DiffView diff={event.diff} />
           )}
         </Stack>
       );
     case "command_start":
       return (
         <Stack gap="xs" p="xs">
-          <Text size="xs" c="dimmed">Command:</Text>
-          <Code block style={{ fontSize: 11 }}>{event.command}</Code>
+          <TerminalOutput content={`$ ${event.command}`} maxHeight={60} />
           {event.cwd && (
-            <Group gap="xs">
-              <Text size="xs" c="dimmed">CWD:</Text>
-              <Code style={{ fontSize: 11 }}>{event.cwd}</Code>
-            </Group>
+            <Text size="xs" c="dimmed">in {event.cwd}</Text>
           )}
         </Stack>
       );
@@ -97,25 +104,23 @@ function EventDetails({ event }: { event: AgentEvent }) {
       return (
         <Stack gap="xs" p="xs">
           <Group gap="xs">
-            <Text size="xs" c="dimmed">Exit code:</Text>
-            <Text size="xs" c={event.exitCode === 0 ? "green" : "red"}>
-              {event.exitCode}
-            </Text>
+            <Badge
+              size="xs"
+              color={event.exitCode === 0 ? "green" : "red"}
+              variant="light"
+            >
+              exit {event.exitCode}
+            </Badge>
           </Group>
           {event.output && (
-            <>
-              <Text size="xs" c="dimmed">Output:</Text>
-              <Code block style={{ fontSize: 11, maxHeight: 200, overflow: "auto" }}>
-                {event.output}
-              </Code>
-            </>
+            <TerminalOutput content={event.output} maxHeight={200} />
           )}
         </Stack>
       );
     case "thinking":
       return (
         <Box p="xs">
-          <Text size="xs" c="dimmed" style={{ whiteSpace: "pre-wrap" }}>
+          <Text size="xs" c="dimmed" style={{ whiteSpace: "pre-wrap", fontStyle: "italic" }}>
             {event.content}
           </Text>
         </Box>
@@ -124,22 +129,13 @@ function EventDetails({ event }: { event: AgentEvent }) {
       return (
         <Stack gap="xs" p="xs">
           <Group gap="xs">
-            <Text size="xs" c="dimmed">Port:</Text>
-            <Text size="xs">{event.port}</Text>
+            <Badge size="xs" color="cyan" variant="light">Port {event.port}</Badge>
+            {event.process && <Text size="xs" c="dimmed">{event.process}</Text>}
           </Group>
-          {event.process && (
-            <Group gap="xs">
-              <Text size="xs" c="dimmed">Process:</Text>
-              <Text size="xs">{event.process}</Text>
-            </Group>
-          )}
           {event.previewUrl && (
-            <Group gap="xs">
-              <Text size="xs" c="dimmed">Preview:</Text>
-              <Anchor href={event.previewUrl} target="_blank" size="xs">
-                {event.previewUrl}
-              </Anchor>
-            </Group>
+            <Anchor href={event.previewUrl} target="_blank" size="xs">
+              Open preview
+            </Anchor>
           )}
         </Stack>
       );
@@ -148,39 +144,155 @@ function EventDetails({ event }: { event: AgentEvent }) {
   }
 }
 
-function getEventIcon(kind: AgentEvent["kind"]): string {
-  switch (kind) {
-    case "tool_start": return "🔧";
-    case "tool_end": return "✓";
-    case "file_change": return "📄";
-    case "command_start": return "▶";
-    case "command_end": return "■";
-    case "thinking": return "💭";
-    case "port_detected": return "🌐";
-    default: return "•";
-  }
+// Terminal-style output component
+function TerminalOutput({ content, maxHeight = 200 }: { content: string; maxHeight?: number }) {
+  const { colorScheme } = useMantineColorScheme();
+  const isDark = colorScheme === "dark";
+
+  return (
+    <Box
+      style={{
+        backgroundColor: isDark ? "#1a1b26" : "#f4f4f5",
+        borderRadius: 6,
+        padding: "8px 10px",
+        maxHeight,
+        overflow: "auto",
+        fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+        fontSize: 11,
+        lineHeight: 1.5,
+        whiteSpace: "pre-wrap",
+        wordBreak: "break-all",
+        color: isDark ? "#a9b1d6" : "#3f3f46",
+      }}
+    >
+      {content}
+    </Box>
+  );
 }
 
-function getEventSummary(event: AgentEvent): string {
-  switch (event.kind) {
-    case "tool_start":
-      return event.tool;
-    case "tool_end":
-      return `${event.tool}${event.error ? " (error)" : ""}`;
-    case "file_change":
-      return `${event.action} ${event.path.split("/").pop()}`;
-    case "command_start":
-      return (event.command ?? "").slice(0, 40) + ((event.command?.length ?? 0) > 40 ? "..." : "");
-    case "command_end":
-      return `exit ${event.exitCode}`;
-    case "thinking":
-      return (event.content ?? "").slice(0, 40) + ((event.content?.length ?? 0) > 40 ? "..." : "");
-    case "port_detected":
-      return `Port ${event.port}`;
-    default:
-      return "";
-  }
+// Diff view component for file changes
+function DiffView({ diff }: { diff: string }) {
+  const { colorScheme } = useMantineColorScheme();
+  const isDark = colorScheme === "dark";
+  const lines = diff.split("\n");
+
+  return (
+    <Box
+      style={{
+        backgroundColor: isDark ? "#1a1b26" : "#fafafa",
+        borderRadius: 6,
+        overflow: "auto",
+        maxHeight: 300,
+        fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+        fontSize: 11,
+        lineHeight: 1.6,
+      }}
+    >
+      {lines.map((line, i) => {
+        let bg = "transparent";
+        let color = isDark ? "#a9b1d6" : "#3f3f46";
+
+        if (line.startsWith("+") && !line.startsWith("+++")) {
+          bg = isDark ? "rgba(46, 160, 67, 0.15)" : "rgba(46, 160, 67, 0.1)";
+          color = isDark ? "#7ee787" : "#1a7f37";
+        } else if (line.startsWith("-") && !line.startsWith("---")) {
+          bg = isDark ? "rgba(248, 81, 73, 0.15)" : "rgba(248, 81, 73, 0.1)";
+          color = isDark ? "#f85149" : "#cf222e";
+        } else if (line.startsWith("@@")) {
+          color = isDark ? "#a5d6ff" : "#0969da";
+        }
+
+        return (
+          <Box
+            key={i}
+            style={{
+              backgroundColor: bg,
+              padding: "0 8px",
+              color,
+              whiteSpace: "pre",
+            }}
+          >
+            {line || " "}
+          </Box>
+        );
+      })}
+    </Box>
+  );
 }
+
+// Inline tool event component (Claude Code style) - always shows details
+function InlineToolEvent({ event }: { event: AgentEvent }) {
+  const { colorScheme } = useMantineColorScheme();
+  const isDark = colorScheme === "dark";
+
+  // Skip tool_input events in the main view (too noisy)
+  if (event.kind === "tool_input") return null;
+
+  const getIcon = (): string => {
+    switch (event.kind) {
+      case "tool_start": return "⏳";
+      case "tool_end": return event.error ? "✗" : "✓";
+      case "file_change": return "📄";
+      case "command_start": return "▶";
+      case "command_end": return event.exitCode === 0 ? "✓" : "✗";
+      case "thinking": return "💭";
+      case "port_detected": return "🌐";
+      default: return "•";
+    }
+  };
+
+  const getLabel = (): string => {
+    switch (event.kind) {
+      case "tool_start": return `Using ${event.tool}`;
+      case "tool_end": return `${event.tool}${event.error ? " failed" : ""}`;
+      case "file_change": return `${event.action} ${event.path.split("/").pop()}`;
+      case "command_start": return `Running command`;
+      case "command_end": return `Command ${event.exitCode === 0 ? "completed" : "failed"}`;
+      case "thinking": return "Thinking...";
+      case "port_detected": return `Port ${event.port} opened`;
+      default: return String((event as { kind: string }).kind);
+    }
+  };
+
+  const isInProgress = event.kind === "tool_start" || event.kind === "command_start";
+  const isError = (event.kind === "tool_end" && event.error) ||
+                  (event.kind === "command_end" && event.exitCode !== 0);
+
+  // Determine if this event has details to show
+  const hasDetails = event.kind === "tool_start" ||
+                     event.kind === "tool_end" ||
+                     event.kind === "command_start" ||
+                     event.kind === "command_end" ||
+                     event.kind === "file_change" ||
+                     event.kind === "thinking" ||
+                     event.kind === "port_detected";
+
+  return (
+    <Box
+      style={{
+        marginLeft: 32,
+        borderLeft: `2px solid ${isDark ? "#3b3b4f" : "#e0e0e0"}`,
+        paddingLeft: 12,
+      }}
+    >
+      <Group gap="xs" wrap="nowrap">
+        <Text size="sm" c={isError ? "red" : isInProgress ? "yellow" : "green"}>
+          {getIcon()}
+        </Text>
+        <Text size="xs" fw={500} c={isError ? "red" : "dimmed"}>
+          {getLabel()}
+        </Text>
+        {isInProgress && <Loader size={10} />}
+      </Group>
+      {hasDetails && (
+        <Box mt="xs">
+          <EventDetails event={event} />
+        </Box>
+      )}
+    </Box>
+  );
+}
+
 
 interface ChatPanelProps {
   messages: ChatMessage[];
@@ -200,25 +312,12 @@ export function ChatPanel({
   isProcessing,
 }: ChatPanelProps) {
   const [input, setInput] = useState("");
-  const [expandedEvents, setExpandedEvents] = useState<Set<number>>(new Set());
   const viewport = useRef<HTMLDivElement>(null);
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === "dark";
 
   const userMsgBg = isDark ? "blue.9" : "blue.0";
   const assistantMsgBg = isDark ? "orange.9" : "orange.0";
-
-  const toggleEvent = (index: number) => {
-    setExpandedEvents((prev) => {
-      const next = new Set(prev);
-      if (next.has(index)) {
-        next.delete(index);
-      } else {
-        next.add(index);
-      }
-      return next;
-    });
-  };
 
   useEffect(() => {
     viewport.current?.scrollTo({ top: viewport.current.scrollHeight, behavior: "smooth" });
@@ -242,67 +341,50 @@ export function ChatPanel({
   return (
     <Box h="100%" style={{ display: "flex", flexDirection: "column" }}>
       <ScrollArea flex={1} viewportRef={viewport} p="md">
-        {messages.length === 0 && (
+        {messages.length === 0 && !isProcessing && (
           <Paper p="xl" ta="center" withBorder>
             <Text size="xl" mb="xs">💬</Text>
             <Text c="dimmed">Ask Claude anything...</Text>
           </Paper>
         )}
         <Stack gap="md">
-          {messages.map((msg, i) => (
-            <Group key={i} align="flex-start" gap="sm" wrap="nowrap">
-              <Text size="lg">{msg.role === "user" ? "👤" : "🧠"}</Text>
-              <Box style={{ flex: 1, minWidth: 0 }}>
-                <Text size="xs" fw={500} mb={4}>
-                  {msg.role === "user" ? "You" : "Claude"}
-                </Text>
-                <Paper
-                  p="sm"
-                  bg={msg.role === "user" ? userMsgBg : assistantMsgBg}
-                  radius="md"
-                >
-                  <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
-                    {msg.content}
+          {messages.map((msg, i) => {
+            const isLastAssistant = msg.role === "assistant" && i === messages.length - 1;
+            const isStreaming = isLastAssistant && isProcessing;
+
+            return (
+              <Group key={i} align="flex-start" gap="sm" wrap="nowrap">
+                <Text size="lg">{msg.role === "user" ? "👤" : "🧠"}</Text>
+                <Box style={{ flex: 1, minWidth: 0 }}>
+                  <Text size="xs" fw={500} mb={4}>
+                    {msg.role === "user" ? "You" : "Claude"}
                   </Text>
-                </Paper>
-              </Box>
-            </Group>
-          ))}
-          {events.length > 0 && (
-            <Paper withBorder p="sm">
-              <Group gap="xs" mb="sm">
-                <Text size="sm">⚡</Text>
-                <Text size="sm" fw={500}>Activity ({events.length})</Text>
+                  <Paper
+                    p="sm"
+                    bg={msg.role === "user" ? userMsgBg : assistantMsgBg}
+                    radius="md"
+                  >
+                    {msg.role === "user" ? (
+                      <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
+                        {msg.content}
+                      </Text>
+                    ) : (
+                      <StreamingMarkdown content={msg.content} isStreaming={isStreaming} />
+                    )}
+                  </Paper>
+                </Box>
               </Group>
-              <Stack gap="xs">
-                {events.map((event, i) => {
-                  const isExpanded = expandedEvents.has(i);
-                  return (
-                    <Paper
-                      key={i}
-                      withBorder
-                      p="xs"
-                      style={{ cursor: "pointer" }}
-                      onClick={() => toggleEvent(i)}
-                    >
-                      <Group gap="xs" wrap="nowrap">
-                        <Text size="sm">{getEventIcon(event.kind)}</Text>
-                        <Badge size="xs" variant="light">{event.kind}</Badge>
-                        <Text size="xs" c="dimmed" truncate style={{ flex: 1 }}>
-                          {getEventSummary(event)}
-                        </Text>
-                        <Text size="xs" c="dimmed">{isExpanded ? "▼" : "▶"}</Text>
-                      </Group>
-                      <Collapse in={isExpanded}>
-                        <EventDetails event={event} />
-                      </Collapse>
-                    </Paper>
-                  );
-                })}
-              </Stack>
-            </Paper>
+            );
+          })}
+          {/* Tool events shown inline during/after processing */}
+          {events.length > 0 && (
+            <Stack gap="xs">
+              {events.map((event, i) => (
+                <InlineToolEvent key={i} event={event} />
+              ))}
+            </Stack>
           )}
-          {isProcessing && (
+          {isProcessing && events.length === 0 && (
             <Group align="flex-start" gap="sm">
               <Text size="lg">🧠</Text>
               <Loader size="sm" type="dots" />
