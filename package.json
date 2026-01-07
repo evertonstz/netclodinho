@@ -10,7 +10,7 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
-    "control-plane": "npm run --prefix apps/control-plane dev",
+    "control-plane-ts": "npm run --prefix apps/control-plane-ts dev",
     "agent": "npm run --prefix apps/agent dev",
     "web": "npm run --prefix apps/web dev"
   },
