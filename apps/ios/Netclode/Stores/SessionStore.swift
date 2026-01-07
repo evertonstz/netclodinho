@@ -6,6 +6,7 @@ final class SessionStore: @unchecked Sendable {
     private(set) var currentSessionId: String?
     private(set) var processingSessionIds: Set<String> = []
     private(set) var errorsBySession: [String: String] = [:]
+    private(set) var lastNotificationIds: [String: String] = [:] // sessionId -> Redis Stream ID
 
     var currentSession: Session? {
         guard let id = currentSessionId else { return nil }
@@ -41,6 +42,7 @@ final class SessionStore: @unchecked Sendable {
         }
         processingSessionIds.remove(id)
         errorsBySession.removeValue(forKey: id)
+        lastNotificationIds.removeValue(forKey: id)
     }
 
     func setCurrentSession(id: String?) {
@@ -69,5 +71,15 @@ final class SessionStore: @unchecked Sendable {
 
     func error(for sessionId: String) -> String? {
         errorsBySession[sessionId]
+    }
+
+    // MARK: - Notification Cursor (for reconnection)
+
+    func setLastNotificationId(for sessionId: String, notificationId: String) {
+        lastNotificationIds[sessionId] = notificationId
+    }
+
+    func lastNotificationId(for sessionId: String) -> String? {
+        lastNotificationIds[sessionId]
     }
 }

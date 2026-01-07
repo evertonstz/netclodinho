@@ -44,7 +44,7 @@ func (m *Manager) SendPrompt(ctx context.Context, sessionID, text string) error 
 	}
 
 	// Broadcast user message to all subscribers (for cross-client sync)
-	m.emit(sessionID, protocol.NewUserMessage(sessionID, text))
+	m.emit(ctx, sessionID, protocol.NewUserMessage(sessionID, text))
 
 	// Update session status to running
 	m.updateSessionStatus(ctx, sessionID, protocol.StatusRunning)
@@ -93,12 +93,12 @@ func (m *Manager) callAgentPrompt(ctx context.Context, sessionID, fqdn, text str
 	m.updateSessionStatus(ctx, sessionID, protocol.StatusReady)
 
 	// Emit done
-	m.emit(sessionID, protocol.NewAgentDone(sessionID))
+	m.emit(ctx, sessionID, protocol.NewAgentDone(sessionID))
 }
 
 func (m *Manager) handleAgentError(ctx context.Context, sessionID string, err error) {
 	slog.Error("Agent error", "sessionID", sessionID, "error", err)
-	m.emit(sessionID, protocol.NewAgentError(sessionID, err.Error()))
+	m.emit(ctx, sessionID, protocol.NewAgentError(sessionID, err.Error()))
 	m.updateSessionStatus(ctx, sessionID, protocol.StatusReady)
 }
 
@@ -122,7 +122,7 @@ func (m *Manager) streamSSE(ctx context.Context, sessionID string, body io.Reade
 		var payload map[string]interface{}
 		if err := json.Unmarshal([]byte(data), &payload); err != nil {
 			// If not valid JSON, emit as plain message
-			m.emit(sessionID, protocol.NewAgentMessage(sessionID, data, false, messageID))
+			m.emit(ctx, sessionID, protocol.NewAgentMessage(sessionID, data, false, messageID))
 			continue
 		}
 
@@ -135,14 +135,14 @@ func (m *Manager) streamSSE(ctx context.Context, sessionID string, body io.Reade
 
 			if partial {
 				contentBuilder.WriteString(content)
-				m.emit(sessionID, protocol.NewAgentMessage(sessionID, content, true, messageID))
+				m.emit(ctx, sessionID, protocol.NewAgentMessage(sessionID, content, true, messageID))
 			} else {
 				if content != "" {
 					contentBuilder.Reset()
 					contentBuilder.WriteString(content)
 				}
 				finalContent := contentBuilder.String()
-				m.emit(sessionID, protocol.NewAgentMessage(sessionID, finalContent, false, messageID))
+				m.emit(ctx, sessionID, protocol.NewAgentMessage(sessionID, finalContent, false, messageID))
 
 				// Persist assistant message
 				assistantMsg := &protocol.PersistedMessage{
@@ -180,7 +180,7 @@ func (m *Manager) streamSSE(ctx context.Context, sessionID string, body io.Reade
 				slog.Warn("Failed to persist event", "sessionID", sessionID, "error", err)
 			}
 
-			m.emit(sessionID, protocol.NewAgentEvent(sessionID, &event))
+			m.emit(ctx, sessionID, protocol.NewAgentEvent(sessionID, &event))
 
 		case "error", "agent.error":
 			errMsg, _ := payload["error"].(string)
@@ -188,7 +188,7 @@ func (m *Manager) streamSSE(ctx context.Context, sessionID string, body io.Reade
 				errMsg, _ = payload["message"].(string)
 			}
 			if errMsg != "" {
-				m.emit(sessionID, protocol.NewAgentError(sessionID, errMsg))
+				m.emit(ctx, sessionID, protocol.NewAgentError(sessionID, errMsg))
 			}
 
 		case "agent.system", "agent.result", "start", "done":

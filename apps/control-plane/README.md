@@ -10,6 +10,7 @@ The control plane is the backend for Netclode. It:
 - Creates and monitors Kubernetes Sandbox CRDs via informers
 - Proxies prompts/responses between web clients and agents
 - Persists session state and message history to Redis
+- Provides real-time updates via Redis Streams
 
 ## Architecture
 
@@ -35,7 +36,7 @@ Clients connect via WebSocket and send JSON messages:
 |--------------|-------------|
 | `session.create` | Create new session |
 | `session.list` | List all sessions |
-| `session.open` | Open session with history |
+| `session.open` | Open session with history (supports `lastNotificationId` for reconnection) |
 | `session.resume` | Resume paused session (creates sandbox) |
 | `session.pause` | Pause session (deletes sandbox, keeps data) |
 | `session.delete` | Delete session and all resources |
@@ -65,7 +66,7 @@ Clients connect via WebSocket and send JSON messages:
 
 ## Redis Storage
 
-Redis is used for persistence, not real-time messaging. WebSocket clients receive updates via in-memory channels.
+Redis is used for both persistence and real-time messaging via Redis Streams.
 
 ### Data Model
 
@@ -75,13 +76,27 @@ Redis is used for persistence, not real-time messaging. WebSocket clients receiv
 | `session:{id}` | Hash | Session metadata (name, status, timestamps) |
 | `session:{id}:messages` | List | Conversation history (auto-trimmed to `MAX_MESSAGES_PER_SESSION`) |
 | `session:{id}:events:stream` | Stream | Tool events (auto-trimmed to `MAX_EVENTS_PER_SESSION`) |
+| `session:{id}:notifications` | Stream | Real-time notifications for all session activity |
 
-### Why Redis?
+### Notification Types
 
-- **Persistence**: Sessions survive control-plane restarts
-- **Atomic operations**: Pipelined writes for consistency
-- **Efficient trimming**: Lists and Streams auto-trim old entries
-- **Simple queries**: No need for a full database
+The notifications stream contains all real-time updates:
+
+| Type | Description |
+|------|-------------|
+| `event` | Tool use events (start, input, end) |
+| `message` | Agent messages (partial and complete) |
+| `session_update` | Session status changes |
+| `user_message` | User prompts (for cross-client sync) |
+| `agent_done` | Agent finished processing |
+| `agent_error` | Agent encountered an error |
+
+### Why Redis Streams?
+
+- **No race conditions**: Cursor-based reading guarantees no missed events between history fetch and subscription
+- **Horizontal scaling**: Multiple control-plane replicas share Redis as the message bus
+- **Reconnection resilience**: Clients can resume from their last position after disconnect
+- **Complete replay**: Can replay entire session from any point in the stream
 
 ### Data Flow
 
@@ -90,23 +105,43 @@ Redis is used for persistence, not real-time messaging. WebSocket clients receiv
 │  Web    │◄──────────────────►│ Control Plane │◄──────────────────►│  Agent  │
 │ Client  │                    │               │                    │   Pod   │
 └─────────┘                    └───────┬───────┘                    └─────────┘
-                                       │
-                                       │ Persist
-                                       ▼
-                               ┌───────────────┐
-                               │     Redis     │
-                               │  (sessions,   │
+     ▲                                 │
+     │                                 │ Publish + Persist
+     │                                 ▼
+     │                         ┌───────────────┐
+     │     XREAD BLOCK         │     Redis     │
+     └─────────────────────────│  (sessions,   │
                                │   messages,   │
-                               │    events)    │
+                               │ notifications)│
                                └───────────────┘
 ```
 
 1. Client sends prompt via WebSocket
 2. Control plane persists user message to Redis
-3. Control plane forwards prompt to agent via HTTP
-4. Agent streams SSE events back
-5. Control plane persists assistant messages/events to Redis
-6. Control plane broadcasts to all connected WebSocket clients (in-memory)
+3. Control plane publishes user message to notifications stream
+4. Control plane forwards prompt to agent via HTTP
+5. Agent streams SSE events back
+6. Control plane persists messages/events to Redis
+7. Control plane publishes notifications to Redis Stream
+8. All subscribed WebSocket connections read from Redis Stream via XREAD BLOCK
+
+### Reconnection Handling
+
+Clients can reconnect without losing events:
+
+1. On `session.open`, server returns `lastNotificationId` (Redis Stream ID)
+2. Client stores this ID locally
+3. On reconnect, client sends `lastNotificationId` in `session.open` message
+4. Server subscribes starting from that cursor
+5. Any events that occurred during disconnect are delivered
+
+```json
+// Client reconnects with cursor
+{ "type": "session.open", "id": "abc123", "lastNotificationId": "1234567890-0" }
+
+// Server responds with current state and resumes from cursor
+{ "type": "session.state", "session": {...}, "lastNotificationId": "1234567891-0" }
+```
 
 ## Session Lifecycle
 

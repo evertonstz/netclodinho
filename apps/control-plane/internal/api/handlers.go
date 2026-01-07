@@ -33,7 +33,7 @@ func (c *Connection) HandleMessage(ctx context.Context, msg protocol.ClientMessa
 	case protocol.MsgTypeSync:
 		return c.handleSync(ctx)
 	case protocol.MsgTypeSessionOpen:
-		return c.handleSessionOpen(ctx, msg.ID, msg.LastMessageID)
+		return c.handleSessionOpen(ctx, msg.ID, msg.LastMessageID, msg.LastNotificationID)
 	default:
 		return fmt.Errorf("unknown message type: %s", msg.Type)
 	}
@@ -50,8 +50,9 @@ func (c *Connection) handleSessionCreate(ctx context.Context, name, repo string)
 		return err
 	}
 
-	// Auto-subscribe to agent messages (now uses channels)
-	if err := c.subscribe(session.ID); err != nil {
+	// Auto-subscribe to notifications for this session
+	// Use "$" to only receive new notifications (since there's no history yet)
+	if err := c.subscribe(ctx, session.ID, "$"); err != nil {
 		slog.Warn("Failed to subscribe to new session", "sessionID", session.ID, "error", err)
 	}
 
@@ -81,8 +82,9 @@ func (c *Connection) handleSessionResume(ctx context.Context, id string) error {
 		return err
 	}
 
-	// Auto-subscribe to agent messages
-	if err := c.subscribe(id); err != nil {
+	// Auto-subscribe to notifications
+	// Use "$" for only new notifications (they can get history via session.open)
+	if err := c.subscribe(ctx, id, "$"); err != nil {
 		slog.Warn("Failed to subscribe to resumed session", "sessionID", id, "error", err)
 	}
 
@@ -95,7 +97,7 @@ func (c *Connection) handleSessionPause(ctx context.Context, id string) error {
 		return err
 	}
 
-	// Unsubscribe from agent messages
+	// Unsubscribe from notifications
 	c.unsubscribe(id)
 
 	return c.Send(protocol.NewSessionUpdated(session))
@@ -161,16 +163,29 @@ func (c *Connection) handleSync(ctx context.Context) error {
 	return c.Send(protocol.NewSyncResponse(sessions, time.Now().UTC().Format(time.RFC3339)))
 }
 
-func (c *Connection) handleSessionOpen(ctx context.Context, id string, lastMessageID *string) error {
-	session, messages, events, hasMore, err := c.manager.GetWithHistory(ctx, id, 100)
+func (c *Connection) handleSessionOpen(ctx context.Context, id string, lastMessageID *string, lastNotificationID *string) error {
+	session, messages, events, hasMore, currentNotificationID, err := c.manager.GetWithHistory(ctx, id, 100)
 	if err != nil {
 		return err
 	}
 
-	// Auto-subscribe to agent messages
-	if err := c.subscribe(id); err != nil {
+	// Determine the cursor for subscription
+	// If client provides lastNotificationID, use it (for reconnection)
+	// Otherwise, use the current notification ID from history (for initial load)
+	cursor := currentNotificationID
+	if lastNotificationID != nil && *lastNotificationID != "" {
+		cursor = *lastNotificationID
+	}
+
+	// Subscribe to notifications starting from the cursor
+	// This ensures no gap between history and real-time updates
+	if err := c.subscribe(ctx, id, cursor); err != nil {
 		slog.Warn("Failed to subscribe to opened session", "sessionID", id, "error", err)
 	}
 
-	return c.Send(protocol.NewSessionState(session, messages, events, hasMore))
+	// Include the notification cursor in the response so client can track it
+	response := protocol.NewSessionState(session, messages, events, hasMore)
+	response.LastNotificationID = currentNotificationID
+
+	return c.Send(response)
 }

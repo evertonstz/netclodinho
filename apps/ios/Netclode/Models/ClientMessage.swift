@@ -12,11 +12,11 @@ enum ClientMessage: Encodable, Sendable {
     case terminalResize(sessionId: String, cols: Int, rows: Int)
     // Sync messages
     case sync
-    case sessionOpen(id: String, lastMessageId: String?)
+    case sessionOpen(id: String, lastMessageId: String?, lastNotificationId: String?)
 
     private enum CodingKeys: String, CodingKey {
         case type
-        case name, repo, id, sessionId, text, data, cols, rows, lastMessageId
+        case name, repo, id, sessionId, text, data, cols, rows, lastMessageId, lastNotificationId
     }
 
     func encode(to encoder: Encoder) throws {
@@ -66,10 +66,11 @@ enum ClientMessage: Encodable, Sendable {
         case .sync:
             try container.encode("sync", forKey: .type)
 
-        case .sessionOpen(let id, let lastMessageId):
+        case .sessionOpen(let id, let lastMessageId, let lastNotificationId):
             try container.encode("session.open", forKey: .type)
             try container.encode(id, forKey: .id)
             try container.encodeIfPresent(lastMessageId, forKey: .lastMessageId)
+            try container.encodeIfPresent(lastNotificationId, forKey: .lastNotificationId)
         }
     }
 }

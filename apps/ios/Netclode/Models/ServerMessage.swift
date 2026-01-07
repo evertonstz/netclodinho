@@ -19,7 +19,7 @@ enum ServerMessage: Sendable {
 
     // Sync responses
     case syncResponse(sessions: [SessionWithMeta], serverTime: Date)
-    case sessionState(session: Session, messages: [PersistedMessage], events: [PersistedEvent], hasMore: Bool)
+    case sessionState(session: Session, messages: [PersistedMessage], events: [PersistedEvent], hasMore: Bool, lastNotificationId: String?)
 }
 
 extension ServerMessage: Decodable {
@@ -27,7 +27,7 @@ extension ServerMessage: Decodable {
         case type
         case session, sessions, id, error, message
         case sessionId, content, partial, event, data
-        case serverTime, messages, events, hasMore
+        case serverTime, messages, events, hasMore, lastNotificationId
     }
 
     init(from decoder: Decoder) throws {
@@ -100,7 +100,8 @@ extension ServerMessage: Decodable {
             let messages = try container.decodeIfPresent([PersistedMessage].self, forKey: .messages) ?? []
             let events = try container.decodeIfPresent([PersistedEvent].self, forKey: .events) ?? []
             let hasMore = try container.decodeIfPresent(Bool.self, forKey: .hasMore) ?? false
-            self = .sessionState(session: session, messages: messages, events: events, hasMore: hasMore)
+            let lastNotificationId = try container.decodeIfPresent(String.self, forKey: .lastNotificationId)
+            self = .sessionState(session: session, messages: messages, events: events, hasMore: hasMore, lastNotificationId: lastNotificationId)
 
         default:
             throw DecodingError.dataCorruptedError(

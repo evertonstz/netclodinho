@@ -28,6 +28,15 @@ export function WorkspacePage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [events, setEvents] = useState<AgentEvent[]>([]);
   const { send, connected } = useWebSocket();
+  // Track notification cursor for reconnection resilience
+  const lastNotificationIdRef = useRef<string | undefined>(undefined);
+
+  // Helper to update notification cursor
+  const updateCursor = useCallback((msgId: string | undefined) => {
+    if (msgId) {
+      lastNotificationIdRef.current = msgId;
+    }
+  }, []);
 
   const handleMessage = useCallback(
     (msg: ServerMessage) => {
@@ -35,6 +44,7 @@ export function WorkspacePage() {
         case "session.updated":
           if (msg.session.id === id) {
             setSession(msg.session);
+            updateCursor(msg.id);
           }
           break;
         case "session.state":
@@ -44,10 +54,15 @@ export function WorkspacePage() {
               msg.messages.map((m) => ({ role: m.role, content: m.content }))
             );
             setEvents(msg.events.map((e) => e.event));
+            // Store the notification cursor for reconnection
+            if (msg.lastNotificationId) {
+              lastNotificationIdRef.current = msg.lastNotificationId;
+            }
           }
           break;
         case "agent.message":
           if (msg.sessionId === id) {
+            updateCursor(msg.id);
             if (msg.partial) {
               setMessages((prev) => {
                 const last = prev[prev.length - 1];
@@ -69,16 +84,19 @@ export function WorkspacePage() {
           break;
         case "agent.event":
           if (msg.sessionId === id) {
+            updateCursor(msg.id);
             setEvents((prev) => [...prev, msg.event]);
           }
           break;
         case "agent.done":
           if (msg.sessionId === id) {
+            updateCursor(msg.id);
             setIsProcessing(false);
           }
           break;
         case "agent.error":
           if (msg.sessionId === id) {
+            updateCursor(msg.id);
             setMessages((prev) => [
               ...prev,
               { role: "assistant", content: `Error: ${msg.error}` },
@@ -89,6 +107,7 @@ export function WorkspacePage() {
         case "user.message":
           // User message from another client - add if not duplicate
           if (msg.sessionId === id) {
+            updateCursor(msg.id);
             setMessages((prev) => {
               // Skip if last message is the same (sent by this client)
               const last = prev[prev.length - 1];
@@ -101,19 +120,41 @@ export function WorkspacePage() {
           break;
       }
     },
-    [id]
+    [id, updateCursor]
   );
 
   useWebSocketMessages(handleMessage);
 
+  // Track previous connection state for reconnection detection
+  const prevConnectedRef = useRef(false);
+
   useEffect(() => {
-    if (connected && id && lastOpenedIdRef.current !== id) {
-      lastOpenedIdRef.current = id;
-      setMessages([]);
-      setEvents([]);
-      send({ type: "session.open", id });
-      send({ type: "session.resume", id });
+    const wasDisconnected = !prevConnectedRef.current;
+    const justConnected = connected && wasDisconnected;
+
+    if (connected && id) {
+      const isNewSession = lastOpenedIdRef.current !== id;
+      const isReconnection = justConnected && lastOpenedIdRef.current === id;
+
+      if (isNewSession) {
+        // Opening a different session - clear state and start fresh
+        lastOpenedIdRef.current = id;
+        lastNotificationIdRef.current = undefined;
+        setMessages([]);
+        setEvents([]);
+        send({ type: "session.open", id });
+        send({ type: "session.resume", id });
+      } else if (isReconnection && lastNotificationIdRef.current) {
+        // Reconnecting to same session - use cursor to resume from where we left off
+        send({
+          type: "session.open",
+          id,
+          lastNotificationId: lastNotificationIdRef.current,
+        });
+        send({ type: "session.resume", id });
+      }
     }
+    prevConnectedRef.current = connected;
   }, [connected, id, send]);
 
   const handleSendPrompt = (text: string) => {

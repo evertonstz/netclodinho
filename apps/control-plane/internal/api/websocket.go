@@ -11,14 +11,20 @@ import (
 	"github.com/coder/websocket"
 )
 
+// subscriptionInfo holds a StreamSubscriber and its cancellation function.
+type subscriptionInfo struct {
+	sub    *session.StreamSubscriber
+	cancel context.CancelFunc
+}
+
 // Connection represents a WebSocket connection.
 type Connection struct {
 	ws      *websocket.Conn
 	manager *session.Manager
 	server  *Server
 
-	// Channel-based subscriptions
-	subscriptions map[string]*session.Subscriber // sessionID -> subscriber
+	// Redis Streams-based subscriptions
+	subscriptions map[string]*subscriptionInfo // sessionID -> subscription info
 	subMu         sync.Mutex
 
 	// Global messages channel (session create/delete events)
@@ -35,7 +41,7 @@ func NewConnection(ws *websocket.Conn, manager *session.Manager, server *Server)
 		ws:             ws,
 		manager:        manager,
 		server:         server,
-		subscriptions:  make(map[string]*session.Subscriber),
+		subscriptions:  make(map[string]*subscriptionInfo),
 		globalMessages: make(chan protocol.ServerMessage, 64),
 		done:           make(chan struct{}),
 	}
@@ -109,7 +115,7 @@ func (c *Connection) Send(msg protocol.ServerMessage) error {
 	return c.ws.Write(context.Background(), websocket.MessageText, data)
 }
 
-// Close closes the connection and unsubscribes from all sessions.
+// Close closes the connection and cancels all subscriptions.
 func (c *Connection) Close() {
 	// Signal done
 	select {
@@ -120,47 +126,62 @@ func (c *Connection) Close() {
 		close(c.done)
 	}
 
-	// Unsubscribe from all sessions
+	// Cancel all subscription contexts (which will stop the StreamSubscribers)
 	c.subMu.Lock()
-	for sessionID, sub := range c.subscriptions {
-		c.manager.Unsubscribe(sessionID, sub)
+	for _, info := range c.subscriptions {
+		info.cancel()
 	}
-	c.subscriptions = make(map[string]*session.Subscriber)
+	c.subscriptions = make(map[string]*subscriptionInfo)
 	c.subMu.Unlock()
 
 	c.ws.Close(websocket.StatusNormalClosure, "")
 }
 
 // subscribe adds a subscription for a session and starts forwarding messages.
-func (c *Connection) subscribe(sessionID string) error {
+// lastNotificationID specifies where to start reading from Redis Streams:
+//   - "$" = only new notifications
+//   - "0" = from the beginning
+//   - "<stream-id>" = from after that ID
+func (c *Connection) subscribe(_ context.Context, sessionID string, lastNotificationID string) error {
 	c.subMu.Lock()
 	defer c.subMu.Unlock()
 
-	// Already subscribed
-	if _, ok := c.subscriptions[sessionID]; ok {
-		return nil
+	// If already subscribed, cancel old subscription first
+	if old, ok := c.subscriptions[sessionID]; ok {
+		old.cancel()
+		delete(c.subscriptions, sessionID)
 	}
 
-	sub, err := c.manager.Subscribe(sessionID)
+	// Create a cancellable context for this subscription.
+	// Use context.Background() instead of the HTTP request context because
+	// the subscription should live as long as the WebSocket connection,
+	// not just the individual HTTP request.
+	subCtx, cancel := context.WithCancel(context.Background())
+
+	sub, err := c.manager.Subscribe(subCtx, sessionID, lastNotificationID)
 	if err != nil {
+		cancel()
 		return err
 	}
 
-	c.subscriptions[sessionID] = sub
+	c.subscriptions[sessionID] = &subscriptionInfo{
+		sub:    sub,
+		cancel: cancel,
+	}
 
-	// Start goroutine to forward messages from subscriber channel to WebSocket
+	// Start goroutine to forward messages from StreamSubscriber to WebSocket
 	go c.forwardMessages(sessionID, sub)
 
 	return nil
 }
 
-// forwardMessages reads from the subscriber channel and sends to WebSocket.
-func (c *Connection) forwardMessages(sessionID string, sub *session.Subscriber) {
+// forwardMessages reads from the StreamSubscriber's Messages channel and sends to WebSocket.
+func (c *Connection) forwardMessages(sessionID string, sub *session.StreamSubscriber) {
 	for {
 		select {
-		case msg, ok := <-sub.Send:
+		case msg, ok := <-sub.Messages():
 			if !ok {
-				// Channel closed, subscriber removed
+				// Channel closed, subscriber stopped
 				return
 			}
 			if err := c.Send(msg); err != nil {
@@ -178,8 +199,8 @@ func (c *Connection) unsubscribe(sessionID string) {
 	c.subMu.Lock()
 	defer c.subMu.Unlock()
 
-	if sub, ok := c.subscriptions[sessionID]; ok {
-		c.manager.Unsubscribe(sessionID, sub)
+	if info, ok := c.subscriptions[sessionID]; ok {
+		info.cancel() // Cancel context stops the StreamSubscriber
 		delete(c.subscriptions, sessionID)
 	}
 }

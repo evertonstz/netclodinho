@@ -30,6 +30,12 @@ func eventsStreamKey(id string) string {
 	return "session:" + id + ":events:stream"
 }
 
+// NotificationsStreamKey returns the Redis Stream key for real-time notifications.
+// Exported for use by StreamSubscriber in the session package.
+func NotificationsStreamKey(id string) string {
+	return "session:" + id + ":notifications"
+}
+
 // RedisStorage implements Storage using Redis.
 type RedisStorage struct {
 	client *redis.Client
@@ -174,7 +180,8 @@ func (r *RedisStorage) DeleteSession(ctx context.Context, id string) error {
 	pipe.SRem(ctx, keySessionsAll, id)
 	pipe.Del(ctx, sessionKey(id))
 	pipe.Del(ctx, messagesKey(id))
-	pipe.Del(ctx, eventsStreamKey(id)) // Delete the stream
+	pipe.Del(ctx, eventsStreamKey(id))           // Delete events stream
+	pipe.Del(ctx, NotificationsStreamKey(id))  // Delete notifications stream
 	_, err := pipe.Exec(ctx)
 	return err
 }
@@ -363,6 +370,106 @@ func (r *RedisStorage) GetStreamInfo(ctx context.Context, sessionID string) (len
 	}
 
 	return info.Length, info.FirstEntry.ID, info.LastEntry.ID, nil
+}
+
+// PublishNotification publishes a notification to the session's notification stream.
+// Returns the stream ID of the published notification.
+func (r *RedisStorage) PublishNotification(ctx context.Context, sessionID string, notification *Notification) (string, error) {
+	data, err := json.Marshal(notification)
+	if err != nil {
+		return "", err
+	}
+
+	streamKey := NotificationsStreamKey(sessionID)
+
+	// Add to stream with auto-generated ID
+	id, err := r.client.XAdd(ctx, &redis.XAddArgs{
+		Stream: streamKey,
+		Values: map[string]interface{}{
+			"data": string(data),
+		},
+		// Use MAXLEN ~ to approximately limit stream size
+		// Use a larger limit than events since this includes all updates
+		MaxLen: int64(r.config.MaxMessagesPerSession + r.config.MaxEventsPerSession),
+		Approx: true,
+	}).Result()
+
+	return id, err
+}
+
+// GetNotificationsAfter retrieves notifications after a specific stream ID.
+// If afterID is empty or "0", returns from the beginning. If "$", returns nothing (new only).
+func (r *RedisStorage) GetNotificationsAfter(ctx context.Context, sessionID string, afterID string, limit int) ([]NotificationWithID, error) {
+	streamKey := NotificationsStreamKey(sessionID)
+
+	startID := afterID
+	if startID == "" {
+		startID = "0"
+	} else if startID != "$" && startID != "0" {
+		// Exclude the given ID by using exclusive range
+		startID = "(" + startID
+	}
+
+	// If "$" just return empty - caller wants only new notifications
+	if afterID == "$" {
+		return []NotificationWithID{}, nil
+	}
+
+	messages, err := r.client.XRange(ctx, streamKey, startID, "+").Result()
+	if err != nil {
+		return nil, err
+	}
+
+	// Take only 'limit' entries
+	if len(messages) > limit {
+		messages = messages[:limit]
+	}
+
+	notifications := make([]NotificationWithID, 0, len(messages))
+	for _, msg := range messages {
+		dataStr, ok := msg.Values["data"].(string)
+		if !ok {
+			continue
+		}
+
+		var notification Notification
+		if err := json.Unmarshal([]byte(dataStr), &notification); err != nil {
+			continue
+		}
+
+		notifications = append(notifications, NotificationWithID{
+			ID:           msg.ID,
+			Notification: &notification,
+		})
+	}
+
+	return notifications, nil
+}
+
+// GetLastNotificationID returns the ID of the last notification in a session's stream.
+// Returns "$" if the stream is empty (meaning "only new notifications").
+func (r *RedisStorage) GetLastNotificationID(ctx context.Context, sessionID string) (string, error) {
+	streamKey := NotificationsStreamKey(sessionID)
+
+	// Use XREVRANGE to get just the last entry
+	messages, err := r.client.XRevRange(ctx, streamKey, "+", "-").Result()
+	if err != nil {
+		if err == redis.Nil {
+			return "$", nil
+		}
+		return "", err
+	}
+
+	if len(messages) == 0 {
+		return "$", nil
+	}
+
+	return messages[0].ID, nil
+}
+
+// GetRedisClient returns the underlying Redis client for direct access (used by StreamSubscriber).
+func (r *RedisStorage) GetRedisClient() *redis.Client {
+	return r.client
 }
 
 // ParseRedisURL extracts host from a Redis URL for logging purposes.

@@ -233,9 +233,13 @@ final class WebSocketService: @unchecked Sendable {
     }
 
     /// Open a session and load its history
-    func openSession(id: String, lastMessageId: String? = nil) {
+    /// - Parameters:
+    ///   - id: Session ID to open
+    ///   - lastMessageId: Optional cursor for message history
+    ///   - lastNotificationId: Optional cursor for reconnection (Redis Stream ID)
+    func openSession(id: String, lastMessageId: String? = nil, lastNotificationId: String? = nil) {
         print("[WebSocket] openSession called for \(id), connectionState=\(connectionState)")
-        send(.sessionOpen(id: id, lastMessageId: lastMessageId))
+        send(.sessionOpen(id: id, lastMessageId: lastMessageId, lastNotificationId: lastNotificationId))
         send(.sessionResume(id: id))
     }
 }

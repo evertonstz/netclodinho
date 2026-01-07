@@ -7,6 +7,7 @@ struct WorkspaceView: View {
     @Environment(WebSocketService.self) private var webSocketService
 
     @State private var selectedTab: WorkspaceTab = .chat
+    @State private var hasOpenedSession = false
 
     enum WorkspaceTab: String, CaseIterable {
         case chat = "Chat"
@@ -70,7 +71,21 @@ struct WorkspaceView: View {
             while !webSocketService.connectionState.isConnected {
                 try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
             }
+            // Initial open - no cursor needed
             webSocketService.openSession(id: sessionId)
+            hasOpenedSession = true
+        }
+        .onChange(of: webSocketService.connectionState) { oldState, newState in
+            // Detect reconnection: was disconnected/reconnecting, now connected
+            let wasDisconnected = !oldState.isConnected
+            let isNowConnected = newState.isConnected
+
+            if wasDisconnected && isNowConnected && hasOpenedSession {
+                // Reconnected - re-open session with cursor to resume from where we left off
+                let cursor = sessionStore.lastNotificationId(for: sessionId)
+                print("[WorkspaceView] Reconnected, reopening session with cursor: \(cursor ?? "nil")")
+                webSocketService.openSession(id: sessionId, lastNotificationId: cursor)
+            }
         }
         .onDisappear {
             sessionStore.setCurrentSession(id: nil)

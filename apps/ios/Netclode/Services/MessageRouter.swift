@@ -115,12 +115,16 @@ final class MessageRouter: @unchecked Sendable {
             // Update sessions from server sync
             sessionStore.setSessions(sessions.map { $0.toSession() })
 
-        case .sessionState(let session, let messages, let events, _):
+        case .sessionState(let session, let messages, let events, _, let lastNotificationId):
             // Load session history from server
             print("[MessageRouter] session.state received: \(messages.count) messages, \(events.count) events for session \(session.id)")
             sessionStore.updateSession(session)
             chatStore.loadMessages(sessionId: session.id, messages: messages)
             eventStore.loadEvents(sessionId: session.id, events: events)
+            // Store the notification cursor for reconnection
+            if let notificationId = lastNotificationId {
+                sessionStore.setLastNotificationId(for: session.id, notificationId: notificationId)
+            }
             print("[MessageRouter] Loaded messages and events for session \(session.id)")
         }
     }

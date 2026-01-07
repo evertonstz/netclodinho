@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -162,7 +163,7 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 	if err := m.k8s.CreateSandbox(ctx, sessionID, env); err != nil {
 		slog.Error("Failed to create sandbox", "sessionID", sessionID, "error", err)
 		m.updateSessionStatus(ctx, sessionID, protocol.StatusError)
-		m.emit(sessionID, protocol.NewSessionError(sessionID, err.Error()))
+		m.emit(ctx, sessionID, protocol.NewSessionError(sessionID, err.Error()))
 		return
 	}
 
@@ -177,7 +178,7 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 			slog.Info("Cleaned up sandbox after timeout", "sessionID", sessionID)
 		}
 		m.updateSessionStatus(ctx, sessionID, protocol.StatusError)
-		m.emit(sessionID, protocol.NewSessionError(sessionID, err.Error()))
+		m.emit(ctx, sessionID, protocol.NewSessionError(sessionID, err.Error()))
 		return
 	}
 
@@ -195,7 +196,7 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 
 	// Emit update
 	if session := m.getSession(sessionID); session != nil {
-		m.emit(sessionID, protocol.NewSessionUpdated(session))
+		m.emit(ctx, sessionID, protocol.NewSessionUpdated(session))
 	}
 
 	slog.Info("Session created and running", "sessionID", sessionID, "fqdn", fqdn)
@@ -207,7 +208,7 @@ func (m *Manager) createSandboxViaClaim(ctx context.Context, sessionID string, r
 	if err := m.k8s.CreateSandboxClaim(ctx, sessionID); err != nil {
 		slog.Error("Failed to create sandbox claim", "sessionID", sessionID, "error", err)
 		m.updateSessionStatus(ctx, sessionID, protocol.StatusError)
-		m.emit(sessionID, protocol.NewSessionError(sessionID, err.Error()))
+		m.emit(ctx, sessionID, protocol.NewSessionError(sessionID, err.Error()))
 		return
 	}
 
@@ -222,7 +223,7 @@ func (m *Manager) createSandboxViaClaim(ctx context.Context, sessionID string, r
 			slog.Info("Cleaned up sandbox claim after timeout", "sessionID", sessionID)
 		}
 		m.updateSessionStatus(ctx, sessionID, protocol.StatusError)
-		m.emit(sessionID, protocol.NewSessionError(sessionID, err.Error()))
+		m.emit(ctx, sessionID, protocol.NewSessionError(sessionID, err.Error()))
 		return
 	}
 
@@ -243,7 +244,7 @@ func (m *Manager) createSandboxViaClaim(ctx context.Context, sessionID string, r
 			slog.Error("Failed to cleanup sandbox", "sessionID", sessionID, "error", delErr)
 		}
 		m.updateSessionStatus(ctx, sessionID, protocol.StatusError)
-		m.emit(sessionID, protocol.NewSessionError(sessionID, err.Error()))
+		m.emit(ctx, sessionID, protocol.NewSessionError(sessionID, err.Error()))
 		return
 	}
 
@@ -270,7 +271,7 @@ func (m *Manager) createSandboxViaClaim(ctx context.Context, sessionID string, r
 				slog.Info("Cleaned up sandbox after timeout", "sessionID", sessionID)
 			}
 			m.updateSessionStatus(ctx, sessionID, protocol.StatusError)
-			m.emit(sessionID, protocol.NewSessionError(sessionID, err.Error()))
+			m.emit(ctx, sessionID, protocol.NewSessionError(sessionID, err.Error()))
 			return
 		}
 	}
@@ -289,7 +290,7 @@ func (m *Manager) createSandboxViaClaim(ctx context.Context, sessionID string, r
 
 	// Emit update
 	if session := m.getSession(sessionID); session != nil {
-		m.emit(sessionID, protocol.NewSessionUpdated(session))
+		m.emit(ctx, sessionID, protocol.NewSessionUpdated(session))
 	}
 
 	slog.Info("Session created via warm pool", "sessionID", sessionID, "fqdn", fqdn)
@@ -305,7 +306,7 @@ func (m *Manager) updateSessionStatus(ctx context.Context, sessionID string, sta
 	_ = m.storage.UpdateSessionStatus(ctx, sessionID, status)
 
 	if session := m.getSession(sessionID); session != nil {
-		m.emit(sessionID, protocol.NewSessionUpdated(session))
+		m.emit(ctx, sessionID, protocol.NewSessionUpdated(session))
 	}
 }
 
@@ -315,7 +316,7 @@ func (m *Manager) waitForSandbox(ctx context.Context, sessionID string) {
 	if err != nil {
 		slog.Error("Sandbox failed to become ready", "sessionID", sessionID, "error", err)
 		m.updateSessionStatus(ctx, sessionID, protocol.StatusError)
-		m.emit(sessionID, protocol.NewSessionError(sessionID, err.Error()))
+		m.emit(ctx, sessionID, protocol.NewSessionError(sessionID, err.Error()))
 		return
 	}
 
@@ -333,7 +334,7 @@ func (m *Manager) waitForSandbox(ctx context.Context, sessionID string) {
 
 	// Emit update
 	if session := m.getSession(sessionID); session != nil {
-		m.emit(sessionID, protocol.NewSessionUpdated(session))
+		m.emit(ctx, sessionID, protocol.NewSessionUpdated(session))
 	}
 
 	slog.Info("Sandbox ready", "sessionID", sessionID, "fqdn", fqdn)
@@ -503,20 +504,29 @@ func (m *Manager) Get(ctx context.Context, id string) (*protocol.Session, error)
 }
 
 // GetWithHistory returns a session with its message and event history.
-func (m *Manager) GetWithHistory(ctx context.Context, id string, messageLimit int) (*protocol.Session, []protocol.PersistedMessage, []protocol.PersistedEvent, bool, error) {
+// Also returns the lastNotificationID for cursor-based subscription.
+func (m *Manager) GetWithHistory(ctx context.Context, id string, messageLimit int) (*protocol.Session, []protocol.PersistedMessage, []protocol.PersistedEvent, bool, string, error) {
 	session, err := m.Get(ctx, id)
 	if err != nil {
-		return nil, nil, nil, false, err
+		return nil, nil, nil, false, "", err
 	}
 
 	messages, err := m.storage.GetMessages(ctx, id, nil)
 	if err != nil {
-		return nil, nil, nil, false, fmt.Errorf("get messages: %w", err)
+		return nil, nil, nil, false, "", fmt.Errorf("get messages: %w", err)
 	}
 
 	events, err := m.storage.GetEvents(ctx, id, m.config.MaxEventsPerSession)
 	if err != nil {
-		return nil, nil, nil, false, fmt.Errorf("get events: %w", err)
+		return nil, nil, nil, false, "", fmt.Errorf("get events: %w", err)
+	}
+
+	// Get the latest notification ID for cursor-based subscription
+	// This allows the client to subscribe starting from where the history ends
+	lastNotificationID, err := m.storage.GetLastNotificationID(ctx, id)
+	if err != nil {
+		slog.Warn("Failed to get last notification ID, using $", "sessionID", id, "error", err)
+		lastNotificationID = "$" // Default to "only new" if error
 	}
 
 	// Convert to value slices
@@ -532,7 +542,7 @@ func (m *Manager) GetWithHistory(ctx context.Context, id string, messageLimit in
 
 	hasMore := len(messages) >= messageLimit
 
-	return session, msgSlice, evtSlice, hasMore, nil
+	return session, msgSlice, evtSlice, hasMore, lastNotificationID, nil
 }
 
 // GetAllWithMeta returns all sessions with metadata.
@@ -577,22 +587,24 @@ func (m *Manager) getState(id string) *SessionState {
 	return m.sessions[id]
 }
 
-// Subscribe returns a subscriber for a session.
-// The subscriber's Send channel receives messages broadcast to the session.
-func (m *Manager) Subscribe(id string) (*Subscriber, error) {
+// Subscribe creates a StreamSubscriber for a session.
+// lastNotificationID specifies where to start reading:
+//   - "$" = only new notifications
+//   - "0" = from the beginning of the stream
+//   - "<stream-id>" = from after the given ID (exclusive)
+//
+// The subscriber reads from Redis Streams and is closed when ctx is cancelled.
+func (m *Manager) Subscribe(ctx context.Context, id string, lastNotificationID string) (*StreamSubscriber, error) {
 	state := m.getState(id)
 	if state == nil {
 		return nil, fmt.Errorf("session %s not found", id)
 	}
-	return state.Subscribe(), nil
-}
 
-// Unsubscribe removes a subscriber from a session.
-func (m *Manager) Unsubscribe(id string, sub *Subscriber) {
-	state := m.getState(id)
-	if state != nil {
-		state.Unsubscribe(sub)
-	}
+	client := m.storage.GetRedisClient()
+	sub := NewStreamSubscriber(id, lastNotificationID, client)
+	go sub.Run(ctx)
+
+	return sub, nil
 }
 
 // GetSessionConfig returns session configuration for the agent.
@@ -618,10 +630,104 @@ func (m *Manager) GetSessionConfig(ctx context.Context, sessionID string) (map[s
 	return config, nil
 }
 
-// emit sends a message to all subscribers of a session.
-func (m *Manager) emit(id string, msg protocol.ServerMessage) {
-	state := m.getState(id)
-	if state != nil {
-		state.Broadcast(msg)
+// publishNotification publishes a notification to Redis Streams.
+// All StreamSubscribers reading from this session's stream will receive it.
+func (m *Manager) publishNotification(ctx context.Context, sessionID string, notification *storage.Notification) {
+	if _, err := m.storage.PublishNotification(ctx, sessionID, notification); err != nil {
+		slog.Warn("Failed to publish notification", "sessionID", sessionID, "type", notification.Type, "error", err)
+	}
+}
+
+// emit is a helper to convert a ServerMessage to a Notification and publish it.
+// This maintains the existing API while using Redis Streams underneath.
+func (m *Manager) emit(ctx context.Context, sessionID string, msg protocol.ServerMessage) {
+	notification := serverMessageToNotification(sessionID, msg)
+	if notification != nil {
+		m.publishNotification(ctx, sessionID, notification)
+	}
+}
+
+// serverMessageToNotification converts a protocol.ServerMessage to a storage.Notification.
+func serverMessageToNotification(sessionID string, msg protocol.ServerMessage) *storage.Notification {
+	timestamp := time.Now().UTC().Format(time.RFC3339)
+
+	switch msg.Type {
+	case protocol.MsgTypeAgentEvent:
+		if msg.Event == nil {
+			return nil
+		}
+		payload, _ := json.Marshal(msg.Event)
+		return &storage.Notification{
+			Type:      "event",
+			Payload:   payload,
+			Timestamp: timestamp,
+		}
+
+	case protocol.MsgTypeAgentMessage:
+		payload, _ := json.Marshal(map[string]interface{}{
+			"id":        msg.MessageID,
+			"sessionId": sessionID,
+			"role":      "assistant",
+			"content":   msg.Content,
+			"partial":   msg.Partial,
+		})
+		return &storage.Notification{
+			Type:      "message",
+			Payload:   payload,
+			Timestamp: timestamp,
+		}
+
+	case protocol.MsgTypeSessionUpdated:
+		if msg.Session == nil {
+			return nil
+		}
+		payload, _ := json.Marshal(msg.Session)
+		return &storage.Notification{
+			Type:      "session_update",
+			Payload:   payload,
+			Timestamp: timestamp,
+		}
+
+	case protocol.MsgTypeUserMessage:
+		payload, _ := json.Marshal(map[string]string{
+			"text":      msg.Content,
+			"sessionId": sessionID,
+		})
+		return &storage.Notification{
+			Type:      "user_message",
+			Payload:   payload,
+			Timestamp: timestamp,
+		}
+
+	case protocol.MsgTypeAgentDone:
+		return &storage.Notification{
+			Type:      "agent_done",
+			Payload:   json.RawMessage(`{}`),
+			Timestamp: timestamp,
+		}
+
+	case protocol.MsgTypeAgentError:
+		payload, _ := json.Marshal(map[string]string{
+			"error": msg.Error,
+		})
+		return &storage.Notification{
+			Type:      "agent_error",
+			Payload:   payload,
+			Timestamp: timestamp,
+		}
+
+	case protocol.MsgTypeSessionError:
+		payload, _ := json.Marshal(map[string]string{
+			"error":     msg.Error,
+			"sessionId": msg.ID,
+		})
+		return &storage.Notification{
+			Type:      "session_error",
+			Payload:   payload,
+			Timestamp: timestamp,
+		}
+
+	default:
+		return nil
 	}
 }

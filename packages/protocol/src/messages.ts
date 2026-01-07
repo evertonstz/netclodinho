@@ -15,27 +15,29 @@ export type ClientMessage =
   | { type: "terminal.resize"; sessionId: string; cols: number; rows: number }
   // Sync messages
   | { type: "sync" }
-  | { type: "session.open"; id: string; lastMessageId?: string };
+  | { type: "session.open"; id: string; lastMessageId?: string; lastNotificationId?: string };
 
 // Server -> Client messages
+// Note: Messages from Redis Streams notifications include `id` (the stream ID) for cursor tracking
 export type ServerMessage =
   | { type: "session.created"; session: Session }
-  | { type: "session.updated"; session: Session }
+  | { type: "session.updated"; session: Session; id?: string }
   | { type: "session.deleted"; id: string }
   | { type: "session.list"; sessions: Session[] }
   | { type: "session.error"; id?: string; error: string }
   | { type: "terminal.output"; sessionId: string; data: string }
-  | { type: "agent.event"; sessionId: string; event: AgentEvent }
+  | { type: "agent.event"; sessionId: string; event: AgentEvent; id?: string }
   | {
       type: "agent.message";
       sessionId: string;
       content: string;
       partial?: boolean;
       messageId?: string;
+      id?: string; // Redis Stream ID for cursor tracking
     }
-  | { type: "agent.done"; sessionId: string }
-  | { type: "agent.error"; sessionId: string; error: string }
-  | { type: "user.message"; sessionId: string; content: string }
+  | { type: "agent.done"; sessionId: string; id?: string }
+  | { type: "agent.error"; sessionId: string; error: string; id?: string }
+  | { type: "user.message"; sessionId: string; content: string; id?: string }
   | { type: "error"; message: string }
   // Sync responses
   | { type: "sync.response"; sessions: SessionWithMeta[]; serverTime: string }
@@ -45,6 +47,7 @@ export type ServerMessage =
       messages: PersistedMessage[];
       events: PersistedEvent[];
       hasMore: boolean;
+      lastNotificationId?: string;
     };
 
 export type WSMessage = ClientMessage | ServerMessage;

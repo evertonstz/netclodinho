@@ -5,16 +5,17 @@ import "encoding/json"
 // ClientMessage represents all possible client-to-server messages.
 // The Type field determines which other fields are relevant.
 type ClientMessage struct {
-	Type          string  `json:"type"`
-	ID            string  `json:"id,omitempty"`
-	SessionID     string  `json:"sessionId,omitempty"`
-	Name          string  `json:"name,omitempty"`
-	Repo          string  `json:"repo,omitempty"`
-	Text          string  `json:"text,omitempty"`
-	Data          string  `json:"data,omitempty"`
-	Cols          int     `json:"cols,omitempty"`
-	Rows          int     `json:"rows,omitempty"`
-	LastMessageID *string `json:"lastMessageId,omitempty"`
+	Type               string  `json:"type"`
+	ID                 string  `json:"id,omitempty"`
+	SessionID          string  `json:"sessionId,omitempty"`
+	Name               string  `json:"name,omitempty"`
+	Repo               string  `json:"repo,omitempty"`
+	Text               string  `json:"text,omitempty"`
+	Data               string  `json:"data,omitempty"`
+	Cols               int     `json:"cols,omitempty"`
+	Rows               int     `json:"rows,omitempty"`
+	LastMessageID      *string `json:"lastMessageId,omitempty"`
+	LastNotificationID *string `json:"lastNotificationId,omitempty"` // For cursor-based reconnection
 }
 
 // Client message types
@@ -53,6 +54,9 @@ type ServerMessage struct {
 
 	// For sync.response with SessionWithMeta
 	SessionsWithMeta []SessionWithMeta `json:"sessionsWithMeta,omitempty"`
+
+	// For cursor-based subscription - Redis Stream ID for reconnection
+	LastNotificationID string `json:"lastNotificationId,omitempty"`
 }
 
 // Server message types
