@@ -108,12 +108,14 @@ function handleMessage(msg: ServerMessage) {
 
     case "agent.event":
       const evt = msg.event;
-      if (evt.type === "tool_call") {
+      if (evt.kind === "tool_start") {
         console.log(`\n[TOOL] ${evt.tool}: ${JSON.stringify(evt.input || {}).slice(0, 100)}...`);
-      } else if (evt.type === "tool_result") {
-        console.log(`[TOOL RESULT] ${(evt.content || "").slice(0, 100)}...`);
+      } else if (evt.kind === "tool_end") {
+        console.log(`[TOOL RESULT] ${(evt.result || evt.error || "").slice(0, 100)}...`);
+      } else if (evt.kind === "tool_input") {
+        // Streaming tool input - skip noisy output
       } else {
-        console.log(`\n[EVENT] ${JSON.stringify(evt).slice(0, 150)}...`);
+        console.log(`\n[EVENT] ${evt.kind}: ${JSON.stringify(evt).slice(0, 150)}...`);
       }
       break;
 
