@@ -349,13 +349,12 @@ func (r *k8sRuntime) buildSandboxManifest(sessionID string) *Sandbox {
 							},
 							Env: []EnvVar{
 								{Name: "NODE_ENV", Value: "production"},
-								{Name: "WORKSPACE", Value: "/workspace"},
 							},
 							EnvFrom: []EnvFromSource{
 								{SecretRef: &SecretRef{Name: secretName(sessionID)}},
 							},
 							VolumeMounts: []VolumeMount{
-								{Name: "workspace", MountPath: "/workspace"},
+								{Name: "agent-home", MountPath: "/agent"},
 							},
 							ReadinessProbe: &Probe{
 								HTTPGet: &HTTPGetAction{
@@ -372,7 +371,7 @@ func (r *k8sRuntime) buildSandboxManifest(sessionID string) *Sandbox {
 			VolumeClaimTemplates: []PVCTemplate{
 				{
 					Metadata: metav1.ObjectMeta{
-						Name: "workspace",
+						Name: "agent-home",
 						Labels: map[string]string{
 							"netclode.io/session": sessionID,
 						},

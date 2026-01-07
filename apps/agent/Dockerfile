@@ -57,24 +57,25 @@ RUN npm install -g @anthropic-ai/claude-code
 FROM base AS runtime
 
 # Create non-root user with docker access
-RUN useradd -m -u 1000 -G docker agent && \
-    mkdir -p /workspace /opt/agent && \
-    chown -R agent:agent /workspace /opt/agent
+# Note: /agent is the persistent home dir, mounted from JuiceFS
+RUN useradd -m -u 1000 -G docker -d /agent agent && \
+    mkdir -p /agent /opt/agent && \
+    chown -R agent:agent /agent /opt/agent
 
 # Copy mise for agent user (including config)
-RUN mkdir -p /home/agent/.local /home/agent/.config && \
-    cp -r /root/.local/bin /home/agent/.local/ && \
-    cp -r /root/.local/share /home/agent/.local/ && \
-    cp -r /root/.config/mise /home/agent/.config/ 2>/dev/null || true && \
-    chown -R agent:agent /home/agent/.local /home/agent/.config
+RUN mkdir -p /agent/.local /agent/.config && \
+    cp -r /root/.local/bin /agent/.local/ && \
+    cp -r /root/.local/share /agent/.local/ && \
+    cp -r /root/.config/mise /agent/.config/ 2>/dev/null || true && \
+    chown -R agent:agent /agent/.local /agent/.config
 
 # Copy bundled app and dependencies
 COPY --from=builder --chown=agent:agent /build/apps/agent/dist/agent.js /opt/agent/
 COPY --from=builder --chown=agent:agent /build/apps/agent/node_modules /opt/agent/node_modules
 
 # Copy global npm modules (claude CLI)
-COPY --from=builder --chown=agent:agent /root/.local/share/mise/installs/node/22/lib/node_modules /home/agent/.local/share/mise/installs/node/22/lib/node_modules
-COPY --from=builder --chown=agent:agent /root/.local/share/mise/installs/node/22/bin /home/agent/.local/share/mise/installs/node/22/bin
+COPY --from=builder --chown=agent:agent /root/.local/share/mise/installs/node/22/lib/node_modules /agent/.local/share/mise/installs/node/22/lib/node_modules
+COPY --from=builder --chown=agent:agent /root/.local/share/mise/installs/node/22/bin /agent/.local/share/mise/installs/node/22/bin
 
 # Copy entrypoint script
 COPY apps/agent/entrypoint.sh /entrypoint.sh
@@ -83,23 +84,8 @@ RUN chmod +x /entrypoint.sh
 WORKDIR /opt/agent
 
 ENV NODE_ENV=production
-ENV WORKSPACE=/workspace
-ENV HOME=/workspace
-
-# Persist all tool data and caches on /workspace (JuiceFS)
-ENV MISE_DATA_DIR=/workspace/.mise
-ENV MISE_CACHE_DIR=/workspace/.cache/mise
-ENV GOPATH=/workspace/.go
-ENV GOMODCACHE=/workspace/.go/pkg/mod
-ENV CARGO_HOME=/workspace/.cargo
-ENV RUSTUP_HOME=/workspace/.rustup
-ENV PIP_CACHE_DIR=/workspace/.cache/pip
-ENV COMPOSER_HOME=/workspace/.composer
-ENV PNPM_HOME=/workspace/.pnpm
-ENV NPM_CONFIG_CACHE=/workspace/.npm
-ENV YARN_CACHE_FOLDER=/workspace/.cache/yarn
-
-ENV PATH="/workspace/.mise/shims:/workspace/.go/bin:/workspace/.cargo/bin:/workspace/.pnpm:/home/agent/.local/share/mise/installs/node/22/bin:/home/agent/.local/bin:/home/agent/.local/share/mise/shims:${PATH}"
+ENV HOME=/agent
+ENV PATH="/agent/.local/share/mise/shims:/agent/.local/bin:/agent/.local/share/mise/installs/node/22/bin:${PATH}"
 
 EXPOSE 3002
 

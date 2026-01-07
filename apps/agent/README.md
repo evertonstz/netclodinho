@@ -28,7 +28,7 @@ Environment variables (injected via k8s Secret):
 |----------|-------------|
 | `ANTHROPIC_API_KEY` | Anthropic API key |
 | `SESSION_ID` | Current session ID |
-| `WORKSPACE` | Workspace path (default: `/workspace`) |
+| `GIT_REPO` | (Optional) Git repo URL to clone into workspace |
 
 ## API
 
@@ -129,22 +129,35 @@ const hooks = {
 
 When running inside a Kata Container VM:
 
-- `/workspace` - Mounted from JuiceFS PVC (session's workspace)
-- `/opt/agent` - Agent code
+- `/agent` - Home directory (JuiceFS PVC, persistent)
+  - `/agent/workspace` - User's code/projects (cwd for Claude)
+  - `/agent/docker` - Docker data
+  - `/agent/.local/share/mise` - Installed tools via mise
+  - `/agent/.cache` - Package manager caches
+- `/opt/agent` - Agent code (read-only)
 - Docker available for container workloads
-- Nix available for dynamic dependencies
+- mise for installing language runtimes (Node, Python, Go, Rust, etc.)
 - Internet access (no internal network access)
 
 ### Installing Dependencies
 
-The agent can install dependencies dynamically:
+The agent can install tools via mise (persistent across sessions):
 
 ```bash
-# Via nix-shell
-nix-shell -p python311 --run "python script.py"
+# Install and activate Node.js
+mise use node@22
 
-# Via Docker
-docker run -v /workspace:/app node:20 npm install
+# Install Python
+mise use python@3.12
+
+# Install Go
+mise use go@latest
+```
+
+Docker is also available:
+
+```bash
+docker run -v /agent/workspace:/app node:20 npm install
 ```
 
 ## Development
@@ -217,10 +230,10 @@ Inside the VM:
 
 ```bash
 # Check agent process
-ps aux | grep bun
+ps aux | grep node
 
 # View workspace
-ls -la /workspace
+ls -la /agent/workspace
 
 # Test connectivity
 curl http://control-plane.netclode.svc.cluster.local:80/health

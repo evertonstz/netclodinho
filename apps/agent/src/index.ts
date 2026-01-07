@@ -3,7 +3,7 @@ import { createServer } from "http";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 
 const port = parseInt(process.env.AGENT_PORT || "3002", 10);
-const workspace = process.env.WORKSPACE || "/workspace";
+const workspaceDir = "/agent/workspace";
 const gitRepo = process.env.GIT_REPO;
 
 function buildSystemPrompt(): { type: "preset"; preset: "claude_code"; append: string } {
@@ -11,8 +11,8 @@ function buildSystemPrompt(): { type: "preset"; preset: "claude_code"; append: s
     "## Environment",
     "",
     "You are running inside an isolated sandbox (Kata Container microVM).",
-    `- Working directory: ${workspace}`,
-    "- Everything in /workspace persists across sessions (files, Docker images, installed tools)",
+    `- Working directory: ${workspaceDir}`,
+    "- Everything persists across sessions: files, Docker images, installed tools, caches",
     "- You have full shell, network, and Docker access",
     "- It is safe to run any commands - the sandbox is isolated",
     "",
@@ -26,7 +26,7 @@ function buildSystemPrompt(): { type: "preset"; preset: "claude_code"; append: s
   ];
 
   if (gitRepo) {
-    lines.push("", "## Repository", "", `The repository ${gitRepo} has been cloned to ${workspace}.`);
+    lines.push("", "## Repository", "", `The repository ${gitRepo} has been cloned to ${workspaceDir}.`);
   }
 
   return {
@@ -37,7 +37,7 @@ function buildSystemPrompt(): { type: "preset"; preset: "claude_code"; append: s
 }
 
 console.log("[agent] Starting agent server...");
-console.log(`[agent] Config: port=${port}, workspace=${workspace}`);
+console.log(`[agent] Config: port=${port}, workspaceDir=${workspaceDir}`);
 console.log(`[agent] Environment: ANTHROPIC_API_KEY=${process.env.ANTHROPIC_API_KEY ? "set" : "NOT SET"}`);
 
 // Map control plane session IDs to SDK session IDs
@@ -85,7 +85,7 @@ const server = createServer(async (req, res) => {
       const q = query({
         prompt: text,
         options: {
-          cwd: workspace,
+          cwd: workspaceDir,
           permissionMode: "bypassPermissions",
           allowDangerouslySkipPermissions: true,
           model: "claude-opus-4-5-20251101",

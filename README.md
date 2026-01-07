@@ -14,7 +14,7 @@ Self-hosted Claude Code Cloud - persistent sandboxed AI coding agents accessible
 │  ├── web (Deployment)                                               │
 │  │   └── React SPA + nginx proxy                                    │
 │  ├── Agent Sandboxes (Kata VMs via RuntimeClass)                    │
-│  │   └── /workspace → JuiceFS PVC                                   │
+│  │   └── /agent → JuiceFS PVC (home + workspace + docker)           │
 │  └── Tailscale Operator                                             │
 │       └── Exposes services to your tailnet                          │
 │                                                                     │

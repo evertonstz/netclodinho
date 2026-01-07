@@ -1,13 +1,16 @@
 #!/bin/bash
 set -e
 
-# Ensure workspace directories exist and are owned by agent
-mkdir -p /workspace/.docker /workspace/.mise /workspace/.cache /workspace/.local
-chown -R agent:agent /workspace
+# Ensure directories exist and are owned by agent
+# /agent is HOME (persisted on JuiceFS)
+# /agent/workspace is for the user's code
+# /agent/docker is for Docker data
+mkdir -p /agent/workspace /agent/docker /agent/.local /agent/.cache
+chown -R agent:agent /agent
 
-# Start Docker daemon in background with overlay2, data on JuiceFS
+# Start Docker daemon with data on JuiceFS
 echo "[entrypoint] Starting Docker daemon..."
-dockerd --storage-driver=overlay2 --data-root=/workspace/.docker &
+dockerd --storage-driver=overlay2 --data-root=/agent/docker &
 
 # Wait for Docker socket to be ready
 echo "[entrypoint] Waiting for Docker socket..."

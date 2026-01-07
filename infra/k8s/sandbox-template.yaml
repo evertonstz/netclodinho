@@ -32,16 +32,14 @@ spec:
           env:
             - name: NODE_ENV
               value: "production"
-            - name: WORKSPACE
-              value: "/workspace"
             - name: ANTHROPIC_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: netclode-secrets
                   key: anthropic-api-key
           volumeMounts:
-            - name: workspace
-              mountPath: /workspace
+            - name: agent-home
+              mountPath: /agent
           readinessProbe:
             httpGet:
               path: /health
@@ -56,7 +54,7 @@ spec:
             periodSeconds: 10
   volumeClaimTemplates:
     - metadata:
-        name: workspace
+        name: agent-home
       spec:
         accessModes: ["ReadWriteOnce"]
         storageClassName: juicefs-sc
