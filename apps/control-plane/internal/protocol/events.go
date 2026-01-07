@@ -4,6 +4,7 @@ type AgentEventKind string
 
 const (
 	EventKindToolStart    AgentEventKind = "tool_start"
+	EventKindToolInput    AgentEventKind = "tool_input"
 	EventKindToolEnd      AgentEventKind = "tool_end"
 	EventKindFileChange   AgentEventKind = "file_change"
 	EventKindCommandStart AgentEventKind = "command_start"
@@ -14,13 +15,14 @@ const (
 
 // AgentEvent is a polymorphic event type. Fields are optional based on Kind.
 type AgentEvent struct {
-	Kind      AgentEventKind         `json:"kind"`
-	Timestamp string                 `json:"timestamp"`
-	Tool      string                 `json:"tool,omitempty"`
-	ToolUseID string                 `json:"toolUseId,omitempty"`
-	Input     map[string]interface{} `json:"input,omitempty"`
-	Result    *string                `json:"result,omitempty"`
-	Error     *string                `json:"error,omitempty"`
+	Kind       AgentEventKind         `json:"kind"`
+	Timestamp  string                 `json:"timestamp"`
+	Tool       string                 `json:"tool,omitempty"`
+	ToolUseID  string                 `json:"toolUseId,omitempty"`
+	Input      map[string]interface{} `json:"input,omitempty"`
+	InputDelta string                 `json:"inputDelta,omitempty"`
+	Result     *string                `json:"result,omitempty"`
+	Error      *string                `json:"error,omitempty"`
 	Path      string                 `json:"path,omitempty"`
 	Action    string                 `json:"action,omitempty"`
 	Command   string                 `json:"command,omitempty"`

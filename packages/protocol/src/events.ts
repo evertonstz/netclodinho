@@ -1,6 +1,7 @@
 // Agent events emitted during execution
 export type AgentEventKind =
   | "tool_start"
+  | "tool_input"
   | "tool_end"
   | "file_change"
   | "command_start"
@@ -20,6 +21,12 @@ export interface ToolStartEvent extends BaseAgentEvent {
   input: Record<string, unknown>;
 }
 
+export interface ToolInputEvent extends BaseAgentEvent {
+  kind: "tool_input";
+  toolUseId: string;
+  inputDelta: string; // Partial JSON being streamed
+}
+
 export interface ToolEndEvent extends BaseAgentEvent {
   kind: "tool_end";
   tool: string;
@@ -34,6 +41,7 @@ export interface FileChangeEvent extends BaseAgentEvent {
   action: "create" | "edit" | "delete";
   linesAdded?: number;
   linesRemoved?: number;
+  diff?: string; // Unified diff content (for future use)
 }
 
 export interface CommandStartEvent extends BaseAgentEvent {
@@ -63,6 +71,7 @@ export interface PortDetectedEvent extends BaseAgentEvent {
 
 export type AgentEvent =
   | ToolStartEvent
+  | ToolInputEvent
   | ToolEndEvent
   | FileChangeEvent
   | CommandStartEvent
