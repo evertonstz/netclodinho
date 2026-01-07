@@ -5,9 +5,10 @@
 #   mise install go@latest
 #   mise install rust@latest
 #
-FROM debian:bookworm-slim AS base
+FROM debian:trixie-slim AS base
 
 # Install essentials + mise + docker
+# Note: Use iptables-legacy because Kata VM kernel lacks nftables support
 RUN apt-get update && apt-get install -y --no-install-recommends \
     bash \
     curl \
@@ -16,6 +17,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     docker.io \
     iptables \
+    && update-alternatives --set iptables /usr/sbin/iptables-legacy \
+    && update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy \
     && rm -rf /var/lib/apt/lists/* \
     && curl https://mise.run | sh
 
