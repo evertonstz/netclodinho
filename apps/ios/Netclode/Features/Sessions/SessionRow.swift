@@ -50,6 +50,7 @@ struct SessionRow: View {
                     .foregroundStyle(.tertiary)
             }
         }
+        .contentShape(Rectangle())
         .contextMenu {
             if session.status == .paused {
                 Button {
