@@ -63,6 +63,51 @@ Clients connect via WebSocket and send JSON messages:
 | `MAX_MESSAGES_PER_SESSION` | `1000` | Message history limit |
 | `MAX_EVENTS_PER_SESSION` | `50` | Event history limit |
 
+## Redis Storage
+
+Redis is used for persistence, not real-time messaging. WebSocket clients receive updates via in-memory channels.
+
+### Data Model
+
+| Key Pattern | Type | Description |
+|-------------|------|-------------|
+| `sessions:all` | Set | Index of all session IDs |
+| `session:{id}` | Hash | Session metadata (name, status, timestamps) |
+| `session:{id}:messages` | List | Conversation history (auto-trimmed to `MAX_MESSAGES_PER_SESSION`) |
+| `session:{id}:events:stream` | Stream | Tool events (auto-trimmed to `MAX_EVENTS_PER_SESSION`) |
+
+### Why Redis?
+
+- **Persistence**: Sessions survive control-plane restarts
+- **Atomic operations**: Pipelined writes for consistency
+- **Efficient trimming**: Lists and Streams auto-trim old entries
+- **Simple queries**: No need for a full database
+
+### Data Flow
+
+```
+┌─────────┐     WebSocket      ┌───────────────┐      HTTP/SSE      ┌─────────┐
+│  Web    │◄──────────────────►│ Control Plane │◄──────────────────►│  Agent  │
+│ Client  │                    │               │                    │   Pod   │
+└─────────┘                    └───────┬───────┘                    └─────────┘
+                                       │
+                                       │ Persist
+                                       ▼
+                               ┌───────────────┐
+                               │     Redis     │
+                               │  (sessions,   │
+                               │   messages,   │
+                               │    events)    │
+                               └───────────────┘
+```
+
+1. Client sends prompt via WebSocket
+2. Control plane persists user message to Redis
+3. Control plane forwards prompt to agent via HTTP
+4. Agent streams SSE events back
+5. Control plane persists assistant messages/events to Redis
+6. Control plane broadcasts to all connected WebSocket clients (in-memory)
+
 ## Session Lifecycle
 
 ```

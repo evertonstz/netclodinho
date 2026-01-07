@@ -1,5 +1,9 @@
 # Netclode
 
+## Rules
+
+- Always ask before running `git push`
+
 ## Deployment
 
 Server is configured in `.env` as `DEPLOY_HOST`.

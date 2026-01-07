@@ -11,15 +11,6 @@ struct WorkspaceView: View {
     enum WorkspaceTab: String, CaseIterable {
         case chat = "Chat"
         case terminal = "Terminal"
-        case events = "Events"
-
-        var systemImage: String {
-            switch self {
-            case .chat: "bubble.left.and.bubble.right.fill"
-            case .terminal: "terminal.fill"
-            case .events: "list.bullet.rectangle.fill"
-            }
-        }
     }
 
     var session: Session? {
@@ -30,34 +21,25 @@ struct WorkspaceView: View {
         ZStack {
             WarmGradientBackground()
 
-            TabView(selection: $selectedTab) {
-                Tab(WorkspaceTab.chat.rawValue, systemImage: WorkspaceTab.chat.systemImage, value: .chat) {
+            Group {
+                switch selectedTab {
+                case .chat:
                     ChatView(sessionId: sessionId)
-                }
-
-                Tab(WorkspaceTab.terminal.rawValue, systemImage: WorkspaceTab.terminal.systemImage, value: .terminal) {
+                case .terminal:
                     TerminalView(sessionId: sessionId)
                 }
-
-                Tab(WorkspaceTab.events.rawValue, systemImage: WorkspaceTab.events.systemImage, value: .events) {
-                    EventsTimelineView(sessionId: sessionId)
-                }
             }
-            .tabViewStyle(.tabBarOnly)
-            .tabBarMinimizeBehavior(.onScrollDown)
         }
-        .navigationTitle(session?.name ?? "Workspace")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                if let session {
-                    HStack(spacing: Theme.Spacing.xs) {
-                        Text(session.name)
-                            .font(.netclodeHeadline)
-
-                        SessionStatusBadge(status: session.status, compact: true)
+                Picker("Tab", selection: $selectedTab) {
+                    ForEach(WorkspaceTab.allCases, id: \.self) { tab in
+                        Text(tab.rawValue).tag(tab)
                     }
                 }
+                .pickerStyle(.segmented)
+                .frame(width: 180)
             }
 
             ToolbarItem(placement: .topBarTrailing) {
@@ -96,6 +78,7 @@ struct WorkspaceView: View {
         .onDisappear {
             sessionStore.setCurrentSession(id: nil)
         }
+        .toolbar(.hidden, for: .tabBar)
     }
 }
 
