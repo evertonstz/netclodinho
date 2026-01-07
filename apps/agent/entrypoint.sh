@@ -10,7 +10,7 @@ chown -R agent:agent /agent
 
 # Start Docker daemon with data on JuiceFS
 echo "[entrypoint] Starting Docker daemon..."
-dockerd --storage-driver=overlay2 --data-root=/agent/docker &
+dockerd --storage-driver=vfs --data-root=/agent/docker &
 
 # Wait for Docker socket to be ready
 echo "[entrypoint] Waiting for Docker socket..."
