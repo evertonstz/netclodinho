@@ -6,14 +6,15 @@
     "netclode": "./src/index.ts"
   },
   "scripts": {
-    "dev": "bun run src/index.ts",
+    "dev": "tsx src/index.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@netclode/protocol": "*"
   },
   "devDependencies": {
-    "@types/bun": "latest",
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
     "typescript": "^5.7.2"
   }
 }
