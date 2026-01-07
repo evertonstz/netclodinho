@@ -4,6 +4,36 @@ import { query } from "@anthropic-ai/claude-agent-sdk";
 
 const port = parseInt(process.env.AGENT_PORT || "3002", 10);
 const workspace = process.env.WORKSPACE || "/workspace";
+const gitRepo = process.env.GIT_REPO;
+
+function buildSystemPrompt(): { type: "preset"; preset: "claude_code"; append: string } {
+  const lines = [
+    "## Environment",
+    "",
+    "You are running inside an isolated sandbox (Kata Container microVM).",
+    `- Working directory: ${workspace}`,
+    "- This directory is persistent across sessions",
+    "- You have full shell, network, and Docker access",
+    "- It is safe to run any commands - the sandbox is isolated",
+    "",
+    "## Tools",
+    "",
+    "- **mise** is installed for managing tool versions (Node, Python, Go, etc.)",
+    "  - Use `mise use node@22` to install and activate Node.js 22",
+    "  - Use `mise use python@3.12` for Python, etc.",
+    "  - See `mise --help` for more options",
+  ];
+
+  if (gitRepo) {
+    lines.push("", "## Repository", "", `The repository ${gitRepo} has been cloned to ${workspace}.`);
+  }
+
+  return {
+    type: "preset",
+    preset: "claude_code",
+    append: lines.join("\n"),
+  };
+}
 
 console.log("[agent] Starting agent server...");
 console.log(`[agent] Config: port=${port}, workspace=${workspace}`);
@@ -59,6 +89,7 @@ const server = createServer(async (req, res) => {
           allowDangerouslySkipPermissions: true,
           model: "claude-opus-4-5-20251101",
           persistSession: true,
+          systemPrompt: buildSystemPrompt(),
           ...(sdkSessionId && { resume: sdkSessionId }),
         },
       });
