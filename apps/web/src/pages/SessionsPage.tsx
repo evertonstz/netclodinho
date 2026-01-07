@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback, useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import {
   Container,
@@ -22,6 +22,17 @@ export function SessionsPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const { send, connected } = useWebSocket();
   const [creating, setCreating] = useState(false);
+
+  // Sort sessions by lastActiveAt descending (most recent first)
+  const sortedSessions = useMemo(
+    () =>
+      [...sessions].sort(
+        (a, b) =>
+          new Date(b.lastActiveAt).getTime() -
+          new Date(a.lastActiveAt).getTime()
+      ),
+    [sessions]
+  );
 
   const handleMessage = useCallback(
     (msg: ServerMessage) => {
@@ -93,7 +104,7 @@ export function SessionsPage() {
         <Container size="sm">
           <Stack gap="md">
             <SessionList
-              sessions={sessions}
+              sessions={sortedSessions}
               onSelect={(id) => navigate(`/session/${id}`)}
               onDelete={handleDeleteSession}
             />
