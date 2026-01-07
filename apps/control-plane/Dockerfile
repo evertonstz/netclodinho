@@ -2,13 +2,12 @@ FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
-# Download dependencies first for caching
 COPY go.mod go.sum ./
-RUN go mod download
-
-# Copy source and build
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o control-plane ./cmd/control-plane
+
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o control-plane ./cmd/control-plane
 
 # Runtime image
 FROM alpine:3.21
