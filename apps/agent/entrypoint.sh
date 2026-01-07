@@ -1,9 +1,9 @@
 #!/bin/bash
 set -e
 
-# Start Docker daemon in background
+# Start Docker daemon in background with overlay2 storage driver
 echo "[entrypoint] Starting Docker daemon..."
-dockerd &
+dockerd --storage-driver=overlay2 &
 
 # Wait for Docker socket to be ready
 echo "[entrypoint] Waiting for Docker socket..."
