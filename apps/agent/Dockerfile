@@ -7,13 +7,14 @@
 #
 FROM debian:bookworm-slim AS base
 
-# Install essentials + mise
+# Install essentials + mise + docker
 RUN apt-get update && apt-get install -y --no-install-recommends \
     bash \
     curl \
     git \
     ca-certificates \
     build-essential \
+    docker.io \
     && rm -rf /var/lib/apt/lists/* \
     && curl https://mise.run | sh
 
@@ -54,8 +55,8 @@ RUN npm install -g @anthropic-ai/claude-code
 # =============================================================================
 FROM base AS runtime
 
-# Create non-root user
-RUN useradd -m -u 1000 agent && \
+# Create non-root user with docker access
+RUN useradd -m -u 1000 -G docker agent && \
     mkdir -p /workspace /opt/agent && \
     chown -R agent:agent /workspace /opt/agent
 
