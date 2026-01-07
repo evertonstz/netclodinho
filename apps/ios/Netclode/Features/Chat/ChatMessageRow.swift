@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ChatMessageRow: View {
     let message: ChatMessage
+    var isStreaming: Bool = false
 
     var body: some View {
         HStack(alignment: .top, spacing: Theme.Spacing.sm) {
@@ -35,7 +36,7 @@ struct ChatMessageRow: View {
                         }
                     } else {
                         AssistantMessageCard {
-                            MessageContent(content: message.content)
+                            MessageContent(content: message.content, isStreaming: isStreaming)
                         }
                     }
                 }
@@ -64,6 +65,18 @@ struct ChatMessageRow: View {
 
 struct MessageContent: View {
     let content: String
+    var isStreaming: Bool = false
+
+    private var processedContent: String {
+        guard isStreaming else { return content }
+
+        // Close incomplete code blocks during streaming
+        let tripleBackticks = content.components(separatedBy: "```").count - 1
+        if tripleBackticks % 2 != 0 {
+            return content + "\n```"
+        }
+        return content
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
@@ -75,7 +88,7 @@ struct MessageContent: View {
                         .textSelection(.enabled)
 
                 case .code(let code, let language):
-                    CodeBlock(code: code, language: language)
+                    CodeBlock(code: code, language: language, isStreaming: isStreaming)
 
                 case .inlineCode(let code):
                     Text(code)
@@ -97,7 +110,7 @@ struct MessageContent: View {
 
     private func parseContent() -> [ContentBlock] {
         var blocks: [ContentBlock] = []
-        var remaining = content
+        var remaining = processedContent
 
         // Simple parsing for code blocks using Regex
         let codeBlockPattern = try! Regex(#"```(\w*)\n?([\s\S]*?)```"#)
@@ -149,20 +162,29 @@ struct MessageContent: View {
 struct CodeBlock: View {
     let code: String
     let language: String?
+    var isStreaming: Bool = false
 
     @State private var isCopied = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
-            if let language {
-                HStack {
-                    Text(language)
+            HStack {
+                if let language, !language.isEmpty {
+                    Text(language.uppercased())
                         .font(.netclodeCaption)
                         .foregroundStyle(.secondary)
+                }
 
-                    Spacer()
+                if isStreaming {
+                    ProgressView()
+                        .scaleEffect(0.6)
+                        .frame(width: 12, height: 12)
+                }
 
+                Spacer()
+
+                if !isStreaming {
                     Button {
                         UIPasteboard.general.string = code
                         isCopied = true
@@ -176,10 +198,10 @@ struct CodeBlock: View {
                             .font(.netclodeCaption)
                     }
                 }
-                .padding(.horizontal, Theme.Spacing.sm)
-                .padding(.vertical, Theme.Spacing.xs)
-                .background(Theme.Colors.softCharcoal.opacity(0.05))
             }
+            .padding(.horizontal, Theme.Spacing.sm)
+            .padding(.vertical, Theme.Spacing.xs)
+            .background(Theme.Colors.softCharcoal.opacity(0.05))
 
             // Code
             ScrollView(.horizontal, showsIndicators: false) {

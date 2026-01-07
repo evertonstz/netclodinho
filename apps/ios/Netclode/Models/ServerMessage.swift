@@ -122,6 +122,7 @@ private struct RawAgentEvent: Decodable {
     let tool: String?
     let toolUseId: String?
     let input: [String: AnyCodableValue]?
+    let inputDelta: String?
     let result: String?
 
     // File change
@@ -158,6 +159,14 @@ private struct RawAgentEvent: Decodable {
                 tool: tool ?? "Unknown",
                 toolUseId: toolUseId ?? "",
                 input: input ?? [:]
+            ))
+
+        case "tool_input":
+            return .toolInput(ToolInputEvent(
+                id: id,
+                timestamp: timestamp,
+                toolUseId: toolUseId ?? "",
+                inputDelta: inputDelta ?? ""
             ))
 
         case "tool_end":

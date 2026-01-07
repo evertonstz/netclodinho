@@ -90,6 +90,9 @@ struct EventRow: View {
         case .toolStart(let e):
             ToolEventCard(tool: e.tool, status: .started, input: e.input, isExpanded: isExpanded)
 
+        case .toolInput(let e):
+            ToolInputCard(toolUseId: e.toolUseId, inputDelta: e.inputDelta)
+
         case .toolEnd(let e):
             ToolEventCard(tool: e.tool, status: e.isSuccess ? .success : .failed, result: e.result, error: e.error, isExpanded: isExpanded)
 
@@ -112,7 +115,7 @@ struct EventRow: View {
 
     private var eventColor: Color {
         switch event {
-        case .toolStart, .commandStart:
+        case .toolStart, .toolInput, .commandStart:
             Theme.Colors.gentleBlue
         case .toolEnd(let e):
             e.isSuccess ? Theme.Colors.cozySage : Theme.Colors.warmCoral
@@ -231,6 +234,39 @@ struct ToolEventCard: View {
             return "[\(a.map(\.description).joined(separator: ", "))]"
         default:
             return value.description
+        }
+    }
+}
+
+// MARK: - Tool Input Card (streaming)
+
+struct ToolInputCard: View {
+    let toolUseId: String
+    let inputDelta: String
+
+    var body: some View {
+        GlassCard(tint: Theme.Colors.gentleBlue.opacity(0.15), padding: Theme.Spacing.sm) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                HStack {
+                    Image(systemName: "ellipsis")
+                        .foregroundStyle(Theme.Colors.gentleBlue)
+                        .symbolEffect(.variableColor.iterative)
+
+                    Text("Streaming input...")
+                        .font(.netclodeCaption)
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+                }
+
+                if !inputDelta.isEmpty {
+                    Text(inputDelta)
+                        .font(.netclodeMonospacedSmall)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(3)
+                        .opacity(0.7)
+                }
+            }
         }
     }
 }
