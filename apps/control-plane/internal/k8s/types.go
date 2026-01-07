@@ -227,8 +227,10 @@ func (s *Sandbox) GetError() string {
 			if c.Reason == "DependenciesPending" || c.Reason == "PodPending" || c.Reason == "Creating" {
 				return ""
 			}
-			// Check if message indicates a transient state
-			if strings.Contains(c.Message, "phase: Pending") || strings.Contains(c.Message, "phase: ContainerCreating") {
+			// Check if message indicates a transient state (pod still starting up)
+			if strings.Contains(c.Message, "phase: Pending") ||
+				strings.Contains(c.Message, "phase: ContainerCreating") ||
+				strings.Contains(c.Message, "Running but not Ready") {
 				return ""
 			}
 			return c.Message

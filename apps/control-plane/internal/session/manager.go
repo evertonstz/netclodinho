@@ -200,6 +200,36 @@ func (m *Manager) updateSessionStatus(ctx context.Context, sessionID string, sta
 	}
 }
 
+// waitForSandbox waits for an existing sandbox to become ready (used when sandbox already exists).
+func (m *Manager) waitForSandbox(ctx context.Context, sessionID string) {
+	fqdn, err := m.k8s.WaitForReady(ctx, sessionID, sandboxReadyTimeout)
+	if err != nil {
+		slog.Error("Sandbox failed to become ready", "sessionID", sessionID, "error", err)
+		m.updateSessionStatus(ctx, sessionID, protocol.StatusError)
+		m.emit(sessionID, protocol.NewSessionError(sessionID, err.Error()))
+		return
+	}
+
+	// Update state
+	m.mu.Lock()
+	if state, ok := m.sessions[sessionID]; ok {
+		state.ServiceFQDN = fqdn
+		state.Session.Status = protocol.StatusRunning
+	}
+	m.mu.Unlock()
+
+	if err := m.storage.UpdateSessionStatus(ctx, sessionID, protocol.StatusRunning); err != nil {
+		slog.Error("Failed to update session status", "sessionID", sessionID, "error", err)
+	}
+
+	// Emit update
+	if session := m.getSession(sessionID); session != nil {
+		m.emit(sessionID, protocol.NewSessionUpdated(session))
+	}
+
+	slog.Info("Sandbox ready", "sessionID", sessionID, "fqdn", fqdn)
+}
+
 // Resume resumes a paused session.
 func (m *Manager) Resume(ctx context.Context, id string) (*protocol.Session, error) {
 	m.mu.Lock()
@@ -227,7 +257,21 @@ func (m *Manager) Resume(ctx context.Context, id string) (*protocol.Session, err
 		return state.Session, nil
 	}
 
-	// Need to create new sandbox
+	if status.Exists {
+		// Sandbox exists but not ready yet - just wait for it
+		m.mu.Lock()
+		state.Session.Status = protocol.StatusCreating
+		m.mu.Unlock()
+
+		_ = m.storage.UpdateSessionStatus(ctx, id, protocol.StatusCreating)
+
+		// Wait for existing sandbox to become ready
+		go m.waitForSandbox(context.Background(), id)
+
+		return state.Session, nil
+	}
+
+	// No sandbox exists - create new one
 	m.mu.Lock()
 	state.Session.Status = protocol.StatusCreating
 	m.mu.Unlock()
