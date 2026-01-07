@@ -157,7 +157,7 @@ func NewSessionState(session *Session, messages []PersistedMessage, events []Per
 	}
 }
 
-// MarshalJSON customizes JSON output for sync.response
+// MarshalJSON customizes JSON output for specific message types
 func (m ServerMessage) MarshalJSON() ([]byte, error) {
 	type Alias ServerMessage
 
@@ -171,6 +171,21 @@ func (m ServerMessage) MarshalJSON() ([]byte, error) {
 			Type:       m.Type,
 			Sessions:   m.SessionsWithMeta,
 			ServerTime: m.ServerTime,
+		})
+	}
+
+	// For session.list, always include sessions array (even if empty)
+	if m.Type == MsgTypeSessionListResponse {
+		sessions := m.Sessions
+		if sessions == nil {
+			sessions = []Session{}
+		}
+		return json.Marshal(struct {
+			Type     string    `json:"type"`
+			Sessions []Session `json:"sessions"`
+		}{
+			Type:     m.Type,
+			Sessions: sessions,
 		})
 	}
 
