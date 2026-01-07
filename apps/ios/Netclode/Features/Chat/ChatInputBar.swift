@@ -7,37 +7,32 @@ struct ChatInputBar: View {
     let onSend: () -> Void
     let onInterrupt: () -> Void
 
-    @State private var textEditorHeight: CGFloat = 40
+    private let inputHeight: CGFloat = 44
+    private let maxHeight: CGFloat = 100
 
-    private let minHeight: CGFloat = 40
-    private let maxHeight: CGFloat = 120
+    private var canSend: Bool {
+        !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: Theme.Spacing.sm) {
+        HStack(alignment: .bottom, spacing: Theme.Spacing.xs) {
             // Text input
             ZStack(alignment: .leading) {
                 if text.isEmpty {
                     Text("Ask Claude anything...")
                         .foregroundStyle(.tertiary)
                         .padding(.horizontal, Theme.Spacing.sm)
-                        .padding(.vertical, Theme.Spacing.sm)
                 }
 
                 TextEditor(text: $text)
                     .focused(isFocused)
                     .scrollContentBackground(.hidden)
-                    .frame(minHeight: minHeight, maxHeight: maxHeight)
+                    .frame(minHeight: inputHeight, maxHeight: maxHeight)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, Theme.Spacing.xs)
-                    .padding(.vertical, Theme.Spacing.xxs)
             }
             .font(.netclodeBody)
-            .background(Theme.Colors.inputBackground)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg))
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.lg)
-                    .stroke(Color.primary.opacity(0.1), lineWidth: 1)
-            )
+            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: inputHeight / 2))
 
             // Send/Stop button
             Group {
@@ -47,11 +42,13 @@ struct ChatInputBar: View {
                         onInterrupt()
                     } label: {
                         Image(systemName: "stop.fill")
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(.system(size: 14, weight: .semibold))
                             .foregroundStyle(.white)
-                            .frame(width: 44, height: 44)
-                            .background(Theme.Colors.error)
-                            .clipShape(Circle())
+                            .frame(width: inputHeight, height: inputHeight)
+                            .glassEffect(
+                                .regular.interactive().tint(Theme.Colors.error.glassTint),
+                                in: Circle()
+                            )
                     }
                     .transition(.scale.combined(with: .opacity))
                 } else {
@@ -60,25 +57,24 @@ struct ChatInputBar: View {
                         onSend()
                     } label: {
                         Image(systemName: "arrow.up")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(width: 44, height: 44)
-                            .background(
-                                text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                                    ? Color.gray
-                                    : Theme.Colors.brand
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(canSend ? .white : .secondary)
+                            .frame(width: inputHeight, height: inputHeight)
+                            .glassEffect(
+                                canSend
+                                    ? .regular.interactive().tint(Theme.Colors.brand.glassTint)
+                                    : .regular.interactive(),
+                                in: Circle()
                             )
-                            .clipShape(Circle())
                     }
-                    .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(!canSend)
                     .transition(.scale.combined(with: .opacity))
                 }
             }
             .animation(.snappy, value: isProcessing)
         }
-        .padding(.horizontal, Theme.Spacing.md)
-        .padding(.vertical, Theme.Spacing.sm)
-        .background(Theme.Colors.secondaryBackground)
+        .padding(.horizontal, Theme.Spacing.sm)
+        .padding(.vertical, Theme.Spacing.xs)
     }
 }
 
@@ -90,15 +86,14 @@ struct StreamingIndicator: View {
     var body: some View {
         HStack(alignment: .top, spacing: Theme.Spacing.sm) {
             // Avatar
-            ZStack {
-                Circle()
-                    .fill(Theme.Colors.brand)
-                    .frame(width: 24, height: 24)
-
-                Image(systemName: "brain.head.profile")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.white)
-            }
+            Image(systemName: "brain.head.profile")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.white)
+                .frame(width: 28, height: 28)
+                .glassEffect(
+                    .regular.tint(Theme.Colors.brand.glassTint),
+                    in: Circle()
+                )
 
             // Typing indicator
             HStack(spacing: 4) {
@@ -111,8 +106,7 @@ struct StreamingIndicator: View {
             }
             .padding(.horizontal, Theme.Spacing.md)
             .padding(.vertical, Theme.Spacing.sm)
-            .background(Theme.Colors.assistantBubble)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md))
+            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Theme.Radius.lg))
 
             Spacer()
         }
