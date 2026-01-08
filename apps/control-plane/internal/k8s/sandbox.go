@@ -335,7 +335,7 @@ func (r *k8sRuntime) buildSandboxManifest(sessionID string) *Sandbox {
 		Spec: SandboxSpec{
 			PodTemplate: PodTemplateSpec{
 				Spec: PodSpec{
-					RuntimeClassName: "kata-clh",
+					RuntimeClassName: "kata-fc",
 					Containers: []Container{
 						{
 							Name:  "agent",

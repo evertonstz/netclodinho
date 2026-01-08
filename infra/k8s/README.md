@@ -136,7 +136,7 @@ The pod name is extracted to determine the session ID (format: `sess-<sessionID>
 ### Runtime
 
 **Files:**
-- `runtime-class.yaml` - RuntimeClass for Kata Containers (kata-clh)
+- `runtime-class.yaml` - RuntimeClass for Kata Containers (kata-fc)
 
 ## Deployment Order
 
@@ -195,7 +195,7 @@ kubectl $CTX delete clusterrolebinding agent-sandbox-controller agent-sandbox-co
 kubectl $CTX delete clusterrole agent-sandbox-controller agent-sandbox-controller-extensions
 
 # Delete RuntimeClass and StorageClass
-kubectl $CTX delete runtimeclass kata-clh
+kubectl $CTX delete runtimeclass kata-fc
 kubectl $CTX delete sc juicefs-sc
 
 # Delete any orphaned PVs (if PVC explosion occurred)
@@ -250,7 +250,7 @@ stringData:
 
 ### Kata Containers
 
-The sandbox pods use `runtimeClassName: kata-clh` for VM-level isolation.
+The sandbox pods use `runtimeClassName: kata-fc` for VM-level isolation.
 Ensure Kata Containers is installed on the cluster nodes.
 
 ### Warm Pool Pods Stuck in Pending

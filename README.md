@@ -30,7 +30,7 @@ Self-hosted Claude Code Cloud - persistent sandboxed AI coding agents accessible
 |-----------|------------|
 | **Host OS** | NixOS (fully declarative) |
 | **Orchestration** | k3s (lightweight Kubernetes) |
-| **VM Runtime** | Kata Containers (Cloud Hypervisor) via RuntimeClass |
+| **VM Runtime** | Kata Containers (Firecracker) via RuntimeClass |
 | **Agent VMs** | NixOS-based OCI images |
 | **Storage** | JuiceFS CSI (S3-backed PVCs) |
 | **Networking** | Tailscale Operator + Flannel |
@@ -261,7 +261,7 @@ nixos-rebuild switch --rollback
 
 ## Security
 
-- **VM Isolation**: Each agent session runs in a separate Kata Container (Cloud Hypervisor microVM)
+- **VM Isolation**: Each agent session runs in a separate Kata Container (Firecracker microVM)
 - **Network Isolation**: Kubernetes NetworkPolicy blocks agent access to internal networks
 - **Storage Isolation**: Each agent gets its own PVC via JuiceFS CSI
 - **Access Control**: Tailscale restricts access to your devices only

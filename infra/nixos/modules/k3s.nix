@@ -1,4 +1,4 @@
-# k3s with Kata Containers (Cloud Hypervisor) configuration
+# k3s with Kata Containers (Firecracker) configuration
 #
 # Why Kata static release instead of NixOS packages:
 # - containerd 2.x (bundled with k3s 1.34+) changed how CRI creates pod sandboxes
@@ -32,12 +32,12 @@
         [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
           runtime_type = "io.containerd.runc.v2"
 
-        [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata-clh]
-          runtime_type = "io.containerd.kata-clh.v2"
+        [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata-fc]
+          runtime_type = "io.containerd.kata-fc.v2"
           privileged_without_host_devices = true
           pod_annotations = ["io.katacontainers.*"]
-          [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata-clh.options]
-            ConfigPath = "${kataDir}/share/defaults/kata-containers/configuration-clh.toml"
+          [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata-fc.options]
+            ConfigPath = "${kataDir}/share/defaults/kata-containers/configuration-fc.toml"
   '';
 in {
   # Enable k3s
@@ -120,13 +120,13 @@ in {
       # Link to /usr/local/bin (create if needed) and k3s bin directory
       mkdir -p /usr/local/bin
       ln -sf $KATA_DIR/bin/containerd-shim-kata-v2 /usr/local/bin/containerd-shim-kata-v2
-      ln -sf $KATA_DIR/bin/containerd-shim-kata-v2 /usr/local/bin/containerd-shim-kata-clh-v2
+      ln -sf $KATA_DIR/bin/containerd-shim-kata-v2 /usr/local/bin/containerd-shim-kata-fc-v2
 
       # Also link to k3s bin directory (use wildcard since version changes)
       for k3s_bin in /var/lib/rancher/k3s/data/*/bin; do
         if [ -d "$k3s_bin" ]; then
           ln -sf $KATA_DIR/bin/containerd-shim-kata-v2 "$k3s_bin/containerd-shim-kata-v2"
-          ln -sf $KATA_DIR/bin/containerd-shim-kata-v2 "$k3s_bin/containerd-shim-kata-clh-v2"
+          ln -sf $KATA_DIR/bin/containerd-shim-kata-v2 "$k3s_bin/containerd-shim-kata-fc-v2"
         fi
       done
 

@@ -1,6 +1,6 @@
-# RuntimeClass for Kata Containers with Cloud Hypervisor
+# RuntimeClass for Kata Containers with Firecracker
 apiVersion: node.k8s.io/v1
 kind: RuntimeClass
 metadata:
-  name: kata-clh
-handler: kata-clh
+  name: kata-fc
+handler: kata-fc

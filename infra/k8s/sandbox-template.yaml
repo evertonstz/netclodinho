@@ -20,7 +20,7 @@ metadata:
 spec:
   podTemplate:
     spec:
-      runtimeClassName: kata-clh
+      runtimeClassName: kata-fc
       containers:
         - name: agent
           image: ghcr.io/angristan/netclode-agent:latest
