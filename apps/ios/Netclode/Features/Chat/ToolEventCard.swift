@@ -563,13 +563,24 @@ struct PortDetectedCard: View {
 
             Spacer()
 
-            if let url = event.previewUrl, let link = URL(string: url) {
-                Link(destination: link) {
+            if let url = event.previewUrl {
+                Menu {
+                    if let link = URL(string: url) {
+                        Link(destination: link) {
+                            Label("Open in Safari", systemImage: "safari")
+                        }
+                    }
+                    Button {
+                        UIPasteboard.general.string = url
+                    } label: {
+                        Label("Copy URL", systemImage: "doc.on.doc")
+                    }
+                } label: {
                     HStack(spacing: 4) {
                         Text("Open")
                             .font(.system(size: 11, weight: .medium))
-                        Image(systemName: "arrow.up.right")
-                            .font(.system(size: 10))
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 8))
                     }
                     .foregroundStyle(.cyan)
                 }
