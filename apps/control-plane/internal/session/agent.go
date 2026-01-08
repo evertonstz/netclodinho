@@ -169,6 +169,17 @@ func (m *Manager) streamSSE(ctx context.Context, sessionID string, body io.Reade
 
 			event := parseAgentEvent(eventData)
 
+			// Inject preview URL for port_detected events (uses Tailscale MagicDNS short hostname)
+			if event.Kind == protocol.EventKindPortDetected && event.Port > 0 {
+				previewURL := fmt.Sprintf("http://sandbox-%s:%d", sessionID, event.Port)
+				event.PreviewURL = &previewURL
+
+				// Dynamically expose the port via Tailscale service and NetworkPolicy
+				if err := m.k8s.ExposePort(ctx, sessionID, event.Port); err != nil {
+					slog.Warn("Failed to expose port", "sessionID", sessionID, "port", event.Port, "error", err)
+				}
+			}
+
 			// Persist event
 			persistedEvent := &protocol.PersistedEvent{
 				ID:        "evt_" + uuid.NewString()[:12],

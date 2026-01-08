@@ -13,6 +13,7 @@ export type ClientMessage =
   | { type: "prompt.interrupt"; sessionId: string }
   | { type: "terminal.input"; sessionId: string; data: string }
   | { type: "terminal.resize"; sessionId: string; cols: number; rows: number }
+  | { type: "port.expose"; sessionId: string; port: number }
   // Sync messages
   | { type: "sync" }
   | { type: "session.open"; id: string; lastMessageId?: string; lastNotificationId?: string };
@@ -39,6 +40,8 @@ export type ServerMessage =
   | { type: "agent.error"; sessionId: string; error: string; id?: string }
   | { type: "user.message"; sessionId: string; content: string; id?: string }
   | { type: "error"; message: string }
+  | { type: "port.exposed"; sessionId: string; port: number; previewUrl: string }
+  | { type: "port.error"; sessionId: string; port: number; error: string }
   // Sync responses
   | { type: "sync.response"; sessions: SessionWithMeta[]; serverTime: string }
   | {

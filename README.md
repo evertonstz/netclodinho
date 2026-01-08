@@ -155,12 +155,24 @@ EOF
 
 After deployment, access via Tailscale:
 
-- **Web App**: `http://netclode-web.<your-tailnet>.ts.net`
-- **Control Plane API**: `http://netclode.<your-tailnet>.ts.net`
+- **Web App**: `http://netclode-web`
+- **Control Plane API**: `http://netclode`
+
+### Preview URLs
+
+When an agent starts a web server (e.g., `npm run dev`), a preview URL is automatically generated. The URL appears in the chat when a port is detected:
+
+```
+🌐 Port 3000 (node)  [Open →]
+```
+
+Preview URLs use Tailscale MagicDNS: `http://sandbox-{sessionID}:{port}`
+
+These URLs are accessible from any device on your Tailscale network.
 
 ### WebSocket API
 
-Connect to `ws://netclode.<your-tailnet>.ts.net/ws`
+Connect to `ws://netclode/ws`
 
 **Create Session:**
 ```json

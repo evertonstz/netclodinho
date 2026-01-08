@@ -38,7 +38,8 @@ type SandboxSpec struct {
 
 // PodTemplateSpec is a simplified pod template
 type PodTemplateSpec struct {
-	Spec PodSpec `json:"spec,omitempty"`
+	Metadata metav1.ObjectMeta `json:"metadata,omitempty"`
+	Spec     PodSpec           `json:"spec,omitempty"`
 }
 
 // PodSpec is a simplified pod spec

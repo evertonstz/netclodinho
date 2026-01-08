@@ -10,13 +10,14 @@ enum ClientMessage: Encodable, Sendable {
     case promptInterrupt(sessionId: String)
     case terminalInput(sessionId: String, data: String)
     case terminalResize(sessionId: String, cols: Int, rows: Int)
+    case portExpose(sessionId: String, port: Int)
     // Sync messages
     case sync
     case sessionOpen(id: String, lastMessageId: String?, lastNotificationId: String?)
 
     private enum CodingKeys: String, CodingKey {
         case type
-        case name, repo, id, sessionId, text, data, cols, rows, lastMessageId, lastNotificationId
+        case name, repo, id, sessionId, text, data, cols, rows, port, lastMessageId, lastNotificationId
     }
 
     func encode(to encoder: Encoder) throws {
@@ -62,6 +63,11 @@ enum ClientMessage: Encodable, Sendable {
             try container.encode(sessionId, forKey: .sessionId)
             try container.encode(cols, forKey: .cols)
             try container.encode(rows, forKey: .rows)
+
+        case .portExpose(let sessionId, let port):
+            try container.encode("port.expose", forKey: .type)
+            try container.encode(sessionId, forKey: .sessionId)
+            try container.encode(port, forKey: .port)
 
         case .sync:
             try container.encode("sync", forKey: .type)

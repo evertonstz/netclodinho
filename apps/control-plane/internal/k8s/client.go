@@ -27,6 +27,11 @@ type Runtime interface {
 	DeleteSandboxClaim(ctx context.Context, sessionID string) error
 	ListSandboxClaims(ctx context.Context) ([]SandboxClaimInfo, error)
 
+	// Service operations (for Tailscale preview URLs)
+	CreateSandboxService(ctx context.Context, sessionID string) error
+	DeleteSandboxService(ctx context.Context, sessionID string) error
+	ExposePort(ctx context.Context, sessionID string, port int) error
+
 	Close()
 }
 

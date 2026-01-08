@@ -182,6 +182,12 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 		return
 	}
 
+	// Create Tailscale-exposed service for preview URLs
+	if err := m.k8s.CreateSandboxService(ctx, sessionID); err != nil {
+		slog.Warn("Failed to create sandbox service", "sessionID", sessionID, "error", err)
+		// Non-fatal: sandbox still works, just no preview URLs
+	}
+
 	// Update state
 	m.mu.Lock()
 	if state, ok := m.sessions[sessionID]; ok {
@@ -274,6 +280,12 @@ func (m *Manager) createSandboxViaClaim(ctx context.Context, sessionID string, r
 			m.emit(ctx, sessionID, protocol.NewSessionError(sessionID, err.Error()))
 			return
 		}
+	}
+
+	// Create Tailscale-exposed service for preview URLs
+	if err := m.k8s.CreateSandboxService(ctx, sessionID); err != nil {
+		slog.Warn("Failed to create sandbox service", "sessionID", sessionID, "error", err)
+		// Non-fatal: sandbox still works, just no preview URLs
 	}
 
 	// Update state
@@ -411,6 +423,11 @@ func (m *Manager) Pause(ctx context.Context, id string) (*protocol.Session, erro
 		}
 	}
 
+	// Delete Tailscale service
+	if err := m.k8s.DeleteSandboxService(ctx, id); err != nil {
+		slog.Warn("Failed to delete sandbox service", "sessionID", id, "error", err)
+	}
+
 	// Delete sandbox (but keep PVC)
 	if err := m.k8s.DeleteSandbox(ctx, id); err != nil {
 		slog.Warn("Failed to delete sandbox", "sessionID", id, "error", err)
@@ -446,6 +463,7 @@ func (m *Manager) Delete(ctx context.Context, id string) error {
 
 	// Delete K8s resources
 	_ = m.k8s.DeleteSandboxClaim(ctx, id)
+	_ = m.k8s.DeleteSandboxService(ctx, id)
 	_ = m.k8s.DeleteSandbox(ctx, id)
 	_ = m.k8s.DeleteSecret(ctx, id)
 	_ = m.k8s.DeletePVC(ctx, id)
@@ -457,6 +475,11 @@ func (m *Manager) Delete(ctx context.Context, id string) error {
 
 	slog.Info("Session deleted", "sessionID", id)
 	return nil
+}
+
+// ExposePort exposes a port for a session via Tailscale.
+func (m *Manager) ExposePort(ctx context.Context, sessionID string, port int) error {
+	return m.k8s.ExposePort(ctx, sessionID, port)
 }
 
 // List returns all sessions, reconciling with K8s state.

@@ -16,7 +16,7 @@ type Config struct {
 	RedisURL              string
 	MaxMessagesPerSession int
 	MaxEventsPerSession   int
-	UseWarmPool           bool
+	UseWarmPool bool
 }
 
 func Load() *Config {
@@ -31,7 +31,7 @@ func Load() *Config {
 		RedisURL:              getEnv("REDIS_URL", "redis://redis-sessions.netclode.svc.cluster.local:6379"),
 		MaxMessagesPerSession: getEnvInt("MAX_MESSAGES_PER_SESSION", 1000),
 		MaxEventsPerSession:   getEnvInt("MAX_EVENTS_PER_SESSION", 50),
-		UseWarmPool:           getEnvBool("WARM_POOL_ENABLED", false),
+		UseWarmPool: getEnvBool("WARM_POOL_ENABLED", false),
 	}
 }
 

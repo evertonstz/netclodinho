@@ -15,6 +15,9 @@ enum ServerMessage: Sendable {
 
     case terminalOutput(sessionId: String, data: String)
 
+    case portExposed(sessionId: String, port: Int, previewUrl: String)
+    case portError(sessionId: String, port: Int, error: String)
+
     case error(message: String)
 
     // Sync responses
@@ -27,6 +30,7 @@ extension ServerMessage: Decodable {
         case type
         case session, sessions, id, error, message
         case sessionId, content, partial, event, data
+        case port, previewUrl
         case serverTime, messages, events, hasMore, lastNotificationId
     }
 
@@ -85,6 +89,18 @@ extension ServerMessage: Decodable {
             let sessionId = try container.decode(String.self, forKey: .sessionId)
             let data = try container.decode(String.self, forKey: .data)
             self = .terminalOutput(sessionId: sessionId, data: data)
+
+        case "port.exposed":
+            let sessionId = try container.decode(String.self, forKey: .sessionId)
+            let port = try container.decode(Int.self, forKey: .port)
+            let previewUrl = try container.decode(String.self, forKey: .previewUrl)
+            self = .portExposed(sessionId: sessionId, port: port, previewUrl: previewUrl)
+
+        case "port.error":
+            let sessionId = try container.decode(String.self, forKey: .sessionId)
+            let port = try container.decode(Int.self, forKey: .port)
+            let error = try container.decode(String.self, forKey: .error)
+            self = .portError(sessionId: sessionId, port: port, error: error)
 
         case "error":
             let message = try container.decode(String.self, forKey: .message)

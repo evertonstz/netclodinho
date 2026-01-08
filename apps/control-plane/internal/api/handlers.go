@@ -34,6 +34,8 @@ func (c *Connection) HandleMessage(ctx context.Context, msg protocol.ClientMessa
 		return c.handleSync(ctx)
 	case protocol.MsgTypeSessionOpen:
 		return c.handleSessionOpen(ctx, msg.ID, msg.LastMessageID, msg.LastNotificationID)
+	case protocol.MsgTypePortExpose:
+		return c.handlePortExpose(ctx, msg.SessionID, msg.Port)
 	default:
 		return fmt.Errorf("unknown message type: %s", msg.Type)
 	}
@@ -188,4 +190,23 @@ func (c *Connection) handleSessionOpen(ctx context.Context, id string, lastMessa
 	response.LastNotificationID = currentNotificationID
 
 	return c.Send(response)
+}
+
+func (c *Connection) handlePortExpose(ctx context.Context, sessionID string, port int) error {
+	if sessionID == "" {
+		return c.Send(protocol.NewPortError(sessionID, port, "sessionId is required"))
+	}
+	if port <= 0 || port > 65535 {
+		return c.Send(protocol.NewPortError(sessionID, port, "invalid port number"))
+	}
+
+	if err := c.manager.ExposePort(ctx, sessionID, port); err != nil {
+		slog.Warn("Failed to expose port", "sessionID", sessionID, "port", port, "error", err)
+		return c.Send(protocol.NewPortError(sessionID, port, err.Error()))
+	}
+
+	previewURL := fmt.Sprintf("http://sandbox-%s:%d", sessionID, port)
+	slog.Info("Port exposed", "sessionID", sessionID, "port", port, "previewURL", previewURL)
+
+	return c.Send(protocol.NewPortExposed(sessionID, port, previewURL))
 }

@@ -14,6 +14,7 @@ type ClientMessage struct {
 	Data               string  `json:"data,omitempty"`
 	Cols               int     `json:"cols,omitempty"`
 	Rows               int     `json:"rows,omitempty"`
+	Port               int     `json:"port,omitempty"`
 	LastMessageID      *string `json:"lastMessageId,omitempty"`
 	LastNotificationID *string `json:"lastNotificationId,omitempty"` // For cursor-based reconnection
 }
@@ -29,6 +30,7 @@ const (
 	MsgTypePromptInterrupt  = "prompt.interrupt"
 	MsgTypeTerminalInput    = "terminal.input"
 	MsgTypeTerminalResize   = "terminal.resize"
+	MsgTypePortExpose       = "port.expose"
 	MsgTypeSync             = "sync"
 	MsgTypeSessionOpen      = "session.open"
 )
@@ -51,6 +53,8 @@ type ServerMessage struct {
 	Messages   []PersistedMessage `json:"messages,omitempty"`
 	Events     []PersistedEvent   `json:"events,omitempty"`
 	HasMore    bool             `json:"hasMore"`
+	Port       int              `json:"port,omitempty"`
+	PreviewURL string           `json:"previewUrl,omitempty"`
 
 	// For sync.response with SessionWithMeta
 	SessionsWithMeta []SessionWithMeta `json:"sessionsWithMeta,omitempty"`
@@ -73,6 +77,8 @@ const (
 	MsgTypeAgentError          = "agent.error"
 	MsgTypeUserMessage         = "user.message"
 	MsgTypeError               = "error"
+	MsgTypePortExposed         = "port.exposed"
+	MsgTypePortError           = "port.error"
 	MsgTypeSyncResponse        = "sync.response"
 	MsgTypeSessionState        = "session.state"
 )
@@ -139,6 +145,16 @@ func NewUserMessage(sessionID, content string) ServerMessage {
 // NewError creates a generic error message
 func NewError(msg string) ServerMessage {
 	return ServerMessage{Type: MsgTypeError, Message: msg}
+}
+
+// NewPortExposed creates a port.exposed message
+func NewPortExposed(sessionID string, port int, previewURL string) ServerMessage {
+	return ServerMessage{Type: MsgTypePortExposed, SessionID: sessionID, Port: port, PreviewURL: previewURL}
+}
+
+// NewPortError creates a port.error message
+func NewPortError(sessionID string, port int, err string) ServerMessage {
+	return ServerMessage{Type: MsgTypePortError, SessionID: sessionID, Port: port, Error: err}
 }
 
 // NewSyncResponse creates a sync.response message

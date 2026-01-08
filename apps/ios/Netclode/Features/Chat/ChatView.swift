@@ -42,6 +42,8 @@ struct ChatView: View {
     @Environment(SettingsStore.self) private var settingsStore
 
     @State private var inputText = ""
+    @State private var showExposePortSheet = false
+    @State private var portToExpose = ""
     @FocusState private var isInputFocused: Bool
 
     var messages: [ChatMessage] {
@@ -155,6 +157,27 @@ struct ChatView: View {
                 onSend: sendMessage,
                 onInterrupt: interruptAgent
             )
+        }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showExposePortSheet = true
+                } label: {
+                    Image(systemName: "network")
+                        .foregroundStyle(.cyan)
+                }
+            }
+        }
+        .sheet(isPresented: $showExposePortSheet) {
+            ExposePortSheet(
+                portText: $portToExpose,
+                onExpose: { port in
+                    webSocketService.send(.portExpose(sessionId: sessionId, port: port))
+                    showExposePortSheet = false
+                    portToExpose = ""
+                }
+            )
+            .presentationDetents([.height(200)])
         }
     }
 
@@ -276,6 +299,61 @@ struct ChatView: View {
             HapticFeedback.warning()
         }
         webSocketService.send(.promptInterrupt(sessionId: sessionId))
+    }
+}
+
+// MARK: - Expose Port Sheet
+
+struct ExposePortSheet: View {
+    @Binding var portText: String
+    let onExpose: (Int) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    private var portNumber: Int? {
+        Int(portText)
+    }
+
+    private var isValidPort: Bool {
+        guard let port = portNumber else { return false }
+        return port > 0 && port <= 65535
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: Theme.Spacing.lg) {
+                Text("Expose a port to make it accessible via Tailscale")
+                    .font(.netclodeCaption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+
+                TextField("Port number", text: $portText)
+                    .keyboardType(.numberPad)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: 200)
+
+                Button {
+                    if let port = portNumber, isValidPort {
+                        onExpose(port)
+                    }
+                } label: {
+                    Label("Expose Port", systemImage: "network")
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.cyan)
+                .disabled(!isValidPort)
+            }
+            .padding()
+            .navigationTitle("Expose Port")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+            }
+        }
     }
 }
 

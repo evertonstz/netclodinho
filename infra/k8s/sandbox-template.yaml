@@ -62,12 +62,20 @@ spec:
           requests:
             storage: 10Gi
   networkPolicy:
-    # Ingress: Allow control-plane to connect to agent
+    # Ingress: Allow control-plane and Tailscale proxy to connect to agent
     ingress:
       - from:
           - podSelector:
               matchLabels:
                 app: control-plane
+        ports:
+          - protocol: TCP
+            port: 3002
+      # Allow Tailscale proxy for preview URLs
+      - from:
+          - namespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: tailscale
         ports:
           - protocol: TCP
             port: 3002
