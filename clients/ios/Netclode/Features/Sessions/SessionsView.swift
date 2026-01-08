@@ -27,10 +27,21 @@ struct SessionsView: View {
             }
         }
         .background(Theme.Colors.background)
-        .navigationTitle("Sessions")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                ConnectionStatusBadge(state: webSocketService.connectionState)
+            ToolbarItem(placement: .principal) {
+                HStack(spacing: 6) {
+                    Text("netclode")
+                        .font(.system(.headline, design: .monospaced))
+                        .fontWeight(.medium)
+
+                    Circle()
+                        .fill(connectionColor)
+                        .frame(width: 6, height: 6)
+                }
+                .onChange(of: webSocketService.connectionState) { oldState, newState in
+                    handleConnectionChange(from: oldState, to: newState)
+                }
             }
 
             ToolbarItem(placement: .topBarTrailing) {
@@ -71,6 +82,27 @@ struct SessionsView: View {
         }
         .refreshable {
             webSocketService.send(.sessionList)
+        }
+    }
+
+    private var connectionColor: Color {
+        switch webSocketService.connectionState {
+        case .connected: .green
+        case .connecting, .reconnecting: .orange
+        case .disconnected: .red
+        }
+    }
+
+    private func handleConnectionChange(from oldState: ConnectionState, to newState: ConnectionState) {
+        switch newState {
+        case .connected:
+            HapticFeedback.success()
+        case .disconnected where oldState == .connected:
+            HapticFeedback.error()
+        case .reconnecting(let attempt) where attempt == 1:
+            HapticFeedback.warning()
+        default:
+            break
         }
     }
 

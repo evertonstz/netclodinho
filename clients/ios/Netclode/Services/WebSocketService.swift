@@ -46,7 +46,7 @@ final class WebSocketService: @unchecked Sendable {
         return decoder
     }()
 
-    private let maxReconnectAttempts = 5
+    static let maxReconnectAttempts = 5
     private let reconnectDelay: UInt64 = 3_000_000_000 // 3 seconds
 
     var messages: AsyncStream<ServerMessage> {
@@ -178,9 +178,9 @@ final class WebSocketService: @unchecked Sendable {
         }
 
         // Auto-reconnect with delay
-        for attempt in 1...maxReconnectAttempts {
+        for attempt in 1...Self.maxReconnectAttempts {
             connectionState = .reconnecting(attempt: attempt)
-            print("[WebSocket] Reconnect attempt \(attempt)/\(maxReconnectAttempts) in 3s...")
+            print("[WebSocket] Reconnect attempt \(attempt)/\(Self.maxReconnectAttempts) in 3s...")
 
             try? await Task.sleep(nanoseconds: reconnectDelay)
 

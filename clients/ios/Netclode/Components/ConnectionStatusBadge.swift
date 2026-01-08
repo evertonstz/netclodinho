@@ -4,27 +4,21 @@ struct ConnectionStatusBadge: View {
     let state: ConnectionState
 
     var body: some View {
-        HStack(spacing: Theme.Spacing.xs) {
+        HStack(spacing: 6) {
+            Text("netclode")
+                .font(.system(.headline, design: .monospaced))
+                .fontWeight(.medium)
+
             Circle()
                 .fill(statusColor)
-                .frame(width: 8, height: 8)
-                .overlay {
-                    if state == .connecting || state != .connected && state != .disconnected {
-                        Circle()
-                            .stroke(statusColor.opacity(0.5), lineWidth: 2)
-                            .scaleEffect(1.5)
-                            .opacity(0.5)
-                            .pulsing()
-                    }
-                }
-
-            Text(state.displayName)
-                .font(.netclodeCaption)
-                .foregroundStyle(.secondary)
+                .frame(width: 6, height: 6)
         }
-        .padding(.horizontal, Theme.Spacing.sm)
-        .padding(.vertical, Theme.Spacing.xs)
-        .glassEffect(.regular.tint(statusColor.glassTint), in: Capsule())
+        .animation(.easeInOut(duration: 0.2), value: state)
+        .onChange(of: state) { oldState, newState in
+            handleStateChange(from: oldState, to: newState)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("netclode, \(accessibilityValue)")
     }
 
     private var statusColor: Color {
@@ -35,6 +29,32 @@ struct ConnectionStatusBadge: View {
             .orange
         case .disconnected:
             .red
+        }
+    }
+
+    private var accessibilityValue: String {
+        switch state {
+        case .disconnected:
+            "disconnected"
+        case .connecting:
+            "connecting"
+        case .connected:
+            "connected"
+        case .reconnecting:
+            "reconnecting"
+        }
+    }
+
+    private func handleStateChange(from oldState: ConnectionState, to newState: ConnectionState) {
+        switch newState {
+        case .connected:
+            HapticFeedback.success()
+        case .disconnected where oldState == .connected:
+            HapticFeedback.error()
+        case .reconnecting(let attempt) where attempt == 1:
+            HapticFeedback.warning()
+        default:
+            break
         }
     }
 }
