@@ -59,10 +59,10 @@ nix develop
 
 ### k3s.nix
 
-Configures k3s with Kata Containers (Firecracker):
+Configures k3s with Kata Containers (Cloud Hypervisor):
 
 - k3s single-node server with Flannel networking
-- Kata runtime registered as `kata-fc` RuntimeClass
+- Kata runtime registered as `kata-clh` RuntimeClass
 - containerd config template with CNI paths
 - Downloads Kata assets (kernel + rootfs) on first boot
 - Device access for KVM, vhost-net, vhost-vsock
@@ -82,14 +82,14 @@ services.k3s = {
 
 #### Kata Runtime Options
 
-Kata Containers supports multiple VMM (Virtual Machine Monitor) and shared filesystem combinations. This project uses **Firecracker + virtio-9p** for lower memory usage.
+Kata Containers supports multiple VMM (Virtual Machine Monitor) and shared filesystem combinations. This project uses **Cloud Hypervisor + virtiofs** for better performance and compatibility.
 
 **VMM Comparison:**
 
 | VMM | Memory Overhead | Features | Notes |
 |-----|-----------------|----------|-------|
-| **Firecracker** (`kata-fc`) | ~5-10 MB/VM | Minimal | AWS Lambda/Fargate VMM, no virtiofs support |
-| Cloud Hypervisor (`kata-clh`) | ~20-50 MB/VM | GPU passthrough, hot-plug, virtiofs | More features, slightly heavier |
+| **Cloud Hypervisor** (`kata-clh`) | ~20-50 MB/VM | GPU passthrough, hot-plug, virtiofs | Good balance of features and performance |
+| Firecracker (`kata-fc`) | ~5-10 MB/VM | Minimal | AWS Lambda/Fargate VMM, no virtiofs support |
 | QEMU (`kata-qemu`) | ~50-100 MB/VM | Full featured | Most compatible, heaviest |
 
 **Shared Filesystem Comparison:**
@@ -99,19 +99,19 @@ Kata Containers supports multiple VMM (Virtual Machine Monitor) and shared files
 | **virtio-9p** | Kernel page cache (reclaimable) | Slower | Memory pressure can reclaim cache |
 | virtiofs | Shared memory (pinned RAM) | Faster | Uses `virtiofsd` daemon with DAX window; shows as "used" not "cache" in htop |
 
-**Why Firecracker + virtio-9p:**
+**Why Cloud Hypervisor + virtiofs:**
 
-- **virtiofsd shmem overhead**: With Cloud Hypervisor + virtiofs, each sandbox runs a `virtiofsd` process that allocates shared memory for the DAX (Direct Access) cache. This memory is **pinned RAM** - it shows up as "used" memory, not reclaimable page cache. On a server with 5 sandboxes, this can consume ~1.5GB.
+- **Performance**: virtiofs provides better I/O performance than virtio-9p, especially for Docker image pulls and builds
+- **Features**: Cloud Hypervisor supports GPU passthrough, device hot-plug, and other advanced features
+- **Compatibility**: Better tested and more stable with the Kata static release
 
-- **Firecracker forces virtio-9p**: Firecracker doesn't support virtiofs, so it uses virtio-9p which leverages the kernel's page cache. The cache is reclaimable under memory pressure.
+**Memory note**: virtiofsd processes allocate shared memory for the DAX cache. This appears as "used" memory (not cache) in htop. To minimize this, the configuration sets `virtio_fs_cache_size = 0`.
 
-- **Trade-off**: Docker image pulls/builds and heavy file I/O will be slower with virtio-9p, but memory usage is much more predictable.
+**To switch to Firecracker + virtio-9p (experimental on NixOS):**
 
-**To switch back to Cloud Hypervisor + virtiofs:**
-
-1. Change `kata-fc` → `kata-clh` in `k3s.nix`, `runtime-class.yaml`, `sandbox-template.yaml`, `sandbox.go`
-2. Change `configuration-fc.toml` → `configuration-clh.toml` in `k3s.nix`
-3. Rebuild and redeploy
+1. Change `kata-clh` → `kata-fc` in `k3s.nix`, `runtime-class.yaml`, `sandbox-template.yaml`, `sandbox.go`
+2. Change `configuration-clh.toml` → `configuration-fc.toml` in `k3s.nix`
+3. Note: Firecracker requires the jailer for proper operation, which has path compatibility issues on NixOS
 
 ### juicefs.nix
 
@@ -173,7 +173,7 @@ The k8s manifests in `infra/k8s/` are applied separately:
 | Manifest | Purpose |
 |----------|---------|
 | `namespace.yaml` | netclode namespace + RBAC |
-| `runtime-class.yaml` | kata-fc RuntimeClass |
+| `runtime-class.yaml` | kata-clh RuntimeClass |
 | `control-plane.yaml` | Control plane Deployment + Service |
 | `web.yaml` | Web app Deployment + Service |
 | `sandbox-template.yaml` | Agent SandboxTemplate |

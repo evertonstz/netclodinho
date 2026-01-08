@@ -1,4 +1,4 @@
-# k3s with Kata Containers (Firecracker) configuration
+# k3s with Kata Containers (Cloud Hypervisor) configuration
 #
 # Why Kata static release instead of NixOS packages:
 # - containerd 2.x (bundled with k3s 1.34+) changed how CRI creates pod sandboxes
@@ -32,12 +32,12 @@
         [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
           runtime_type = "io.containerd.runc.v2"
 
-        [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata-fc]
-          runtime_type = "io.containerd.kata-fc.v2"
+        [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata-clh]
+          runtime_type = "io.containerd.kata-clh.v2"
           privileged_without_host_devices = true
           pod_annotations = ["io.katacontainers.*"]
-          [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata-fc.options]
-            ConfigPath = "${kataDir}/share/defaults/kata-containers/configuration-fc.toml"
+          [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata-clh.options]
+            ConfigPath = "${kataDir}/share/defaults/kata-containers/configuration-clh.toml"
   '';
 in {
   # Enable k3s
@@ -88,7 +88,7 @@ in {
     # Kata shim symlinks - containerd looks for these
     "d /usr/local/bin 0755 root root -"
     "L+ /usr/local/bin/containerd-shim-kata-v2 - - - - ${kataDir}/bin/containerd-shim-kata-v2"
-    "L+ /usr/local/bin/containerd-shim-kata-fc-v2 - - - - ${kataDir}/bin/containerd-shim-kata-v2"
+    "L+ /usr/local/bin/containerd-shim-kata-clh-v2 - - - - ${kataDir}/bin/containerd-shim-kata-v2"
   ];
 
   # Service to download and install Kata static release
@@ -124,13 +124,13 @@ in {
       for k3s_bin in /var/lib/rancher/k3s/data/*/bin; do
         if [ -d "$k3s_bin" ]; then
           ln -sf $KATA_DIR/bin/containerd-shim-kata-v2 "$k3s_bin/containerd-shim-kata-v2"
-          ln -sf $KATA_DIR/bin/containerd-shim-kata-v2 "$k3s_bin/containerd-shim-kata-fc-v2"
+          ln -sf $KATA_DIR/bin/containerd-shim-kata-v2 "$k3s_bin/containerd-shim-kata-clh-v2"
         fi
       done
     '';
   };
 
-  # KVM kernel modules for Kata/Firecracker
+  # KVM kernel modules for Kata/Cloud Hypervisor
   boot.kernelModules = ["kvm-intel" "kvm-amd" "vhost_net" "vhost_vsock"];
 
   # Open k3s API port on Tailscale
