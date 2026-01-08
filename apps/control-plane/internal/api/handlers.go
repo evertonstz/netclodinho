@@ -200,12 +200,12 @@ func (c *Connection) handlePortExpose(ctx context.Context, sessionID string, por
 		return c.Send(protocol.NewPortError(sessionID, port, "invalid port number"))
 	}
 
-	if err := c.manager.ExposePort(ctx, sessionID, port); err != nil {
+	previewURL, err := c.manager.ExposePort(ctx, sessionID, port)
+	if err != nil {
 		slog.Warn("Failed to expose port", "sessionID", sessionID, "port", port, "error", err)
 		return c.Send(protocol.NewPortError(sessionID, port, err.Error()))
 	}
 
-	previewURL := fmt.Sprintf("http://sandbox-%s:%d", sessionID, port)
 	slog.Info("Port exposed", "sessionID", sessionID, "port", port, "previewURL", previewURL)
 
 	return c.Send(protocol.NewPortExposed(sessionID, port, previewURL))

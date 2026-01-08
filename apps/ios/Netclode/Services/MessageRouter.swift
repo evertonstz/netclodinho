@@ -106,17 +106,9 @@ final class MessageRouter: @unchecked Sendable {
         case .terminalOutput(let sessionId, let data):
             terminalStore.appendOutput(sessionId: sessionId, data: data)
 
-        // Port exposure responses
+        // Port exposure responses (event comes via agent.event, this is just confirmation)
         case .portExposed(let sessionId, let port, let previewUrl):
             print("[MessageRouter] Port \(port) exposed for session \(sessionId): \(previewUrl)")
-            // Add a port_detected event with the preview URL
-            eventStore.appendEvent(sessionId: sessionId, event: .portDetected(PortDetectedEvent(
-                id: UUID(),
-                timestamp: Date(),
-                port: port,
-                process: nil,
-                previewUrl: previewUrl
-            )))
 
         case .portError(let sessionId, let port, let error):
             print("[MessageRouter] Failed to expose port \(port) for session \(sessionId): \(error)")

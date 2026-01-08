@@ -477,9 +477,36 @@ func (m *Manager) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-// ExposePort exposes a port for a session via Tailscale.
-func (m *Manager) ExposePort(ctx context.Context, sessionID string, port int) error {
-	return m.k8s.ExposePort(ctx, sessionID, port)
+// ExposePort exposes a port for a session via Tailscale and persists the event.
+func (m *Manager) ExposePort(ctx context.Context, sessionID string, port int) (string, error) {
+	if err := m.k8s.ExposePort(ctx, sessionID, port); err != nil {
+		return "", err
+	}
+
+	previewURL := fmt.Sprintf("http://sandbox-%s:%d", sessionID, port)
+
+	// Create and persist the port_detected event
+	event := protocol.AgentEvent{
+		Kind:       protocol.EventKindPortDetected,
+		Timestamp:  time.Now().UTC().Format(time.RFC3339),
+		Port:       port,
+		PreviewURL: &previewURL,
+	}
+
+	persistedEvent := &protocol.PersistedEvent{
+		ID:        "evt_" + uuid.NewString()[:12],
+		SessionID: sessionID,
+		Event:     event,
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+	}
+	if err := m.storage.AppendEvent(ctx, persistedEvent); err != nil {
+		slog.Warn("Failed to persist port exposed event", "sessionID", sessionID, "error", err)
+	}
+
+	// Emit to all connected clients
+	m.emit(ctx, sessionID, protocol.NewAgentEvent(sessionID, &event))
+
+	return previewURL, nil
 }
 
 // List returns all sessions, reconciling with K8s state.
