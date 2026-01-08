@@ -5,11 +5,15 @@ struct ChatMessageRow: View {
     var isStreaming: Bool = false
     var turnDuration: TimeInterval? = nil
 
+    private var isUser: Bool {
+        message.role == .user
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+        VStack(alignment: isUser ? .trailing : .leading, spacing: Theme.Spacing.xxs) {
             HStack(alignment: .top, spacing: Theme.Spacing.sm) {
                 // Content
-                if message.role == .user {
+                if isUser {
                     Text(message.content)
                         .font(.netclodeBody)
                         .foregroundStyle(.primary)
@@ -32,19 +36,19 @@ struct ChatMessageRow: View {
             }
         }
         .padding(Theme.Spacing.sm)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
         .background(
-            message.role == .user
+            isUser
                 ? Theme.Colors.brand.opacity(0.06)
                 : Color.clear
         )
         .overlay(
-            message.role == .user
+            isUser
                 ? Rectangle()
                     .fill(Theme.Colors.brand)
                     .frame(width: 2)
                 : nil,
-            alignment: .leading
+            alignment: .trailing
         )
     }
 
