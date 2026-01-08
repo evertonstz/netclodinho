@@ -103,6 +103,7 @@ All events include `kind` and `timestamp` (ISO 8601).
 | `SANDBOX_TEMPLATE` | `netclode-agent` | SandboxTemplate name (warm pool) |
 | `REDIS_URL` | `redis://redis-sessions...` | Redis connection URL |
 | `WARM_POOL_ENABLED` | `false` | Use SandboxClaim for warm pool |
+| `MAX_ACTIVE_SESSIONS` | `2` | Max concurrent active sessions (0 = unlimited). Oldest inactive session is auto-paused when limit reached. |
 | `MAX_MESSAGES_PER_SESSION` | `1000` | Message history limit |
 | `MAX_EVENTS_PER_SESSION` | `50` | Event history limit |
 

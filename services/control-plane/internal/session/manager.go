@@ -108,6 +108,9 @@ func generateID() string {
 
 // Create creates a new session.
 func (m *Manager) Create(ctx context.Context, name string, repo *string) (*protocol.Session, error) {
+	// Ensure we have a slot for a new active session
+	m.ensureActiveSlot(ctx, "")
+
 	id := generateID()
 	now := time.Now().UTC().Format(time.RFC3339)
 
@@ -361,6 +364,9 @@ func (m *Manager) Resume(ctx context.Context, id string) (*protocol.Session, err
 	if !ok {
 		return nil, fmt.Errorf("session %s not found", id)
 	}
+
+	// Ensure we have a slot (exclude the session we're resuming from being paused)
+	m.ensureActiveSlot(ctx, id)
 
 	// Check if sandbox exists and is ready
 	status, err := m.k8s.GetStatus(ctx, id)
@@ -635,6 +641,86 @@ func (m *Manager) getState(id string) *SessionState {
 	defer m.mu.RUnlock()
 
 	return m.sessions[id]
+}
+
+// isActiveStatus returns true if the status represents an active session (using resources).
+func isActiveStatus(status protocol.SessionStatus) bool {
+	return status == protocol.StatusCreating ||
+		status == protocol.StatusReady ||
+		status == protocol.StatusRunning
+}
+
+// countActiveSessions returns the number of active sessions.
+// Must be called with m.mu held (read or write).
+func (m *Manager) countActiveSessionsLocked() int {
+	count := 0
+	for _, state := range m.sessions {
+		if isActiveStatus(state.Session.Status) {
+			count++
+		}
+	}
+	return count
+}
+
+// findOldestActiveSession finds the oldest active session by LastActiveAt.
+// Excludes the session with excludeID. Must be called with m.mu held.
+func (m *Manager) findOldestActiveSessionLocked(excludeID string) *SessionState {
+	var oldest *SessionState
+	var oldestTime time.Time
+
+	for id, state := range m.sessions {
+		if id == excludeID {
+			continue
+		}
+		if !isActiveStatus(state.Session.Status) {
+			continue
+		}
+
+		lastActive, err := time.Parse(time.RFC3339, state.Session.LastActiveAt)
+		if err != nil {
+			continue
+		}
+
+		if oldest == nil || lastActive.Before(oldestTime) {
+			oldest = state
+			oldestTime = lastActive
+		}
+	}
+
+	return oldest
+}
+
+// ensureActiveSlot ensures there's room for a new active session.
+// If at the limit, it pauses the oldest active session (excluding excludeID).
+// Returns the paused session ID (if any) or empty string.
+func (m *Manager) ensureActiveSlot(ctx context.Context, excludeID string) string {
+	m.mu.Lock()
+	activeCount := m.countActiveSessionsLocked()
+	maxActive := m.config.MaxActiveSessions
+
+	if maxActive <= 0 || activeCount < maxActive {
+		m.mu.Unlock()
+		return ""
+	}
+
+	// Find oldest active session to pause
+	oldest := m.findOldestActiveSessionLocked(excludeID)
+	if oldest == nil {
+		m.mu.Unlock()
+		return ""
+	}
+
+	oldestID := oldest.Session.ID
+	m.mu.Unlock()
+
+	// Pause the oldest session
+	slog.Info("Auto-pausing session to make room", "sessionID", oldestID, "activeCount", activeCount, "maxActive", maxActive)
+	if _, err := m.Pause(ctx, oldestID); err != nil {
+		slog.Error("Failed to auto-pause session", "sessionID", oldestID, "error", err)
+		return ""
+	}
+
+	return oldestID
 }
 
 // Subscribe creates a StreamSubscriber for a session.

@@ -109,3 +109,28 @@ func TestLoadWithSandboxTemplate(t *testing.T) {
 		t.Errorf("SandboxTemplate = %q, want %q", cfg.SandboxTemplate, "custom-template")
 	}
 }
+
+func TestLoadWithMaxActiveSessions(t *testing.T) {
+	// Test default
+	os.Unsetenv("MAX_ACTIVE_SESSIONS")
+	cfg := Load()
+	if cfg.MaxActiveSessions != 2 {
+		t.Errorf("MaxActiveSessions = %d, want %d", cfg.MaxActiveSessions, 2)
+	}
+
+	// Test custom value
+	os.Setenv("MAX_ACTIVE_SESSIONS", "5")
+	defer os.Unsetenv("MAX_ACTIVE_SESSIONS")
+
+	cfg = Load()
+	if cfg.MaxActiveSessions != 5 {
+		t.Errorf("MaxActiveSessions = %d, want %d", cfg.MaxActiveSessions, 5)
+	}
+
+	// Test disabled (0)
+	os.Setenv("MAX_ACTIVE_SESSIONS", "0")
+	cfg = Load()
+	if cfg.MaxActiveSessions != 0 {
+		t.Errorf("MaxActiveSessions = %d, want %d", cfg.MaxActiveSessions, 0)
+	}
+}
