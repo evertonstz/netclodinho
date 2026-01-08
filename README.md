@@ -12,7 +12,7 @@ I wanted a self-hosted Claude Code environment with the UX I actually want:
 - **Full YOLO mode** - Docker, root access, install anything - no artificial restrictions
 - **Tailnet integration** - Preview URLs, port forwarding, and access to my infra (like my home Kubernetes cluster) all through Tailscale
 - **JuiceFS for storage** - Offload storage to S3, which plays nicely with the pause/resume system. Spin up ~infinite sessions on a small VPS since paused sessions cost nothing but storage
-- **Live terminal access** - Accesss the sandbox terminal directly from the web/iOS app for debugging, installing tools, running commands
+- **Live terminal access** - Access the sandbox terminal directly from the web/iOS app for debugging, installing tools, running commands
 - **Single-tenant by design** - Optimized for personal use, but the architecture (k3s + control plane + sandboxes) scales naturally to multi-node or multi-tenant if needed
 
 ## Architecture
