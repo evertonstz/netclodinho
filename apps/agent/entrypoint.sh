@@ -30,4 +30,4 @@ fi
 
 # Drop privileges and run agent
 echo "[entrypoint] Starting agent as user 'agent'..."
-exec su -s /bin/bash agent -c "cd /opt/agent && node agent.js"
+exec su -m -s /bin/bash agent -c "cd /opt/agent && node agent.js"
