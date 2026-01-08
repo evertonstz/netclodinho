@@ -83,22 +83,13 @@ struct MessageContent: View {
             ForEach(Array(parseContent().enumerated()), id: \.offset) { _, block in
                 switch block {
                 case .text(let text):
-                    Text(text)
+                    Text(parseInlineCode(text))
                         .font(.netclodeBody)
                         .foregroundStyle(.primary)
                         .textSelection(.enabled)
 
                 case .code(let code, let language):
                     CodeBlock(code: code, language: language, isStreaming: isStreaming)
-
-                case .inlineCode(let code):
-                    Text(code)
-                        .font(.netclodeMonospacedSmall)
-                        .foregroundStyle(Theme.Colors.codeText)
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 2)
-                        .background(Theme.Colors.codeBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
                 }
             }
         }
@@ -107,7 +98,40 @@ struct MessageContent: View {
     enum ContentBlock {
         case text(String)
         case code(String, String?)
-        case inlineCode(String)
+    }
+
+    /// Parse inline code in text and return an AttributedString with proper styling
+    private func parseInlineCode(_ text: String) -> AttributedString {
+        var result = AttributedString()
+        var remaining = text
+        let inlineCodePattern = try! Regex(#"`([^`]+)`"#)
+
+        while let match = remaining.firstMatch(of: inlineCodePattern) {
+            // Add text before the inline code
+            let before = String(remaining[..<match.range.lowerBound])
+            if !before.isEmpty {
+                result.append(AttributedString(before))
+            }
+
+            // Add the inline code with styling
+            if match.output.count > 1, let range = match.output[1].range {
+                let codeContent = String(remaining[range])
+                var codeAttr = AttributedString(codeContent)
+                codeAttr.font = .netclodeMonospacedSmall
+                codeAttr.foregroundColor = UIColor(Theme.Colors.codeText)
+                codeAttr.backgroundColor = UIColor(Theme.Colors.codeBackground)
+                result.append(codeAttr)
+            }
+
+            remaining = String(remaining[match.range.upperBound...])
+        }
+
+        // Add any remaining text
+        if !remaining.isEmpty {
+            result.append(AttributedString(remaining))
+        }
+
+        return result.characters.isEmpty ? AttributedString(text) : result
     }
 
     private func parseContent() -> [ContentBlock] {
@@ -116,7 +140,6 @@ struct MessageContent: View {
 
         // Simple parsing for code blocks using Regex
         let codeBlockPattern = try! Regex(#"```(\w*)\n?([\s\S]*?)```"#)
-        let inlineCodePattern = try! Regex(#"`([^`]+)`"#)
 
         while let match = remaining.firstMatch(of: codeBlockPattern) {
             let before = String(remaining[..<match.range.lowerBound])
@@ -132,27 +155,7 @@ struct MessageContent: View {
         }
 
         if !remaining.isEmpty {
-            // Check for inline code in remaining text
-            var textWithInlineCode = remaining
-            var hasInlineCode = false
-
-            while let match = textWithInlineCode.firstMatch(of: inlineCodePattern) {
-                hasInlineCode = true
-                let before = String(textWithInlineCode[..<match.range.lowerBound])
-                if !before.isEmpty {
-                    blocks.append(.text(before))
-                }
-                if match.output.count > 1, let range = match.output[1].range {
-                    blocks.append(.inlineCode(String(textWithInlineCode[range])))
-                }
-                textWithInlineCode = String(textWithInlineCode[match.range.upperBound...])
-            }
-
-            if !textWithInlineCode.isEmpty {
-                blocks.append(.text(textWithInlineCode))
-            } else if !hasInlineCode {
-                blocks.append(.text(remaining))
-            }
+            blocks.append(.text(remaining))
         }
 
         return blocks.isEmpty ? [.text(content)] : blocks
