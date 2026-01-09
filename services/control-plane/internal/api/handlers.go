@@ -90,7 +90,15 @@ func (c *Connection) handleSessionResume(ctx context.Context, id string) error {
 		slog.Warn("Failed to subscribe to resumed session", "sessionID", id, "error", err)
 	}
 
-	return c.Send(protocol.NewSessionUpdated(session))
+	// Send to this client
+	if err := c.Send(protocol.NewSessionUpdated(session)); err != nil {
+		return err
+	}
+
+	// Broadcast to all other clients for cross-client sync
+	c.server.BroadcastToAll(protocol.NewSessionUpdated(session), c)
+
+	return nil
 }
 
 func (c *Connection) handleSessionPause(ctx context.Context, id string) error {
@@ -102,7 +110,15 @@ func (c *Connection) handleSessionPause(ctx context.Context, id string) error {
 	// Unsubscribe from notifications
 	c.unsubscribe(id)
 
-	return c.Send(protocol.NewSessionUpdated(session))
+	// Send to this client
+	if err := c.Send(protocol.NewSessionUpdated(session)); err != nil {
+		return err
+	}
+
+	// Broadcast to all other clients for cross-client sync
+	c.server.BroadcastToAll(protocol.NewSessionUpdated(session), c)
+
+	return nil
 }
 
 func (c *Connection) handleSessionDelete(ctx context.Context, id string) error {

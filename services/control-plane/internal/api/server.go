@@ -26,7 +26,7 @@ type Server struct {
 	server  *http.Server
 
 	// Connection tracking for graceful shutdown
-	connections sync.Map        // map[*Connection]struct{}
+	connections sync.Map // map[*Connection]struct{}
 	connCount   atomic.Int64
 	shutdownCh  chan struct{}
 	wg          sync.WaitGroup
@@ -34,10 +34,17 @@ type Server struct {
 
 // NewServer creates a new server.
 func NewServer(manager *session.Manager) *Server {
-	return &Server{
+	s := &Server{
 		manager:    manager,
 		shutdownCh: make(chan struct{}),
 	}
+
+	// Set up callback for auto-pause broadcasts
+	manager.SetOnSessionUpdated(func(session *protocol.Session) {
+		s.BroadcastToAll(protocol.NewSessionUpdated(session), nil)
+	})
+
+	return s
 }
 
 // BroadcastToAll sends a message to all connected clients except the sender.

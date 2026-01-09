@@ -19,6 +19,10 @@ const (
 	sandboxReadyTimeout = 120 * time.Second
 )
 
+// SessionUpdateCallback is called when a session is updated (e.g., auto-paused).
+// This allows the API layer to broadcast updates to connected clients.
+type SessionUpdateCallback func(session *protocol.Session)
+
 // Manager handles session lifecycle and agent communication.
 type Manager struct {
 	storage  storage.Storage
@@ -28,6 +32,9 @@ type Manager struct {
 
 	sessions map[string]*SessionState
 	mu       sync.RWMutex
+
+	// onSessionUpdated is called when a session is updated internally (e.g., auto-pause).
+	onSessionUpdated SessionUpdateCallback
 }
 
 // NewManager creates a new session manager.
@@ -43,6 +50,12 @@ func NewManager(store storage.Storage, k8sRuntime k8s.Runtime, cfg *config.Confi
 	m.terminal = NewTerminalManager(m.emitTerminalOutput)
 
 	return m
+}
+
+// SetOnSessionUpdated sets a callback that is called when a session is updated internally.
+// This is used for broadcasting auto-pause events to connected clients.
+func (m *Manager) SetOnSessionUpdated(cb SessionUpdateCallback) {
+	m.onSessionUpdated = cb
 }
 
 // Initialize loads sessions from storage and reconciles with K8s state.
@@ -94,6 +107,10 @@ func (m *Manager) Initialize(ctx context.Context) error {
 	}
 
 	slog.Info("Session manager initialized", "sessions", len(m.sessions), "sandboxes", len(sandboxes))
+
+	// Enforce active session limit on startup
+	m.enforceActiveLimit(ctx)
+
 	return nil
 }
 
@@ -720,36 +737,85 @@ func (m *Manager) findOldestActiveSessionLocked(excludeID string) *SessionState 
 }
 
 // ensureActiveSlot ensures there's room for a new active session.
-// If at the limit, it pauses the oldest active session (excluding excludeID).
-// Returns the paused session ID (if any) or empty string.
+// If at the limit, it pauses oldest active sessions until there's room (excluding excludeID).
+// Returns the last paused session ID (if any) or empty string.
 func (m *Manager) ensureActiveSlot(ctx context.Context, excludeID string) string {
-	m.mu.Lock()
-	activeCount := m.countActiveSessionsLocked()
 	maxActive := m.config.MaxActiveSessions
+	if maxActive <= 0 {
+		return ""
+	}
 
-	if maxActive <= 0 || activeCount < maxActive {
+	var lastPausedID string
+
+	for {
+		m.mu.Lock()
+		activeCount := m.countActiveSessionsLocked()
+
+		if activeCount < maxActive {
+			m.mu.Unlock()
+			return lastPausedID
+		}
+
+		// Find oldest active session to pause
+		oldest := m.findOldestActiveSessionLocked(excludeID)
+		if oldest == nil {
+			m.mu.Unlock()
+			return lastPausedID
+		}
+
+		oldestID := oldest.Session.ID
 		m.mu.Unlock()
-		return ""
+
+		// Pause the oldest session
+		slog.Info("Auto-pausing session to make room", "sessionID", oldestID, "activeCount", activeCount, "maxActive", maxActive)
+		pausedSession, err := m.Pause(ctx, oldestID)
+		if err != nil {
+			slog.Error("Failed to auto-pause session", "sessionID", oldestID, "error", err)
+			return lastPausedID
+		}
+
+		// Notify callback so API can broadcast to clients
+		if m.onSessionUpdated != nil && pausedSession != nil {
+			m.onSessionUpdated(pausedSession)
+		}
+
+		lastPausedID = oldestID
+	}
+}
+
+// enforceActiveLimit pauses sessions until the active count is within MaxActiveSessions.
+// This is called on startup to clean up excess sessions.
+func (m *Manager) enforceActiveLimit(ctx context.Context) {
+	maxActive := m.config.MaxActiveSessions
+	if maxActive <= 0 {
+		return
 	}
 
-	// Find oldest active session to pause
-	oldest := m.findOldestActiveSessionLocked(excludeID)
-	if oldest == nil {
+	for {
+		m.mu.Lock()
+		activeCount := m.countActiveSessionsLocked()
+
+		if activeCount <= maxActive {
+			m.mu.Unlock()
+			return
+		}
+
+		// Find oldest active session to pause
+		oldest := m.findOldestActiveSessionLocked("")
+		if oldest == nil {
+			m.mu.Unlock()
+			return
+		}
+
+		oldestID := oldest.Session.ID
 		m.mu.Unlock()
-		return ""
+
+		slog.Info("Enforcing active limit on startup", "sessionID", oldestID, "activeCount", activeCount, "maxActive", maxActive)
+		if _, err := m.Pause(ctx, oldestID); err != nil {
+			slog.Error("Failed to pause session during limit enforcement", "sessionID", oldestID, "error", err)
+			return
+		}
 	}
-
-	oldestID := oldest.Session.ID
-	m.mu.Unlock()
-
-	// Pause the oldest session
-	slog.Info("Auto-pausing session to make room", "sessionID", oldestID, "activeCount", activeCount, "maxActive", maxActive)
-	if _, err := m.Pause(ctx, oldestID); err != nil {
-		slog.Error("Failed to auto-pause session", "sessionID", oldestID, "error", err)
-		return ""
-	}
-
-	return oldestID
 }
 
 // Subscribe creates a StreamSubscriber for a session.
