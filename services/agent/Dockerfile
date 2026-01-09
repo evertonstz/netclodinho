@@ -67,19 +67,29 @@ RUN useradd -m -u 1000 -G docker -d /agent agent && \
     mkdir -p /agent /opt/agent && \
     chown -R agent:agent /agent /opt/agent
 
-# Copy mise for agent user (including config)
-RUN mkdir -p /agent/.local /agent/.config && \
-    cp -r /root/.local/bin /agent/.local/ && \
-    cp -r /root/.local/share /agent/.local/ && \
-    cp -r /root/.config/mise /agent/.config/ 2>/dev/null || true && \
-    chown -R agent:agent /agent/.local /agent/.config
-
 # Copy bundled app and dependencies
 COPY --from=builder --chown=agent:agent /build/services/agent/dist/agent.js /opt/agent/
 COPY --from=builder --chown=agent:agent /build/services/agent/node_modules /opt/agent/node_modules
 
-# Copy node to /opt/node (NOT /agent which is a volume mount)
+# Copy mise and node to /opt (NOT /agent which is a volume mount)
+# mise binary and shims need to be in a persistent location
+RUN mkdir -p /opt/mise/bin /opt/mise/shims && \
+    cp /root/.local/bin/mise /opt/mise/bin/ && \
+    cp -r /root/.local/share/mise /opt/mise/share
 COPY --from=builder /root/.local/share/mise/installs/node/24 /opt/node
+
+# Create profile for agent user that sets PATH and mise env vars
+# This ensures any shell spawned (including by Claude Code) has access to mise
+# Add to both /etc/profile.d (login shells) and /etc/bash.bashrc (interactive non-login)
+# MISE_DATA_DIR is in /agent so installed tools persist across pod restarts
+# Shims path is included so mise-installed tools are available
+RUN echo 'export MISE_DATA_DIR=/agent/.local/share/mise' >> /etc/profile.d/mise.sh && \
+    echo 'export MISE_CACHE_DIR=/agent/.cache/mise' >> /etc/profile.d/mise.sh && \
+    echo 'export PATH="/agent/.local/share/mise/shims:/opt/mise/bin:/opt/node/bin:$PATH"' >> /etc/profile.d/mise.sh && \
+    chmod +x /etc/profile.d/mise.sh && \
+    echo 'export MISE_DATA_DIR=/agent/.local/share/mise' >> /etc/bash.bashrc && \
+    echo 'export MISE_CACHE_DIR=/agent/.cache/mise' >> /etc/bash.bashrc && \
+    echo 'export PATH="/agent/.local/share/mise/shims:/opt/mise/bin:/opt/node/bin:$PATH"' >> /etc/bash.bashrc
 
 # Copy entrypoint script
 COPY services/agent/entrypoint.sh /entrypoint.sh
@@ -89,7 +99,9 @@ WORKDIR /opt/agent
 
 ENV NODE_ENV=production
 ENV HOME=/agent
-ENV PATH="/opt/node/bin:${PATH}"
+ENV MISE_DATA_DIR=/agent/.local/share/mise
+ENV MISE_CACHE_DIR=/agent/.cache/mise
+ENV PATH="/agent/.local/share/mise/shims:/opt/mise/bin:/opt/node/bin:${PATH}"
 
 EXPOSE 3002
 

@@ -5,7 +5,9 @@ set -e
 # /agent is HOME (persisted on JuiceFS)
 # /agent/workspace is for the user's code
 # /agent/docker is for Docker data
-mkdir -p /agent/workspace /agent/docker /agent/.local /agent/.cache
+# /agent/.local/share/mise is for mise installed tools (persisted)
+# /agent/.cache/mise is for mise package cache
+mkdir -p /agent/workspace /agent/docker /agent/.local/share/mise /agent/.cache/mise
 chown -R agent:agent /agent
 
 # Start Docker daemon with data on JuiceFS
@@ -29,5 +31,12 @@ else
 fi
 
 # Drop privileges and run agent
+# Preserve PATH and mise env vars for the agent user
+# Include shims path so mise-installed tools are available
 echo "[entrypoint] Starting agent as user 'agent'..."
-exec su -s /bin/bash agent -c "cd /opt/agent && /opt/node/bin/node agent.js"
+exec su -s /bin/bash agent -c "
+    export MISE_DATA_DIR=/agent/.local/share/mise
+    export MISE_CACHE_DIR=/agent/.cache/mise
+    export PATH='/agent/.local/share/mise/shims:/opt/mise/bin:/opt/node/bin:/usr/local/bin:/usr/bin:/bin'
+    cd /opt/agent && /opt/node/bin/node agent.js
+"

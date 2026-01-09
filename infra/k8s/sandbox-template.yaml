@@ -24,6 +24,7 @@ spec:
       containers:
         - name: agent
           image: ghcr.io/angristan/netclode-agent:latest
+          imagePullPolicy: Always
           securityContext:
             privileged: true  # See security note above
           ports:
