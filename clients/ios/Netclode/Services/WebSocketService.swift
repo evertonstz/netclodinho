@@ -36,6 +36,7 @@ final class WebSocketService {
     private var webSocketTask: URLSessionWebSocketTask?
     private var receiveTask: Task<Void, Never>?
     private var reconnectTask: Task<Void, Never>?
+    private var pingTask: Task<Void, Never>?
     private var serverURL: String = ""
     private var isReconnecting = false
 
@@ -59,6 +60,7 @@ final class WebSocketService {
 
     static let maxReconnectAttempts = 5
     private let reconnectDelay: UInt64 = 3_000_000_000 // 3 seconds
+    private let pingInterval: UInt64 = 30_000_000_000 // 30 seconds
 
     var messages: AsyncStream<ServerMessage> {
         if let stream = _messagesStream {
@@ -126,6 +128,7 @@ final class WebSocketService {
             print("[WebSocket] Connected successfully")
             connectionState = .connected
             startReceiving()
+            startPingKeepAlive()
 
             // Send sync request to get all sessions
             send(.sync)
@@ -183,12 +186,43 @@ final class WebSocketService {
         }
     }
 
+    /// Sends periodic pings to detect dead connections
+    private func startPingKeepAlive() {
+        pingTask?.cancel()
+        pingTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: self?.pingInterval ?? 30_000_000_000)
+
+                guard let self, !Task.isCancelled, connectionState == .connected else { break }
+
+                do {
+                    try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+                        webSocketTask?.sendPing { error in
+                            if let error {
+                                cont.resume(throwing: error)
+                            } else {
+                                cont.resume()
+                            }
+                        }
+                    }
+                    print("[WebSocket] Ping successful")
+                } catch {
+                    print("[WebSocket] Ping failed: \(error.localizedDescription)")
+                    // Connection is dead, trigger reconnection
+                    await handleDisconnection()
+                    break
+                }
+            }
+        }
+    }
+
     private func handleDisconnection() async {
         // Prevent multiple simultaneous reconnection attempts
         guard !isReconnecting else { return }
         isReconnecting = true
 
         connectionState = .disconnected
+        pingTask?.cancel()
         webSocketTask?.cancel(with: .goingAway, reason: nil)
         webSocketTask = nil
 
@@ -226,9 +260,44 @@ final class WebSocketService {
         isReconnecting = false
         receiveTask?.cancel()
         reconnectTask?.cancel()
+        pingTask?.cancel()
         webSocketTask?.cancel(with: .goingAway, reason: nil)
         webSocketTask = nil
         connectionState = .disconnected
+    }
+
+    /// Ensures the WebSocket is connected, reconnecting if needed (called on app foreground)
+    func ensureConnected(to serverURL: String) {
+        self.serverURL = serverURL
+
+        switch connectionState {
+        case .connected:
+            // Verify connection is actually alive with a ping
+            Task { @MainActor in
+                do {
+                    try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+                        webSocketTask?.sendPing { error in
+                            if let error {
+                                cont.resume(throwing: error)
+                            } else {
+                                cont.resume()
+                            }
+                        }
+                    }
+                    print("[WebSocket] ensureConnected: connection is alive")
+                } catch {
+                    print("[WebSocket] ensureConnected: connection dead, reconnecting")
+                    await handleDisconnection()
+                }
+            }
+        case .disconnected:
+            // Not connected, start connection
+            print("[WebSocket] ensureConnected: was disconnected, connecting")
+            connect(to: serverURL)
+        case .connecting, .reconnecting:
+            // Already trying to connect
+            print("[WebSocket] ensureConnected: already \(connectionState)")
+        }
     }
 
     func send(_ message: ClientMessage) {
