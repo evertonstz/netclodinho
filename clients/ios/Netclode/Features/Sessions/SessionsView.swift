@@ -10,23 +10,20 @@ struct SessionsView: View {
     @State private var selectedSession: Session?
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Main content
-            Group {
-                if sessionStore.sessions.isEmpty {
-                    EmptySessionsView(onCreateTapped: { showPromptSheet = true })
-                } else {
-                    sessionListContent
-                }
+        Group {
+            if sessionStore.sessions.isEmpty {
+                EmptySessionsView(onCreateTapped: { showPromptSheet = true })
+            } else {
+                sessionListContent
             }
-            .frame(maxHeight: .infinity)
-
-            // Bottom input bar
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Theme.Colors.background)
+        .safeAreaInset(edge: .bottom) {
             PromptInputBar {
                 showPromptSheet = true
             }
         }
-        .background(Theme.Colors.background)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
