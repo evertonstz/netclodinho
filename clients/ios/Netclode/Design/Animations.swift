@@ -59,6 +59,11 @@ extension View {
     func pulsing() -> some View {
         modifier(PulsingModifier())
     }
+    
+    /// Conditional pulse animation
+    func pulsing(_ active: Bool) -> some View {
+        modifier(ConditionalPulsingModifier(isActive: active))
+    }
 }
 
 struct PulsingModifier: ViewModifier {
@@ -74,6 +79,28 @@ struct PulsingModifier: ViewModifier {
             )
             .onAppear {
                 isPulsing = true
+            }
+    }
+}
+
+struct ConditionalPulsingModifier: ViewModifier {
+    let isActive: Bool
+    @State private var isPulsing = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(isActive && isPulsing ? 0.4 : 1.0)
+            .animation(
+                isActive ? .easeInOut(duration: 0.8).repeatForever(autoreverses: true) : .default,
+                value: isPulsing
+            )
+            .onChange(of: isActive) { _, newValue in
+                isPulsing = newValue
+            }
+            .onAppear {
+                if isActive {
+                    isPulsing = true
+                }
             }
     }
 }

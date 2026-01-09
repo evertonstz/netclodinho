@@ -8,6 +8,7 @@ struct SessionsView: View {
     @State private var showPromptSheet = false
     @State private var showSettingsSheet = false
     @State private var selectedSession: Session?
+    @State private var sessionToDelete: Session?
 
     var body: some View {
         Group {
@@ -35,6 +36,7 @@ struct SessionsView: View {
                     Circle()
                         .fill(connectionColor)
                         .frame(width: 6, height: 6)
+                        .pulsing(webSocketService.connectionState.isConnected)
                 }
                 .onChange(of: webSocketService.connectionState) { oldState, newState in
                     handleConnectionChange(from: oldState, to: newState)
@@ -86,6 +88,31 @@ struct SessionsView: View {
         .refreshable {
             webSocketService.send(.sessionList)
         }
+        .alert("Delete Session?", isPresented: .init(
+            get: { sessionToDelete != nil },
+            set: { if !$0 { sessionToDelete = nil } }
+        )) {
+            Button("Cancel", role: .cancel) {
+                sessionToDelete = nil
+            }
+            Button("Delete", role: .destructive) {
+                if let session = sessionToDelete {
+                    if settingsStore.hapticFeedbackEnabled {
+                        HapticFeedback.warning()
+                    }
+                    let sessionId = session.id
+                    withAnimation {
+                        sessionStore.removeSession(id: sessionId)
+                    }
+                    webSocketService.send(.sessionDelete(id: sessionId))
+                    sessionToDelete = nil
+                }
+            }
+        } message: {
+            if let session = sessionToDelete {
+                Text("This will permanently delete \"\(session.name)\" and all its data.")
+            }
+        }
     }
 
     private var connectionColor: Color {
@@ -110,21 +137,24 @@ struct SessionsView: View {
     }
 
     private var sessionListContent: some View {
-        ScrollView {
-            LazyVStack(spacing: Theme.Spacing.sm) {
-                ForEach(sessionStore.sortedSessions) { session in
-                    SessionRow(session: session)
-                        .onTapGesture {
-                            if settingsStore.hapticFeedbackEnabled {
-                                HapticFeedback.selection()
-                            }
-                            selectedSession = session
+        List {
+            ForEach(sessionStore.sortedSessions) { session in
+                SessionRow(session: session, onDelete: {
+                    sessionToDelete = session
+                })
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
+                    .onTapGesture {
+                        if settingsStore.hapticFeedbackEnabled {
+                            HapticFeedback.selection()
                         }
-                        .transition(.glassAppear)
-                }
+                        selectedSession = session
+                    }
             }
-            .padding()
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
         .animation(.glassSpring, value: sessionStore.sessions.count)
     }
 }

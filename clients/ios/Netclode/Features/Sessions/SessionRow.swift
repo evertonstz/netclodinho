@@ -2,55 +2,69 @@ import SwiftUI
 
 struct SessionRow: View {
     let session: Session
+    let onDelete: () -> Void
 
-    @Environment(SessionStore.self) private var sessionStore
+    @Environment(ChatStore.self) private var chatStore
     @Environment(WebSocketService.self) private var webSocketService
     @Environment(SettingsStore.self) private var settingsStore
 
-    @State private var showDeleteAlert = false
+    private var messageCount: Int {
+        chatStore.messages(for: session.id).count
+    }
+
+    private var isDimmed: Bool {
+        session.status == .paused || session.status == .error
+    }
 
     var body: some View {
-        GlassCard(tint: session.status.tintColor.glassTint.opacity(0.5)) {
-            HStack(spacing: Theme.Spacing.md) {
-                // Status indicator
-                VStack {
-                    Image(systemName: session.status.systemImage)
-                        .font(.system(size: 24))
-                        .foregroundStyle(session.status.tintColor.color)
-                        .frame(width: 40, height: 40)
-                }
+        HStack(spacing: Theme.Spacing.sm) {
+            // Status dot (pulses if running)
+            Circle()
+                .fill(session.status.tintColor.color)
+                .frame(width: 8, height: 8)
+                .pulsing(session.status == .running)
 
-                // Session info
-                VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
-                    Text(session.name)
-                        .font(.netclodeHeadline)
-                        .lineLimit(1)
+            // Name + time
+            VStack(alignment: .leading, spacing: 2) {
+                Text(session.name)
+                    .font(.netclodeHeadline)
+                    .lineLimit(1)
 
-                    HStack(spacing: Theme.Spacing.sm) {
-                        SessionStatusBadge(status: session.status, compact: true)
+                Text(session.lastActiveAt.formatted(.relative(presentation: .named)))
+                    .font(.netclodeCaption)
+                    .foregroundStyle(.secondary)
+            }
 
-                        Text(session.lastActiveAt.formatted(.relative(presentation: .named)))
-                            .font(.netclodeCaption)
-                            .foregroundStyle(.tertiary)
-                    }
+            Spacer()
 
-                    if let repo = session.repo, !repo.isEmpty {
-                        Text(repo)
-                            .font(.netclodeCaption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                }
-
-                Spacer()
-
-                // Arrow indicator
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
+            // Message count
+            if messageCount > 0 {
+                Text("\(messageCount) msgs")
+                    .font(.netclodeCaption)
                     .foregroundStyle(.tertiary)
             }
         }
+        .padding(.vertical, Theme.Spacing.xs)
+        .padding(.horizontal, Theme.Spacing.sm)
+        .opacity(isDimmed ? 0.6 : 1.0)
         .contentShape(Rectangle())
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            if session.status == .paused {
+                Button {
+                    webSocketService.send(.sessionResume(id: session.id))
+                } label: {
+                    Label("Resume", systemImage: "play.fill")
+                }
+                .tint(.green)
+            } else if session.status == .ready || session.status == .running {
+                Button {
+                    webSocketService.send(.sessionPause(id: session.id))
+                } label: {
+                    Label("Pause", systemImage: "pause.fill")
+                }
+                .tint(.orange)
+            }
+        }
         .contextMenu {
             if session.status == .paused {
                 Button {
@@ -69,44 +83,10 @@ struct SessionRow: View {
             Divider()
 
             Button(role: .destructive) {
-                showDeleteAlert = true
+                onDelete()
             } label: {
                 Label("Delete", systemImage: "trash")
             }
-        }
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button(role: .destructive) {
-                showDeleteAlert = true
-            } label: {
-                Label("Delete", systemImage: "trash")
-            }
-
-            if session.status == .paused {
-                Button {
-                    webSocketService.send(.sessionResume(id: session.id))
-                } label: {
-                    Label("Resume", systemImage: "play.fill")
-                }
-                .tint(.green)
-            } else if session.status == .ready || session.status == .running {
-                Button {
-                    webSocketService.send(.sessionPause(id: session.id))
-                } label: {
-                    Label("Pause", systemImage: "pause.fill")
-                }
-                .tint(.orange)
-            }
-        }
-        .alert("Delete Session?", isPresented: $showDeleteAlert) {
-            Button("Cancel", role: .cancel) {}
-            Button("Delete", role: .destructive) {
-                if settingsStore.hapticFeedbackEnabled {
-                    HapticFeedback.warning()
-                }
-                webSocketService.send(.sessionDelete(id: session.id))
-            }
-        } message: {
-            Text("This will permanently delete \"\(session.name)\" and all its data.")
         }
     }
 }
@@ -114,15 +94,15 @@ struct SessionRow: View {
 // MARK: - Preview
 
 #Preview {
-    VStack(spacing: 12) {
-        SessionRow(session: Session.previewList[0])
-        SessionRow(session: Session.previewList[1])
-        SessionRow(session: Session.previewList[2])
-        SessionRow(session: Session.previewList[3])
+    List {
+        SessionRow(session: Session.previewList[0], onDelete: {})
+        SessionRow(session: Session.previewList[1], onDelete: {})
+        SessionRow(session: Session.previewList[2], onDelete: {})
+        SessionRow(session: Session.previewList[3], onDelete: {})
     }
-    .padding()
+    .listStyle(.plain)
     .background(Theme.Colors.background)
-    .environment(SessionStore())
+    .environment(ChatStore())
     .environment(WebSocketService())
     .environment(SettingsStore())
 }

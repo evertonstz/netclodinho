@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 @MainActor
 @Observable
@@ -52,7 +53,9 @@ final class MessageRouter {
             sessionStore.updateSession(session)
 
         case .sessionDeleted(let id):
-            sessionStore.removeSession(id: id)
+            withAnimation {
+                sessionStore.removeSession(id: id)
+            }
             chatStore.clearMessages(for: id)
             eventStore.clearEvents(for: id)
             terminalStore.clearOutput(for: id)
