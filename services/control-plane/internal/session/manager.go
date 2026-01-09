@@ -266,15 +266,27 @@ func (m *Manager) createSandboxViaClaim(ctx context.Context, sessionID string, r
 
 	// Label the sandbox so the informer can track it
 	if err := m.k8s.LabelSandbox(ctx, sandboxName, sessionID); err != nil {
-		slog.Warn("Failed to label sandbox", "sessionID", sessionID, "sandbox", sandboxName, "error", err)
-		// Continue anyway - labeling is for informer optimization
+		slog.Error("Failed to label sandbox", "sessionID", sessionID, "sandbox", sandboxName, "error", err)
+		// Cleanup: delete the claim and sandbox - without label we can't manage it
+		if delErr := m.k8s.DeleteSandboxClaim(ctx, sessionID); delErr != nil {
+			slog.Error("Failed to cleanup sandbox claim", "sessionID", sessionID, "error", delErr)
+		}
+		if delErr := m.k8s.DeleteSandbox(ctx, sessionID); delErr != nil {
+			slog.Error("Failed to cleanup sandbox", "sessionID", sessionID, "error", delErr)
+		}
+		m.updateSessionStatus(ctx, sessionID, protocol.StatusError)
+		m.emit(ctx, sessionID, protocol.NewSessionError(sessionID, "failed to label sandbox"))
+		return
 	}
 
 	// Get sandbox to retrieve serviceFQDN
 	sandbox, err := m.k8s.GetSandboxByName(ctx, sandboxName)
 	if err != nil {
 		slog.Error("Failed to get bound sandbox", "sessionID", sessionID, "sandbox", sandboxName, "error", err)
-		// Cleanup: delete the sandbox (claim was already bound)
+		// Cleanup: delete the claim and sandbox
+		if delErr := m.k8s.DeleteSandboxClaim(ctx, sessionID); delErr != nil {
+			slog.Error("Failed to cleanup sandbox claim", "sessionID", sessionID, "error", delErr)
+		}
 		if delErr := m.k8s.DeleteSandbox(ctx, sessionID); delErr != nil {
 			slog.Error("Failed to cleanup sandbox", "sessionID", sessionID, "error", delErr)
 		}
@@ -299,7 +311,10 @@ func (m *Manager) createSandboxViaClaim(ctx context.Context, sessionID string, r
 		fqdn, err = m.k8s.WaitForReady(ctx, sessionID, sandboxReadyTimeout)
 		if err != nil {
 			slog.Error("Sandbox not ready", "sessionID", sessionID, "error", err)
-			// Cleanup: delete the sandbox to avoid resource leak
+			// Cleanup: delete the claim and sandbox to avoid resource leak
+			if delErr := m.k8s.DeleteSandboxClaim(ctx, sessionID); delErr != nil {
+				slog.Error("Failed to cleanup sandbox claim after timeout", "sessionID", sessionID, "error", delErr)
+			}
 			if delErr := m.k8s.DeleteSandbox(ctx, sessionID); delErr != nil {
 				slog.Error("Failed to cleanup sandbox after timeout", "sessionID", sessionID, "error", delErr)
 			} else {
