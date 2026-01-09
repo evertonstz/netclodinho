@@ -65,6 +65,26 @@ Interrupt the current operation.
 { "ok": true }
 ```
 
+### POST /generate-title
+
+Generate a session title using Claude Haiku based on the user's prompt.
+
+**Request:**
+```json
+{
+  "prompt": "Build a REST API with user authentication"
+}
+```
+
+**Response:**
+```json
+{
+  "title": "REST API Authentication"
+}
+```
+
+This endpoint is called by the control plane after the first agent response to generate a meaningful session title.
+
 ### GET /health
 
 Health check.

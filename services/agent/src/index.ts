@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { createServer } from "http";
 import { query } from "@anthropic-ai/claude-agent-sdk";
+import Anthropic from "@anthropic-ai/sdk";
 
 const port = parseInt(process.env.AGENT_PORT || "3002", 10);
 const workspaceDir = "/agent/workspace";
@@ -232,6 +233,39 @@ const server = createServer(async (req, res) => {
   if (url.pathname === "/interrupt" && req.method === "POST") {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ ok: true }));
+    return;
+  }
+
+  if (url.pathname === "/generate-title" && req.method === "POST") {
+    let body = "";
+    for await (const chunk of req) {
+      body += chunk;
+    }
+    const { prompt } = JSON.parse(body) as { prompt: string };
+    console.log(`[agent] Title generation requested for: "${prompt.slice(0, 50)}..."`);
+
+    try {
+      const anthropic = new Anthropic();
+      const response = await anthropic.messages.create({
+        model: "claude-4-haiku-20250414",
+        max_tokens: 30,
+        messages: [
+          {
+            role: "user",
+            content: `Generate a 3-5 word title for this task. Be specific and concise.\n\nTask: "${prompt.slice(0, 300)}"\n\nReply with only the title.`,
+          },
+        ],
+      });
+
+      const title = (response.content[0] as { type: "text"; text: string }).text.trim();
+      console.log(`[agent] Generated title: "${title}"`);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ title }));
+    } catch (error) {
+      console.error("[agent] Title generation failed:", error);
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: String(error) }));
+    }
     return;
   }
 

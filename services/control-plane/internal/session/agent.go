@@ -84,7 +84,7 @@ func (m *Manager) callAgentPrompt(ctx context.Context, sessionID, fqdn, text str
 	}
 
 	// Stream SSE response
-	if err := m.streamSSE(ctx, sessionID, resp.Body); err != nil {
+	if err := m.streamSSE(ctx, sessionID, fqdn, text, resp.Body); err != nil {
 		m.handleAgentError(ctx, sessionID, err)
 		return
 	}
@@ -102,10 +102,11 @@ func (m *Manager) handleAgentError(ctx context.Context, sessionID string, err er
 	m.updateSessionStatus(ctx, sessionID, protocol.StatusReady)
 }
 
-func (m *Manager) streamSSE(ctx context.Context, sessionID string, body io.Reader) error {
+func (m *Manager) streamSSE(ctx context.Context, sessionID, fqdn, originalPrompt string, body io.Reader) error {
 	scanner := bufio.NewScanner(body)
 	var contentBuilder strings.Builder
 	messageID := "msg_" + uuid.NewString()[:12]
+	titleGenerated := false
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -154,6 +155,12 @@ func (m *Manager) streamSSE(ctx context.Context, sessionID string, body io.Reade
 				}
 				if err := m.storage.AppendMessage(ctx, assistantMsg); err != nil {
 					slog.Warn("Failed to persist assistant message", "sessionID", sessionID, "error", err)
+				}
+
+				// Trigger title generation on first complete message
+				if !titleGenerated {
+					titleGenerated = true
+					go m.generateSessionTitle(context.Background(), sessionID, fqdn, originalPrompt)
 				}
 
 				// Reset for next message
@@ -293,6 +300,44 @@ func parseAgentEvent(data map[string]interface{}) protocol.AgentEvent {
 	}
 
 	return event
+}
+
+// generateSessionTitle calls the agent to generate a session title using Haiku.
+func (m *Manager) generateSessionTitle(ctx context.Context, sessionID, fqdn, prompt string) {
+	url := fmt.Sprintf("http://%s:3002/generate-title", fqdn)
+
+	body, _ := json.Marshal(map[string]string{"prompt": prompt})
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
+	if err != nil {
+		slog.Warn("Failed to create title request", "sessionID", sessionID, "error", err)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		slog.Warn("Failed to generate title", "sessionID", sessionID, "error", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		slog.Warn("Title generation failed", "sessionID", sessionID, "status", resp.StatusCode)
+		return
+	}
+
+	var result struct {
+		Title string `json:"title"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		slog.Warn("Failed to decode title response", "sessionID", sessionID, "error", err)
+		return
+	}
+
+	if result.Title != "" {
+		m.updateSessionName(ctx, sessionID, result.Title)
+		slog.Info("Session title generated", "sessionID", sessionID, "title", result.Title)
+	}
 }
 
 // Interrupt sends an interrupt signal to the agent.

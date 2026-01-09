@@ -325,6 +325,20 @@ func (m *Manager) updateSessionStatus(ctx context.Context, sessionID string, sta
 	}
 }
 
+func (m *Manager) updateSessionName(ctx context.Context, sessionID, name string) {
+	m.mu.Lock()
+	if state, ok := m.sessions[sessionID]; ok {
+		state.Session.Name = name
+	}
+	m.mu.Unlock()
+
+	_ = m.storage.UpdateSessionField(ctx, sessionID, "name", name)
+
+	if session := m.getSession(sessionID); session != nil {
+		m.emit(ctx, sessionID, protocol.NewSessionUpdated(session))
+	}
+}
+
 // waitForSandbox waits for an existing sandbox to become ready (used when sandbox already exists).
 func (m *Manager) waitForSandbox(ctx context.Context, sessionID string) {
 	fqdn, err := m.k8s.WaitForReady(ctx, sessionID, sandboxReadyTimeout)
