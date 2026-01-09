@@ -34,6 +34,9 @@ RUN mise install node@24 && \
 # =============================================================================
 FROM base AS builder
 
+# Install Python for node-gyp (required by node-pty)
+RUN apt-get update && apt-get install -y --no-install-recommends python3 && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /build
 
 # Install esbuild for bundling
@@ -43,11 +46,13 @@ RUN npm install -g esbuild
 COPY packages/protocol packages/protocol
 COPY services/agent services/agent
 
-# Install agent dependencies (fresh package.json without workspace protocol)
+# Install agent dependencies
+# Remove workspace protocol reference (it's bundled by esbuild) and install
 WORKDIR /build/services/agent
 RUN --mount=type=cache,target=/root/.npm \
-    echo '{"type":"module"}' > package.json && \
-    npm install @anthropic-ai/claude-agent-sdk @anthropic-ai/sdk
+    cat package.json | sed '/"@netclode\/protocol"/d' > package.tmp.json && \
+    mv package.tmp.json package.json && \
+    npm install
 
 # Bundle agent (inline local dependencies)
 RUN esbuild src/index.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/agent.js
