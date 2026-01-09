@@ -1,7 +1,8 @@
 import Foundation
 
+@MainActor
 @Observable
-final class SessionStore: @unchecked Sendable {
+final class SessionStore {
     private(set) var sessions: [Session] = []
     private(set) var currentSessionId: String?
     private(set) var processingSessionIds: Set<String> = []

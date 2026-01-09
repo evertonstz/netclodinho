@@ -1,7 +1,8 @@
 import Foundation
 
+@MainActor
 @Observable
-final class EventStore: @unchecked Sendable {
+final class EventStore {
     private(set) var eventsBySession: [String: [AgentEvent]] = [:]
 
     private let maxEventsPerSession = 100

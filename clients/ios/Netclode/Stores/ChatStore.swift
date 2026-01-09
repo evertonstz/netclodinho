@@ -1,13 +1,19 @@
 import Foundation
 
+@MainActor
 @Observable
-final class ChatStore: @unchecked Sendable {
+final class ChatStore {
     private(set) var messagesBySession: [String: [ChatMessage]] = [:]
 
     private let persistenceKey = "netclode_chat_messages"
+    private var saveTask: Task<Void, Never>?
+    private let saveDebounceInterval: TimeInterval = 0.5  // Debounce saves by 500ms
 
     init() {
-        loadFromDisk()
+        // Load from disk on background thread, then update on main
+        Task.detached(priority: .userInitiated) { [weak self] in
+            await self?.loadFromDiskAsync()
+        }
     }
 
     func messages(for sessionId: String) -> [ChatMessage] {
@@ -18,7 +24,7 @@ final class ChatStore: @unchecked Sendable {
         var messages = messagesBySession[sessionId] ?? []
         messages.append(message)
         messagesBySession[sessionId] = messages
-        saveToDisk()
+        scheduleSave()
     }
 
     /// Append partial content to the last assistant message, or create a new one
@@ -44,40 +50,63 @@ final class ChatStore: @unchecked Sendable {
 
     /// Called when agent.done is received to finalize the message
     func finalizeLastMessage(sessionId: String) {
-        saveToDisk()
+        scheduleSave()
     }
 
     func clearMessages(for sessionId: String) {
         messagesBySession.removeValue(forKey: sessionId)
-        saveToDisk()
+        scheduleSave()
     }
 
     /// Load messages from server sync response
     func loadMessages(sessionId: String, messages: [PersistedMessage]) {
         messagesBySession[sessionId] = messages.map { $0.toChatMessage() }
-        saveToDisk()
+        scheduleSave()
     }
 
     // MARK: - Persistence
 
-    private func loadFromDisk() {
-        guard let data = UserDefaults.standard.data(forKey: persistenceKey) else { return }
+    private func loadFromDiskAsync() async {
+        // Perform I/O on background thread
+        let data = await Task.detached(priority: .userInitiated) {
+            UserDefaults.standard.data(forKey: self.persistenceKey)
+        }.value
 
-        do {
+        guard let data else { return }
+
+        // Decode on background thread
+        let decoded = await Task.detached(priority: .userInitiated) { () -> [String: [ChatMessage]]? in
             let decoder = JSONDecoder()
-            messagesBySession = try decoder.decode([String: [ChatMessage]].self, from: data)
-        } catch {
-            print("Failed to load chat messages: \(error)")
+            return try? decoder.decode([String: [ChatMessage]].self, from: data)
+        }.value
+
+        if let decoded {
+            self.messagesBySession = decoded
         }
     }
 
-    private func saveToDisk() {
-        do {
-            let encoder = JSONEncoder()
-            let data = try encoder.encode(messagesBySession)
-            UserDefaults.standard.set(data, forKey: persistenceKey)
-        } catch {
-            print("Failed to save chat messages: \(error)")
+    /// Debounced save - coalesces rapid save calls into a single write
+    private func scheduleSave() {
+        saveTask?.cancel()
+        saveTask = Task { [weak self] in
+            // Debounce: wait before actually saving
+            try? await Task.sleep(for: .milliseconds(500))
+
+            guard !Task.isCancelled, let self else { return }
+
+            // Capture data on main actor
+            let dataToSave = self.messagesBySession
+
+            // Perform encoding and I/O on background thread
+            await Task.detached(priority: .utility) {
+                do {
+                    let encoder = JSONEncoder()
+                    let data = try encoder.encode(dataToSave)
+                    UserDefaults.standard.set(data, forKey: self.persistenceKey)
+                } catch {
+                    print("Failed to save chat messages: \(error)")
+                }
+            }.value
         }
     }
 }

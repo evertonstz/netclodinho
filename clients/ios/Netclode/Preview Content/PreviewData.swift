@@ -1,6 +1,7 @@
 import Foundation
 
 /// Mock data for SwiftUI previews
+@MainActor
 enum PreviewData {
 
     // MARK: - Sessions

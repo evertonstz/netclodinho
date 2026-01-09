@@ -1,8 +1,9 @@
 import Foundation
 import SwiftUI
 
+@MainActor
 @Observable
-final class SettingsStore: @unchecked Sendable {
+final class SettingsStore {
     var serverURL: String {
         didSet {
             UserDefaults.standard.set(serverURL, forKey: "netclode_server_url")

@@ -140,6 +140,7 @@ final class MessageRouter: @unchecked Sendable {
         routingTask?.cancel()
     }
 
+    @MainActor
     static var preview: MessageRouter {
         MessageRouter(
             webSocketService: WebSocketService(),
