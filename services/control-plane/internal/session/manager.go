@@ -362,7 +362,13 @@ func (m *Manager) updateSessionStatus(ctx context.Context, sessionID string, sta
 	_ = m.storage.UpdateSessionStatus(ctx, sessionID, status)
 
 	if session := m.getSession(sessionID); session != nil {
+		// Emit to session-specific subscribers
 		m.emit(ctx, sessionID, protocol.NewSessionUpdated(session))
+
+		// Also broadcast globally so clients on the sessions list page see the update
+		if m.onSessionUpdated != nil {
+			m.onSessionUpdated(session)
+		}
 	}
 }
 
@@ -376,7 +382,13 @@ func (m *Manager) updateSessionName(ctx context.Context, sessionID, name string)
 	_ = m.storage.UpdateSessionField(ctx, sessionID, "name", name)
 
 	if session := m.getSession(sessionID); session != nil {
+		// Emit to session-specific subscribers
 		m.emit(ctx, sessionID, protocol.NewSessionUpdated(session))
+
+		// Also broadcast globally so clients on the sessions list page see the update
+		if m.onSessionUpdated != nil {
+			m.onSessionUpdated(session)
+		}
 	}
 }
 
