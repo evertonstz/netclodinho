@@ -8,11 +8,8 @@ struct PromptSheet: View {
 
     @State private var promptText = ""
     @State private var isSubmitting = false
+    @State private var canSubmit = false
     @FocusState private var isFocused: Bool
-
-    private var canSubmit: Bool {
-        !promptText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSubmitting
-    }
 
     var body: some View {
         NavigationStack {
@@ -78,6 +75,12 @@ struct PromptSheet: View {
             .onAppear {
                 isFocused = true
             }
+            .onChange(of: promptText) { _, newValue in
+                canSubmit = !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSubmitting
+            }
+            .onChange(of: isSubmitting) { _, newValue in
+                canSubmit = !promptText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !newValue
+            }
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
@@ -112,5 +115,6 @@ struct PromptSheet: View {
             PromptSheet()
                 .environment(WebSocketService())
                 .environment(SettingsStore())
+                .environment(SessionStore())
         }
 }
