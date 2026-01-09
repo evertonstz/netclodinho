@@ -75,6 +75,13 @@ struct SessionsView: View {
         .navigationDestination(item: $selectedSession) { session in
             WorkspaceView(sessionId: session.id)
         }
+        .onChange(of: sessionStore.pendingSessionId) { _, newId in
+            // Auto-navigate to newly created session
+            if let sessionId = newId,
+               let session = sessionStore.sessions.first(where: { $0.id == sessionId }) {
+                selectedSession = session
+            }
+        }
         .onAppear {
             if webSocketService.connectionState.isConnected {
                 webSocketService.send(.sessionList)

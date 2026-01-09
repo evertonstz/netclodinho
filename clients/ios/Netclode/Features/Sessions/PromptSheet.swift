@@ -4,6 +4,7 @@ struct PromptSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(WebSocketService.self) private var webSocketService
     @Environment(SettingsStore.self) private var settingsStore
+    @Environment(SessionStore.self) private var sessionStore
 
     @State private var promptText = ""
     @State private var isSubmitting = false
@@ -93,11 +94,13 @@ struct PromptSheet: View {
             HapticFeedback.medium()
         }
 
+        // Store prompt text - will be associated with session when sessionCreated arrives
+        sessionStore.pendingPromptText = text
+        
+        // Create session
         webSocketService.send(.sessionCreate(name: nil, repo: nil, initialPrompt: text))
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            dismiss()
-        }
+        dismiss()
     }
 }
 

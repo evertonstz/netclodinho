@@ -42,6 +42,11 @@ final class MessageRouter {
         // Session messages
         case .sessionCreated(let session):
             sessionStore.addSession(session)
+            
+            // If there's a pending prompt, associate it with this session and navigate
+            if sessionStore.pendingPromptText != nil {
+                sessionStore.pendingSessionId = session.id
+            }
 
         case .sessionUpdated(let session):
             sessionStore.updateSession(session)
@@ -79,6 +84,11 @@ final class MessageRouter {
         case .agentDone(let sessionId):
             sessionStore.setProcessing(for: sessionId, processing: false)
             chatStore.finalizeLastMessage(sessionId: sessionId)
+            // Clear pending state - agent has responded
+            if sessionStore.pendingSessionId == sessionId {
+                sessionStore.pendingPromptText = nil
+                sessionStore.pendingSessionId = nil
+            }
 
         case .agentError(let sessionId, let error):
             sessionStore.setProcessing(for: sessionId, processing: false)
@@ -131,6 +141,29 @@ final class MessageRouter {
                 sessionStore.setLastNotificationId(for: session.id, notificationId: notificationId)
             }
             print("[MessageRouter] Loaded messages and events for session \(session.id)")
+            
+            // Send pending initial prompt after session state is loaded
+            if let promptText = sessionStore.pendingPromptText,
+               sessionStore.pendingSessionId == session.id {
+                // Check if server already has our message (agent responded)
+                let serverHasMessages = !messages.isEmpty
+                
+                if serverHasMessages {
+                    // Agent already received and processed, clear pending state
+                    print("[MessageRouter] Server has messages, clearing pending state for session \(session.id)")
+                    sessionStore.pendingPromptText = nil
+                    sessionStore.pendingSessionId = nil
+                } else {
+                    // Add user message to chat and send to agent
+                    chatStore.appendMessage(
+                        sessionId: session.id,
+                        message: ChatMessage(role: .user, content: promptText)
+                    )
+                    webSocketService.send(.prompt(sessionId: session.id, text: promptText))
+                    print("[MessageRouter] Sent initial prompt for session \(session.id)")
+                    // DON'T clear pending state yet - wait for agent response
+                }
+            }
         }
     }
 

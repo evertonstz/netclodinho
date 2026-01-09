@@ -9,6 +9,11 @@ final class SessionStore {
     private(set) var errorsBySession: [String: String] = [:]
     private(set) var lastNotificationIds: [String: String] = [:] // sessionId -> Redis Stream ID
 
+    /// Pending prompt text (before session is created)
+    var pendingPromptText: String?
+    /// Session ID to navigate to and send prompt (after session is created)
+    var pendingSessionId: String?
+
     var currentSession: Session? {
         guard let id = currentSessionId else { return nil }
         return sessions.first { $0.id == id }
