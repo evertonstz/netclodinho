@@ -298,6 +298,7 @@ const server = createServer(async (req, res) => {
             }
             break;
           case "stream_event":
+            console.log(`[agent] stream_event: ${message.event.type}`, JSON.stringify(message.event).slice(0, 200));
             if (message.event.type === "content_block_start") {
               const contentBlock = message.event.content_block;
               if (contentBlock?.type === "tool_use") {
