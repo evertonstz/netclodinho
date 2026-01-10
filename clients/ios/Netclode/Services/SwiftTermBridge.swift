@@ -143,10 +143,13 @@ final class SwiftTermBridge: TerminalViewDelegate {
     
     /// Called for bell
     nonisolated func bell(source: SwiftTerm.TerminalView) {
+        #if !targetEnvironment(macCatalyst)
         Task { @MainActor in
             let generator = UINotificationFeedbackGenerator()
             generator.notificationOccurred(.warning)
         }
+        #endif
+        // On Mac Catalyst, haptic feedback is not available - bell is silent
     }
     
     /// Request to open a URL

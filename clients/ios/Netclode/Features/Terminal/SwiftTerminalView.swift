@@ -28,8 +28,12 @@ struct SwiftTerminalView: UIViewRepresentable {
     }
     
     private func configureAppearance(_ terminal: SwiftTerm.TerminalView) {
-        // Set font
+        // Set font - use larger size for iPad and Mac Catalyst
+        #if targetEnvironment(macCatalyst)
+        let fontSize: CGFloat = 14
+        #else
         let fontSize: CGFloat = UIDevice.current.userInterfaceIdiom == .pad ? 14 : 12
+        #endif
         terminal.font = UIFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
         
         // Set colors based on current theme
