@@ -153,6 +153,12 @@ const blockIndexToToolId = new Map<number, string>();
 // Track current content block index to thinkingId mapping for streaming thinking
 const blockIndexToThinkingId = new Map<number, string>();
 
+// Track whether text content was already streamed (to avoid duplicate in final message)
+let textWasStreamed = false;
+
+// Track thinkingIds that were streamed (to send final event and skip in assistant message)
+const streamedThinkingIds = new Set<string>();
+
 // Generate unique thinking IDs
 let thinkingIdCounter = 0;
 function generateThinkingId(): string {
@@ -191,6 +197,12 @@ const server = createServer(async (req, res) => {
 
     try {
       send({ type: "start" });
+
+      // Reset streaming state for this request
+      textWasStreamed = false;
+      streamedThinkingIds.clear();
+      blockIndexToToolId.clear();
+      blockIndexToThinkingId.clear();
 
       // Look up the SDK session ID from our mapping
       const sdkSessionId = sessionId ? sessionMap.get(sessionId) : undefined;
@@ -233,25 +245,21 @@ const server = createServer(async (req, res) => {
             break;
           case "assistant":
             if (message.message?.content) {
-              console.log(`[agent] Assistant message with ${message.message.content.length} blocks`);
+              console.log(`[agent] Assistant message with ${message.message.content.length} blocks, textWasStreamed=${textWasStreamed}`);
               for (const block of message.message.content) {
                 if (block.type === "text") {
+                  // Skip if already sent via streaming deltas
+                  if (textWasStreamed) {
+                    console.log(`[agent] Text block (skipped - already streamed): ${block.text.slice(0, 50)}...`);
+                    continue;
+                  }
                   console.log(`[agent] Text block: ${block.text.slice(0, 100)}...`);
                   send({ type: "agent.message", content: block.text, partial: false });
                 } else if (block.type === "thinking") {
-                  // Complete thinking block (extended thinking)
-                  const thinkingBlock = block as { type: "thinking"; thinking: string };
-                  console.log(`[agent] Thinking block: ${thinkingBlock.thinking.slice(0, 100)}...`);
-                  send({
-                    type: "agent.event",
-                    event: {
-                      kind: "thinking",
-                      thinkingId: generateThinkingId(),
-                      content: thinkingBlock.thinking,
-                      partial: false,
-                      timestamp: new Date().toISOString(),
-                    },
-                  });
+                  // Skip thinking blocks - they're always sent via streaming
+                  // (extended thinking is only available with streaming enabled)
+                  console.log(`[agent] Thinking block (skipped - sent via streaming)`);
+                  continue;
                 } else if (block.type === "tool_use") {
                   console.log(`[agent] Tool use: ${block.name} (id=${block.id})`);
                   // Always store the tool name for later lookup in tool_result
@@ -266,6 +274,8 @@ const server = createServer(async (req, res) => {
                   }
                 }
               }
+              // Reset text streaming flag for next assistant message in this request
+              textWasStreamed = false;
             }
             break;
           case "user":
@@ -326,6 +336,7 @@ const server = createServer(async (req, res) => {
               const delta = message.event.delta;
               if (delta && "text" in delta) {
                 // Text content streaming
+                textWasStreamed = true;
                 send({ type: "agent.message", content: delta.text, partial: true });
               } else if (delta && "partial_json" in delta) {
                 // Tool input streaming - show input as it's being formed
@@ -346,6 +357,7 @@ const server = createServer(async (req, res) => {
                 const thinkingDelta = delta as { type: "thinking_delta"; thinking: string };
                 const thinkingId = blockIndexToThinkingId.get(message.event.index);
                 if (thinkingId) {
+                  streamedThinkingIds.add(thinkingId);
                   send({
                     type: "agent.event",
                     event: {
@@ -359,6 +371,20 @@ const server = createServer(async (req, res) => {
                 }
               }
             } else if (message.event.type === "content_block_stop") {
+              // Send final thinking event if this was a thinking block
+              const thinkingId = blockIndexToThinkingId.get(message.event.index);
+              if (thinkingId && streamedThinkingIds.has(thinkingId)) {
+                send({
+                  type: "agent.event",
+                  event: {
+                    kind: "thinking",
+                    thinkingId,
+                    content: "", // Empty - client already has full content
+                    partial: false,
+                    timestamp: new Date().toISOString(),
+                  },
+                });
+              }
               // Clean up block index mappings
               blockIndexToToolId.delete(message.event.index);
               blockIndexToThinkingId.delete(message.event.index);

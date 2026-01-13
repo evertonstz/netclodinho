@@ -71,13 +71,22 @@ final class MessageRouter {
 
         // Agent messages
         case .agentMessage(let sessionId, let content, let partial):
+            print("[MessageRouter] agentMessage received: partial=\(partial), contentLength=\(content.count), preview=\"\(String(content.prefix(50)))\"")
             if partial {
                 chatStore.appendAssistantPartial(sessionId: sessionId, delta: content)
             } else {
-                chatStore.appendMessage(
-                    sessionId: sessionId,
-                    message: ChatMessage(role: .assistant, content: content)
-                )
+                // Final message - only add if we don't already have an assistant message being built
+                // (the content was already accumulated via partials)
+                let existingMessages = chatStore.messages(for: sessionId)
+                let hasStreamingAssistant = existingMessages.last?.role == .assistant
+                if !hasStreamingAssistant {
+                    // No streaming in progress - this is a complete message (no partials were sent)
+                    chatStore.appendMessage(
+                        sessionId: sessionId,
+                        message: ChatMessage(role: .assistant, content: content)
+                    )
+                }
+                // If hasStreamingAssistant, the content is already there from partials - nothing to do
             }
             sessionStore.setProcessing(for: sessionId, processing: true)
 
@@ -93,8 +102,21 @@ final class MessageRouter {
                         timestamp: thinkingEvent.timestamp
                     )
                 } else {
-                    // Complete thinking block - add as final event
-                    eventStore.appendEvent(sessionId: sessionId, event: event)
+                    // Complete thinking block - finalize existing or add new if no partials were sent
+                    let existingEvents = eventStore.events(for: sessionId)
+                    let hasStreamingThinking = existingEvents.contains { e in
+                        if case .thinking(let t) = e, t.thinkingId == thinkingEvent.thinkingId {
+                            return true
+                        }
+                        return false
+                    }
+                    if hasStreamingThinking {
+                        // Finalize the existing thinking event
+                        eventStore.finalizeThinking(sessionId: sessionId, thinkingId: thinkingEvent.thinkingId)
+                    } else {
+                        // No partials were sent - add as complete event
+                        eventStore.appendEvent(sessionId: sessionId, event: event)
+                    }
                 }
             } else {
                 eventStore.appendEvent(sessionId: sessionId, event: event)

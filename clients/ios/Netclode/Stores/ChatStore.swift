@@ -35,6 +35,7 @@ final class ChatStore {
            messages[lastIndex].role == .assistant {
             // Append to existing assistant message
             messages[lastIndex].content += delta
+            print("[ChatStore] appendAssistantPartial: appended \(delta.count) chars, total=\(messages[lastIndex].content.count)")
         } else {
             // Create new assistant message
             messages.append(ChatMessage(
@@ -42,6 +43,7 @@ final class ChatStore {
                 content: delta,
                 timestamp: Date()
             ))
+            print("[ChatStore] appendAssistantPartial: created new message with \(delta.count) chars")
         }
 
         messagesBySession[sessionId] = messages

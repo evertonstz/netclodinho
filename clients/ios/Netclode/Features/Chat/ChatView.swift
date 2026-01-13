@@ -46,7 +46,7 @@ struct ChatView: View {
 
     // Cached timeline to avoid recomputing on every view update
     @State private var cachedTimeline: [TimelineItem] = []
-    @State private var timelineVersion: Int = 0
+    @State private var lastContentLength: Int = 0
 
     var messages: [ChatMessage] {
         chatStore.messages(for: sessionId)
@@ -296,11 +296,19 @@ struct ChatView: View {
 
     /// Update cached timeline only when data changes
     private func updateTimelineIfNeeded() {
-        // Compute new version based on data state
-        let newVersion = messages.count + events.count + (isProcessing ? 1000 : 0)
-        guard newVersion != timelineVersion else { return }
+        // Compute new version based on data state including content length
+        let currentContentLength = messages.last?.content.count ?? 0
+        let dataChanged = messages.count != cachedTimeline.filter {
+            if case .message = $0 { return true }
+            return false
+        }.count || events.count != cachedTimeline.filter {
+            if case .event = $0 { return true }
+            return false
+        }.count || currentContentLength != lastContentLength
 
-        timelineVersion = newVersion
+        guard dataChanged else { return }
+
+        lastContentLength = currentContentLength
         cachedTimeline = computeTimeline()
     }
 }
