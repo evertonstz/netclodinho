@@ -424,11 +424,14 @@ func (m *Manager) waitForSandbox(ctx context.Context, sessionID string) {
 		return
 	}
 
-	// Update state
+	// Update state and check for pending prompt
+	var pendingPrompt string
 	m.mu.Lock()
 	if state, ok := m.sessions[sessionID]; ok {
 		state.ServiceFQDN = fqdn
 		state.Session.Status = protocol.StatusRunning
+		pendingPrompt = state.PendingPrompt
+		state.PendingPrompt = "" // Clear it
 	}
 	m.mu.Unlock()
 
@@ -439,6 +442,14 @@ func (m *Manager) waitForSandbox(ctx context.Context, sessionID string) {
 	// Emit update
 	if session := m.getSession(sessionID); session != nil {
 		m.emit(ctx, sessionID, protocol.NewSessionUpdated(session))
+	}
+
+	// Process pending prompt if any
+	if pendingPrompt != "" {
+		slog.Info("Processing pending prompt (waitForSandbox)", "sessionID", sessionID)
+		if err := m.SendPrompt(ctx, sessionID, pendingPrompt); err != nil {
+			slog.Error("Failed to send pending prompt", "sessionID", sessionID, "error", err)
+		}
 	}
 
 	slog.Info("Sandbox ready", "sessionID", sessionID, "fqdn", fqdn)
