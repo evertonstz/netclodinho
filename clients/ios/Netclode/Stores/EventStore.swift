@@ -87,6 +87,31 @@ final class EventStore {
         eventsBySession.removeValue(forKey: sessionId)
     }
 
+    /// Update a tool_start event with complete input (received after streaming started)
+    func updateToolInput(sessionId: String, toolUseId: String, input: [String: AnyCodableValue]) {
+        guard var events = eventsBySession[sessionId] else { return }
+
+        if let index = events.lastIndex(where: { event in
+            if case .toolStart(let e) = event, e.toolUseId == toolUseId {
+                return true
+            }
+            return false
+        }) {
+            if case .toolStart(let existing) = events[index] {
+                // Create updated event with new input
+                let updated = ToolStartEvent(
+                    id: existing.id,
+                    timestamp: existing.timestamp,
+                    tool: existing.tool,
+                    toolUseId: existing.toolUseId,
+                    input: input
+                )
+                events[index] = .toolStart(updated)
+                eventsBySession[sessionId] = events
+            }
+        }
+    }
+
     /// Load events from server sync response
     func loadEvents(sessionId: String, events: [PersistedEvent]) {
         eventsBySession[sessionId] = events.map { $0.event.toAgentEvent() }

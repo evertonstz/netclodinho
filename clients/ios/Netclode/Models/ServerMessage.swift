@@ -188,6 +188,14 @@ private struct RawAgentEvent: Decodable {
                 inputDelta: inputDelta ?? ""
             ))
 
+        case "tool_input_complete":
+            return .toolInputComplete(ToolInputCompleteEvent(
+                id: id,
+                timestamp: timestamp,
+                toolUseId: toolUseId ?? "",
+                input: input ?? [:]
+            ))
+
         case "tool_end":
             return .toolEnd(ToolEndEvent(
                 id: id,

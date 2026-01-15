@@ -265,8 +265,14 @@ const server = createServer(async (req, res) => {
                   // Always store the tool name for later lookup in tool_result
                   const alreadyEmitted = toolNameMap.has(block.id);
                   toolNameMap.set(block.id, block.name);
-                  // Only emit tool_start if not already sent via streaming (content_block_start)
-                  if (!alreadyEmitted) {
+                  if (alreadyEmitted) {
+                    // Already sent early tool_start with empty input - send input update now
+                    send({
+                      type: "agent.event",
+                      event: { kind: "tool_input_complete", toolUseId: block.id, input: block.input, timestamp: new Date().toISOString() },
+                    });
+                  } else {
+                    // Not streamed - send full tool_start now
                     send({
                       type: "agent.event",
                       event: { kind: "tool_start", tool: block.name, toolUseId: block.id, input: block.input, timestamp: new Date().toISOString() },

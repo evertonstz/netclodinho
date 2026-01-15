@@ -236,8 +236,8 @@ struct ChatView: View {
                     result[index].endEvent = event
                 }
 
-            case .toolInput:
-                break // Skip tool input events
+            case .toolInput, .toolInputComplete:
+                break // Skip tool input events (input is merged into tool_start)
 
             case .commandStart(let e):
                 result.append(GroupedEvent(id: e.id, event: event, timestamp: e.timestamp))

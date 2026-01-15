@@ -9,6 +9,7 @@ protocol AgentEventProtocol: Identifiable, Codable, Sendable {
 enum AgentEventKind: String, Codable, Sendable {
     case toolStart = "tool_start"
     case toolInput = "tool_input"
+    case toolInputComplete = "tool_input_complete"
     case toolEnd = "tool_end"
     case fileChange = "file_change"
     case commandStart = "command_start"
@@ -20,6 +21,7 @@ enum AgentEventKind: String, Codable, Sendable {
         switch self {
         case .toolStart: "Tool Started"
         case .toolInput: "Tool Input"
+        case .toolInputComplete: "Tool Input Complete"
         case .toolEnd: "Tool Finished"
         case .fileChange: "File Changed"
         case .commandStart: "Command Started"
@@ -31,7 +33,7 @@ enum AgentEventKind: String, Codable, Sendable {
 
     var systemImage: String {
         switch self {
-        case .toolStart, .toolInput, .toolEnd: "wrench.and.screwdriver.fill"
+        case .toolStart, .toolInput, .toolInputComplete, .toolEnd: "wrench.and.screwdriver.fill"
         case .fileChange: "doc.fill"
         case .commandStart, .commandEnd: "terminal.fill"
         case .thinking: "brain.head.profile"
@@ -61,6 +63,7 @@ enum FileAction: String, Codable, Sendable {
 enum AgentEvent: Identifiable, Sendable {
     case toolStart(ToolStartEvent)
     case toolInput(ToolInputEvent)
+    case toolInputComplete(ToolInputCompleteEvent)
     case toolEnd(ToolEndEvent)
     case fileChange(FileChangeEvent)
     case commandStart(CommandStartEvent)
@@ -72,6 +75,7 @@ enum AgentEvent: Identifiable, Sendable {
         switch self {
         case .toolStart(let e): e.id
         case .toolInput(let e): e.id
+        case .toolInputComplete(let e): e.id
         case .toolEnd(let e): e.id
         case .fileChange(let e): e.id
         case .commandStart(let e): e.id
@@ -85,6 +89,7 @@ enum AgentEvent: Identifiable, Sendable {
         switch self {
         case .toolStart: .toolStart
         case .toolInput: .toolInput
+        case .toolInputComplete: .toolInputComplete
         case .toolEnd: .toolEnd
         case .fileChange: .fileChange
         case .commandStart: .commandStart
@@ -98,6 +103,7 @@ enum AgentEvent: Identifiable, Sendable {
         switch self {
         case .toolStart(let e): e.timestamp
         case .toolInput(let e): e.timestamp
+        case .toolInputComplete(let e): e.timestamp
         case .toolEnd(let e): e.timestamp
         case .fileChange(let e): e.timestamp
         case .commandStart(let e): e.timestamp
@@ -123,6 +129,14 @@ struct ToolInputEvent: AgentEventProtocol {
     let timestamp: Date
     let toolUseId: String
     let inputDelta: String
+}
+
+struct ToolInputCompleteEvent: AgentEventProtocol {
+    let id: UUID
+    let kind: AgentEventKind = .toolInputComplete
+    let timestamp: Date
+    let toolUseId: String
+    let input: [String: AnyCodableValue]
 }
 
 struct ToolEndEvent: AgentEventProtocol {

@@ -42,11 +42,13 @@ final class MessageRouter {
         switch message {
         // Session messages
         case .sessionCreated(let session):
+            print("[MessageRouter] session.created received: id=\(session.id), pendingPromptText=\(sessionStore.pendingPromptText ?? "nil")")
             sessionStore.addSession(session)
             
             // If there's a pending prompt, associate it with this session and navigate
             if sessionStore.pendingPromptText != nil {
                 sessionStore.pendingSessionId = session.id
+                print("[MessageRouter] Set pendingSessionId to \(session.id)")
             }
 
         case .sessionUpdated(let session):
@@ -118,6 +120,13 @@ final class MessageRouter {
                         eventStore.appendEvent(sessionId: sessionId, event: event)
                     }
                 }
+            } else if case .toolInputComplete(let inputEvent) = event {
+                // Update existing tool_start event with full input
+                eventStore.updateToolInput(
+                    sessionId: sessionId,
+                    toolUseId: inputEvent.toolUseId,
+                    input: inputEvent.input
+                )
             } else {
                 eventStore.appendEvent(sessionId: sessionId, event: event)
             }
@@ -174,6 +183,7 @@ final class MessageRouter {
         case .sessionState(let session, let messages, let events, _, let lastNotificationId):
             // Load session history from server
             print("[MessageRouter] session.state received: \(messages.count) messages, \(events.count) events for session \(session.id)")
+            print("[MessageRouter] pendingPromptText=\(sessionStore.pendingPromptText ?? "nil"), pendingSessionId=\(sessionStore.pendingSessionId ?? "nil")")
             sessionStore.updateSession(session)
             chatStore.loadMessages(sessionId: session.id, messages: messages)
             eventStore.loadEvents(sessionId: session.id, events: events)
@@ -186,6 +196,7 @@ final class MessageRouter {
             // Send pending initial prompt after session state is loaded
             if let promptText = sessionStore.pendingPromptText,
                sessionStore.pendingSessionId == session.id {
+                print("[MessageRouter] Condition matched! Will send prompt: \(promptText.prefix(50))...")
                 // Check if server already has our message (agent responded)
                 let serverHasMessages = !messages.isEmpty
                 
