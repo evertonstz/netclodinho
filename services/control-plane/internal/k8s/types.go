@@ -32,8 +32,8 @@ type Sandbox struct {
 
 // SandboxSpec defines the desired state
 type SandboxSpec struct {
-	PodTemplate          PodTemplateSpec `json:"podTemplate,omitempty"`
-	VolumeClaimTemplates []PVCTemplate   `json:"volumeClaimTemplates,omitempty"`
+	PodTemplate          PodTemplateSpec       `json:"podTemplate,omitempty"`
+	VolumeClaimTemplates []PVCTemplate         `json:"volumeClaimTemplates,omitempty"`
 }
 
 // PodTemplateSpec is a simplified pod template
@@ -50,14 +50,14 @@ type PodSpec struct {
 
 // Container is a simplified container spec
 type Container struct {
-	Name            string           `json:"name"`
-	Image           string           `json:"image"`
-	Ports           []Port           `json:"ports,omitempty"`
-	Env             []EnvVar         `json:"env,omitempty"`
-	EnvFrom         []EnvFromSource  `json:"envFrom,omitempty"`
-	VolumeMounts    []VolumeMount    `json:"volumeMounts,omitempty"`
+	Name            string        `json:"name"`
+	Image           string        `json:"image"`
+	Ports           []Port        `json:"ports,omitempty"`
+	Env             []EnvVar      `json:"env,omitempty"`
+	EnvFrom         []EnvFromSource `json:"envFrom,omitempty"`
+	VolumeMounts    []VolumeMount `json:"volumeMounts,omitempty"`
 	SecurityContext *SecurityContext `json:"securityContext,omitempty"`
-	ReadinessProbe  *Probe           `json:"readinessProbe,omitempty"`
+	ReadinessProbe  *Probe        `json:"readinessProbe,omitempty"`
 }
 
 // Port defines a container port
@@ -115,8 +115,8 @@ type PVCTemplate struct {
 
 // PVCSpec defines PVC spec
 type PVCSpec struct {
-	AccessModes      []string             `json:"accessModes,omitempty"`
-	StorageClassName string               `json:"storageClassName,omitempty"`
+	AccessModes      []string          `json:"accessModes,omitempty"`
+	StorageClassName string            `json:"storageClassName,omitempty"`
 	Resources        ResourceRequirements `json:"resources,omitempty"`
 }
 
@@ -127,7 +127,7 @@ type ResourceRequirements struct {
 
 // SandboxStatus defines the observed state
 type SandboxStatus struct {
-	ServiceFQDN string             `json:"serviceFQDN,omitempty"`
+	ServiceFQDN string            `json:"serviceFQDN,omitempty"`
 	Conditions  []SandboxCondition `json:"conditions,omitempty"`
 }
 
@@ -231,8 +231,7 @@ func (s *Sandbox) GetError() string {
 			// Check if message indicates a transient state (pod still starting up)
 			if strings.Contains(c.Message, "phase: Pending") ||
 				strings.Contains(c.Message, "phase: ContainerCreating") ||
-				strings.Contains(c.Message, "Running but not Ready") ||
-				strings.Contains(c.Message, "the object has been modified") {
+				strings.Contains(c.Message, "Running but not Ready") {
 				return ""
 			}
 			return c.Message

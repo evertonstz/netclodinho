@@ -37,8 +37,8 @@ type k8sRuntime struct {
 	config        *config.Config
 
 	// Informer for watching sandbox changes
-	informer     cache.SharedIndexInformer
-	informerStop chan struct{}
+	informer      cache.SharedIndexInformer
+	informerStop  chan struct{}
 
 	// Callbacks for sandbox ready notifications
 	readyCallbacks map[string]SandboxReadyCallback
@@ -573,9 +573,8 @@ func (r *k8sRuntime) CreateSandboxService(ctx context.Context, sessionID string)
 				"netclode.io/session": sessionID,
 			},
 			Annotations: map[string]string{
-				"tailscale.com/expose":      "true",
-				"tailscale.com/hostname":    fmt.Sprintf("sandbox-%s", sessionID),
-				"tailscale.com/proxy-class": "sandbox",
+				"tailscale.com/expose":   "true",
+				"tailscale.com/hostname": fmt.Sprintf("sandbox-%s", sessionID),
 			},
 		},
 		Spec: corev1.ServiceSpec{
