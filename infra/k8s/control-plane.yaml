@@ -39,6 +39,8 @@ spec:
               value: "redis://redis-sessions.netclode.svc.cluster.local:6379"
             - name: WARM_POOL_ENABLED
               value: "true"
+            - name: MAX_ACTIVE_SESSIONS
+              value: "2"
           readinessProbe:
             httpGet:
               path: /health
