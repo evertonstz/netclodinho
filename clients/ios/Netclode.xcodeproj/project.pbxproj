@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		D10000000000000000000002 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = P20000000000000000000001 /* SwiftTerm */; };
 		T10000000000000000000001 /* EventStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T20000000000000000000001 /* EventStoreTests.swift */; };
+		T10000000000000000000002 /* MessageRouterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T20000000000000000000002 /* MessageRouterTests.swift */; };
 		A10000000000000000000001 /* NetclodeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000001 /* NetclodeApp.swift */; };
 		A10000000000000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000002 /* ContentView.swift */; };
 		A10000000000000000000003 /* Session.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000003 /* Session.swift */; };
@@ -51,6 +52,7 @@
 
 /* Begin PBXFileReference section */
 		T20000000000000000000001 /* EventStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventStoreTests.swift; sourceTree = "<group>"; };
+		T20000000000000000000002 /* MessageRouterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageRouterTests.swift; sourceTree = "<group>"; };
 		T30000000000000000000001 /* NetclodeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NetclodeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B10000000000000000000001 /* NetclodeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetclodeApp.swift; sourceTree = "<group>"; };
 		B10000000000000000000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -136,6 +138,7 @@
 			isa = PBXGroup;
 			children = (
 				T20000000000000000000001 /* EventStoreTests.swift */,
+				T20000000000000000000002 /* MessageRouterTests.swift */,
 			);
 			path = NetclodeTests;
 			sourceTree = "<group>";
@@ -466,6 +469,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				T10000000000000000000001 /* EventStoreTests.swift in Sources */,
+				T10000000000000000000002 /* MessageRouterTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

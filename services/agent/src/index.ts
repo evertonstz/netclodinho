@@ -248,13 +248,15 @@ const server = createServer(async (req, res) => {
               console.log(`[agent] Assistant message with ${message.message.content.length} blocks, textWasStreamed=${textWasStreamed}`);
               for (const block of message.message.content) {
                 if (block.type === "text") {
-                  // Skip if already sent via streaming deltas
                   if (textWasStreamed) {
-                    console.log(`[agent] Text block (skipped - already streamed): ${block.text.slice(0, 50)}...`);
-                    continue;
+                    // Text was already streamed - send empty partial:false to signal completion
+                    console.log(`[agent] Text block (streamed) - sending completion signal`);
+                    send({ type: "agent.message", content: "", partial: false });
+                  } else {
+                    // Non-streaming case - send full content
+                    console.log(`[agent] Text block: ${block.text.slice(0, 100)}...`);
+                    send({ type: "agent.message", content: block.text, partial: false });
                   }
-                  console.log(`[agent] Text block: ${block.text.slice(0, 100)}...`);
-                  send({ type: "agent.message", content: block.text, partial: false });
                 } else if (block.type === "thinking") {
                   // Skip thinking blocks - they're always sent via streaming
                   // (extended thinking is only available with streaming enabled)

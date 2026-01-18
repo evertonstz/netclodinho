@@ -38,7 +38,9 @@ final class MessageRouter {
         }
     }
 
-    private func route(_ message: ServerMessage) {
+    /// Routes a server message to the appropriate store.
+    /// Internal for testing - allows tests to call this directly with mock messages.
+    func route(_ message: ServerMessage) {
         switch message {
         // Session messages
         case .sessionCreated(let session):
@@ -64,6 +66,7 @@ final class MessageRouter {
             }
 
         case .sessionUpdated(let session):
+            print("[MessageRouter] session.updated received: id=\(session.id), name=\(session.name), status=\(session.status)")
             sessionStore.updateSession(session)
 
         case .sessionDeleted(let id):
