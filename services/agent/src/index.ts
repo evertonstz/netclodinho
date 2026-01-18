@@ -11,10 +11,53 @@ import { setupRepository } from "./git.js";
 
 const port = parseInt(process.env.AGENT_PORT || "3002", 10);
 const workspaceDir = "/agent/workspace";
-const gitRepo = process.env.GIT_REPO;
-const githubToken = process.env.GITHUB_TOKEN;
-const sessionId = process.env.SESSION_ID || "";
 const sessionMappingFile = "/agent/.session-mapping.json";
+const controlPlaneUrl = process.env.CONTROL_PLANE_URL || "http://control-plane.netclode.svc.cluster.local:3000";
+
+// Track which session we've initialized the repo for
+let initializedSessionId: string | null = null;
+let currentGitRepo: string | null = null;
+let currentGithubToken: string | null = null;
+
+// Fetch session config from control-plane and setup repo if needed
+async function initializeForSession(sessionId: string): Promise<void> {
+  if (initializedSessionId === sessionId) {
+    return; // Already initialized for this session
+  }
+
+  console.log(`[agent] Fetching session config for ${sessionId}...`);
+  
+  try {
+    const configUrl = `${controlPlaneUrl}/internal/session-config?session=${sessionId}`;
+    const response = await fetch(configUrl);
+    
+    if (!response.ok) {
+      console.error(`[agent] Failed to fetch session config: ${response.status}`);
+      return;
+    }
+    
+    const config = await response.json() as { 
+      GIT_REPO?: string; 
+      GITHUB_TOKEN?: string;
+      SESSION_ID?: string;
+    };
+    
+    console.log(`[agent] Session config received: GIT_REPO=${config.GIT_REPO ? "set" : "unset"}, GITHUB_TOKEN=${config.GITHUB_TOKEN ? "set" : "unset"}`);
+    
+    currentGitRepo = config.GIT_REPO || null;
+    currentGithubToken = config.GITHUB_TOKEN || null;
+    
+    // Clone/update repository if configured
+    if (currentGitRepo) {
+      console.log(`[agent] Setting up repository: ${currentGitRepo}`);
+      await setupRepository(currentGitRepo, workspaceDir, sessionId, currentGithubToken || undefined);
+    }
+    
+    initializedSessionId = sessionId;
+  } catch (error) {
+    console.error(`[agent] Error initializing session:`, error);
+  }
+}
 
 // Terminal PTY management
 let terminalPty: IPty | null = null;
@@ -102,8 +145,8 @@ function buildSystemPrompt(): { type: "preset"; preset: "claude_code"; append: s
     "  - See `mise --help` for more options",
   ];
 
-  if (gitRepo) {
-    lines.push("", "## Repository", "", `The repository ${gitRepo} has been cloned to ${workspaceDir}.`);
+  if (currentGitRepo) {
+    lines.push("", "## Repository", "", `The repository ${currentGitRepo} has been cloned to ${workspaceDir}.`);
   }
 
   return {
@@ -199,6 +242,11 @@ const server = createServer(async (req, res) => {
     };
 
     try {
+      // Initialize repo for this session if needed (fetch config from control-plane)
+      if (sessionId) {
+        await initializeForSession(sessionId);
+      }
+
       send({ type: "start" });
 
       // Reset streaming state for this request
@@ -474,15 +522,8 @@ server.on("upgrade", (request: IncomingMessage, socket, head) => {
 
 // Initialize and start server
 async function main() {
-  // Clone/update repository if configured
-  if (gitRepo) {
-    try {
-      await setupRepository(gitRepo, workspaceDir, sessionId, githubToken);
-    } catch (error) {
-      console.error("[agent] Repository setup failed:", error);
-      // Continue anyway - agent can still work without the repo
-    }
-  }
+  // Note: Repository is now cloned dynamically when a session is assigned
+  // See initializeForSession() which is called on first prompt
 
   server.listen(port, () => {
     console.log(`Agent server listening on http://localhost:${port}`);
