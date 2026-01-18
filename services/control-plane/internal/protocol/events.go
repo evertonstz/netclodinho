@@ -14,6 +14,7 @@ const (
 	EventKindCommandEnd   AgentEventKind = "command_end"   // Shell command completed
 	EventKindThinking     AgentEventKind = "thinking"      // Agent thinking/reasoning
 	EventKindPortExposed  AgentEventKind = "port_exposed"  // Port exposed for preview access
+	EventKindRepoClone    AgentEventKind = "repo_clone"    // Repository clone progress
 )
 
 // AgentEvent is a polymorphic event type. Fields are optional based on Kind.
@@ -40,4 +41,9 @@ type AgentEvent struct {
 	PreviewURL   *string                `json:"previewUrl,omitempty"`
 	LinesAdded   *int                   `json:"linesAdded,omitempty"`
 	LinesRemoved *int                   `json:"linesRemoved,omitempty"`
+
+	// Repo clone event fields
+	Repo    string `json:"repo,omitempty"`    // Repository URL being cloned
+	Stage   string `json:"stage,omitempty"`   // Clone stage: "starting", "cloning", "done", "error"
+	Message string `json:"message,omitempty"` // Progress message
 }

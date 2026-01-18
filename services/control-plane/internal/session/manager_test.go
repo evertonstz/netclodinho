@@ -262,7 +262,7 @@ func newTestManager(maxActiveSessions int) (*Manager, *mockRuntime, *mockStorage
 		UseWarmPool:       true,
 	}
 
-	manager := NewManager(store, runtime, cfg)
+	manager := NewManager(store, runtime, cfg, nil)
 	return manager, runtime, store
 }
 

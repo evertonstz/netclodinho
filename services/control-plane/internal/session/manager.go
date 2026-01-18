@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/angristan/netclode/services/control-plane/internal/config"
+	"github.com/angristan/netclode/services/control-plane/internal/github"
 	"github.com/angristan/netclode/services/control-plane/internal/k8s"
 	"github.com/angristan/netclode/services/control-plane/internal/protocol"
 	"github.com/angristan/netclode/services/control-plane/internal/storage"
@@ -29,6 +30,7 @@ type Manager struct {
 	k8s      k8s.Runtime
 	config   *config.Config
 	terminal *TerminalManager
+	github   *github.Client // nil if GitHub App not configured
 
 	sessions map[string]*SessionState
 	mu       sync.RWMutex
@@ -38,11 +40,12 @@ type Manager struct {
 }
 
 // NewManager creates a new session manager.
-func NewManager(store storage.Storage, k8sRuntime k8s.Runtime, cfg *config.Config) *Manager {
+func NewManager(store storage.Storage, k8sRuntime k8s.Runtime, cfg *config.Config, githubClient *github.Client) *Manager {
 	m := &Manager{
 		storage:  store,
 		k8s:      k8sRuntime,
 		config:   cfg,
+		github:   githubClient,
 		sessions: make(map[string]*SessionState),
 	}
 
@@ -133,7 +136,7 @@ func generateID() string {
 }
 
 // Create creates a new session.
-func (m *Manager) Create(ctx context.Context, name string, repo *string) (*protocol.Session, error) {
+func (m *Manager) Create(ctx context.Context, name string, repo *string, repoAccess *string) (*protocol.Session, error) {
 	// Ensure we have a slot for a new active session
 	m.ensureActiveSlot(ctx, "")
 
@@ -149,6 +152,7 @@ func (m *Manager) Create(ctx context.Context, name string, repo *string) (*proto
 		Name:         name,
 		Status:       protocol.StatusCreating,
 		Repo:         repo,
+		RepoAccess:   repoAccess,
 		CreatedAt:    now,
 		LastActiveAt: now,
 	}
@@ -165,27 +169,44 @@ func (m *Manager) Create(ctx context.Context, name string, repo *string) (*proto
 	m.mu.Unlock()
 
 	// Start sandbox creation in background
-	go m.createSandbox(context.Background(), id, repo)
+	go m.createSandbox(context.Background(), id, repo, repoAccess)
 
 	return session, nil
 }
 
-func (m *Manager) createSandbox(ctx context.Context, sessionID string, repo *string) {
+func (m *Manager) createSandbox(ctx context.Context, sessionID string, repo *string, repoAccess *string) {
 	if m.config.UseWarmPool {
-		m.createSandboxViaClaim(ctx, sessionID, repo)
+		m.createSandboxViaClaim(ctx, sessionID, repo, repoAccess)
 	} else {
-		m.createSandboxDirect(ctx, sessionID, repo)
+		m.createSandboxDirect(ctx, sessionID, repo, repoAccess)
 	}
 }
 
 // createSandboxDirect creates a sandbox directly (legacy mode)
-func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, repo *string) {
+func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, repo *string, repoAccess *string) {
 	env := map[string]string{
 		"SESSION_ID":        sessionID,
 		"ANTHROPIC_API_KEY": m.config.AnthropicAPIKey,
 	}
+
+	// Setup GitHub repo access if configured
 	if repo != nil && *repo != "" {
-		env["GIT_REPO"] = *repo
+		env["GIT_REPO"] = github.NormalizeRepoURL(*repo)
+
+		// Generate scoped GitHub token if GitHub App is configured
+		if m.github != nil {
+			access := github.RepoAccessRead
+			if repoAccess != nil && *repoAccess == "write" {
+				access = github.RepoAccessWrite
+			}
+
+			token, err := m.github.CreateInstallationToken(ctx, *repo, access)
+			if err != nil {
+				slog.Warn("Failed to create GitHub token, proceeding without auth", "sessionID", sessionID, "error", err)
+			} else {
+				env["GITHUB_TOKEN"] = token.Token
+			}
+		}
 	}
 
 	// Create sandbox
@@ -249,7 +270,7 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 }
 
 // createSandboxViaClaim uses SandboxClaim for warm pool allocation
-func (m *Manager) createSandboxViaClaim(ctx context.Context, sessionID string, repo *string) {
+func (m *Manager) createSandboxViaClaim(ctx context.Context, sessionID string, repo *string, repoAccess *string) {
 	// Create SandboxClaim to request from warm pool
 	if err := m.k8s.CreateSandboxClaim(ctx, sessionID); err != nil {
 		slog.Error("Failed to create sandbox claim", "sessionID", sessionID, "error", err)
@@ -507,7 +528,7 @@ func (m *Manager) Resume(ctx context.Context, id string) (*protocol.Session, err
 	_ = m.storage.UpdateSessionStatus(ctx, id, protocol.StatusCreating)
 
 	// Start sandbox creation in background
-	go m.createSandbox(context.Background(), id, state.Session.Repo)
+	go m.createSandbox(context.Background(), id, state.Session.Repo, state.Session.RepoAccess)
 
 	return state.Session, nil
 }
@@ -914,8 +935,24 @@ func (m *Manager) GetSessionConfig(ctx context.Context, sessionID string) (map[s
 		"ANTHROPIC_API_KEY": m.config.AnthropicAPIKey,
 	}
 
+	// Setup GitHub repo access if configured
 	if state.Session.Repo != nil && *state.Session.Repo != "" {
-		config["GIT_REPO"] = *state.Session.Repo
+		config["GIT_REPO"] = github.NormalizeRepoURL(*state.Session.Repo)
+
+		// Generate scoped GitHub token if GitHub App is configured
+		if m.github != nil {
+			access := github.RepoAccessRead
+			if state.Session.RepoAccess != nil && *state.Session.RepoAccess == "write" {
+				access = github.RepoAccessWrite
+			}
+
+			token, err := m.github.CreateInstallationToken(ctx, *state.Session.Repo, access)
+			if err != nil {
+				slog.Warn("Failed to create GitHub token for session config", "sessionID", sessionID, "error", err)
+			} else {
+				config["GITHUB_TOKEN"] = token.Token
+			}
+		}
 	}
 
 	return config, nil
@@ -936,6 +973,24 @@ func (m *Manager) emit(ctx context.Context, sessionID string, msg protocol.Serve
 	if notification != nil {
 		m.publishNotification(ctx, sessionID, notification)
 	}
+}
+
+// EmitEvent broadcasts an event from a sandbox to all connected clients.
+// This is used by the internal API to receive events from entrypoint scripts.
+func (m *Manager) EmitEvent(ctx context.Context, sessionID string, event *protocol.AgentEvent) error {
+	// Verify session exists
+	m.mu.RLock()
+	_, ok := m.sessions[sessionID]
+	m.mu.RUnlock()
+
+	if !ok {
+		return fmt.Errorf("session %s not found", sessionID)
+	}
+
+	// Emit the event
+	m.emit(ctx, sessionID, protocol.NewAgentEvent(sessionID, event))
+	slog.Debug("Emitted internal event", "sessionID", sessionID, "kind", event.Kind)
+	return nil
 }
 
 // emitTerminalOutput broadcasts terminal output to all connected clients.

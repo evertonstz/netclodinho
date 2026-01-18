@@ -18,16 +18,36 @@ dockerd --storage-driver=vfs --data-root=/agent/docker &
 echo "[entrypoint] Waiting for Docker socket..."
 timeout=30
 while [ ! -S /var/run/docker.sock ] && [ $timeout -gt 0 ]; do
-    sleep 1
-    timeout=$((timeout - 1))
+	sleep 1
+	timeout=$((timeout - 1))
 done
 
 if [ ! -S /var/run/docker.sock ]; then
-    echo "[entrypoint] Warning: Docker socket not available after 30s"
+	echo "[entrypoint] Warning: Docker socket not available after 30s"
 else
-    # Make socket accessible to docker group
-    chmod 666 /var/run/docker.sock
-    echo "[entrypoint] Docker daemon ready"
+	# Make socket accessible to docker group
+	chmod 666 /var/run/docker.sock
+	echo "[entrypoint] Docker daemon ready"
+fi
+
+# Configure git credentials if GitHub token is provided
+# This is done as root so the credential file is set up before switching to agent user
+if [ -n "$GITHUB_TOKEN" ]; then
+	echo "[entrypoint] Configuring git credentials..."
+	# Create credentials file for agent user
+	mkdir -p /agent/.config/git
+	echo "https://x-access-token:${GITHUB_TOKEN}@github.com" >/agent/.git-credentials
+	chown -R agent:agent /agent/.config /agent/.git-credentials
+	chmod 600 /agent/.git-credentials
+fi
+
+# Configure git credentials if GitHub token is provided
+if [ -n "$GITHUB_TOKEN" ]; then
+	echo "[entrypoint] Configuring git credentials..."
+	mkdir -p /agent/.config/git
+	echo "https://x-access-token:${GITHUB_TOKEN}@github.com" >/agent/.git-credentials
+	chown -R agent:agent /agent/.config /agent/.git-credentials
+	chmod 600 /agent/.git-credentials
 fi
 
 # Drop privileges and run agent

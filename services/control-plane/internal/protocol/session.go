@@ -15,6 +15,7 @@ type Session struct {
 	Name         string        `json:"name"`
 	Status       SessionStatus `json:"status"`
 	Repo         *string       `json:"repo,omitempty"`
+	RepoAccess   *string       `json:"repoAccess,omitempty"` // "read" or "write"
 	CreatedAt    string        `json:"createdAt"`
 	LastActiveAt string        `json:"lastActiveAt"`
 }
@@ -26,6 +27,7 @@ type SessionWithMeta struct {
 }
 
 type SessionCreateRequest struct {
-	Name *string `json:"name,omitempty"`
-	Repo *string `json:"repo,omitempty"`
+	Name       *string `json:"name,omitempty"`
+	Repo       *string `json:"repo,omitempty"`
+	RepoAccess *string `json:"repoAccess,omitempty"` // "read" or "write"
 }

@@ -7,10 +7,13 @@ import * as pty from "node-pty";
 import type { IPty } from "node-pty";
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 import { dirname } from "path";
+import { setupRepository } from "./git.js";
 
 const port = parseInt(process.env.AGENT_PORT || "3002", 10);
 const workspaceDir = "/agent/workspace";
 const gitRepo = process.env.GIT_REPO;
+const githubToken = process.env.GITHUB_TOKEN;
+const sessionId = process.env.SESSION_ID || "";
 const sessionMappingFile = "/agent/.session-mapping.json";
 
 // Terminal PTY management
@@ -469,6 +472,24 @@ server.on("upgrade", (request: IncomingMessage, socket, head) => {
   }
 });
 
-server.listen(port, () => {
-  console.log(`Agent server listening on http://localhost:${port}`);
+// Initialize and start server
+async function main() {
+  // Clone/update repository if configured
+  if (gitRepo) {
+    try {
+      await setupRepository(gitRepo, workspaceDir, sessionId, githubToken);
+    } catch (error) {
+      console.error("[agent] Repository setup failed:", error);
+      // Continue anyway - agent can still work without the repo
+    }
+  }
+
+  server.listen(port, () => {
+    console.log(`Agent server listening on http://localhost:${port}`);
+  });
+}
+
+main().catch((error) => {
+  console.error("[agent] Fatal error:", error);
+  process.exit(1);
 });

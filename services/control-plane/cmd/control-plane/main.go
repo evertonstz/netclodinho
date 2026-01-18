@@ -10,6 +10,7 @@ import (
 
 	"github.com/angristan/netclode/services/control-plane/internal/api"
 	"github.com/angristan/netclode/services/control-plane/internal/config"
+	"github.com/angristan/netclode/services/control-plane/internal/github"
 	"github.com/angristan/netclode/services/control-plane/internal/k8s"
 	"github.com/angristan/netclode/services/control-plane/internal/session"
 	"github.com/angristan/netclode/services/control-plane/internal/storage"
@@ -61,8 +62,17 @@ func run() error {
 		k8sRuntime.Close()
 	}()
 
+	// Initialize GitHub client (optional - nil if not configured)
+	githubClient, err := github.NewClient(cfg)
+	if err != nil {
+		return fmt.Errorf("init github: %w", err)
+	}
+	if githubClient != nil {
+		slog.Info("GitHub App integration enabled", "appID", cfg.GitHubAppID, "installationID", cfg.GitHubInstallationID)
+	}
+
 	// Create session manager
-	manager := session.NewManager(store, k8sRuntime, cfg)
+	manager := session.NewManager(store, k8sRuntime, cfg, githubClient)
 	defer func() {
 		slog.Info("Closing session manager")
 		manager.Close()

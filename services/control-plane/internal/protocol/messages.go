@@ -10,6 +10,7 @@ type ClientMessage struct {
 	SessionID          string  `json:"sessionId,omitempty"`
 	Name               string  `json:"name,omitempty"`
 	Repo               string  `json:"repo,omitempty"`
+	RepoAccess         string  `json:"repoAccess,omitempty"` // "read" or "write" - controls GitHub token permissions
 	Text               string  `json:"text,omitempty"`
 	Data               string  `json:"data,omitempty"`
 	Cols               int     `json:"cols,omitempty"`

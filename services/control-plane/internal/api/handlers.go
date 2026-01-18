@@ -13,7 +13,7 @@ import (
 func (c *Connection) HandleMessage(ctx context.Context, msg protocol.ClientMessage) error {
 	switch msg.Type {
 	case protocol.MsgTypeSessionCreate:
-		return c.handleSessionCreate(ctx, msg.Name, msg.Repo, msg.InitialPrompt)
+		return c.handleSessionCreate(ctx, msg.Name, msg.Repo, msg.RepoAccess, msg.InitialPrompt)
 	case protocol.MsgTypeSessionList:
 		return c.handleSessionList(ctx)
 	case protocol.MsgTypeSessionResume:
@@ -41,13 +41,18 @@ func (c *Connection) HandleMessage(ctx context.Context, msg protocol.ClientMessa
 	}
 }
 
-func (c *Connection) handleSessionCreate(ctx context.Context, name, repo, initialPrompt string) error {
+func (c *Connection) handleSessionCreate(ctx context.Context, name, repo, repoAccess, initialPrompt string) error {
 	var repoPtr *string
 	if repo != "" {
 		repoPtr = &repo
 	}
 
-	session, err := c.manager.Create(ctx, name, repoPtr)
+	var repoAccessPtr *string
+	if repoAccess != "" {
+		repoAccessPtr = &repoAccess
+	}
+
+	session, err := c.manager.Create(ctx, name, repoPtr, repoAccessPtr)
 	if err != nil {
 		return err
 	}

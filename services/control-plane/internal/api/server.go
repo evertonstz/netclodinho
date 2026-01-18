@@ -69,6 +69,7 @@ func (s *Server) ListenAndServe(ctx context.Context, addr string) error {
 	mux.HandleFunc("GET /health", s.handleHealth)
 	mux.HandleFunc("GET /ws", s.handleWebSocket)
 	mux.HandleFunc("GET /internal/session-config", s.handleSessionConfig)
+	mux.HandleFunc("POST /internal/session/{sessionID}/event", s.handleInternalEvent)
 
 	s.server = &http.Server{
 		Addr:    addr,
@@ -175,6 +176,30 @@ func extractSessionIDFromPodName(podName string) string {
 		}
 	}
 	return ""
+}
+
+// handleInternalEvent receives events from sandbox entrypoints/agents.
+// POST /internal/session/{sessionID}/event
+func (s *Server) handleInternalEvent(w http.ResponseWriter, r *http.Request) {
+	sessionID := r.PathValue("sessionID")
+	if sessionID == "" {
+		http.Error(w, "sessionID required", http.StatusBadRequest)
+		return
+	}
+
+	var event protocol.AgentEvent
+	if err := json.NewDecoder(r.Body).Decode(&event); err != nil {
+		http.Error(w, "invalid event JSON: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := s.manager.EmitEvent(r.Context(), sessionID, &event); err != nil {
+		slog.Warn("Failed to emit internal event", "sessionID", sessionID, "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {

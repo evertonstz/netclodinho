@@ -18,6 +18,11 @@ type Config struct {
 	MaxEventsPerSession   int
 	UseWarmPool           bool
 	MaxActiveSessions     int
+
+	// GitHub App integration
+	GitHubAppID          int64
+	GitHubAppPrivateKey  string // PEM-encoded private key
+	GitHubInstallationID int64
 }
 
 func Load() *Config {
@@ -34,7 +39,17 @@ func Load() *Config {
 		MaxEventsPerSession:   getEnvInt("MAX_EVENTS_PER_SESSION", 50),
 		UseWarmPool:           getEnvBool("WARM_POOL_ENABLED", false),
 		MaxActiveSessions:     getEnvInt("MAX_ACTIVE_SESSIONS", 2),
+
+		// GitHub App integration
+		GitHubAppID:          getEnvInt64("GITHUB_APP_ID", 0),
+		GitHubAppPrivateKey:  getEnv("GITHUB_APP_PRIVATE_KEY", ""),
+		GitHubInstallationID: getEnvInt64("GITHUB_INSTALLATION_ID", 0),
 	}
+}
+
+// HasGitHubApp returns true if GitHub App is configured.
+func (c *Config) HasGitHubApp() bool {
+	return c.GitHubAppID > 0 && c.GitHubAppPrivateKey != "" && c.GitHubInstallationID > 0
 }
 
 func getEnv(key, defaultValue string) string {
@@ -47,6 +62,15 @@ func getEnv(key, defaultValue string) string {
 func getEnvInt(key string, defaultValue int) int {
 	if value := os.Getenv(key); value != "" {
 		if i, err := strconv.Atoi(value); err == nil {
+			return i
+		}
+	}
+	return defaultValue
+}
+
+func getEnvInt64(key string, defaultValue int64) int64 {
+	if value := os.Getenv(key); value != "" {
+		if i, err := strconv.ParseInt(value, 10, 64); err == nil {
 			return i
 		}
 	}

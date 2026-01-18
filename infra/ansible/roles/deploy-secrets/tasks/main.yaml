@@ -32,6 +32,9 @@
         do_spaces_secret_key: "{{ env_content.content | b64decode | regex_search('(?m)^DO_SPACES_SECRET_KEY=(.*)$', '\\1') | first | default('') }}"
         juicefs_bucket: "{{ env_content.content | b64decode | regex_search('(?m)^JUICEFS_BUCKET=(.*)$', '\\1') | first | default('') }}"
         juicefs_meta_url: "{{ env_content.content | b64decode | regex_search('(?m)^JUICEFS_META_URL=(.*)$', '\\1') | first | default('') }}"
+        github_app_id: "{{ env_content.content | b64decode | regex_search('(?m)^GITHUB_APP_ID=(.*)$', '\\1') | first | default('') }}"
+        github_app_private_key: "{{ env_content.content | b64decode | regex_search('(?m)^GITHUB_APP_PRIVATE_KEY=(.*)$', '\\1') | first | default('') }}"
+        github_installation_id: "{{ env_content.content | b64decode | regex_search('(?m)^GITHUB_INSTALLATION_ID=(.*)$', '\\1') | first | default('') }}"
 
 # Host secrets - skip if only deploying k8s secrets
 - name: Deploy host secrets
@@ -102,6 +105,9 @@
           type: Opaque
           stringData:
             anthropic-api-key: "{{ anthropic_api_key }}"
+            github-app-id: "{{ github_app_id }}"
+            github-app-private-key: "{{ github_app_private_key }}"
+            github-installation-id: "{{ github_installation_id }}"
       when: anthropic_api_key | length > 0
 
     - name: Check if juicefs-secret already exists
