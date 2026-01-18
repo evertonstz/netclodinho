@@ -39,6 +39,7 @@ struct PersistedEvent: Codable, Sendable {
         let tool: String?
         let toolUseId: String?
         let input: [String: AnyCodableValue]?
+        let inputDelta: String?
         let result: String?
 
         // File change
@@ -75,6 +76,22 @@ struct PersistedEvent: Codable, Sendable {
                     id: id,
                     timestamp: timestamp,
                     tool: tool ?? "Unknown",
+                    toolUseId: toolUseId ?? "",
+                    input: input ?? [:]
+                ))
+
+            case "tool_input":
+                return .toolInput(ToolInputEvent(
+                    id: id,
+                    timestamp: timestamp,
+                    toolUseId: toolUseId ?? "",
+                    inputDelta: inputDelta ?? ""
+                ))
+
+            case "tool_input_complete":
+                return .toolInputComplete(ToolInputCompleteEvent(
+                    id: id,
+                    timestamp: timestamp,
                     toolUseId: toolUseId ?? "",
                     input: input ?? [:]
                 ))
