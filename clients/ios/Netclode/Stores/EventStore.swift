@@ -114,14 +114,18 @@ final class EventStore {
 
     /// Load events from server sync response
     func loadEvents(sessionId: String, events: [PersistedEvent]) {
-        // Aggregate thinking events by thinkingId to avoid fragmented display
+        // Aggregate events:
+        // 1. Thinking events by thinkingId to avoid fragmented display
+        // 2. tool_input_complete input merged into tool_start events
         var aggregatedEvents: [AgentEvent] = []
         var thinkingIndex: [String: Int] = [:] // thinkingId -> index in aggregatedEvents
+        var toolStartIndex: [String: Int] = [:] // toolUseId -> index in aggregatedEvents
 
         for persistedEvent in events {
             let event = persistedEvent.event.toAgentEvent()
 
-            if case .thinking(let thinkingEvent) = event {
+            switch event {
+            case .thinking(let thinkingEvent):
                 if let existingIndex = thinkingIndex[thinkingEvent.thinkingId] {
                     // Append content to existing thinking event
                     if case .thinking(let existing) = aggregatedEvents[existingIndex] {
@@ -140,7 +144,33 @@ final class EventStore {
                     thinkingIndex[thinkingEvent.thinkingId] = aggregatedEvents.count
                     aggregatedEvents.append(event)
                 }
-            } else {
+
+            case .toolStart(let toolStartEvent):
+                // Track tool_start events for later input merging
+                toolStartIndex[toolStartEvent.toolUseId] = aggregatedEvents.count
+                aggregatedEvents.append(event)
+
+            case .toolInputComplete(let inputCompleteEvent):
+                // Merge input into corresponding tool_start event
+                if let existingIndex = toolStartIndex[inputCompleteEvent.toolUseId] {
+                    if case .toolStart(let existing) = aggregatedEvents[existingIndex] {
+                        let updated = ToolStartEvent(
+                            id: existing.id,
+                            timestamp: existing.timestamp,
+                            tool: existing.tool,
+                            toolUseId: existing.toolUseId,
+                            input: inputCompleteEvent.input
+                        )
+                        aggregatedEvents[existingIndex] = .toolStart(updated)
+                    }
+                }
+                // Don't add tool_input_complete to aggregatedEvents (it's merged)
+
+            case .toolInput:
+                // Skip tool_input events (streaming deltas, not needed in history)
+                break
+
+            default:
                 aggregatedEvents.append(event)
             }
         }
