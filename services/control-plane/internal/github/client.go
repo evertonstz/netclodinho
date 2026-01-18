@@ -212,11 +212,16 @@ func extractRepoName(input string) string {
 }
 
 // NormalizeRepoURL converts various repo formats to a proper HTTPS URL.
-// Supports: "owner/repo", "https://github.com/owner/repo"
+// Supports: "owner/repo", "github.com/owner/repo", "https://github.com/owner/repo"
 func NormalizeRepoURL(input string) string {
-	// Already a full URL
+	// Already a full URL with protocol
 	if strings.HasPrefix(input, "https://") || strings.HasPrefix(input, "http://") {
 		return input
+	}
+
+	// Handle github.com/owner/repo (without protocol)
+	if strings.HasPrefix(input, "github.com/") {
+		return "https://" + input + ".git"
 	}
 
 	// Convert owner/repo to HTTPS URL
