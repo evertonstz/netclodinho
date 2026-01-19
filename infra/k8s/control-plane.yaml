@@ -59,7 +59,7 @@ spec:
             - name: WARM_POOL_ENABLED
               value: "true"
             - name: MAX_ACTIVE_SESSIONS
-              value: "2"
+              value: "5"
           readinessProbe:
             httpGet:
               path: /health
