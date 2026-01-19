@@ -23,6 +23,9 @@ enum ServerMessage: Sendable {
     // Sync responses
     case syncResponse(sessions: [SessionWithMeta], serverTime: Date)
     case sessionState(session: Session, messages: [PersistedMessage], events: [PersistedEvent], hasMore: Bool, lastNotificationId: String?)
+
+    // GitHub
+    case githubRepos(repos: [GitHubRepo])
 }
 
 extension ServerMessage: Decodable {
@@ -32,6 +35,7 @@ extension ServerMessage: Decodable {
         case sessionId, content, partial, event, data
         case port, previewUrl
         case serverTime, messages, events, hasMore, lastNotificationId
+        case repos
     }
 
     init(from decoder: Decoder) throws {
@@ -118,6 +122,10 @@ extension ServerMessage: Decodable {
             let hasMore = try container.decodeIfPresent(Bool.self, forKey: .hasMore) ?? false
             let lastNotificationId = try container.decodeIfPresent(String.self, forKey: .lastNotificationId)
             self = .sessionState(session: session, messages: messages, events: events, hasMore: hasMore, lastNotificationId: lastNotificationId)
+
+        case "github.repos":
+            let repos = try container.decodeIfPresent([GitHubRepo].self, forKey: .repos) ?? []
+            self = .githubRepos(repos: repos)
 
         default:
             throw DecodingError.dataCorruptedError(

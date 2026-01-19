@@ -14,6 +14,8 @@ enum ClientMessage: Encodable, Sendable {
     // Sync messages
     case sync
     case sessionOpen(id: String, lastMessageId: String?, lastNotificationId: String?)
+    // GitHub
+    case githubReposList
 
     private enum CodingKeys: String, CodingKey {
         case type
@@ -79,6 +81,9 @@ enum ClientMessage: Encodable, Sendable {
             try container.encode(id, forKey: .id)
             try container.encodeIfPresent(lastMessageId, forKey: .lastMessageId)
             try container.encodeIfPresent(lastNotificationId, forKey: .lastNotificationId)
+
+        case .githubReposList:
+            try container.encode("github.repos.list", forKey: .type)
         }
     }
 }

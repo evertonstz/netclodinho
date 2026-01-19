@@ -19,7 +19,8 @@ final class MessageRouterTests: XCTestCase {
             sessionStore: sessionStore,
             chatStore: chatStore,
             eventStore: eventStore,
-            terminalStore: terminalStore
+            terminalStore: terminalStore,
+            githubStore: GitHubStore()
         )
 
         // Add initial session with default name
@@ -168,14 +169,16 @@ final class MessageRouterTests: XCTestCase {
         sessionStore: SessionStore = SessionStore(),
         chatStore: ChatStore = ChatStore(),
         eventStore: EventStore = EventStore(),
-        terminalStore: TerminalStore = TerminalStore()
+        terminalStore: TerminalStore = TerminalStore(),
+        githubStore: GitHubStore = GitHubStore()
     ) -> MessageRouter {
         MessageRouter(
             webSocketService: WebSocketService(),
             sessionStore: sessionStore,
             chatStore: chatStore,
             eventStore: eventStore,
-            terminalStore: terminalStore
+            terminalStore: terminalStore,
+            githubStore: githubStore
         )
     }
 }

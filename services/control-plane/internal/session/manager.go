@@ -919,6 +919,15 @@ func (m *Manager) Subscribe(ctx context.Context, id string, lastNotificationID s
 	return sub, nil
 }
 
+// ListGitHubRepos returns the repositories accessible to the GitHub App installation.
+// Returns nil, nil if GitHub App is not configured.
+func (m *Manager) ListGitHubRepos(ctx context.Context) ([]github.Repository, error) {
+	if m.github == nil {
+		return nil, nil
+	}
+	return m.github.ListInstallationRepositories(ctx)
+}
+
 // GetSessionConfig returns session configuration for the agent.
 // This is used by agents to get session-specific config when using warm pools.
 func (m *Manager) GetSessionConfig(ctx context.Context, sessionID string) (map[string]string, error) {

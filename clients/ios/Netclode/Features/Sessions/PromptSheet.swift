@@ -5,6 +5,7 @@ struct PromptSheet: View {
     @Environment(WebSocketService.self) private var webSocketService
     @Environment(SettingsStore.self) private var settingsStore
     @Environment(SessionStore.self) private var sessionStore
+    @Environment(GitHubStore.self) private var githubStore
 
     @State private var promptText = ""
     @State private var repoURL = ""
@@ -36,16 +37,7 @@ struct PromptSheet: View {
                         .font(.netclodeCaption)
                         .foregroundStyle(.secondary)
                     
-                    TextField(
-                        "github.com/owner/repo",
-                        text: $repoURL
-                    )
-                    .font(.netclodeBody)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .keyboardType(.URL)
-                    .padding(Theme.Spacing.md)
-                    .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Theme.Radius.lg))
+                    RepoAutocomplete(text: $repoURL)
                     
                     if !repoURL.isEmpty {
                         Picker("Access", selection: $repoAccess) {
@@ -151,5 +143,6 @@ struct PromptSheet: View {
                 .environment(WebSocketService())
                 .environment(SettingsStore())
                 .environment(SessionStore())
+                .environment(GitHubStore())
         }
 }

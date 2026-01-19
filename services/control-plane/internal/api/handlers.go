@@ -36,6 +36,8 @@ func (c *Connection) HandleMessage(ctx context.Context, msg protocol.ClientMessa
 		return c.handleSessionOpen(ctx, msg.ID, msg.LastMessageID, msg.LastNotificationID)
 	case protocol.MsgTypePortExpose:
 		return c.handlePortExpose(ctx, msg.SessionID, msg.Port)
+	case protocol.MsgTypeGitHubReposList:
+		return c.handleGitHubReposList(ctx)
 	default:
 		return fmt.Errorf("unknown message type: %s", msg.Type)
 	}
@@ -248,4 +250,27 @@ func (c *Connection) handlePortExpose(ctx context.Context, sessionID string, por
 	slog.Info("Port exposed", "sessionID", sessionID, "port", port, "previewURL", previewURL)
 
 	return c.Send(protocol.NewPortExposed(sessionID, port, previewURL))
+}
+
+func (c *Connection) handleGitHubReposList(ctx context.Context) error {
+	slog.Info("Handling github.repos.list request")
+	repos, err := c.manager.ListGitHubRepos(ctx)
+	if err != nil {
+		slog.Warn("Failed to list GitHub repos", "error", err)
+		return c.Send(protocol.NewError("Failed to list GitHub repositories: " + err.Error()))
+	}
+
+	// Convert github.Repository to protocol.GitHubRepo
+	protoRepos := make([]protocol.GitHubRepo, len(repos))
+	for i, r := range repos {
+		protoRepos[i] = protocol.GitHubRepo{
+			Name:        r.Name,
+			FullName:    r.FullName,
+			Private:     r.Private,
+			Description: r.Description,
+		}
+	}
+
+	slog.Info("Listed GitHub repos", "count", len(protoRepos))
+	return c.Send(protocol.NewGitHubReposResponse(protoRepos))
 }

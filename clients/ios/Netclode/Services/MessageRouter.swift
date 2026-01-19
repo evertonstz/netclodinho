@@ -9,6 +9,7 @@ final class MessageRouter {
     private let chatStore: ChatStore
     private let eventStore: EventStore
     private let terminalStore: TerminalStore
+    private let githubStore: GitHubStore
 
     private var routingTask: Task<Void, Never>?
 
@@ -17,13 +18,15 @@ final class MessageRouter {
         sessionStore: SessionStore,
         chatStore: ChatStore,
         eventStore: EventStore,
-        terminalStore: TerminalStore
+        terminalStore: TerminalStore,
+        githubStore: GitHubStore
     ) {
         self.webSocketService = webSocketService
         self.sessionStore = sessionStore
         self.chatStore = chatStore
         self.eventStore = eventStore
         self.terminalStore = terminalStore
+        self.githubStore = githubStore
 
         startRouting()
     }
@@ -179,6 +182,10 @@ final class MessageRouter {
         // General errors
         case .error(let message):
             print("Server error: \(message)")
+            // Notify GitHubStore in case it's waiting for a response
+            if githubStore.isLoading {
+                githubStore.handleError(message)
+            }
 
         // Sync responses
         case .syncResponse(let sessions, _):
@@ -203,6 +210,11 @@ final class MessageRouter {
                 sessionStore.setLastNotificationId(for: session.id, notificationId: notificationId)
             }
             print("[MessageRouter] Loaded events for session \(session.id)")
+
+        // GitHub messages
+        case .githubRepos(let repos):
+            print("[MessageRouter] github.repos received: \(repos.count) repos")
+            githubStore.handleReposReceived(repos)
         }
     }
 
@@ -216,7 +228,8 @@ final class MessageRouter {
             sessionStore: SessionStore(),
             chatStore: ChatStore(),
             eventStore: EventStore(),
-            terminalStore: TerminalStore()
+            terminalStore: TerminalStore(),
+            githubStore: GitHubStore()
         )
     }
 }

@@ -50,6 +50,9 @@
 		A10000000000000000000042 /* MarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000042 /* MarkdownView.swift */; };
 		A10000000000000000000033 /* PreviewData.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000033 /* PreviewData.swift */; };
 		A10000000000000000000034 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000034 /* Assets.xcassets */; };
+		A10000000000000000000043 /* GitHubRepo.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000043 /* GitHubRepo.swift */; };
+		A10000000000000000000044 /* GitHubStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000044 /* GitHubStore.swift */; };
+		A10000000000000000000045 /* RepoAutocomplete.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000045 /* RepoAutocomplete.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -96,6 +99,9 @@
 		B10000000000000000000033 /* PreviewData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewData.swift; sourceTree = "<group>"; };
 		B10000000000000000000034 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B10000000000000000000035 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B10000000000000000000043 /* GitHubRepo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubRepo.swift; sourceTree = "<group>"; };
+		B10000000000000000000044 /* GitHubStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubStore.swift; sourceTree = "<group>"; };
+		B10000000000000000000045 /* RepoAutocomplete.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepoAutocomplete.swift; sourceTree = "<group>"; };
 		C10000000000000000000001 /* Netclode.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Netclode.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -183,6 +189,7 @@
 				B10000000000000000000006 /* ClientMessage.swift */,
 				B10000000000000000000007 /* ServerMessage.swift */,
 				B10000000000000000000036 /* PersistedMessage.swift */,
+				B10000000000000000000043 /* GitHubRepo.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -205,6 +212,7 @@
 				B10000000000000000000012 /* EventStore.swift */,
 				B10000000000000000000013 /* TerminalStore.swift */,
 				B10000000000000000000014 /* SettingsStore.swift */,
+				B10000000000000000000044 /* GitHubStore.swift */,
 			);
 			path = Stores;
 			sourceTree = "<group>";
@@ -228,6 +236,7 @@
 				B10000000000000000000015 /* SessionsView.swift */,
 				B10000000000000000000016 /* SessionRow.swift */,
 				B10000000000000000000037 /* PromptSheet.swift */,
+				B10000000000000000000045 /* RepoAutocomplete.swift */,
 			);
 			path = Sessions;
 			sourceTree = "<group>";
@@ -469,6 +478,9 @@
 				A10000000000000000000032 /* Date+Formatting.swift in Sources */,
 				A10000000000000000000042 /* MarkdownView.swift in Sources */,
 				A10000000000000000000033 /* PreviewData.swift in Sources */,
+				A10000000000000000000043 /* GitHubRepo.swift in Sources */,
+				A10000000000000000000044 /* GitHubStore.swift in Sources */,
+				A10000000000000000000045 /* RepoAutocomplete.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

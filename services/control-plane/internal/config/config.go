@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/base64"
 	"os"
 	"strconv"
 )
@@ -42,9 +43,24 @@ func Load() *Config {
 
 		// GitHub App integration
 		GitHubAppID:          getEnvInt64("GITHUB_APP_ID", 0),
-		GitHubAppPrivateKey:  getEnv("GITHUB_APP_PRIVATE_KEY", ""),
+		GitHubAppPrivateKey:  getGitHubPrivateKey(),
 		GitHubInstallationID: getEnvInt64("GITHUB_INSTALLATION_ID", 0),
 	}
+}
+
+// getGitHubPrivateKey returns the GitHub App private key.
+// It first checks GITHUB_APP_PRIVATE_KEY_B64 (base64-encoded),
+// then falls back to GITHUB_APP_PRIVATE_KEY (raw PEM).
+func getGitHubPrivateKey() string {
+	// Try base64-encoded version first (for .env files where multiline is tricky)
+	if b64 := os.Getenv("GITHUB_APP_PRIVATE_KEY_B64"); b64 != "" {
+		decoded, err := base64.StdEncoding.DecodeString(b64)
+		if err == nil {
+			return string(decoded)
+		}
+	}
+	// Fall back to raw PEM
+	return os.Getenv("GITHUB_APP_PRIVATE_KEY")
 }
 
 // HasGitHubApp returns true if GitHub App is configured.

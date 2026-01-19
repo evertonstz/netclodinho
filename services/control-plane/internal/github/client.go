@@ -231,3 +231,113 @@ func NormalizeRepoURL(input string) string {
 
 	return input
 }
+
+// Repository represents a GitHub repository with minimal metadata.
+type Repository struct {
+	Name        string `json:"name"`
+	FullName    string `json:"fullName"`
+	Private     bool   `json:"private"`
+	Description string `json:"description,omitempty"`
+}
+
+// listReposResponse is the GitHub API response for listing installation repositories.
+type listReposResponse struct {
+	TotalCount   int             `json:"total_count"`
+	Repositories []apiRepository `json:"repositories"`
+}
+
+// apiRepository represents a repository in the GitHub API response.
+type apiRepository struct {
+	Name        string  `json:"name"`
+	FullName    string  `json:"full_name"`
+	Private     bool    `json:"private"`
+	Description *string `json:"description"`
+}
+
+// ListInstallationRepositories returns all repositories accessible to the GitHub App installation.
+func (c *Client) ListInstallationRepositories(ctx context.Context) ([]Repository, error) {
+	jwt, err := c.createJWT()
+	if err != nil {
+		return nil, fmt.Errorf("create JWT: %w", err)
+	}
+
+	// First, get an installation token (without repo scope to list all)
+	tokenURL := fmt.Sprintf("https://api.github.com/app/installations/%d/access_tokens", c.installationID)
+	tokenReq, err := http.NewRequestWithContext(ctx, "POST", tokenURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create token request: %w", err)
+	}
+	tokenReq.Header.Set("Authorization", "Bearer "+jwt)
+	tokenReq.Header.Set("Accept", "application/vnd.github+json")
+	tokenReq.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+
+	tokenResp, err := c.httpClient.Do(tokenReq)
+	if err != nil {
+		return nil, fmt.Errorf("token request failed: %w", err)
+	}
+	defer tokenResp.Body.Close()
+
+	if tokenResp.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(tokenResp.Body)
+		return nil, fmt.Errorf("GitHub API error getting token: %s - %s", tokenResp.Status, string(body))
+	}
+
+	var tokenData InstallationToken
+	if err := json.NewDecoder(tokenResp.Body).Decode(&tokenData); err != nil {
+		return nil, fmt.Errorf("parse token response: %w", err)
+	}
+
+	// Now list repositories using the installation token
+	var allRepos []Repository
+	page := 1
+	perPage := 100
+
+	for {
+		url := fmt.Sprintf("https://api.github.com/installation/repositories?per_page=%d&page=%d", perPage, page)
+		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+		if err != nil {
+			return nil, fmt.Errorf("create list request: %w", err)
+		}
+
+		req.Header.Set("Authorization", "Bearer "+tokenData.Token)
+		req.Header.Set("Accept", "application/vnd.github+json")
+		req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("list request failed: %w", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return nil, fmt.Errorf("GitHub API error listing repos: %s - %s", resp.Status, string(body))
+		}
+
+		var listResp listReposResponse
+		if err := json.NewDecoder(resp.Body).Decode(&listResp); err != nil {
+			return nil, fmt.Errorf("parse list response: %w", err)
+		}
+
+		for _, repo := range listResp.Repositories {
+			r := Repository{
+				Name:     repo.Name,
+				FullName: repo.FullName,
+				Private:  repo.Private,
+			}
+			if repo.Description != nil {
+				r.Description = *repo.Description
+			}
+			allRepos = append(allRepos, r)
+		}
+
+		// Check if we've fetched all repositories
+		if len(allRepos) >= listResp.TotalCount || len(listResp.Repositories) < perPage {
+			break
+		}
+		page++
+	}
+
+	slog.Info("Listed GitHub installation repositories", "count", len(allRepos))
+	return allRepos, nil
+}

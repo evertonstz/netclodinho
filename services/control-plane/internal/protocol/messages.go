@@ -35,7 +35,16 @@ const (
 	MsgTypePortExpose      = "port.expose"
 	MsgTypeSync            = "sync"
 	MsgTypeSessionOpen     = "session.open"
+	MsgTypeGitHubReposList = "github.repos.list"
 )
+
+// GitHubRepo represents a GitHub repository for the repo picker.
+type GitHubRepo struct {
+	Name        string `json:"name"`
+	FullName    string `json:"fullName"`
+	Private     bool   `json:"private"`
+	Description string `json:"description,omitempty"`
+}
 
 // ServerMessage represents all possible server-to-client messages.
 type ServerMessage struct {
@@ -63,6 +72,9 @@ type ServerMessage struct {
 
 	// For cursor-based subscription - Redis Stream ID for reconnection
 	LastNotificationID string `json:"lastNotificationId,omitempty"`
+
+	// For github.repos response
+	Repos []GitHubRepo `json:"repos,omitempty"`
 }
 
 // Server message types
@@ -83,6 +95,7 @@ const (
 	MsgTypePortError           = "port.error"
 	MsgTypeSyncResponse        = "sync.response"
 	MsgTypeSessionState        = "session.state"
+	MsgTypeGitHubReposResponse = "github.repos"
 )
 
 // NewSessionCreated creates a session.created message
@@ -181,6 +194,17 @@ func NewSessionState(session *Session, messages []PersistedMessage, events []Per
 		Messages: messages,
 		Events:   events,
 		HasMore:  hasMore,
+	}
+}
+
+// NewGitHubReposResponse creates a github.repos message
+func NewGitHubReposResponse(repos []GitHubRepo) ServerMessage {
+	if repos == nil {
+		repos = []GitHubRepo{}
+	}
+	return ServerMessage{
+		Type:  MsgTypeGitHubReposResponse,
+		Repos: repos,
 	}
 }
 
