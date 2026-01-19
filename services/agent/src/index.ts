@@ -12,7 +12,7 @@ import { setupRepository } from "./git.js";
 const port = parseInt(process.env.AGENT_PORT || "3002", 10);
 const workspaceDir = "/agent/workspace";
 const sessionMappingFile = "/agent/.session-mapping.json";
-const controlPlaneUrl = process.env.CONTROL_PLANE_URL || "http://control-plane.netclode.svc.cluster.local:3000";
+const controlPlaneUrl = process.env.CONTROL_PLANE_URL || "http://control-plane.netclode.svc.cluster.local";
 
 // Track which session we've initialized the repo for
 let initializedSessionId: string | null = null;
