@@ -37,8 +37,8 @@ type k8sRuntime struct {
 	config        *config.Config
 
 	// Informer for watching sandbox changes
-	informer      cache.SharedIndexInformer
-	informerStop  chan struct{}
+	informer     cache.SharedIndexInformer
+	informerStop chan struct{}
 
 	// Callbacks for sandbox ready notifications
 	readyCallbacks map[string]SandboxReadyCallback
@@ -242,11 +242,10 @@ func (r *k8sRuntime) checkAndNotify(sessionID string, sandbox *Sandbox) {
 
 		callback(sessionID, fqdn, nil)
 	} else if errMsg := sandbox.GetError(); errMsg != "" {
-		r.callbacksMu.Lock()
-		delete(r.readyCallbacks, sessionID)
-		r.callbacksMu.Unlock()
-
-		callback(sessionID, "", fmt.Errorf("sandbox error: %s", errMsg))
+		// Log error but don't fail immediately - some errors are transient
+		// (e.g., "Operation cannot be fulfilled" conflicts with sandbox controller)
+		// The sandbox may still become ready, so keep waiting
+		slog.Warn("Sandbox has error, continuing to wait", "sessionID", sessionID, "error", errMsg)
 	}
 }
 
@@ -472,8 +471,8 @@ func (r *k8sRuntime) WatchSandboxReady(sessionID string, callback SandboxReadyCa
 
 	if exists {
 		if errMsg := sandbox.GetError(); errMsg != "" {
-			go callback(sessionID, "", fmt.Errorf("sandbox error: %s", errMsg))
-			return
+			// Log error but don't fail immediately - some errors are transient
+			slog.Warn("Sandbox has error on check, will wait for ready", "sessionID", sessionID, "error", errMsg)
 		}
 	}
 
