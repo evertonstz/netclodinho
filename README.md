@@ -130,6 +130,7 @@ Quick version:
 
 - [Deployment](docs/deployment.md) - Full setup
 - [Operations](docs/operations.md) - Day-to-day management
+- [GitHub Integration](docs/github-integration.md) - Clone repos and push commits
 - [iOS App](clients/ios/README.md)
 - [Control Plane](services/control-plane/README.md)
 - [Agent](services/agent/README.md)
@@ -138,7 +139,6 @@ Quick version:
 ## Future
 
 - OpenCode server/SDK support
-- GitHub integration (clone repo on session start, push commits)
 - Code diff viewer
 - Notifications (iOS push, etc.)
 - Plan mode
