@@ -35,7 +35,6 @@ final class ChatStore {
            messages[lastIndex].role == .assistant {
             // Append to existing assistant message
             messages[lastIndex].content += delta
-            print("[ChatStore] appendAssistantPartial: appended \(delta.count) chars, total=\(messages[lastIndex].content.count)")
         } else {
             // Create new assistant message
             messages.append(ChatMessage(
@@ -43,7 +42,6 @@ final class ChatStore {
                 content: delta,
                 timestamp: Date()
             ))
-            print("[ChatStore] appendAssistantPartial: created new message with \(delta.count) chars")
         }
 
         messagesBySession[sessionId] = messages
@@ -52,6 +50,13 @@ final class ChatStore {
 
     /// Called when agent.done is received to finalize the message
     func finalizeLastMessage(sessionId: String) {
+        // Update the timestamp to now so the message sorts after all events
+        var messages = messagesBySession[sessionId] ?? []
+        if let lastIndex = messages.indices.last,
+           messages[lastIndex].role == .assistant {
+            messages[lastIndex].timestamp = Date()
+            messagesBySession[sessionId] = messages
+        }
         scheduleSave()
     }
 

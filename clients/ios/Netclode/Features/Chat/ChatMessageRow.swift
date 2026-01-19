@@ -63,164 +63,58 @@ struct ChatMessageRow: View {
     }
 }
 
-// MARK: - Message Content (with basic markdown support)
+// MARK: - Message Content (with full markdown support via swift-markdown)
 
 struct MessageContent: View {
     let content: String
     var isStreaming: Bool = false
 
-    // Pre-compiled regex patterns (expensive to compile, so do it once)
-    private static let inlineCodePattern = try! Regex(#"`([^`]+)`"#)
-    private static let codeBlockPattern = try! Regex(#"```(\w*)\n?([\s\S]*?)```"#)
-
+    /// Process content for streaming - close incomplete markdown constructs
     private var processedContent: String {
         guard isStreaming else { return content }
 
-        // Close incomplete code blocks during streaming
-        let tripleBackticks = content.components(separatedBy: "```").count - 1
+        var result = content
+
+        // Close incomplete code blocks
+        let tripleBackticks = result.components(separatedBy: "```").count - 1
         if tripleBackticks % 2 != 0 {
-            return content + "\n```"
+            result += "\n```"
         }
-        return content
+
+        // Close incomplete bold markers
+        let boldMarkers = result.components(separatedBy: "**").count - 1
+        if boldMarkers % 2 != 0 {
+            result += "**"
+        }
+
+        // Close incomplete italic markers (single *)
+        // Count unescaped single asterisks that aren't part of **
+        let withoutBold = result.replacingOccurrences(of: "**", with: "")
+        let italicMarkers = withoutBold.components(separatedBy: "*").count - 1
+        if italicMarkers % 2 != 0 {
+            result += "*"
+        }
+
+        // Close incomplete strikethrough
+        let strikeMarkers = result.components(separatedBy: "~~").count - 1
+        if strikeMarkers % 2 != 0 {
+            result += "~~"
+        }
+
+        // Close incomplete inline code
+        let inlineCodeMarkers = withoutBold.filter { $0 == "`" }.count
+        // Only close if we have an odd number of backticks not part of code blocks
+        let codeBlockBackticks = tripleBackticks * 3
+        let remainingBackticks = inlineCodeMarkers - codeBlockBackticks
+        if remainingBackticks % 2 != 0 {
+            result += "`"
+        }
+
+        return result
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-            ForEach(Array(parseContent().enumerated()), id: \.offset) { _, block in
-                switch block {
-                case .text(let text):
-                    Text(parseInlineCode(text))
-                        .font(.netclodeBody)
-                        .foregroundStyle(.primary)
-                        .textSelection(.enabled)
-
-                case .code(let code, let language):
-                    CodeBlock(code: code, language: language, isStreaming: isStreaming)
-                }
-            }
-        }
-    }
-
-    enum ContentBlock {
-        case text(String)
-        case code(String, String?)
-    }
-
-    /// Parse inline code in text and return an AttributedString with proper styling
-    private func parseInlineCode(_ text: String) -> AttributedString {
-        var result = AttributedString()
-        var remaining = text
-
-        while let match = remaining.firstMatch(of: Self.inlineCodePattern) {
-            // Add text before the inline code
-            let before = String(remaining[..<match.range.lowerBound])
-            if !before.isEmpty {
-                result.append(AttributedString(before))
-            }
-
-            // Add the inline code with styling
-            if match.output.count > 1, let range = match.output[1].range {
-                let codeContent = String(remaining[range])
-                var codeAttr = AttributedString(codeContent)
-                codeAttr.font = .netclodeMonospacedSmall
-                codeAttr.foregroundColor = UIColor(Theme.Colors.codeText)
-                codeAttr.backgroundColor = UIColor(Theme.Colors.codeBackground)
-                result.append(codeAttr)
-            }
-
-            remaining = String(remaining[match.range.upperBound...])
-        }
-
-        // Add any remaining text
-        if !remaining.isEmpty {
-            result.append(AttributedString(remaining))
-        }
-
-        return result.characters.isEmpty ? AttributedString(text) : result
-    }
-
-    private func parseContent() -> [ContentBlock] {
-        var blocks: [ContentBlock] = []
-        var remaining = processedContent
-
-        while let match = remaining.firstMatch(of: Self.codeBlockPattern) {
-            let before = String(remaining[..<match.range.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
-            if !before.isEmpty {
-                blocks.append(.text(before))
-            }
-
-            let language = match.output.count > 1 ? String(remaining[match.output[1].range!]) : nil
-            let code = match.output.count > 2 ? String(remaining[match.output[2].range!]).trimmingCharacters(in: .whitespacesAndNewlines) : ""
-            blocks.append(.code(code, language?.isEmpty == true ? nil : language))
-
-            remaining = String(remaining[match.range.upperBound...])
-        }
-
-        if !remaining.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            blocks.append(.text(remaining.trimmingCharacters(in: .whitespacesAndNewlines)))
-        }
-
-        return blocks.isEmpty ? [.text(content)] : blocks
-    }
-}
-
-// MARK: - Code Block
-
-struct CodeBlock: View {
-    let code: String
-    let language: String?
-    var isStreaming: Bool = false
-
-    @State private var isCopied = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Header
-            HStack {
-                if let language, !language.isEmpty {
-                    Text(language.uppercased())
-                        .font(.netclodeCaption)
-                        .foregroundStyle(.secondary)
-                }
-
-                if isStreaming {
-                    ProgressView()
-                        .scaleEffect(0.6)
-                        .frame(width: 12, height: 12)
-                }
-
-                Spacer()
-
-                if !isStreaming {
-                    Button {
-                        UIPasteboard.general.string = code
-                        isCopied = true
-                        HapticFeedback.success()
-
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                            isCopied = false
-                        }
-                    } label: {
-                        Label(isCopied ? "Copied!" : "Copy", systemImage: isCopied ? "checkmark" : "doc.on.doc")
-                            .font(.netclodeCaption)
-                    }
-                }
-            }
-            .padding(.horizontal, Theme.Spacing.xs)
-            .padding(.vertical, Theme.Spacing.xxs)
-            .background(Theme.Colors.codeBackground.opacity(0.5))
-
-            // Code
-            ScrollView(.horizontal, showsIndicators: false) {
-                Text(code)
-                    .font(.netclodeMonospacedSmall)
-                    .foregroundStyle(Theme.Colors.codeText)
-                    .textSelection(.enabled)
-                    .padding(Theme.Spacing.xs)
-            }
-        }
-        .background(Theme.Colors.codeBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
+        MarkdownView(content: processedContent)
     }
 }
 

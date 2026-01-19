@@ -18,14 +18,14 @@ enum Theme {
         static let brandLight = Color(red: 0.7, green: 0.6, blue: 0.8) // Cozy lavender
 
         // Message bubbles - adaptive
-        static let userBubble = Color(light: Color(red: 0.2, green: 0.4, blue: 0.6),
-                                      dark: Color(red: 0.25, green: 0.45, blue: 0.65))
+        static let userBubble = Color.adaptive(light: Color(red: 0.2, green: 0.4, blue: 0.6),
+                                               dark: Color(red: 0.25, green: 0.45, blue: 0.65))
         static let userBubbleText = Color.white
 
-        static let assistantBubble = Color(light: Color(red: 0.95, green: 0.93, blue: 0.90),
-                                           dark: Color(red: 0.22, green: 0.22, blue: 0.24))
-        static let assistantBubbleText = Color(light: Color(red: 0.15, green: 0.15, blue: 0.15),
-                                               dark: Color(red: 0.95, green: 0.95, blue: 0.95))
+        static let assistantBubble = Color.adaptive(light: Color(red: 0.95, green: 0.93, blue: 0.90),
+                                                    dark: Color(red: 0.22, green: 0.22, blue: 0.24))
+        static let assistantBubbleText = Color.adaptive(light: Color(red: 0.15, green: 0.15, blue: 0.15),
+                                                        dark: Color(red: 0.95, green: 0.95, blue: 0.95))
 
         // Status colors
         static let success = Color.green
@@ -37,18 +37,18 @@ enum Theme {
         static let accent = brand
 
         // Code blocks
-        static let codeBackground = Color(light: Color(red: 0.95, green: 0.95, blue: 0.97),
-                                          dark: Color(red: 0.12, green: 0.12, blue: 0.14))
-        static let codeText = Color(light: Color(red: 0.2, green: 0.2, blue: 0.25),
-                                    dark: Color(red: 0.9, green: 0.9, blue: 0.92))
+        static let codeBackground = Color.adaptive(light: Color(red: 0.95, green: 0.95, blue: 0.97),
+                                                   dark: Color(red: 0.12, green: 0.12, blue: 0.14))
+        static let codeText = Color.adaptive(light: Color(red: 0.2, green: 0.2, blue: 0.25),
+                                             dark: Color(red: 0.9, green: 0.9, blue: 0.92))
 
         // Glass tints
-        static let glassTint = Color(light: Color.white.opacity(0.6),
-                                     dark: Color.white.opacity(0.1))
+        static let glassTint = Color.adaptive(light: Color.white.opacity(0.6),
+                                              dark: Color.white.opacity(0.1))
 
         // Input field
-        static let inputBackground = Color(light: Color(red: 0.96, green: 0.96, blue: 0.97),
-                                           dark: Color(red: 0.15, green: 0.15, blue: 0.17))
+        static let inputBackground = Color.adaptive(light: Color(red: 0.96, green: 0.96, blue: 0.97),
+                                                    dark: Color(red: 0.15, green: 0.15, blue: 0.17))
     }
 
     // MARK: - Status Colors
@@ -126,8 +126,9 @@ enum Theme {
 // MARK: - Adaptive Color Extension
 
 extension Color {
-    init(light: Color, dark: Color) {
-        self.init(uiColor: UIColor { traitCollection in
+    /// Creates an adaptive color that changes based on light/dark mode
+    static func adaptive(light: Color, dark: Color) -> Color {
+        Color(uiColor: UIColor { traitCollection in
             switch traitCollection.userInterfaceStyle {
             case .dark:
                 return UIColor(dark)

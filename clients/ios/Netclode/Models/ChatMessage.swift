@@ -9,7 +9,7 @@ struct ChatMessage: Identifiable, Equatable, Sendable {
     let id: UUID
     let role: MessageRole
     var content: String
-    let timestamp: Date
+    var timestamp: Date  // Mutable to allow updating when streaming completes
 
     init(id: UUID = UUID(), role: MessageRole, content: String, timestamp: Date = Date()) {
         self.id = id
