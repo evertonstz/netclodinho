@@ -72,7 +72,7 @@ Client → Server:
 
 ```swift
 ClientMessage.sessionList
-ClientMessage.sessionCreate(name: "My Project", repo: nil)
+ClientMessage.sessionCreate(name: "My Project", repo: "owner/repo", repoAccess: .write, initialPrompt: nil)
 ClientMessage.sessionOpen(id: "xxx", lastNotificationId: nil)
 ClientMessage.sessionResume(id: "xxx")
 ClientMessage.sessionPause(id: "xxx")

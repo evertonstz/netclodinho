@@ -278,6 +278,9 @@ struct ChatView: View {
 
             case .portExposed(let e):
                 result.append(GroupedEvent(id: e.id, event: event, timestamp: e.timestamp))
+
+            case .repoClone(let e):
+                result.append(GroupedEvent(id: e.id, event: event, timestamp: e.timestamp))
             }
         }
 

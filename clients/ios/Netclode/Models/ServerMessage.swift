@@ -164,6 +164,11 @@ private struct RawAgentEvent: Decodable {
     let process: String?
     let previewUrl: String?
 
+    // Repo clone
+    let repo: String?
+    let stage: String?
+    let message: String?
+
     // Error
     let error: String?
 
@@ -255,6 +260,22 @@ private struct RawAgentEvent: Decodable {
                 port: port ?? 0,
                 process: process,
                 previewUrl: previewUrl
+            ))
+
+        case "repo_clone":
+            let cloneStage: RepoCloneStage
+            switch stage {
+            case "starting": cloneStage = .starting
+            case "cloning": cloneStage = .cloning
+            case "error": cloneStage = .error
+            default: cloneStage = .done
+            }
+            return .repoClone(RepoCloneEvent(
+                id: id,
+                timestamp: timestamp,
+                repo: repo ?? "",
+                stage: cloneStage,
+                message: message ?? ""
             ))
 
         default:

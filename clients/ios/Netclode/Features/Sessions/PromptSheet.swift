@@ -7,6 +7,8 @@ struct PromptSheet: View {
     @Environment(SessionStore.self) private var sessionStore
 
     @State private var promptText = ""
+    @State private var repoURL = ""
+    @State private var repoAccess: RepoAccess = .write
     @State private var isSubmitting = false
     @State private var canSubmit = false
     @FocusState private var isFocused: Bool
@@ -27,6 +29,34 @@ struct PromptSheet: View {
                 .padding(.horizontal, Theme.Spacing.md)
                 .padding(.top, Theme.Spacing.md)
                 .focused($isFocused)
+
+                // Repository section
+                VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                    Text("Repository (optional)")
+                        .font(.netclodeCaption)
+                        .foregroundStyle(.secondary)
+                    
+                    TextField(
+                        "github.com/owner/repo",
+                        text: $repoURL
+                    )
+                    .font(.netclodeBody)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .keyboardType(.URL)
+                    .padding(Theme.Spacing.md)
+                    .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Theme.Radius.lg))
+                    
+                    if !repoURL.isEmpty {
+                        Picker("Access", selection: $repoAccess) {
+                            Text("Read & Write").tag(RepoAccess.write)
+                            Text("Read Only").tag(RepoAccess.read)
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                }
+                .padding(.horizontal, Theme.Spacing.md)
+                .padding(.top, Theme.Spacing.md)
 
                 Spacer()
             }
@@ -100,8 +130,13 @@ struct PromptSheet: View {
         // Store prompt text - will be associated with session when sessionCreated arrives
         sessionStore.pendingPromptText = text
         
+        // Parse repo URL if provided
+        let repo = repoURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        let repoParam = repo.isEmpty ? nil : repo
+        let accessParam = repoParam != nil ? repoAccess : nil
+        
         // Create session
-        webSocketService.send(.sessionCreate(name: nil, repo: nil, initialPrompt: text))
+        webSocketService.send(.sessionCreate(name: nil, repo: repoParam, repoAccess: accessParam, initialPrompt: text))
 
         dismiss()
     }

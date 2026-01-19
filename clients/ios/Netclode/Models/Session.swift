@@ -32,11 +32,18 @@ enum SessionStatus: String, Codable, CaseIterable, Sendable {
     }
 }
 
+/// Repository access level for GitHub integration.
+enum RepoAccess: String, Codable, Sendable {
+    case read
+    case write
+}
+
 struct Session: Identifiable, Codable, Hashable, Sendable {
     let id: String
     var name: String
     var status: SessionStatus
     var repo: String?
+    var repoAccess: RepoAccess?
     let createdAt: Date
     var lastActiveAt: Date
 

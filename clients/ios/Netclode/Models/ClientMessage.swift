@@ -1,7 +1,7 @@
 import Foundation
 
 enum ClientMessage: Encodable, Sendable {
-    case sessionCreate(name: String?, repo: String?, initialPrompt: String?)
+    case sessionCreate(name: String?, repo: String?, repoAccess: RepoAccess?, initialPrompt: String?)
     case sessionList
     case sessionResume(id: String)
     case sessionPause(id: String)
@@ -17,17 +17,18 @@ enum ClientMessage: Encodable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case type
-        case name, repo, id, sessionId, text, data, cols, rows, port, lastMessageId, lastNotificationId, initialPrompt
+        case name, repo, repoAccess, id, sessionId, text, data, cols, rows, port, lastMessageId, lastNotificationId, initialPrompt
     }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
 
         switch self {
-        case .sessionCreate(let name, let repo, let initialPrompt):
+        case .sessionCreate(let name, let repo, let repoAccess, let initialPrompt):
             try container.encode("session.create", forKey: .type)
             try container.encodeIfPresent(name, forKey: .name)
             try container.encodeIfPresent(repo, forKey: .repo)
+            try container.encodeIfPresent(repoAccess?.rawValue, forKey: .repoAccess)
             try container.encodeIfPresent(initialPrompt, forKey: .initialPrompt)
 
         case .sessionList:

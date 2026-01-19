@@ -64,6 +64,11 @@ struct PersistedEvent: Codable, Sendable {
         let process: String?
         let previewUrl: String?
 
+        // Repo clone
+        let repo: String?
+        let stage: String?
+        let message: String?
+
         // Error
         let error: String?
 
@@ -157,6 +162,22 @@ struct PersistedEvent: Codable, Sendable {
                     previewUrl: previewUrl
                 ))
 
+            case "repo_clone":
+                let cloneStage: RepoCloneStage
+                switch stage {
+                case "starting": cloneStage = .starting
+                case "cloning": cloneStage = .cloning
+                case "error": cloneStage = .error
+                default: cloneStage = .done
+                }
+                return .repoClone(RepoCloneEvent(
+                    id: id,
+                    timestamp: timestamp,
+                    repo: repo ?? "",
+                    stage: cloneStage,
+                    message: message ?? ""
+                ))
+
             default:
                 return .thinking(ThinkingEvent(
                     id: id,
@@ -176,6 +197,7 @@ struct SessionWithMeta: Codable, Sendable {
     let name: String
     let status: String
     let repo: String?
+    let repoAccess: String?
     let createdAt: Date
     let lastActiveAt: Date
     let messageCount: Int?
@@ -187,6 +209,7 @@ struct SessionWithMeta: Codable, Sendable {
             name: name,
             status: SessionStatus(rawValue: status) ?? .paused,
             repo: repo,
+            repoAccess: repoAccess.flatMap { RepoAccess(rawValue: $0) },
             createdAt: createdAt,
             lastActiveAt: lastActiveAt
         )

@@ -16,6 +16,7 @@ enum AgentEventKind: String, Codable, Sendable {
     case commandEnd = "command_end"
     case thinking
     case portExposed = "port_exposed"
+    case repoClone = "repo_clone"
 
     var displayName: String {
         switch self {
@@ -28,6 +29,7 @@ enum AgentEventKind: String, Codable, Sendable {
         case .commandEnd: "Command Finished"
         case .thinking: "Thinking"
         case .portExposed: "Port Exposed"
+        case .repoClone: "Repository"
         }
     }
 
@@ -38,6 +40,7 @@ enum AgentEventKind: String, Codable, Sendable {
         case .commandStart, .commandEnd: "terminal.fill"
         case .thinking: "brain.head.profile"
         case .portExposed: "network"
+        case .repoClone: "arrow.down.circle.fill"
         }
     }
 }
@@ -70,6 +73,7 @@ enum AgentEvent: Identifiable, Sendable {
     case commandEnd(CommandEndEvent)
     case thinking(ThinkingEvent)
     case portExposed(PortExposedEvent)
+    case repoClone(RepoCloneEvent)
 
     var id: UUID {
         switch self {
@@ -82,6 +86,7 @@ enum AgentEvent: Identifiable, Sendable {
         case .commandEnd(let e): e.id
         case .thinking(let e): e.id
         case .portExposed(let e): e.id
+        case .repoClone(let e): e.id
         }
     }
 
@@ -96,6 +101,7 @@ enum AgentEvent: Identifiable, Sendable {
         case .commandEnd: .commandEnd
         case .thinking: .thinking
         case .portExposed: .portExposed
+        case .repoClone: .repoClone
         }
     }
 
@@ -110,6 +116,7 @@ enum AgentEvent: Identifiable, Sendable {
         case .commandEnd(let e): e.timestamp
         case .thinking(let e): e.timestamp
         case .portExposed(let e): e.timestamp
+        case .repoClone(let e): e.timestamp
         }
     }
 }
@@ -211,6 +218,31 @@ struct PortExposedEvent: AgentEventProtocol {
     let port: Int
     let process: String?
     let previewUrl: String?
+}
+
+/// Repository clone/pull progress event.
+enum RepoCloneStage: String, Codable, Sendable {
+    case starting
+    case cloning
+    case done
+    case error
+}
+
+struct RepoCloneEvent: AgentEventProtocol {
+    let id: UUID
+    let kind: AgentEventKind = .repoClone
+    let timestamp: Date
+    let repo: String
+    let stage: RepoCloneStage
+    let message: String
+    
+    var isComplete: Bool {
+        stage == .done || stage == .error
+    }
+    
+    var isError: Bool {
+        stage == .error
+    }
 }
 
 // MARK: - AnyCodableValue for dynamic JSON
