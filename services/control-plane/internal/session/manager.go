@@ -923,8 +923,10 @@ func (m *Manager) Subscribe(ctx context.Context, id string, lastNotificationID s
 // Returns nil, nil if GitHub App is not configured.
 func (m *Manager) ListGitHubRepos(ctx context.Context) ([]github.Repository, error) {
 	if m.github == nil {
+		slog.Warn("GitHub client is nil, cannot list repos")
 		return nil, nil
 	}
+	slog.Info("Calling GitHub API to list repos")
 	return m.github.ListInstallationRepositories(ctx)
 }
 
