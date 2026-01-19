@@ -111,7 +111,7 @@ func TestLoadWithSandboxTemplate(t *testing.T) {
 }
 
 func TestLoadWithMaxActiveSessions(t *testing.T) {
-	// Test default
+	// Test default (was changed from 2 to 5)
 	os.Unsetenv("MAX_ACTIVE_SESSIONS")
 	cfg := Load()
 	if cfg.MaxActiveSessions != 5 {

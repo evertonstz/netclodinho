@@ -50,7 +50,7 @@ func NewManager(store storage.Storage, k8sRuntime k8s.Runtime, cfg *config.Confi
 	}
 
 	// Initialize terminal manager with emit callback
-	m.terminal = NewTerminalManager(m.emitTerminalOutput)
+	m.terminal = NewTerminalManager(m.emitTerminalOutput, cfg.AgentPort)
 
 	return m
 }

@@ -23,6 +23,9 @@ type TerminalManager struct {
 
 	// Callback to emit terminal output to clients
 	emitOutput func(ctx context.Context, sessionID, data string)
+
+	// Port where agent terminals listen
+	agentPort int
 }
 
 // terminalConn represents a WebSocket connection to an agent's terminal.
@@ -43,10 +46,11 @@ type terminalMessage struct {
 }
 
 // NewTerminalManager creates a new terminal manager.
-func NewTerminalManager(emitOutput func(ctx context.Context, sessionID, data string)) *TerminalManager {
+func NewTerminalManager(emitOutput func(ctx context.Context, sessionID, data string), agentPort int) *TerminalManager {
 	return &TerminalManager{
 		conns:      make(map[string]*terminalConn),
 		emitOutput: emitOutput,
+		agentPort:  agentPort,
 	}
 }
 
@@ -74,7 +78,7 @@ func (tm *TerminalManager) connect(ctx context.Context, sessionID, fqdn string) 
 	}
 	tm.mu.Unlock()
 
-	url := fmt.Sprintf("ws://%s:3002/terminal/ws", fqdn)
+	url := fmt.Sprintf("ws://%s:%d/terminal/ws", fqdn, tm.agentPort)
 	slog.Info("Connecting to agent terminal", "sessionID", sessionID, "url", url)
 
 	ws, _, err := websocket.Dial(ctx, url, nil)

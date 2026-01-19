@@ -19,6 +19,7 @@ type Config struct {
 	MaxEventsPerSession   int
 	UseWarmPool           bool
 	MaxActiveSessions     int
+	AgentPort             int // Port where agent listens (default 3002)
 
 	// GitHub App integration
 	GitHubAppID          int64
@@ -40,6 +41,7 @@ func Load() *Config {
 		MaxEventsPerSession:   getEnvInt("MAX_EVENTS_PER_SESSION", 100),
 		UseWarmPool:           getEnvBool("WARM_POOL_ENABLED", true),
 		MaxActiveSessions:     getEnvInt("MAX_ACTIVE_SESSIONS", 5),
+		AgentPort:             getEnvInt("AGENT_PORT", 3002),
 
 		// GitHub App integration
 		GitHubAppID:          getEnvInt64("GITHUB_APP_ID", 0),

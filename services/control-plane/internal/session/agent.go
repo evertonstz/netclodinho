@@ -60,7 +60,7 @@ func (m *Manager) SendPrompt(ctx context.Context, sessionID, text string) error 
 }
 
 func (m *Manager) callAgentPrompt(ctx context.Context, sessionID, fqdn, text string) {
-	url := fmt.Sprintf("http://%s:3002/prompt", fqdn)
+	url := fmt.Sprintf("http://%s:%d/prompt", fqdn, m.config.AgentPort)
 
 	// Build request body with session config included
 	reqBody := map[string]interface{}{
@@ -361,7 +361,7 @@ func parseAgentEvent(data map[string]interface{}) protocol.AgentEvent {
 
 // generateSessionTitle calls the agent to generate a session title using Haiku.
 func (m *Manager) generateSessionTitle(ctx context.Context, sessionID, fqdn, prompt string) {
-	url := fmt.Sprintf("http://%s:3002/generate-title", fqdn)
+	url := fmt.Sprintf("http://%s:%d/generate-title", fqdn, m.config.AgentPort)
 
 	body, _ := json.Marshal(map[string]string{"prompt": prompt})
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
@@ -409,7 +409,7 @@ func (m *Manager) Interrupt(ctx context.Context, sessionID string) error {
 		return nil // Not running, nothing to interrupt
 	}
 
-	url := fmt.Sprintf("http://%s:3002/interrupt", state.ServiceFQDN)
+	url := fmt.Sprintf("http://%s:%d/interrupt", state.ServiceFQDN, m.config.AgentPort)
 
 	ctx, cancel := context.WithTimeout(ctx, interruptTimeout)
 	defer cancel()
