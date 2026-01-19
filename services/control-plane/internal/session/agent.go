@@ -189,6 +189,11 @@ func (m *Manager) streamSSE(ctx context.Context, sessionID, fqdn, originalPrompt
 
 			event := parseAgentEvent(eventData)
 
+			// Debug log for repo_clone events
+			if event.Kind == protocol.EventKindRepoClone {
+				slog.Info("Parsed repo_clone event", "sessionID", sessionID, "repo", event.Repo, "stage", event.Stage, "message", event.Message)
+			}
+
 			// Inject preview URL for port_exposed events (uses Tailscale MagicDNS short hostname)
 			if event.Kind == protocol.EventKindPortExposed && event.Port > 0 {
 				previewURL := fmt.Sprintf("http://sandbox-%s:%d", sessionID, event.Port)
