@@ -127,6 +127,7 @@ struct ToolStartEvent: AgentEventProtocol {
     let timestamp: Date
     let tool: String
     let toolUseId: String
+    let parentToolUseId: String?  // Set when this tool runs inside a Task/subagent
     let input: [String: AnyCodableValue]
 }
 
@@ -135,6 +136,7 @@ struct ToolInputEvent: AgentEventProtocol {
     let kind: AgentEventKind = .toolInput
     let timestamp: Date
     let toolUseId: String
+    let parentToolUseId: String?  // Set when this tool runs inside a Task/subagent
     let inputDelta: String
 }
 
@@ -143,6 +145,7 @@ struct ToolInputCompleteEvent: AgentEventProtocol {
     let kind: AgentEventKind = .toolInputComplete
     let timestamp: Date
     let toolUseId: String
+    let parentToolUseId: String?  // Set when this tool runs inside a Task/subagent
     let input: [String: AnyCodableValue]
 }
 
@@ -152,6 +155,7 @@ struct ToolEndEvent: AgentEventProtocol {
     let timestamp: Date
     let tool: String
     let toolUseId: String
+    let parentToolUseId: String?  // Set when this tool runs inside a Task/subagent
     let result: String?
     let error: String?
 
@@ -311,6 +315,7 @@ extension AgentEvent {
         timestamp: Date(),
         tool: "Read",
         toolUseId: "tool_123",
+        parentToolUseId: nil,
         input: ["file_path": .string("/src/auth/AuthService.swift")]
     ))
 
@@ -319,6 +324,7 @@ extension AgentEvent {
         timestamp: Date(),
         tool: "Read",
         toolUseId: "tool_123",
+        parentToolUseId: nil,
         result: "File contents...",
         error: nil
     ))

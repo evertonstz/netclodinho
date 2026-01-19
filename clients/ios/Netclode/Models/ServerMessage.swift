@@ -146,6 +146,7 @@ private struct RawAgentEvent: Decodable {
     // Tool events
     let tool: String?
     let toolUseId: String?
+    let parentToolUseId: String?  // Set when tool runs inside a Task/subagent
     let input: [String: AnyCodableValue]?
     let inputDelta: String?
     let result: String?
@@ -190,6 +191,7 @@ private struct RawAgentEvent: Decodable {
                 timestamp: timestamp,
                 tool: tool ?? "Unknown",
                 toolUseId: toolUseId ?? "",
+                parentToolUseId: parentToolUseId,
                 input: input ?? [:]
             ))
 
@@ -198,6 +200,7 @@ private struct RawAgentEvent: Decodable {
                 id: id,
                 timestamp: timestamp,
                 toolUseId: toolUseId ?? "",
+                parentToolUseId: parentToolUseId,
                 inputDelta: inputDelta ?? ""
             ))
 
@@ -206,6 +209,7 @@ private struct RawAgentEvent: Decodable {
                 id: id,
                 timestamp: timestamp,
                 toolUseId: toolUseId ?? "",
+                parentToolUseId: parentToolUseId,
                 input: input ?? [:]
             ))
 
@@ -215,6 +219,7 @@ private struct RawAgentEvent: Decodable {
                 timestamp: timestamp,
                 tool: tool ?? "Unknown",
                 toolUseId: toolUseId ?? "",
+                parentToolUseId: parentToolUseId,
                 result: result,
                 error: error
             ))

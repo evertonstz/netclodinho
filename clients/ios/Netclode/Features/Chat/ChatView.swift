@@ -22,12 +22,34 @@ enum TimelineItem: Identifiable {
     }
 }
 
-/// A grouped event combining start/end events
+/// A grouped event combining start/end events, with optional nested children for Task/subagent hierarchies
 struct GroupedEvent: Identifiable {
     let id: UUID
     let event: AgentEvent
     let timestamp: Date
     var endEvent: AgentEvent?
+    var children: [GroupedEvent] = []  // Nested tool events for Task/subagent
+    
+    /// Returns the toolUseId if this is a tool event
+    var toolUseId: String? {
+        switch event {
+        case .toolStart(let e): return e.toolUseId
+        case .toolEnd(let e): return e.toolUseId
+        default: return nil
+        }
+    }
+    
+    /// Returns the parentToolUseId if this is a child tool event
+    var parentToolUseId: String? {
+        switch event {
+        case .toolStart(let e): return e.parentToolUseId
+        case .toolEnd(let e): return e.parentToolUseId
+        default: return nil
+        }
+    }
+    
+    /// Whether this event has nested children (e.g., Task with sub-tools)
+    var hasChildren: Bool { !children.isEmpty }
 }
 
 // MARK: - Chat View
@@ -212,7 +234,7 @@ struct ChatView: View {
                 }
                 return nil
             }()
-            ToolEventCard(event: grouped.event, endEvent: endEvent)
+            ToolEventCard(event: grouped.event, endEvent: endEvent, children: grouped.children)
 
         case .commandStart(let start):
             let endEvent: CommandEndEvent? = {
@@ -240,16 +262,19 @@ struct ChatView: View {
         }
     }
 
-    /// Groups related events (tool_start with tool_end, etc.)
+    /// Groups related events (tool_start with tool_end, etc.) and builds parent-child hierarchy for Task/subagent tools
     private func groupEvents(_ events: [AgentEvent]) -> [GroupedEvent] {
         var result: [GroupedEvent] = []
-        var toolStartMap: [String: Int] = [:]
+        var toolStartMap: [String: Int] = [:]  // toolUseId -> index in result
+        var childIndices: Set<Int> = []        // Indices of events that are children (to filter from top-level)
 
+        // First pass: Create all grouped events and pair start/end
         for event in events {
             switch event {
             case .toolStart(let e):
                 let grouped = GroupedEvent(id: e.id, event: event, timestamp: e.timestamp)
-                toolStartMap[e.toolUseId] = result.count
+                let index = result.count
+                toolStartMap[e.toolUseId] = index
                 result.append(grouped)
 
             case .toolEnd(let e):
@@ -297,8 +322,22 @@ struct ChatView: View {
                 }
             }
         }
-
-        return result
+        
+        // Second pass: Build parent-child hierarchy using parentToolUseId
+        // Iterate through all tool events and move children under their parents
+        for (index, grouped) in result.enumerated() {
+            if let parentId = grouped.parentToolUseId,
+               let parentIndex = toolStartMap[parentId] {
+                // This is a child event - add it to parent's children
+                result[parentIndex].children.append(grouped)
+                childIndices.insert(index)
+            }
+        }
+        
+        // Filter out events that are now children (keep only top-level)
+        return result.enumerated()
+            .filter { !childIndices.contains($0.offset) }
+            .map { $0.element }
     }
 
     private func sendMessage() {

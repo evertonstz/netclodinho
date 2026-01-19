@@ -38,6 +38,7 @@ struct PersistedEvent: Codable, Sendable {
         // Tool events
         let tool: String?
         let toolUseId: String?
+        let parentToolUseId: String?  // Set when tool runs inside a Task/subagent
         let input: [String: AnyCodableValue]?
         let inputDelta: String?
         let result: String?
@@ -82,6 +83,7 @@ struct PersistedEvent: Codable, Sendable {
                     timestamp: timestamp,
                     tool: tool ?? "Unknown",
                     toolUseId: toolUseId ?? "",
+                    parentToolUseId: parentToolUseId,
                     input: input ?? [:]
                 ))
 
@@ -90,6 +92,7 @@ struct PersistedEvent: Codable, Sendable {
                     id: id,
                     timestamp: timestamp,
                     toolUseId: toolUseId ?? "",
+                    parentToolUseId: parentToolUseId,
                     inputDelta: inputDelta ?? ""
                 ))
 
@@ -98,6 +101,7 @@ struct PersistedEvent: Codable, Sendable {
                     id: id,
                     timestamp: timestamp,
                     toolUseId: toolUseId ?? "",
+                    parentToolUseId: parentToolUseId,
                     input: input ?? [:]
                 ))
 
@@ -107,6 +111,7 @@ struct PersistedEvent: Codable, Sendable {
                     timestamp: timestamp,
                     tool: tool ?? "Unknown",
                     toolUseId: toolUseId ?? "",
+                    parentToolUseId: parentToolUseId,
                     result: result,
                     error: error
                 ))

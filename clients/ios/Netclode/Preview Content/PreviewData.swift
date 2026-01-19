@@ -65,6 +65,7 @@ enum PreviewData {
             timestamp: Date().addingTimeInterval(-300),
             tool: "Glob",
             toolUseId: "tool_1",
+            parentToolUseId: nil,
             input: ["pattern": .string("**/auth/**/*.ts")]
         )),
         .toolEnd(ToolEndEvent(
@@ -72,6 +73,7 @@ enum PreviewData {
             timestamp: Date().addingTimeInterval(-298),
             tool: "Glob",
             toolUseId: "tool_1",
+            parentToolUseId: nil,
             result: "Found 5 files",
             error: nil
         )),

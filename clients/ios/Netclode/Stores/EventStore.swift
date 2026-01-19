@@ -104,6 +104,7 @@ final class EventStore {
                     timestamp: existing.timestamp,
                     tool: existing.tool,
                     toolUseId: existing.toolUseId,
+                    parentToolUseId: existing.parentToolUseId,
                     input: input
                 )
                 events[index] = .toolStart(updated)
@@ -159,6 +160,7 @@ final class EventStore {
                             timestamp: existing.timestamp,
                             tool: existing.tool,
                             toolUseId: existing.toolUseId,
+                            parentToolUseId: existing.parentToolUseId,
                             input: inputCompleteEvent.input
                         )
                         aggregatedEvents[existingIndex] = .toolStart(updated)

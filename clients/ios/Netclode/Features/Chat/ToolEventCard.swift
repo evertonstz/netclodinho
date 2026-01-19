@@ -4,6 +4,7 @@ import SwiftUI
 struct ToolEventCard: View {
     let event: AgentEvent
     let endEvent: ToolEndEvent?
+    let children: [GroupedEvent]  // Nested tool events for Task/subagent
 
     @State private var isExpanded = false
 
@@ -29,6 +30,10 @@ struct ToolEventCard: View {
         }
         return nil
     }
+    
+    private var hasChildren: Bool {
+        !children.isEmpty
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -50,6 +55,17 @@ struct ToolEventCard: View {
                         .truncationMode(.middle)
 
                     Spacer()
+                    
+                    // Child count badge (for Task tools with nested operations)
+                    if hasChildren {
+                        Text("\(children.count)")
+                            .font(.system(size: TypeScale.tiny, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.secondary.opacity(0.15))
+                            .clipShape(Capsule())
+                    }
 
                     // Status indicator
                     statusIndicator
@@ -227,6 +243,17 @@ struct ToolEventCard: View {
                     }
                 }
             }
+            
+            // Nested children section (for Task/subagent tools)
+            if hasChildren {
+                ExpandableSection(title: "OPERATIONS", defaultExpanded: true) {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+                        ForEach(children) { child in
+                            ChildToolEventRow(grouped: child)
+                        }
+                    }
+                }
+            }
 
             // Output/Result section
             if let end = endEvent {
@@ -290,6 +317,138 @@ private struct InputRow: View {
                 .lineLimit(3)
                 .truncationMode(.tail)
         }
+    }
+}
+
+/// Compact row for nested tool events within a parent Task
+private struct ChildToolEventRow: View {
+    let grouped: GroupedEvent
+    
+    private var toolName: String {
+        switch grouped.event {
+        case .toolStart(let e): return e.tool
+        case .toolEnd(let e): return e.tool
+        default: return "Tool"
+        }
+    }
+    
+    private var summaryText: String {
+        guard case .toolStart(let e) = grouped.event else { return "" }
+        let input = e.input
+        
+        switch toolName.lowercased() {
+        case "read":
+            if let path = input["file_path"]?.description {
+                return formatPath(path)
+            }
+        case "write", "edit":
+            if let path = input["file_path"]?.description {
+                return formatPath(path)
+            }
+        case "bash":
+            if let cmd = input["command"]?.description {
+                return String(cmd.prefix(40)) + (cmd.count > 40 ? "..." : "")
+            }
+        case "glob", "grep":
+            if let pattern = input["pattern"]?.description {
+                return pattern
+            }
+        default:
+            break
+        }
+        
+        // Fallback: first string value
+        for (_, value) in input {
+            if case .string(let s) = value, !s.isEmpty {
+                return String(s.prefix(30)) + (s.count > 30 ? "..." : "")
+            }
+        }
+        return ""
+    }
+    
+    private var isSuccess: Bool {
+        if case .toolEnd(let e) = grouped.endEvent {
+            return e.isSuccess
+        }
+        return true
+    }
+    
+    private var isRunning: Bool {
+        grouped.endEvent == nil
+    }
+    
+    private var badgeColor: Color {
+        if !isSuccess { return Theme.Colors.error }
+        switch toolName.lowercased() {
+        case "read", "glob", "grep": return .blue
+        case "write", "edit": return .orange
+        case "bash": return .green
+        case "task": return .purple
+        case "webfetch", "websearch": return .cyan
+        default: return Theme.Colors.brand
+        }
+    }
+    
+    private var toolIcon: String {
+        switch toolName.lowercased() {
+        case "read": return "doc.text"
+        case "write": return "square.and.pencil"
+        case "edit": return "pencil"
+        case "bash": return "terminal"
+        case "glob": return "folder.badge.gearshape"
+        case "grep": return "magnifyingglass"
+        case "task": return "arrow.triangle.branch"
+        case "webfetch": return "globe"
+        case "websearch": return "magnifyingglass.circle"
+        default: return "wrench"
+        }
+    }
+    
+    private func formatPath(_ path: String) -> String {
+        let components = path.split(separator: "/")
+        if components.count <= 2 { return path }
+        return ".../" + components.suffix(2).joined(separator: "/")
+    }
+    
+    var body: some View {
+        HStack(spacing: Theme.Spacing.xs) {
+            // Compact tool badge
+            HStack(spacing: 2) {
+                Image(systemName: toolIcon)
+                    .font(.system(size: 9, weight: .semibold))
+                Text(toolName)
+                    .font(.system(size: TypeScale.tiny, weight: .semibold, design: .monospaced))
+            }
+            .foregroundStyle(badgeColor)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(badgeColor.opacity(0.15))
+            .clipShape(Capsule())
+            
+            // Summary
+            Text(summaryText)
+                .font(.system(size: TypeScale.tiny, design: .monospaced))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+            
+            Spacer()
+            
+            // Status
+            if isRunning {
+                ProgressView()
+                    .scaleEffect(0.5)
+            } else if isSuccess {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: TypeScale.tiny))
+                    .foregroundStyle(Theme.Colors.success)
+            } else {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: TypeScale.tiny))
+                    .foregroundStyle(Theme.Colors.error)
+            }
+        }
+        .padding(.vertical, 2)
     }
 }
 
@@ -726,9 +885,11 @@ struct RepoCloneCard: View {
                 timestamp: Date(),
                 tool: "Read",
                 toolUseId: "123",
+                parentToolUseId: nil,
                 input: ["file_path": .string("/src/components/Button.swift")]
             )),
-            endEvent: nil
+            endEvent: nil,
+            children: []
         )
 
         ToolEventCard(
@@ -737,9 +898,11 @@ struct RepoCloneCard: View {
                 timestamp: Date(),
                 tool: "Bash",
                 toolUseId: "124",
+                parentToolUseId: nil,
                 input: ["command": .string("npm run build && npm test")]
             )),
-            endEvent: nil
+            endEvent: nil,
+            children: []
         )
     }
     .padding()
@@ -754,6 +917,7 @@ struct RepoCloneCard: View {
                 timestamp: Date(),
                 tool: "Read",
                 toolUseId: "123",
+                parentToolUseId: nil,
                 input: ["file_path": .string("/src/components/Button.swift")]
             )),
             endEvent: ToolEndEvent(
@@ -761,9 +925,11 @@ struct RepoCloneCard: View {
                 timestamp: Date(),
                 tool: "Read",
                 toolUseId: "123",
+                parentToolUseId: nil,
                 result: "import SwiftUI\n\nstruct Button: View {\n    var body: some View {\n        Text(\"Hello\")\n    }\n}",
                 error: nil
-            )
+            ),
+            children: []
         )
 
         ToolEventCard(
@@ -772,6 +938,7 @@ struct RepoCloneCard: View {
                 timestamp: Date(),
                 tool: "Edit",
                 toolUseId: "125",
+                parentToolUseId: nil,
                 input: [
                     "file_path": .string("/src/auth/AuthService.swift"),
                     "old_string": .string("func login()"),
@@ -783,9 +950,11 @@ struct RepoCloneCard: View {
                 timestamp: Date(),
                 tool: "Edit",
                 toolUseId: "125",
+                parentToolUseId: nil,
                 result: nil,
                 error: "File not found"
-            )
+            ),
+            children: []
         )
     }
     .padding()

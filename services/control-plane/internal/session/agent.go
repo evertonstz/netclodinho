@@ -276,6 +276,9 @@ func parseAgentEvent(data map[string]interface{}) protocol.AgentEvent {
 	if toolUseID, ok := data["toolUseId"].(string); ok {
 		event.ToolUseID = toolUseID
 	}
+	if parentToolUseID, ok := data["parentToolUseId"].(string); ok {
+		event.ParentToolUseID = parentToolUseID
+	}
 	if input, ok := data["input"].(map[string]interface{}); ok {
 		event.Input = input
 	}

@@ -19,28 +19,29 @@ const (
 
 // AgentEvent is a polymorphic event type. Fields are optional based on Kind.
 type AgentEvent struct {
-	Kind         AgentEventKind         `json:"kind"`
-	Timestamp    string                 `json:"timestamp"`
-	Tool         string                 `json:"tool,omitempty"`
-	ToolUseID    string                 `json:"toolUseId,omitempty"`
-	Input        map[string]interface{} `json:"input,omitempty"`
-	InputDelta   string                 `json:"inputDelta,omitempty"`
-	Result       *string                `json:"result,omitempty"`
-	Error        *string                `json:"error,omitempty"`
-	Path         string                 `json:"path,omitempty"`
-	Action       string                 `json:"action,omitempty"`
-	Command      string                 `json:"command,omitempty"`
-	Cwd          *string                `json:"cwd,omitempty"`
-	ExitCode     *int                   `json:"exitCode,omitempty"`
-	Output       *string                `json:"output,omitempty"`
-	Content      string                 `json:"content,omitempty"`
-	ThinkingID   string                 `json:"thinkingId,omitempty"` // Correlate streaming thinking updates
-	Partial      bool                   `json:"partial,omitempty"`    // true for streaming thinking deltas
-	Port         int                    `json:"port,omitempty"`
-	Process      *string                `json:"process,omitempty"`
-	PreviewURL   *string                `json:"previewUrl,omitempty"`
-	LinesAdded   *int                   `json:"linesAdded,omitempty"`
-	LinesRemoved *int                   `json:"linesRemoved,omitempty"`
+	Kind            AgentEventKind         `json:"kind"`
+	Timestamp       string                 `json:"timestamp"`
+	Tool            string                 `json:"tool,omitempty"`
+	ToolUseID       string                 `json:"toolUseId,omitempty"`
+	ParentToolUseID string                 `json:"parentToolUseId,omitempty"` // Set when tool runs inside a Task/subagent
+	Input           map[string]interface{} `json:"input,omitempty"`
+	InputDelta      string                 `json:"inputDelta,omitempty"`
+	Result          *string                `json:"result,omitempty"`
+	Error           *string                `json:"error,omitempty"`
+	Path            string                 `json:"path,omitempty"`
+	Action          string                 `json:"action,omitempty"`
+	Command         string                 `json:"command,omitempty"`
+	Cwd             *string                `json:"cwd,omitempty"`
+	ExitCode        *int                   `json:"exitCode,omitempty"`
+	Output          *string                `json:"output,omitempty"`
+	Content         string                 `json:"content,omitempty"`
+	ThinkingID      string                 `json:"thinkingId,omitempty"` // Correlate streaming thinking updates
+	Partial         bool                   `json:"partial,omitempty"`    // true for streaming thinking deltas
+	Port            int                    `json:"port,omitempty"`
+	Process         *string                `json:"process,omitempty"`
+	PreviewURL      *string                `json:"previewUrl,omitempty"`
+	LinesAdded      *int                   `json:"linesAdded,omitempty"`
+	LinesRemoved    *int                   `json:"linesRemoved,omitempty"`
 
 	// Repo clone event fields
 	Repo    string `json:"repo,omitempty"`    // Repository URL being cloned

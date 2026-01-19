@@ -231,6 +231,9 @@ let textWasStreamed = false;
 // Track thinkingIds that were streamed (to send final event and skip in assistant message)
 const streamedThinkingIds = new Set<string>();
 
+// Track current parent tool use ID (set when running inside a Task/subagent)
+let currentParentToolUseId: string | null = null;
+
 // Generate unique thinking IDs
 let thinkingIdCounter = 0;
 function generateThinkingId(): string {
@@ -284,6 +287,7 @@ const server = createServer(async (req, res) => {
       streamedThinkingIds.clear();
       blockIndexToToolId.clear();
       blockIndexToThinkingId.clear();
+      currentParentToolUseId = null;
 
       // Look up the SDK session ID from our mapping
       const sdkSessionId = sessionId ? sessionMap.get(sessionId) : undefined;
@@ -311,6 +315,14 @@ const server = createServer(async (req, res) => {
       for await (const message of q) {
         messageCount++;
         console.log(`[agent] SDK message #${messageCount}: type=${message.type}${message.type === "system" ? `, subtype=${(message as { subtype?: string }).subtype}` : ""}`);
+        
+        // Track parent tool use ID from SDK messages (present when running inside a Task/subagent)
+        const msgWithParent = message as { parent_tool_use_id?: string };
+        if (msgWithParent.parent_tool_use_id !== undefined) {
+          currentParentToolUseId = msgWithParent.parent_tool_use_id || null;
+          console.log(`[agent] Parent tool use ID: ${currentParentToolUseId}`);
+        }
+        
         switch (message.type) {
           case "system":
             // Capture the SDK session ID from the init message
@@ -352,13 +364,13 @@ const server = createServer(async (req, res) => {
                     // Already sent early tool_start with empty input - send input update now
                     send({
                       type: "agent.event",
-                      event: { kind: "tool_input_complete", toolUseId: block.id, input: block.input, timestamp: new Date().toISOString() },
+                      event: { kind: "tool_input_complete", toolUseId: block.id, input: block.input, timestamp: new Date().toISOString(), ...(currentParentToolUseId && { parentToolUseId: currentParentToolUseId }) },
                     });
                   } else {
                     // Not streamed - send full tool_start now
                     send({
                       type: "agent.event",
-                      event: { kind: "tool_start", tool: block.name, toolUseId: block.id, input: block.input, timestamp: new Date().toISOString() },
+                      event: { kind: "tool_start", tool: block.name, toolUseId: block.id, input: block.input, timestamp: new Date().toISOString(), ...(currentParentToolUseId && { parentToolUseId: currentParentToolUseId }) },
                     });
                   }
                 }
@@ -384,6 +396,7 @@ const server = createServer(async (req, res) => {
                       result: typeof block.content === "string" ? block.content : undefined,
                       error: isError ? (typeof block.content === "string" ? block.content : "Tool error") : undefined,
                       timestamp: new Date().toISOString(),
+                      ...(currentParentToolUseId && { parentToolUseId: currentParentToolUseId }),
                     },
                   });
                 }
@@ -413,6 +426,7 @@ const server = createServer(async (req, res) => {
                     toolUseId: contentBlock.id,
                     input: {}, // Will be populated as deltas arrive
                     timestamp: new Date().toISOString(),
+                    ...(currentParentToolUseId && { parentToolUseId: currentParentToolUseId }),
                   },
                 });
               } else if (contentBlock?.type === "thinking") {
@@ -438,6 +452,7 @@ const server = createServer(async (req, res) => {
                       toolUseId,
                       inputDelta: delta.partial_json,
                       timestamp: new Date().toISOString(),
+                      ...(currentParentToolUseId && { parentToolUseId: currentParentToolUseId }),
                     },
                   });
                 }
