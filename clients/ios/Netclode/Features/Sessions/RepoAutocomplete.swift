@@ -86,15 +86,6 @@ struct RepoAutocomplete: View {
                 .frame(maxHeight: 200)
                 .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
                 .zIndex(100)
-            } else if githubStore.isLoading && isFocused {
-                // Show loading indicator when fetching repos
-                HStack {
-                    Spacer()
-                    ProgressView()
-                        .padding(Theme.Spacing.md)
-                    Spacer()
-                }
-                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
             } else if let error = githubStore.errorMessage, isFocused {
                 // Show error message
                 Text(error)
