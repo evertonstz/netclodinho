@@ -123,7 +123,10 @@ struct WorkspaceView: View {
                 try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
             }
             // Initial open - no cursor needed
-            webSocketService.openSession(id: sessionId)
+            // Only resume if not already running (to avoid brief status flash)
+            let session = sessionStore.sessions.first { $0.id == sessionId }
+            let needsResume = session?.status != .running
+            webSocketService.openSession(id: sessionId, resume: needsResume)
             hasOpenedSession = true
         }
         .onChange(of: webSocketService.connectionState) { oldState, newState in
@@ -134,8 +137,10 @@ struct WorkspaceView: View {
             if wasDisconnected && isNowConnected && hasOpenedSession {
                 // Reconnected - re-open session with cursor to resume from where we left off
                 let cursor = sessionStore.lastNotificationId(for: sessionId)
-                print("[WorkspaceView] Reconnected, reopening session with cursor: \(cursor ?? "nil")")
-                webSocketService.openSession(id: sessionId, lastNotificationId: cursor)
+                let session = sessionStore.sessions.first { $0.id == sessionId }
+                let needsResume = session?.status != .running
+                print("[WorkspaceView] Reconnected, reopening session with cursor: \(cursor ?? "nil"), resume: \(needsResume)")
+                webSocketService.openSession(id: sessionId, lastNotificationId: cursor, resume: needsResume)
             }
         }
         .onDisappear {

@@ -326,9 +326,12 @@ final class WebSocketService {
     ///   - id: Session ID to open
     ///   - lastMessageId: Optional cursor for message history
     ///   - lastNotificationId: Optional cursor for reconnection (Redis Stream ID)
-    func openSession(id: String, lastMessageId: String? = nil, lastNotificationId: String? = nil) {
-        print("[WebSocket] openSession called for \(id), connectionState=\(connectionState)")
+    ///   - resume: Whether to also send a resume command (default true, set false if already running)
+    func openSession(id: String, lastMessageId: String? = nil, lastNotificationId: String? = nil, resume: Bool = true) {
+        print("[WebSocket] openSession called for \(id), connectionState=\(connectionState), resume=\(resume)")
         send(.sessionOpen(id: id, lastMessageId: lastMessageId, lastNotificationId: lastNotificationId))
-        send(.sessionResume(id: id))
+        if resume {
+            send(.sessionResume(id: id))
+        }
     }
 }
