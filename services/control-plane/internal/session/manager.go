@@ -683,19 +683,6 @@ func (m *Manager) Get(ctx context.Context, id string) (*protocol.Session, error)
 		return nil, fmt.Errorf("session %s not found", id)
 	}
 
-	// Reconcile transitional statuses with actual sandbox state
-	if state.Session.Status == protocol.StatusCreating || state.Session.Status == protocol.StatusResuming {
-		status, err := m.k8s.GetStatus(ctx, id)
-		if err == nil && status.Exists && status.Ready && status.ServiceFQDN != "" {
-			// Sandbox is actually running - update status
-			m.mu.Lock()
-			state.ServiceFQDN = status.ServiceFQDN
-			state.Session.Status = protocol.StatusRunning
-			m.mu.Unlock()
-			_ = m.storage.UpdateSessionStatus(ctx, id, protocol.StatusRunning)
-		}
-	}
-
 	return state.Session, nil
 }
 
