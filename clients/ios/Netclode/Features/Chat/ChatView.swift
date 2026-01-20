@@ -82,6 +82,10 @@ struct ChatView: View {
     var isProcessing: Bool {
         sessionStore.isProcessing(sessionId)
     }
+    
+    var session: Session? {
+        sessionStore.sessions.first { $0.id == sessionId }
+    }
 
     /// Total content length of all thinking events (to detect streaming updates)
     private var thinkingContentLength: Int {
@@ -207,6 +211,7 @@ struct ChatView: View {
             ChatInputBar(
                 text: $inputText,
                 isProcessing: isProcessing,
+                sessionStatus: session?.status,
                 isFocused: $isInputFocused,
                 onSend: sendMessage,
                 onInterrupt: interruptAgent

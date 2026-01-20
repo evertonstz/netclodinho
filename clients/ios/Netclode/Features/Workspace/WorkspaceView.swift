@@ -6,9 +6,11 @@ struct WorkspaceView: View {
     @Environment(SessionStore.self) private var sessionStore
     @Environment(WebSocketService.self) private var webSocketService
     @Environment(TerminalStore.self) private var terminalStore
+    @Environment(\.dismiss) private var dismiss
 
     @State private var selectedTab: WorkspaceTab = .chat
     @State private var hasOpenedSession = false
+    @State private var showDeleteConfirmation = false
 
     enum WorkspaceTab: CaseIterable {
         case chat
@@ -55,24 +57,61 @@ struct WorkspaceView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     if let session {
+                        // Session info section
+                        Section {
+                            Label(session.status.displayName, systemImage: session.status.systemImage)
+                            
+                            if let repo = session.repo {
+                                Label(repo.replacingOccurrences(of: "https://github.com/", with: ""), systemImage: "arrow.triangle.branch")
+                            }
+                            
+                            Label(session.createdAt.formatted(.relative(presentation: .named)), systemImage: "clock")
+                        } header: {
+                            Text(session.name)
+                        }
+                        
+                        Divider()
+                        
+                        // Actions
                         if session.status == .paused {
                             Button {
                                 webSocketService.send(.sessionResume(id: sessionId))
                             } label: {
-                                Label("Resume Session", systemImage: "play.fill")
+                                Label("Resume", systemImage: "play.fill")
                             }
                         } else if session.status == .ready || session.status == .running {
                             Button {
                                 webSocketService.send(.sessionPause(id: sessionId))
                             } label: {
-                                Label("Pause Session", systemImage: "pause.fill")
+                                Label("Pause", systemImage: "pause.fill")
                             }
+                        }
+                        
+                        Divider()
+                        
+                        Button(role: .destructive) {
+                            showDeleteConfirmation = true
+                        } label: {
+                            Label("Delete Session", systemImage: "trash")
                         }
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
             }
+        }
+        .confirmationDialog(
+            "Delete Session",
+            isPresented: $showDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                webSocketService.send(.sessionDelete(id: sessionId))
+                dismiss()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Are you sure you want to delete this session? This action cannot be undone.")
         }
         .onAppear {
             sessionStore.setCurrentSession(id: sessionId)
