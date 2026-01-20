@@ -19,6 +19,7 @@ type ClientMessage struct {
 	LastMessageID      *string `json:"lastMessageId,omitempty"`
 	LastNotificationID *string `json:"lastNotificationId,omitempty"` // For cursor-based reconnection
 	InitialPrompt      string  `json:"initialPrompt,omitempty"`      // For session.create with immediate prompt
+	File               string  `json:"file,omitempty"`               // For git.diff file path
 }
 
 // Client message types
@@ -37,6 +38,8 @@ const (
 	MsgTypeSessionOpen      = "session.open"
 	MsgTypeSessionDeleteAll = "session.deleteAll"
 	MsgTypeGitHubReposList  = "github.repos.list"
+	MsgTypeGitStatus        = "git.status"
+	MsgTypeGitDiff          = "git.diff"
 )
 
 // GitHubRepo represents a GitHub repository for the repo picker.
@@ -45,6 +48,13 @@ type GitHubRepo struct {
 	FullName    string `json:"fullName"`
 	Private     bool   `json:"private"`
 	Description string `json:"description,omitempty"`
+}
+
+// GitFileChange represents a changed file from git status.
+type GitFileChange struct {
+	Path   string `json:"path"`
+	Status string `json:"status"` // "modified", "added", "deleted", "renamed", "untracked"
+	Staged bool   `json:"staged"`
 }
 
 // ServerMessage represents all possible server-to-client messages.
@@ -79,6 +89,12 @@ type ServerMessage struct {
 
 	// For sessions.deletedAll response
 	DeletedIDs []string `json:"deletedIds,omitempty"`
+
+	// For git.status response
+	Files []GitFileChange `json:"files,omitempty"`
+
+	// For git.diff response
+	Diff string `json:"diff,omitempty"`
 }
 
 // Server message types
@@ -101,6 +117,9 @@ const (
 	MsgTypeSessionState        = "session.state"
 	MsgTypeSessionsDeletedAll  = "sessions.deletedAll"
 	MsgTypeGitHubReposResponse = "github.repos"
+	MsgTypeGitStatusResponse   = "git.status"
+	MsgTypeGitDiffResponse     = "git.diff"
+	MsgTypeGitError            = "git.error"
 )
 
 // NewSessionCreated creates a session.created message
@@ -215,6 +234,36 @@ func NewGitHubReposResponse(repos []GitHubRepo) ServerMessage {
 	return ServerMessage{
 		Type:  MsgTypeGitHubReposResponse,
 		Repos: repos,
+	}
+}
+
+// NewGitStatusResponse creates a git.status response message
+func NewGitStatusResponse(sessionID string, files []GitFileChange) ServerMessage {
+	if files == nil {
+		files = []GitFileChange{}
+	}
+	return ServerMessage{
+		Type:      MsgTypeGitStatusResponse,
+		SessionID: sessionID,
+		Files:     files,
+	}
+}
+
+// NewGitDiffResponse creates a git.diff response message
+func NewGitDiffResponse(sessionID, diff string) ServerMessage {
+	return ServerMessage{
+		Type:      MsgTypeGitDiffResponse,
+		SessionID: sessionID,
+		Diff:      diff,
+	}
+}
+
+// NewGitError creates a git.error message
+func NewGitError(sessionID, err string) ServerMessage {
+	return ServerMessage{
+		Type:      MsgTypeGitError,
+		SessionID: sessionID,
+		Error:     err,
 	}
 }
 

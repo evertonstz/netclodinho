@@ -400,6 +400,93 @@ func (m *Manager) generateSessionTitle(ctx context.Context, sessionID, fqdn, pro
 	}
 }
 
+// GetGitStatus fetches git status from the agent.
+func (m *Manager) GetGitStatus(ctx context.Context, sessionID string) ([]protocol.GitFileChange, error) {
+	state := m.getState(sessionID)
+	if state == nil {
+		return nil, fmt.Errorf("session %s not found", sessionID)
+	}
+
+	if state.ServiceFQDN == "" {
+		return nil, fmt.Errorf("session %s is not running", sessionID)
+	}
+
+	url := fmt.Sprintf("http://%s:%d/git/status", state.ServiceFQDN, m.config.AgentPort)
+
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("call agent: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("agent returned %d: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	var result struct {
+		Files []protocol.GitFileChange `json:"files"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+
+	return result.Files, nil
+}
+
+// GetGitDiff fetches git diff for a file from the agent.
+func (m *Manager) GetGitDiff(ctx context.Context, sessionID, file string) (string, error) {
+	state := m.getState(sessionID)
+	if state == nil {
+		return "", fmt.Errorf("session %s not found", sessionID)
+	}
+
+	if state.ServiceFQDN == "" {
+		return "", fmt.Errorf("session %s is not running", sessionID)
+	}
+
+	url := fmt.Sprintf("http://%s:%d/git/diff", state.ServiceFQDN, m.config.AgentPort)
+	if file != "" {
+		url += "?file=" + file
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return "", fmt.Errorf("create request: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("call agent: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("agent returned %d: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	var result struct {
+		Diff string `json:"diff"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("decode response: %w", err)
+	}
+
+	return result.Diff, nil
+}
+
 // Interrupt sends an interrupt signal to the agent.
 func (m *Manager) Interrupt(ctx context.Context, sessionID string) error {
 	state := m.getState(sessionID)

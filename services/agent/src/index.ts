@@ -7,7 +7,7 @@ import * as pty from "node-pty";
 import type { IPty } from "node-pty";
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 import { dirname } from "path";
-import { setupRepository } from "./git.js";
+import { setupRepository, runGit } from "./git.js";
 
 const port = parseInt(process.env.AGENT_PORT || "3002", 10);
 const workspaceDir = "/agent/workspace";
@@ -548,9 +548,104 @@ const server = createServer(async (req, res) => {
     return;
   }
 
+  // Git status - returns list of changed files
+  if (url.pathname === "/git/status" && req.method === "GET") {
+    console.log(`[agent] Git status requested`);
+    try {
+      const result = await runGit(["status", "--porcelain=v1"], workspaceDir);
+      const files = parseGitStatus(result.stdout);
+      console.log(`[agent] Git status: ${files.length} changed files`);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ files }));
+    } catch (error) {
+      console.error("[agent] Git status failed:", error);
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: String(error) }));
+    }
+    return;
+  }
+
+  // Git diff - returns diff for a file or all files
+  if (url.pathname === "/git/diff" && req.method === "GET") {
+    const file = url.searchParams.get("file");
+    console.log(`[agent] Git diff requested for: ${file || "all files"}`);
+    try {
+      const args = ["diff", "--no-color"];
+      if (file) {
+        args.push("--", file);
+      }
+      const result = await runGit(args, workspaceDir);
+      console.log(`[agent] Git diff: ${result.stdout.length} chars`);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ diff: result.stdout }));
+    } catch (error) {
+      console.error("[agent] Git diff failed:", error);
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: String(error) }));
+    }
+    return;
+  }
+
   res.writeHead(404);
   res.end("Not found");
 });
+
+// Parse git status --porcelain=v1 output
+interface GitFileChange {
+  path: string;
+  status: "modified" | "added" | "deleted" | "renamed" | "copied" | "untracked" | "ignored" | "unmerged";
+  staged: boolean;
+}
+
+function parseGitStatus(output: string): GitFileChange[] {
+  const files: GitFileChange[] = [];
+  const lines = output.split("\n").filter(line => line.length > 0);
+  
+  for (const line of lines) {
+    // Format: XY PATH or XY ORIG_PATH -> NEW_PATH
+    const indexStatus = line[0];
+    const workTreeStatus = line[1];
+    const path = line.substring(3).split(" -> ").pop() || line.substring(3);
+    
+    // Determine status and staged
+    let status: GitFileChange["status"];
+    let staged = false;
+    
+    // Check worktree status first (unstaged changes)
+    if (workTreeStatus === "M") {
+      status = "modified";
+    } else if (workTreeStatus === "D") {
+      status = "deleted";
+    } else if (workTreeStatus === "?") {
+      status = "untracked";
+    } else if (workTreeStatus === "!") {
+      status = "ignored";
+    } else if (workTreeStatus === "U" || indexStatus === "U") {
+      status = "unmerged";
+    } else if (indexStatus === "M") {
+      status = "modified";
+      staged = true;
+    } else if (indexStatus === "A") {
+      status = "added";
+      staged = true;
+    } else if (indexStatus === "D") {
+      status = "deleted";
+      staged = true;
+    } else if (indexStatus === "R") {
+      status = "renamed";
+      staged = true;
+    } else if (indexStatus === "C") {
+      status = "copied";
+      staged = true;
+    } else {
+      status = "modified"; // Default fallback
+    }
+    
+    files.push({ path, status, staged });
+  }
+  
+  return files;
+}
 
 // Handle WebSocket upgrade for terminal
 server.on("upgrade", (request: IncomingMessage, socket, head) => {

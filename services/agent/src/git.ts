@@ -39,7 +39,7 @@ async function reportEvent(sessionId: string, event: CloneEvent): Promise<void> 
 /**
  * Run a git command and return the output.
  */
-function runGit(args: string[], cwd?: string): Promise<{ code: number; stdout: string; stderr: string }> {
+export function runGit(args: string[], cwd?: string): Promise<{ code: number; stdout: string; stderr: string }> {
   return new Promise((resolve) => {
     const proc = spawn("git", args, {
       cwd,

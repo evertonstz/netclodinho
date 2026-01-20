@@ -40,6 +40,10 @@ func (c *Connection) HandleMessage(ctx context.Context, msg protocol.ClientMessa
 		return c.handlePortExpose(ctx, msg.SessionID, msg.Port)
 	case protocol.MsgTypeGitHubReposList:
 		return c.handleGitHubReposList(ctx)
+	case protocol.MsgTypeGitStatus:
+		return c.handleGitStatus(ctx, msg.SessionID)
+	case protocol.MsgTypeGitDiff:
+		return c.handleGitDiff(ctx, msg.SessionID, msg.File)
 	default:
 		return fmt.Errorf("unknown message type: %s", msg.Type)
 	}
@@ -295,4 +299,32 @@ func (c *Connection) handleGitHubReposList(ctx context.Context) error {
 
 	slog.Info("Listed GitHub repos", "count", len(protoRepos))
 	return c.Send(protocol.NewGitHubReposResponse(protoRepos))
+}
+
+func (c *Connection) handleGitStatus(ctx context.Context, sessionID string) error {
+	if sessionID == "" {
+		return c.Send(protocol.NewGitError("", "sessionId is required"))
+	}
+
+	files, err := c.manager.GetGitStatus(ctx, sessionID)
+	if err != nil {
+		slog.Warn("Failed to get git status", "sessionID", sessionID, "error", err)
+		return c.Send(protocol.NewGitError(sessionID, err.Error()))
+	}
+
+	return c.Send(protocol.NewGitStatusResponse(sessionID, files))
+}
+
+func (c *Connection) handleGitDiff(ctx context.Context, sessionID, file string) error {
+	if sessionID == "" {
+		return c.Send(protocol.NewGitError("", "sessionId is required"))
+	}
+
+	diff, err := c.manager.GetGitDiff(ctx, sessionID, file)
+	if err != nil {
+		slog.Warn("Failed to get git diff", "sessionID", sessionID, "file", file, "error", err)
+		return c.Send(protocol.NewGitError(sessionID, err.Error()))
+	}
+
+	return c.Send(protocol.NewGitDiffResponse(sessionID, diff))
 }
