@@ -744,34 +744,18 @@ func (m *Manager) GetWithHistory(ctx context.Context, id string, messageLimit in
 // GetAllWithMeta returns all sessions with metadata.
 func (m *Manager) GetAllWithMeta(ctx context.Context) ([]protocol.SessionWithMeta, error) {
 	m.mu.RLock()
-	sessions := make([]*SessionState, 0, len(m.sessions))
-	for _, state := range m.sessions {
-		sessions = append(sessions, state)
-	}
-	m.mu.RUnlock()
+	defer m.mu.RUnlock()
 
-	result := make([]protocol.SessionWithMeta, 0, len(sessions))
-	for _, state := range sessions {
-		// Reconcile transitional statuses with actual sandbox state
-		if state.Session.Status == protocol.StatusCreating || state.Session.Status == protocol.StatusResuming {
-			status, err := m.k8s.GetStatus(ctx, state.Session.ID)
-			if err == nil && status.Exists && status.Ready && status.ServiceFQDN != "" {
-				m.mu.Lock()
-				state.ServiceFQDN = status.ServiceFQDN
-				state.Session.Status = protocol.StatusRunning
-				m.mu.Unlock()
-				_ = m.storage.UpdateSessionStatus(ctx, state.Session.ID, protocol.StatusRunning)
-			}
-		}
-
+	result := make([]protocol.SessionWithMeta, 0, len(m.sessions))
+	for id, state := range m.sessions {
 		meta := protocol.SessionWithMeta{Session: *state.Session}
 
-		count, err := m.storage.GetMessageCount(ctx, state.Session.ID)
+		count, err := m.storage.GetMessageCount(ctx, id)
 		if err == nil {
 			meta.MessageCount = &count
 		}
 
-		lastMsg, err := m.storage.GetLastMessage(ctx, state.Session.ID)
+		lastMsg, err := m.storage.GetLastMessage(ctx, id)
 		if err == nil && lastMsg != nil {
 			meta.LastMessageID = &lastMsg.ID
 		}
