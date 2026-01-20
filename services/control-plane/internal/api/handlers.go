@@ -164,8 +164,15 @@ func (c *Connection) handleSessionDeleteAll(ctx context.Context) error {
 		slog.Warn("Some sessions failed to delete", "error", err)
 	}
 
-	// Broadcast to all clients (including this one)
-	c.server.BroadcastToAll(protocol.NewSessionsDeletedAll(deletedIDs), nil)
+	msg := protocol.NewSessionsDeletedAll(deletedIDs)
+
+	// Send to this client
+	if err := c.Send(msg); err != nil {
+		return err
+	}
+
+	// Broadcast to all other clients for cross-client sync
+	c.server.BroadcastToAll(msg, c)
 
 	return nil
 }

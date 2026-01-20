@@ -73,6 +73,7 @@ final class MessageRouter {
             terminalStore.clearOutput(for: id)
 
         case .sessionsDeletedAll(let deletedIds):
+            print("[MessageRouter] sessions.deletedAll received: \(deletedIds.count) sessions deleted")
             withAnimation {
                 sessionStore.removeAllSessions()
             }
