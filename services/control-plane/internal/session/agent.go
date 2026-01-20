@@ -32,6 +32,8 @@ func (m *Manager) SendPrompt(ctx context.Context, sessionID, text string) error 
 		// Sandbox not ready yet - queue the prompt
 		slog.Info("Queueing prompt until sandbox is ready", "sessionID", sessionID)
 		state.PendingPrompt = text
+		// Still set status to running so UI shows activity
+		m.updateSessionStatus(ctx, sessionID, protocol.StatusRunning)
 		return nil
 	}
 
