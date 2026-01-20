@@ -244,9 +244,8 @@ struct ChatView: View {
         .task(id: sessionId) {
             // Use task(id:) instead of onAppear to ensure it fires on navigation
             lastKnownStatus = session?.status
-            // Show pill on appear for all active states
-            if let status = session?.status, 
-               status == .creating || status == .resuming || status == .running {
+            // Show pill briefly on appear for any status
+            if session?.status != nil {
                 withAnimation {
                     showStatusPill = true
                 }
