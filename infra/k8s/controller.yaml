@@ -71,5 +71,5 @@ spec:
       - name: agent-sandbox-controller
         # Using fork until upstream merges PVC support:
         # https://github.com/kubernetes-sigs/agent-sandbox/pull/240
-        image: ghcr.io/angristan/agent-sandbox-controller:volumeclaim-v7
+        image: ghcr.io/angristan/agent-sandbox-controller:volumeclaim-v8
         imagePullPolicy: Always

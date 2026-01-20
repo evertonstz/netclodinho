@@ -8,7 +8,7 @@
 # - PVC adoption: when adopting warm pool pod, adopts its PVCs instead of creating new ones
 #
 # Source: /Users/stanislas/lab/agent-sandbox
-# Build: docker build --platform linux/amd64 -t ghcr.io/angristan/agent-sandbox-controller:volumeclaim-v7 .
+# Build: docker build --platform linux/amd64 -t ghcr.io/angristan/agent-sandbox-controller:volumeclaim-v8 .
 #
 ---
 kind: StatefulSet
@@ -32,7 +32,7 @@ spec:
       serviceAccountName: agent-sandbox-controller
       containers:
       - name: agent-sandbox-controller
-        image: ghcr.io/angristan/agent-sandbox-controller:volumeclaim-v7
+        image: ghcr.io/angristan/agent-sandbox-controller:volumeclaim-v8
         imagePullPolicy: Always
         args:
         - "--extensions"
