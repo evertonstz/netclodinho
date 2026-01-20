@@ -74,9 +74,12 @@ final class ChatStore {
     // MARK: - Persistence
 
     private func loadFromDiskAsync() async {
+        // Capture Sendable value before detached task (avoid capturing self)
+        let key = persistenceKey
+        
         // Perform I/O on background thread
         let data = await Task.detached(priority: .userInitiated) {
-            UserDefaults.standard.data(forKey: self.persistenceKey)
+            UserDefaults.standard.data(forKey: key)
         }.value
 
         guard let data else { return }
@@ -95,6 +98,8 @@ final class ChatStore {
     /// Debounced save - coalesces rapid save calls into a single write
     private func scheduleSave() {
         saveTask?.cancel()
+        // Capture Sendable value before task (avoid capturing self in detached task)
+        let key = persistenceKey
         saveTask = Task { [weak self] in
             // Debounce: wait before actually saving
             try? await Task.sleep(for: .milliseconds(500))
@@ -109,7 +114,7 @@ final class ChatStore {
                 do {
                     let encoder = JSONEncoder()
                     let data = try encoder.encode(dataToSave)
-                    UserDefaults.standard.set(data, forKey: self.persistenceKey)
+                    UserDefaults.standard.set(data, forKey: key)
                 } catch {
                     print("Failed to save chat messages: \(error)")
                 }

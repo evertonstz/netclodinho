@@ -78,7 +78,7 @@ final class WebSocketService {
         self.serverURL = serverURL
         isReconnecting = false
 
-        Task { @MainActor in
+        Task {
             await performConnect()
         }
     }
@@ -273,7 +273,7 @@ final class WebSocketService {
         switch connectionState {
         case .connected:
             // Verify connection is actually alive with a ping
-            Task { @MainActor in
+            Task {
                 do {
                     try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
                         webSocketTask?.sendPing { error in

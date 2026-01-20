@@ -32,31 +32,57 @@ final class GitHubStore {
     }
     
     init() {
-        loadFromStorage()
+        // Load from disk on background thread to avoid blocking main thread
+        Task.detached(priority: .userInitiated) { [weak self] in
+            await self?.loadFromStorageAsync()
+        }
     }
     
     // MARK: - Persistence
     
-    /// Load cached repos from UserDefaults
-    private func loadFromStorage() {
-        if let data = UserDefaults.standard.data(forKey: StorageKeys.repos),
-           let decoded = try? JSONDecoder().decode([GitHubRepo].self, from: data) {
-            self.repos = decoded
-        }
+    /// Load cached repos from UserDefaults asynchronously
+    private func loadFromStorageAsync() async {
+        // Capture keys before detached task (Sendable)
+        let reposKey = StorageKeys.repos
+        let lastFetchedKey = StorageKeys.lastFetched
         
-        if let timestamp = UserDefaults.standard.object(forKey: StorageKeys.lastFetched) as? Date {
-            self.lastFetched = timestamp
+        // Perform I/O on background thread
+        let result = await Task.detached(priority: .userInitiated) { () -> ([GitHubRepo]?, Date?) in
+            let repos: [GitHubRepo]?
+            if let data = UserDefaults.standard.data(forKey: reposKey) {
+                repos = try? JSONDecoder().decode([GitHubRepo].self, from: data)
+            } else {
+                repos = nil
+            }
+            
+            let lastFetched = UserDefaults.standard.object(forKey: lastFetchedKey) as? Date
+            return (repos, lastFetched)
+        }.value
+        
+        if let repos = result.0 {
+            self.repos = repos
+        }
+        if let lastFetched = result.1 {
+            self.lastFetched = lastFetched
         }
     }
     
-    /// Save repos to UserDefaults
+    /// Save repos to UserDefaults asynchronously
     private func saveToStorage() {
-        if let encoded = try? JSONEncoder().encode(repos) {
-            UserDefaults.standard.set(encoded, forKey: StorageKeys.repos)
-        }
+        // Capture values before detached task (Sendable)
+        let reposToSave = repos
+        let lastFetchedToSave = lastFetched
+        let reposKey = StorageKeys.repos
+        let lastFetchedKey = StorageKeys.lastFetched
         
-        if let lastFetched {
-            UserDefaults.standard.set(lastFetched, forKey: StorageKeys.lastFetched)
+        Task.detached(priority: .utility) {
+            if let encoded = try? JSONEncoder().encode(reposToSave) {
+                UserDefaults.standard.set(encoded, forKey: reposKey)
+            }
+            
+            if let lastFetched = lastFetchedToSave {
+                UserDefaults.standard.set(lastFetched, forKey: lastFetchedKey)
+            }
         }
     }
     
