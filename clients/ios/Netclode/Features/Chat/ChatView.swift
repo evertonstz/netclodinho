@@ -491,6 +491,7 @@ struct StatusPill: View {
             
             Text(status.displayName)
                 .font(.system(size: 13, weight: .medium))
+                .contentTransition(.numericText())
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
@@ -498,6 +499,7 @@ struct StatusPill: View {
             .regular.tint(status.tintColor.color.glassTint),
             in: Capsule()
         )
+        .animation(.smooth, value: status)
     }
 }
 
