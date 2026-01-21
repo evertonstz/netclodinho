@@ -10,6 +10,7 @@ final class MessageRouter {
     private let eventStore: EventStore
     private let terminalStore: TerminalStore
     private let githubStore: GitHubStore
+    private let gitStore: GitStore
 
     private var routingTask: Task<Void, Never>?
 
@@ -19,7 +20,8 @@ final class MessageRouter {
         chatStore: ChatStore,
         eventStore: EventStore,
         terminalStore: TerminalStore,
-        githubStore: GitHubStore
+        githubStore: GitHubStore,
+        gitStore: GitStore
     ) {
         self.webSocketService = webSocketService
         self.sessionStore = sessionStore
@@ -27,6 +29,7 @@ final class MessageRouter {
         self.eventStore = eventStore
         self.terminalStore = terminalStore
         self.githubStore = githubStore
+        self.gitStore = gitStore
 
         startRouting()
     }
@@ -231,6 +234,23 @@ final class MessageRouter {
         case .githubRepos(let repos):
             print("[MessageRouter] github.repos received: \(repos.count) repos")
             githubStore.handleReposReceived(repos)
+
+        // Git operations
+        case .gitStatusResponse(let sessionId, let files):
+            print("[MessageRouter] git.status received: \(files.count) files for session \(sessionId)")
+            gitStore.setLoadingStatus(false, for: sessionId)
+            gitStore.setFiles(files, for: sessionId)
+
+        case .gitDiffResponse(let sessionId, let diff):
+            print("[MessageRouter] git.diff received: \(diff.count) chars for session \(sessionId)")
+            gitStore.setLoadingDiff(false, for: sessionId)
+            gitStore.setDiff(diff, for: sessionId)
+
+        case .gitError(let sessionId, let error):
+            print("[MessageRouter] git.error for session \(sessionId): \(error)")
+            gitStore.setLoadingStatus(false, for: sessionId)
+            gitStore.setLoadingDiff(false, for: sessionId)
+            gitStore.setError(error, for: sessionId)
         }
     }
 
@@ -245,7 +265,8 @@ final class MessageRouter {
             chatStore: ChatStore(),
             eventStore: EventStore(),
             terminalStore: TerminalStore(),
-            githubStore: GitHubStore()
+            githubStore: GitHubStore(),
+            gitStore: GitStore()
         )
     }
 }

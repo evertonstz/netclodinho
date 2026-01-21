@@ -233,8 +233,11 @@ struct ToolEventCard: View {
             Divider()
                 .padding(.bottom, Theme.Spacing.xs)
 
-            // Input section
-            if let input = toolInput, !input.isEmpty {
+            // Special handling for Edit tool - show diff view
+            if toolName.lowercased() == "edit", let input = toolInput {
+                EditToolDiffSection(input: input)
+            } else if let input = toolInput, !input.isEmpty {
+                // Generic input section for other tools
                 ExpandableSection(title: "INPUT") {
                     ForEach(Array(input.keys.sorted()), id: \.self) { key in
                         if let value = input[key] {
@@ -317,6 +320,113 @@ private struct InputRow: View {
                 .lineLimit(3)
                 .truncationMode(.tail)
         }
+    }
+}
+
+/// Specialized view for Edit tool that shows a proper diff
+private struct EditToolDiffSection: View {
+    let input: [String: AnyCodableValue]
+    
+    private var filePath: String? {
+        input["file_path"]?.stringValue
+    }
+    
+    private var oldString: String? {
+        input["old_string"]?.stringValue
+    }
+    
+    private var newString: String? {
+        input["new_string"]?.stringValue
+    }
+    
+    private var replaceAll: Bool {
+        input["replace_all"]?.boolValue ?? false
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+            // File path
+            if let path = filePath {
+                HStack(spacing: Theme.Spacing.xxs) {
+                    Image(systemName: "doc.text")
+                        .font(.system(size: TypeScale.tiny))
+                        .foregroundStyle(.secondary)
+                    Text(path)
+                        .font(.netclodeMonospacedSmall)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+            }
+            
+            // Diff view
+            if let oldString = oldString, let newString = newString {
+                DiffView(oldString: oldString, newString: newString)
+            } else if let oldString = oldString {
+                // Only old string (deletion)
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(oldString.components(separatedBy: "\n"), id: \.self) { line in
+                        HStack(spacing: 0) {
+                            Text("-")
+                                .foregroundStyle(DiffColors.deletionText)
+                                .frame(width: 16)
+                            Text(line)
+                                .foregroundStyle(DiffColors.deletionText)
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(DiffColors.deletionBackground)
+                    }
+                }
+                .font(.system(size: 12, design: .monospaced))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+            } else if let newString = newString {
+                // Only new string (addition)
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(newString.components(separatedBy: "\n"), id: \.self) { line in
+                        HStack(spacing: 0) {
+                            Text("+")
+                                .foregroundStyle(DiffColors.additionText)
+                                .frame(width: 16)
+                            Text(line)
+                                .foregroundStyle(DiffColors.additionText)
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(DiffColors.additionBackground)
+                    }
+                }
+                .font(.system(size: 12, design: .monospaced))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
+            
+            // Replace all indicator
+            if replaceAll {
+                HStack(spacing: Theme.Spacing.xxs) {
+                    Image(systemName: "arrow.2.squarepath")
+                        .font(.system(size: TypeScale.tiny))
+                    Text("Replace all occurrences")
+                        .font(.netclodeCaption)
+                }
+                .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+// MARK: - AnyCodableValue Extension
+
+private extension AnyCodableValue {
+    var stringValue: String? {
+        if case .string(let s) = self { return s }
+        return nil
+    }
+    
+    var boolValue: Bool? {
+        if case .bool(let b) = self { return b }
+        return nil
     }
 }
 

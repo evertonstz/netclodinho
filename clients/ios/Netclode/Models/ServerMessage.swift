@@ -27,6 +27,11 @@ enum ServerMessage: Sendable {
 
     // GitHub
     case githubRepos(repos: [GitHubRepo])
+
+    // Git operations
+    case gitStatusResponse(sessionId: String, files: [GitFileChange])
+    case gitDiffResponse(sessionId: String, diff: String)
+    case gitError(sessionId: String, error: String)
 }
 
 extension ServerMessage: Decodable {
@@ -38,6 +43,7 @@ extension ServerMessage: Decodable {
         case serverTime, messages, events, hasMore, lastNotificationId
         case repos
         case deletedIds
+        case files, diff
     }
 
     init(from decoder: Decoder) throws {
@@ -132,6 +138,21 @@ extension ServerMessage: Decodable {
         case "github.repos":
             let repos = try container.decodeIfPresent([GitHubRepo].self, forKey: .repos) ?? []
             self = .githubRepos(repos: repos)
+
+        case "git.status":
+            let sessionId = try container.decode(String.self, forKey: .sessionId)
+            let files = try container.decodeIfPresent([GitFileChange].self, forKey: .files) ?? []
+            self = .gitStatusResponse(sessionId: sessionId, files: files)
+
+        case "git.diff":
+            let sessionId = try container.decode(String.self, forKey: .sessionId)
+            let diff = try container.decodeIfPresent(String.self, forKey: .diff) ?? ""
+            self = .gitDiffResponse(sessionId: sessionId, diff: diff)
+
+        case "git.error":
+            let sessionId = try container.decode(String.self, forKey: .sessionId)
+            let error = try container.decode(String.self, forKey: .error)
+            self = .gitError(sessionId: sessionId, error: error)
 
         default:
             throw DecodingError.dataCorruptedError(

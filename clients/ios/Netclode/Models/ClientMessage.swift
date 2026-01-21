@@ -17,10 +17,13 @@ enum ClientMessage: Encodable, Sendable {
     case sessionOpen(id: String, lastMessageId: String?, lastNotificationId: String?)
     // GitHub
     case githubReposList
+    // Git operations
+    case gitStatus(sessionId: String)
+    case gitDiff(sessionId: String, file: String?)
 
     private enum CodingKeys: String, CodingKey {
         case type
-        case name, repo, repoAccess, id, sessionId, text, data, cols, rows, port, lastMessageId, lastNotificationId, initialPrompt
+        case name, repo, repoAccess, id, sessionId, text, data, cols, rows, port, lastMessageId, lastNotificationId, initialPrompt, file
     }
 
     func encode(to encoder: Encoder) throws {
@@ -88,6 +91,15 @@ enum ClientMessage: Encodable, Sendable {
 
         case .githubReposList:
             try container.encode("github.repos.list", forKey: .type)
+
+        case .gitStatus(let sessionId):
+            try container.encode("git.status", forKey: .type)
+            try container.encode(sessionId, forKey: .sessionId)
+
+        case .gitDiff(let sessionId, let file):
+            try container.encode("git.diff", forKey: .type)
+            try container.encode(sessionId, forKey: .sessionId)
+            try container.encodeIfPresent(file, forKey: .file)
         }
     }
 }

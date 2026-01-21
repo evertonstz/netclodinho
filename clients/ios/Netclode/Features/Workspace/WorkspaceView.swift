@@ -14,12 +14,14 @@ struct WorkspaceView: View {
 
     enum WorkspaceTab: CaseIterable {
         case chat
+        case changes
         case terminal
         case previews
 
         var icon: String {
             switch self {
             case .chat: return "bubble.left.and.bubble.right"
+            case .changes: return "arrow.triangle.branch"
             case .terminal: return "terminal"
             case .previews: return "globe"
             }
@@ -35,6 +37,8 @@ struct WorkspaceView: View {
             switch selectedTab {
             case .chat:
                 ChatView(sessionId: sessionId)
+            case .changes:
+                ChangesView(sessionId: sessionId)
             case .terminal:
                 TerminalView(sessionId: sessionId)
             case .previews:
@@ -176,6 +180,7 @@ struct WorkspaceView: View {
     .environment(EventStore())
     .environment(TerminalStore())
     .environment(SettingsStore())
+    .environment(GitStore())
     .environment(WebSocketService())
     .environment(MessageRouter.preview)
 }

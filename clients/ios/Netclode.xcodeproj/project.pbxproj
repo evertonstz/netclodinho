@@ -53,6 +53,12 @@
 		A10000000000000000000043 /* GitHubRepo.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000043 /* GitHubRepo.swift */; };
 		A10000000000000000000044 /* GitHubStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000044 /* GitHubStore.swift */; };
 		A10000000000000000000045 /* RepoAutocomplete.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000045 /* RepoAutocomplete.swift */; };
+		A10000000000000000000046 /* GitFileChange.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000046 /* GitFileChange.swift */; };
+		A10000000000000000000047 /* GitStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000047 /* GitStore.swift */; };
+		A10000000000000000000048 /* DiffEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000048 /* DiffEngine.swift */; };
+		A10000000000000000000049 /* DiffView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000049 /* DiffView.swift */; };
+		A10000000000000000000050 /* UnifiedDiffView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000050 /* UnifiedDiffView.swift */; };
+		A10000000000000000000051 /* ChangesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000051 /* ChangesView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -102,6 +108,12 @@
 		B10000000000000000000043 /* GitHubRepo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubRepo.swift; sourceTree = "<group>"; };
 		B10000000000000000000044 /* GitHubStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubStore.swift; sourceTree = "<group>"; };
 		B10000000000000000000045 /* RepoAutocomplete.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepoAutocomplete.swift; sourceTree = "<group>"; };
+		B10000000000000000000046 /* GitFileChange.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitFileChange.swift; sourceTree = "<group>"; };
+		B10000000000000000000047 /* GitStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitStore.swift; sourceTree = "<group>"; };
+		B10000000000000000000048 /* DiffEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiffEngine.swift; sourceTree = "<group>"; };
+		B10000000000000000000049 /* DiffView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiffView.swift; sourceTree = "<group>"; };
+		B10000000000000000000050 /* UnifiedDiffView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedDiffView.swift; sourceTree = "<group>"; };
+		B10000000000000000000051 /* ChangesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangesView.swift; sourceTree = "<group>"; };
 		C10000000000000000000001 /* Netclode.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Netclode.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -190,6 +202,7 @@
 				B10000000000000000000007 /* ServerMessage.swift */,
 				B10000000000000000000036 /* PersistedMessage.swift */,
 				B10000000000000000000043 /* GitHubRepo.swift */,
+				B10000000000000000000046 /* GitFileChange.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -213,6 +226,7 @@
 				B10000000000000000000013 /* TerminalStore.swift */,
 				B10000000000000000000014 /* SettingsStore.swift */,
 				B10000000000000000000044 /* GitHubStore.swift */,
+				B10000000000000000000047 /* GitStore.swift */,
 			);
 			path = Stores;
 			sourceTree = "<group>";
@@ -246,6 +260,7 @@
 			children = (
 				B10000000000000000000018 /* WorkspaceView.swift */,
 				B10000000000000000000039 /* PreviewsView.swift */,
+				B10000000000000000000051 /* ChangesView.swift */,
 			);
 			path = Workspace;
 			sourceTree = "<group>";
@@ -285,6 +300,9 @@
 				B10000000000000000000027 /* GlassTextField.swift */,
 				B10000000000000000000028 /* ConnectionStatusBadge.swift */,
 				B10000000000000000000042 /* MarkdownView.swift */,
+				B10000000000000000000048 /* DiffEngine.swift */,
+				B10000000000000000000049 /* DiffView.swift */,
+				B10000000000000000000050 /* UnifiedDiffView.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -481,6 +499,12 @@
 				A10000000000000000000043 /* GitHubRepo.swift in Sources */,
 				A10000000000000000000044 /* GitHubStore.swift in Sources */,
 				A10000000000000000000045 /* RepoAutocomplete.swift in Sources */,
+				A10000000000000000000046 /* GitFileChange.swift in Sources */,
+				A10000000000000000000047 /* GitStore.swift in Sources */,
+				A10000000000000000000048 /* DiffEngine.swift in Sources */,
+				A10000000000000000000049 /* DiffView.swift in Sources */,
+				A10000000000000000000050 /* UnifiedDiffView.swift in Sources */,
+				A10000000000000000000051 /* ChangesView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -10,6 +10,7 @@ struct NetclodeApp: App {
     @State private var terminalStore = TerminalStore()
     @State private var settingsStore = SettingsStore()
     @State private var githubStore = GitHubStore()
+    @State private var gitStore = GitStore()
     @State private var webSocketService: WebSocketService
     @State private var messageRouter: MessageRouter
 
@@ -20,6 +21,7 @@ struct NetclodeApp: App {
         let events = EventStore()
         let terminal = TerminalStore()
         let github = GitHubStore()
+        let git = GitStore()
         let ws = WebSocketService()
         
         // Wire up terminal store to WebSocket for input handling
@@ -31,7 +33,8 @@ struct NetclodeApp: App {
             chatStore: chat,
             eventStore: events,
             terminalStore: terminal,
-            githubStore: github
+            githubStore: github,
+            gitStore: git
         )
 
         _settingsStore = State(initialValue: settings)
@@ -40,6 +43,7 @@ struct NetclodeApp: App {
         _eventStore = State(initialValue: events)
         _terminalStore = State(initialValue: terminal)
         _githubStore = State(initialValue: github)
+        _gitStore = State(initialValue: git)
         _webSocketService = State(initialValue: ws)
         _messageRouter = State(initialValue: router)
     }
@@ -53,6 +57,7 @@ struct NetclodeApp: App {
                 .environment(terminalStore)
                 .environment(settingsStore)
                 .environment(githubStore)
+                .environment(gitStore)
                 .environment(webSocketService)
                 .environment(messageRouter)
                 .preferredColorScheme(settingsStore.preferredColorScheme)
