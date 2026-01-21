@@ -20,20 +20,22 @@ struct ChatInputBar: View {
             ZStack(alignment: .leading) {
                 if text.isEmpty {
                     Text("Reply...")
-                        .foregroundStyle(.tertiary)
-                        .padding(.horizontal, Theme.Spacing.sm)
+                        .foregroundStyle(.secondary)
+                        .padding(.leading, 5)
+                        .allowsHitTesting(false)
                 }
-
+                
                 TextEditor(text: $text)
                     .focused(isFocused)
                     .scrollContentBackground(.hidden)
                     .tint(Theme.Colors.brand)
-                    .frame(minHeight: inputHeight, maxHeight: maxHeight)
+                    .frame(minHeight: 28, maxHeight: maxHeight)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, Theme.Spacing.xs)
             }
             .font(.netclodeBody)
-            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: inputHeight / 2))
+            .padding(.horizontal, Theme.Spacing.md)
+            .frame(minHeight: inputHeight)
+            .glassEffect(.regular.interactive(), in: Capsule())
 
             // Send/Stop button
             Group {
