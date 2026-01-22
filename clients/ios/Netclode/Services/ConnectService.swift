@@ -782,7 +782,8 @@ final class ConnectService {
     // MARK: - Send Messages
     
     func send(_ message: ClientMessage) {
-        guard connectionState == .connected, let stream = stream else {
+        // Allow sending during .connecting state for the initial sync message
+        guard connectionState == .connected || connectionState == .connecting, let stream = stream else {
             logger.warning("send: dropped message (not connected): \(String(describing: message))")
             return
         }
