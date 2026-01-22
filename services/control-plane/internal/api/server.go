@@ -151,6 +151,11 @@ func (s *Server) startTsnetConnectServer(ctx context.Context, cfg *config.Config
 		Handler: handler,
 	}
 
+	// Configure HTTP/2 for the server (required for bidirectional streaming)
+	if err := http2.ConfigureServer(s.connectServer, &http2.Server{}); err != nil {
+		return fmt.Errorf("configure http2: %w", err)
+	}
+
 	// Get the full hostname for logging
 	fullHostname := fmt.Sprintf("https://%s.%s", cfg.TailscaleHostname, status.CurrentTailnet.MagicDNSSuffix)
 	slog.Info("Starting Connect server with Tailscale TLS", "url", fullHostname)
