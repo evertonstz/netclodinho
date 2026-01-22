@@ -363,12 +363,9 @@ final class ConnectService {
                 lastNotificationId: msg.hasLastNotificationID ? msg.lastNotificationID : nil
             )
             
-        case .sessionError(let msg):
-            return .sessionError(id: msg.sessionID, error: msg.error)
-            
         case .syncResponse(let msg):
             return .syncResponse(
-                sessions: msg.sessions.map { convertSessionWithMeta($0) },
+                sessions: msg.sessions.map { convertSessionSummary($0) },
                 serverTime: msg.serverTime.date
             )
             
@@ -381,9 +378,6 @@ final class ConnectService {
         case .agentDone(let msg):
             return .agentDone(sessionId: msg.sessionID)
             
-        case .agentError(let msg):
-            return .agentError(sessionId: msg.sessionID, error: msg.error)
-            
         case .userMessage(let msg):
             return .userMessage(sessionId: msg.sessionID, content: msg.content)
             
@@ -392,9 +386,6 @@ final class ConnectService {
             
         case .portExposed(let msg):
             return .portExposed(sessionId: msg.sessionID, port: Int(msg.port), previewUrl: msg.previewURL)
-            
-        case .portError(let msg):
-            return .portError(sessionId: msg.sessionID, port: Int(msg.port), error: msg.error)
             
         case .githubRepos(let msg):
             return .githubRepos(repos: msg.repos.map { convertGitHubRepo($0) })
@@ -405,11 +396,25 @@ final class ConnectService {
         case .gitDiff(let msg):
             return .gitDiffResponse(sessionId: msg.sessionID, diff: msg.diff)
             
-        case .gitError(let msg):
-            return .gitError(sessionId: msg.sessionID, error: msg.error)
-            
         case .error(let msg):
-            return .error(message: msg.message)
+            // Unified error response - extract session ID if present
+            let sessionId = msg.error.hasSessionID ? msg.error.sessionID : nil
+            let errorMessage = msg.error.message
+            let errorCode = msg.error.code
+            
+            // Route to appropriate error type based on code
+            if let sid = sessionId {
+                if errorCode == "SESSION_ERROR" {
+                    return .sessionError(id: sid, error: errorMessage)
+                } else if errorCode == "AGENT_ERROR" {
+                    return .agentError(sessionId: sid, error: errorMessage)
+                } else if errorCode == "PORT_ERROR" {
+                    return .portError(sessionId: sid, port: 0, error: errorMessage)
+                } else if errorCode == "GIT_ERROR" {
+                    return .gitError(sessionId: sid, error: errorMessage)
+                }
+            }
+            return .error(message: errorMessage)
             
         case .none:
             return nil
@@ -424,20 +429,35 @@ final class ConnectService {
             name: proto.name,
             status: convertSessionStatus(proto.status),
             repo: proto.hasRepo ? proto.repo : nil,
-            repoAccess: proto.hasRepoAccess ? RepoAccess(rawValue: proto.repoAccess) : nil,
+            repoAccess: proto.hasRepoAccess ? convertRepoAccess(proto.repoAccess) : nil,
             createdAt: proto.createdAt.date,
             lastActiveAt: proto.lastActiveAt.date
         )
     }
     
-    private func convertSessionWithMeta(_ proto: Netclode_V1_SessionWithMeta) -> SessionWithMeta {
+    private func convertRepoAccess(_ proto: Netclode_V1_RepoAccess) -> RepoAccess {
+        switch proto {
+        case .read: return .read
+        case .write: return .write
+        case .unspecified, .UNRECOGNIZED: return .read
+        }
+    }
+    
+    private func convertToProtoRepoAccess(_ access: RepoAccess) -> Netclode_V1_RepoAccess {
+        switch access {
+        case .read: return .read
+        case .write: return .write
+        }
+    }
+    
+    private func convertSessionSummary(_ proto: Netclode_V1_SessionSummary) -> SessionWithMeta {
         let session = proto.session
         return SessionWithMeta(
             id: session.id,
             name: session.name,
             status: convertSessionStatus(session.status).rawValue,
             repo: session.hasRepo ? session.repo : nil,
-            repoAccess: session.hasRepoAccess ? session.repoAccess : nil,
+            repoAccess: session.hasRepoAccess ? convertRepoAccess(session.repoAccess) : nil,
             createdAt: session.createdAt.date,
             lastActiveAt: session.lastActiveAt.date,
             messageCount: proto.hasMessageCount ? Int(proto.messageCount) : nil,
@@ -463,109 +483,119 @@ final class ConnectService {
         
         switch proto.kind {
         case .toolStart:
+            let tool = proto.tool
             return .toolStart(ToolStartEvent(
                 id: id,
                 timestamp: timestamp,
-                tool: proto.tool,
-                toolUseId: proto.toolUseID,
-                parentToolUseId: proto.hasParentToolUseID ? proto.parentToolUseID : nil,
-                input: convertProtoStruct(proto.input)
+                tool: tool.tool,
+                toolUseId: tool.toolUseID,
+                parentToolUseId: tool.hasParentToolUseID ? tool.parentToolUseID : nil,
+                input: tool.hasInput ? convertProtoStruct(tool.input) : [:]
             ))
             
         case .toolInput:
+            let tool = proto.tool
             return .toolInput(ToolInputEvent(
                 id: id,
                 timestamp: timestamp,
-                toolUseId: proto.toolUseID,
-                parentToolUseId: proto.hasParentToolUseID ? proto.parentToolUseID : nil,
-                inputDelta: proto.inputDelta
+                toolUseId: tool.toolUseID,
+                parentToolUseId: tool.hasParentToolUseID ? tool.parentToolUseID : nil,
+                inputDelta: tool.hasInputDelta ? tool.inputDelta : ""
             ))
             
         case .toolInputComplete:
+            let tool = proto.tool
             return .toolInputComplete(ToolInputCompleteEvent(
                 id: id,
                 timestamp: timestamp,
-                toolUseId: proto.toolUseID,
-                parentToolUseId: proto.hasParentToolUseID ? proto.parentToolUseID : nil,
-                input: convertProtoStruct(proto.input)
+                toolUseId: tool.toolUseID,
+                parentToolUseId: tool.hasParentToolUseID ? tool.parentToolUseID : nil,
+                input: tool.hasInput ? convertProtoStruct(tool.input) : [:]
             ))
             
         case .toolEnd:
+            let tool = proto.tool
             return .toolEnd(ToolEndEvent(
                 id: id,
                 timestamp: timestamp,
-                tool: proto.tool,
-                toolUseId: proto.toolUseID,
-                parentToolUseId: proto.hasParentToolUseID ? proto.parentToolUseID : nil,
-                result: proto.hasResult ? proto.result : nil,
-                error: proto.hasError ? proto.error : nil
+                tool: tool.tool,
+                toolUseId: tool.toolUseID,
+                parentToolUseId: tool.hasParentToolUseID ? tool.parentToolUseID : nil,
+                result: tool.hasResult ? tool.result : nil,
+                error: tool.hasError ? tool.error : nil
             ))
             
         case .fileChange:
+            let fc = proto.fileChange
             let action: FileAction
-            switch proto.action {
-            case "create": action = .create
-            case "delete": action = .delete
-            default: action = .edit
+            switch fc.action {
+            case .create: action = .create
+            case .delete: action = .delete
+            case .edit, .unspecified, .UNRECOGNIZED: action = .edit
             }
             return .fileChange(FileChangeEvent(
                 id: id,
                 timestamp: timestamp,
-                path: proto.path,
+                path: fc.path,
                 action: action,
-                linesAdded: proto.hasLinesAdded ? Int(proto.linesAdded) : nil,
-                linesRemoved: proto.hasLinesRemoved ? Int(proto.linesRemoved) : nil
+                linesAdded: fc.hasLinesAdded ? Int(fc.linesAdded) : nil,
+                linesRemoved: fc.hasLinesRemoved ? Int(fc.linesRemoved) : nil
             ))
             
         case .commandStart:
+            let cmd = proto.command
             return .commandStart(CommandStartEvent(
                 id: id,
                 timestamp: timestamp,
-                command: proto.command,
-                cwd: proto.hasCwd ? proto.cwd : nil
+                command: cmd.command,
+                cwd: cmd.hasCwd ? cmd.cwd : nil
             ))
             
         case .commandEnd:
+            let cmd = proto.command
             return .commandEnd(CommandEndEvent(
                 id: id,
                 timestamp: timestamp,
-                command: proto.command,
-                exitCode: Int(proto.exitCode),
-                output: proto.hasOutput ? proto.output : nil
+                command: cmd.command,
+                exitCode: cmd.hasExitCode ? Int(cmd.exitCode) : 0,
+                output: cmd.hasOutput ? cmd.output : nil
             ))
             
         case .thinking:
+            let th = proto.thinking
             return .thinking(ThinkingEvent(
                 id: id,
                 timestamp: timestamp,
-                thinkingId: proto.hasThinkingID ? proto.thinkingID : "thinking_\(id.uuidString)",
-                content: proto.content,
-                partial: proto.partial
+                thinkingId: th.thinkingID.isEmpty ? "thinking_\(id.uuidString)" : th.thinkingID,
+                content: th.content,
+                partial: th.partial
             ))
             
         case .portExposed:
+            let pe = proto.portExposed
             return .portExposed(PortExposedEvent(
                 id: id,
                 timestamp: timestamp,
-                port: Int(proto.port),
-                process: proto.hasProcess ? proto.process : nil,
-                previewUrl: proto.hasPreviewURL ? proto.previewURL : nil
+                port: Int(pe.port),
+                process: pe.hasProcess ? pe.process : nil,
+                previewUrl: pe.hasPreviewURL ? pe.previewURL : nil
             ))
             
         case .repoClone:
+            let rc = proto.repoClone
             let stage: RepoCloneStage
-            switch proto.stage {
-            case "starting": stage = .starting
-            case "cloning": stage = .cloning
-            case "error": stage = .error
-            default: stage = .done
+            switch rc.stage {
+            case .starting: stage = .starting
+            case .cloning: stage = .cloning
+            case .error: stage = .error
+            case .done, .unspecified, .UNRECOGNIZED: stage = .done
             }
             return .repoClone(RepoCloneEvent(
                 id: id,
                 timestamp: timestamp,
-                repo: proto.repo,
+                repo: rc.repo,
                 stage: stage,
-                message: proto.message
+                message: rc.message
             ))
             
         case .UNRECOGNIZED, .unspecified:
@@ -638,34 +668,131 @@ final class ConnectService {
     }
     
     private func convertPersistedEvent(_ proto: Netclode_V1_PersistedEvent, sessionId: String) -> PersistedEvent {
-        // eventData is serialized JSON, decode it to RawAgentEventData
-        let eventData: PersistedEvent.RawAgentEventData
-        do {
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            eventData = try decoder.decode(PersistedEvent.RawAgentEventData.self, from: proto.eventData)
-        } catch {
-            // Log the decode failure for debugging
-            let dataPreview = String(data: proto.eventData.prefix(200), encoding: .utf8) ?? "<binary>"
-            logger.warning("Failed to decode PersistedEvent \(proto.id): \(error.localizedDescription). Data preview: \(dataPreview)")
-            
-            // Fallback to a placeholder event
-            eventData = PersistedEvent.RawAgentEventData(
-                kind: "unknown",
-                timestamp: proto.timestamp.date,
-                tool: nil, toolUseId: nil, parentToolUseId: nil, input: nil, inputDelta: nil, result: nil,
-                path: nil, action: nil, linesAdded: nil, linesRemoved: nil,
-                command: nil, cwd: nil, exitCode: nil, output: nil,
-                content: nil, thinkingId: nil, partial: nil,
-                port: nil, process: nil, previewUrl: nil,
-                repo: nil, stage: nil, message: nil, error: nil
-            )
-        }
+        // Convert the embedded AgentEvent to RawAgentEventData
+        let agentEvent = proto.event
+        let eventData = convertAgentEventToRaw(agentEvent)
+        
         return PersistedEvent(
             id: proto.id,
             sessionId: sessionId,
             event: eventData,
             timestamp: proto.timestamp.date
+        )
+    }
+    
+    private func convertAgentEventToRaw(_ proto: Netclode_V1_AgentEvent) -> PersistedEvent.RawAgentEventData {
+        let kind: String
+        var tool: String? = nil
+        var toolUseId: String? = nil
+        var parentToolUseId: String? = nil
+        var input: [String: AnyCodableValue]? = nil
+        var inputDelta: String? = nil
+        var result: String? = nil
+        var path: String? = nil
+        var action: String? = nil
+        var linesAdded: Int? = nil
+        var linesRemoved: Int? = nil
+        var command: String? = nil
+        var cwd: String? = nil
+        var exitCode: Int? = nil
+        var output: String? = nil
+        var content: String? = nil
+        var thinkingId: String? = nil
+        var partial: Bool? = nil
+        var port: Int? = nil
+        var process: String? = nil
+        var previewUrl: String? = nil
+        var repo: String? = nil
+        var stage: String? = nil
+        var message: String? = nil
+        var error: String? = nil
+        
+        switch proto.kind {
+        case .toolStart:
+            kind = "tool_start"
+            let t = proto.tool
+            tool = t.tool
+            toolUseId = t.toolUseID
+            parentToolUseId = t.hasParentToolUseID ? t.parentToolUseID : nil
+            input = t.hasInput ? convertProtoStruct(t.input) : nil
+        case .toolInput:
+            kind = "tool_input"
+            let t = proto.tool
+            toolUseId = t.toolUseID
+            parentToolUseId = t.hasParentToolUseID ? t.parentToolUseID : nil
+            inputDelta = t.hasInputDelta ? t.inputDelta : nil
+        case .toolInputComplete:
+            kind = "tool_input_complete"
+            let t = proto.tool
+            toolUseId = t.toolUseID
+            parentToolUseId = t.hasParentToolUseID ? t.parentToolUseID : nil
+            input = t.hasInput ? convertProtoStruct(t.input) : nil
+        case .toolEnd:
+            kind = "tool_end"
+            let t = proto.tool
+            tool = t.tool
+            toolUseId = t.toolUseID
+            parentToolUseId = t.hasParentToolUseID ? t.parentToolUseID : nil
+            result = t.hasResult ? t.result : nil
+            error = t.hasError ? t.error : nil
+        case .fileChange:
+            kind = "file_change"
+            let fc = proto.fileChange
+            path = fc.path
+            switch fc.action {
+            case .create: action = "create"
+            case .delete: action = "delete"
+            case .edit, .unspecified, .UNRECOGNIZED: action = "edit"
+            }
+            linesAdded = fc.hasLinesAdded ? Int(fc.linesAdded) : nil
+            linesRemoved = fc.hasLinesRemoved ? Int(fc.linesRemoved) : nil
+        case .commandStart:
+            kind = "command_start"
+            let cmd = proto.command
+            command = cmd.command
+            cwd = cmd.hasCwd ? cmd.cwd : nil
+        case .commandEnd:
+            kind = "command_end"
+            let cmd = proto.command
+            command = cmd.command
+            exitCode = cmd.hasExitCode ? Int(cmd.exitCode) : nil
+            output = cmd.hasOutput ? cmd.output : nil
+        case .thinking:
+            kind = "thinking"
+            let th = proto.thinking
+            thinkingId = th.thinkingID
+            content = th.content
+            partial = th.partial
+        case .portExposed:
+            kind = "port_exposed"
+            let pe = proto.portExposed
+            port = Int(pe.port)
+            process = pe.hasProcess ? pe.process : nil
+            previewUrl = pe.hasPreviewURL ? pe.previewURL : nil
+        case .repoClone:
+            kind = "repo_clone"
+            let rc = proto.repoClone
+            repo = rc.repo
+            switch rc.stage {
+            case .starting: stage = "starting"
+            case .cloning: stage = "cloning"
+            case .error: stage = "error"
+            case .done, .unspecified, .UNRECOGNIZED: stage = "done"
+            }
+            message = rc.message
+        case .unspecified, .UNRECOGNIZED:
+            kind = "unknown"
+        }
+        
+        return PersistedEvent.RawAgentEventData(
+            kind: kind,
+            timestamp: proto.timestamp.date,
+            tool: tool, toolUseId: toolUseId, parentToolUseId: parentToolUseId, input: input, inputDelta: inputDelta, result: result,
+            path: path, action: action, linesAdded: linesAdded, linesRemoved: linesRemoved,
+            command: command, cwd: cwd, exitCode: exitCode, output: output,
+            content: content, thinkingId: thinkingId, partial: partial,
+            port: port, process: process, previewUrl: previewUrl,
+            repo: repo, stage: stage, message: message, error: error
         )
     }
     
@@ -844,7 +971,7 @@ final class ConnectService {
                 req.repo = repo
             }
             if let repoAccess = repoAccess {
-                req.repoAccess = repoAccess.rawValue
+                req.repoAccess = convertToProtoRepoAccess(repoAccess)
             }
             if let initialPrompt = initialPrompt {
                 req.initialPrompt = initialPrompt

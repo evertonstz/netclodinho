@@ -202,7 +202,7 @@ struct SessionWithMeta: Codable, Sendable {
     let name: String
     let status: String
     let repo: String?
-    let repoAccess: String?
+    let repoAccess: RepoAccess?
     let createdAt: Date
     let lastActiveAt: Date
     let messageCount: Int?
@@ -214,7 +214,7 @@ struct SessionWithMeta: Codable, Sendable {
             name: name,
             status: SessionStatus(rawValue: status) ?? .paused,
             repo: repo,
-            repoAccess: repoAccess.flatMap { RepoAccess(rawValue: $0) },
+            repoAccess: repoAccess,
             createdAt: createdAt,
             lastActiveAt: lastActiveAt
         )
