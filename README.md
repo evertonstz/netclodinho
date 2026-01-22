@@ -55,19 +55,19 @@ flowchart LR
 
 ```mermaid
 sequenceDiagram
-    participant App as iOS App<br/><sub>SwiftUI</sub>
+    participant App as iOS App
     participant TS as Tailscale
-    participant CP as Control Plane<br/><sub>Go</sub>
-    participant Pool as Warm Pool<br/><sub>Kata VMs</sub>
-    participant VM as Agent VM<br/><sub>Claude SDK</sub>
-    participant S3 as S3<br/><sub>JuiceFS</sub>
+    participant CP as Control Plane
+    participant Pool as Warm Pool
+    participant VM as Agent VM
+    participant S3 as JuiceFS / S3
 
     App->>TS: Connect via Tailnet
     TS->>CP: Route to Control Plane
     CP->>Pool: Claim pre-booted VM
     Pool-->>CP: VM ready (instant)
 
-    rect rgb(50, 50, 80)
+    rect rgba(128, 128, 160, 0.3)
         note right of App: Conversation Loop
         App->>CP: Send prompt (Connect Protocol)
         CP->>VM: Forward to Claude Agent SDK
@@ -76,14 +76,14 @@ sequenceDiagram
         Note over CP: Redis persists events<br/>for reconnect
     end
 
-    rect rgb(80, 50, 50)
+    rect rgba(160, 128, 128, 0.3)
         note right of App: Pause Session
         App->>CP: Pause
         CP->>VM: Delete VM
         Note over S3: PVC retained<br/>(cheap!)
     end
 
-    rect rgb(50, 80, 50)
+    rect rgba(128, 160, 128, 0.3)
         note right of App: Resume Session
         App->>CP: Resume
         CP->>Pool: New VM + mount existing PVC
