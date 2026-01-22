@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -141,11 +142,26 @@ func (s *Server) startTsnetConnectServer(ctx context.Context, cfg *config.Config
 		"tailscaleIP", status.TailscaleIPs[0].String(),
 	)
 
-	// Get TLS listener with automatic certificates
-	ln, err := s.tsnetServer.ListenTLS("tcp", ":443")
+	// Get plain TCP listener on tailscale interface
+	ln, err := s.tsnetServer.Listen("tcp", ":443")
 	if err != nil {
-		return fmt.Errorf("tsnet listen tls: %w", err)
+		return fmt.Errorf("tsnet listen: %w", err)
 	}
+
+	// Get the local client (needed for TLS cert management)
+	lc, err := s.tsnetServer.LocalClient()
+	if err != nil {
+		return fmt.Errorf("tsnet local client: %w", err)
+	}
+
+	// Create TLS config with HTTP/2 support using tsnet's certificate
+	tlsConfig := &tls.Config{
+		GetCertificate: lc.GetCertificate,
+		NextProtos:     []string{"h2", "http/1.1"}, // Enable HTTP/2 via ALPN
+	}
+
+	// Wrap listener with TLS
+	tlsLn := tls.NewListener(ln, tlsConfig)
 
 	s.connectServer = &http.Server{
 		Handler: handler,
@@ -161,7 +177,7 @@ func (s *Server) startTsnetConnectServer(ctx context.Context, cfg *config.Config
 	slog.Info("Starting Connect server with Tailscale TLS", "url", fullHostname)
 
 	go func() {
-		if err := s.connectServer.Serve(ln); err != http.ErrServerClosed {
+		if err := s.connectServer.Serve(tlsLn); err != http.ErrServerClosed {
 			errCh <- fmt.Errorf("connect server (tsnet): %w", err)
 		}
 	}()

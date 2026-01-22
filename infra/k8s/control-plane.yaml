@@ -17,6 +17,9 @@ spec:
         app: control-plane
     spec:
       serviceAccountName: control-plane
+      # Host networking required for tsnet to receive incoming Tailscale connections
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       # Init container to set up tsnet state directory permissions
       initContainers:
         - name: init-tailscale-state
