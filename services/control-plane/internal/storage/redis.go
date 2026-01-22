@@ -290,8 +290,8 @@ func (r *RedisStorage) GetEvents(ctx context.Context, sessionID string, limit in
 		return nil, err
 	}
 
-	// Take only 'limit' entries
-	if len(messages) > limit {
+	// Take only 'limit' entries (0 = no limit)
+	if limit > 0 && len(messages) > limit {
 		messages = messages[:limit]
 	}
 

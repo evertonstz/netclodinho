@@ -151,7 +151,20 @@ struct ChatView: View {
         }
 
         // Sort by timestamp
-        return items.sorted { $0.timestamp < $1.timestamp }
+        let sorted = items.sorted { $0.timestamp < $1.timestamp }
+        
+        // Debug logging
+        print("[ChatView] Timeline computed: \(sorted.count) items")
+        for item in sorted {
+            switch item {
+            case .message(let msg, _, _):
+                print("  - message(\(msg.role)): \(msg.timestamp) - \(msg.content.prefix(30))...")
+            case .event(let grouped):
+                print("  - event: \(grouped.timestamp) - \(grouped.event)")
+            }
+        }
+        
+        return sorted
     }
 
     var body: some View {

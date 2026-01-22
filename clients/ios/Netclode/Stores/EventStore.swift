@@ -5,8 +5,6 @@ import Foundation
 final class EventStore {
     private(set) var eventsBySession: [String: [AgentEvent]] = [:]
 
-    private let maxEventsPerSession = 100
-
     func events(for sessionId: String) -> [AgentEvent] {
         eventsBySession[sessionId] ?? []
     }
@@ -18,13 +16,8 @@ final class EventStore {
     func appendEvent(sessionId: String, event: AgentEvent) {
         var events = eventsBySession[sessionId] ?? []
         events.append(event)
-
-        // Keep only the most recent events
-        if events.count > maxEventsPerSession {
-            events = Array(events.suffix(maxEventsPerSession))
-        }
-
         eventsBySession[sessionId] = events
+        print("[EventStore] appendEvent: session=\(sessionId), totalEvents=\(events.count), event=\(event)")
     }
 
     /// Append partial thinking content or create a new thinking event
@@ -178,5 +171,6 @@ final class EventStore {
         }
 
         eventsBySession[sessionId] = aggregatedEvents
+        print("[EventStore] loadEvents: session=\(sessionId), loaded=\(events.count) raw, aggregated=\(aggregatedEvents.count)")
     }
 }
