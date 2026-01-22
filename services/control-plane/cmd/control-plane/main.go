@@ -37,7 +37,6 @@ func run() error {
 	cfg := config.Load()
 	slog.Info("Configuration loaded",
 		"port", cfg.Port,
-		"connectPort", cfg.ConnectPort,
 		"namespace", cfg.K8sNamespace,
 		"agentImage", cfg.AgentImage,
 		"redisURL", storage.ParseRedisURL(cfg.RedisURL),

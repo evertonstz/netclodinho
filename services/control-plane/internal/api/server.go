@@ -77,52 +77,45 @@ func (s *Server) BroadcastToAllConnect(msg *pb.ServerMessage, exclude *ConnectCo
 
 // ListenAndServe starts the HTTP server with Connect protocol support.
 func (s *Server) ListenAndServe(ctx context.Context, httpAddr string, cfg *config.Config) error {
-	// Create the main mux for HTTP endpoints
+	// Create a single mux for both HTTP endpoints and Connect services
 	mux := http.NewServeMux()
 
+	// HTTP endpoints
 	mux.HandleFunc("GET /health", s.handleHealth)
 	mux.HandleFunc("GET /internal/session-config", s.handleSessionConfig)
 	mux.HandleFunc("POST /internal/session/{sessionID}/event", s.handleInternalEvent)
 
+	// Connect services (ClientService for iOS, AgentService for agents)
+	clientHandler := NewConnectClientServiceHandler(s.manager, s)
+	clientPath, clientHandlerFunc := netclodev1connect.NewClientServiceHandler(clientHandler)
+	mux.Handle(clientPath, clientHandlerFunc)
+
+	agentHandler := NewConnectAgentServiceHandler(s.manager, s)
+	agentPath, agentHandlerFunc := netclodev1connect.NewAgentServiceHandler(agentHandler)
+	mux.Handle(agentPath, agentHandlerFunc)
+
+	// Wrap with h2c to support both HTTP/1.1 and HTTP/2 on the same port
+	h2cHandler := h2c.NewHandler(mux, &http2.Server{})
+
 	s.httpServer = &http.Server{
 		Addr:    httpAddr,
-		Handler: mux,
+		Handler: h2cHandler,
 	}
 
-	slog.Info("Starting HTTP server", "addr", httpAddr)
+	slog.Info("Starting h2c server (HTTP/1.1 + HTTP/2)", "addr", httpAddr)
 
 	errCh := make(chan error, 2)
 
-	// Start HTTP server (for health checks and internal endpoints)
+	// Start the main h2c server (handles both HTTP and Connect)
 	go func() {
 		if err := s.httpServer.ListenAndServe(); err != http.ErrServerClosed {
-			errCh <- fmt.Errorf("http server: %w", err)
+			errCh <- fmt.Errorf("h2c server: %w", err)
 		}
 	}()
 
-	// Create Connect handler with both ClientService and AgentService
-	connectMux := http.NewServeMux()
-
-	// Internal endpoints (also available on Connect server for agents)
-	connectMux.HandleFunc("GET /internal/session-config", s.handleSessionConfig)
-
-	// ClientService for iOS clients
-	clientHandler := NewConnectClientServiceHandler(s.manager, s)
-	clientPath, clientHandlerFunc := netclodev1connect.NewClientServiceHandler(clientHandler)
-	connectMux.Handle(clientPath, clientHandlerFunc)
-
-	// AgentService for agents connecting from sandboxes
-	agentHandler := NewConnectAgentServiceHandler(s.manager, s)
-	agentPath, agentHandlerFunc := netclodev1connect.NewAgentServiceHandler(agentHandler)
-	connectMux.Handle(agentPath, agentHandlerFunc)
-
-	// Start Connect servers
-	// Always start h2c server for internal cluster communication (agents)
-	s.startH2cConnectServer(cfg.ConnectPort, connectMux, errCh)
-
 	// Also start tsnet server for external clients (iOS app) if configured
 	if cfg.UseTailscale() {
-		if err := s.startTsnetConnectServer(ctx, cfg, connectMux, errCh); err != nil {
+		if err := s.startTsnetConnectServer(ctx, cfg, mux, errCh); err != nil {
 			return err
 		}
 	}
@@ -195,27 +188,6 @@ func (s *Server) startTsnetConnectServer(ctx context.Context, cfg *config.Config
 	}()
 
 	return nil
-}
-
-// startH2cConnectServer starts the Connect server using h2c (HTTP/2 cleartext).
-func (s *Server) startH2cConnectServer(connectPort int, handler http.Handler, errCh chan error) {
-	connectAddr := fmt.Sprintf(":%d", connectPort)
-
-	// Use h2c for HTTP/2 without TLS (required for bidirectional streaming)
-	h2cHandler := h2c.NewHandler(handler, &http2.Server{})
-
-	s.connectServer = &http.Server{
-		Addr:    connectAddr,
-		Handler: h2cHandler,
-	}
-
-	slog.Info("Starting Connect server with h2c", "addr", connectAddr)
-
-	go func() {
-		if err := s.connectServer.ListenAndServe(); err != http.ErrServerClosed {
-			errCh <- fmt.Errorf("connect server (h2c): %w", err)
-		}
-	}()
 }
 
 // gracefulShutdown performs graceful shutdown with connection draining.

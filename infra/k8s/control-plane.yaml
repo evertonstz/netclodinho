@@ -36,15 +36,11 @@ spec:
           ports:
             - containerPort: 3000
               name: http
-            - containerPort: 3001
-              name: connect-h2c
             - containerPort: 443
               name: connect-tls
           env:
             - name: PORT
               value: "3000"
-            - name: CONNECT_PORT
-              value: "3001"  # h2c Connect server for internal agents
             - name: K8S_NAMESPACE
               valueFrom:
                 fieldRef:
@@ -139,9 +135,6 @@ spec:
     - port: 80
       targetPort: 3000
       name: http
-    - port: 3001
-      targetPort: 3001
-      name: connect-h2c
 # Note: iOS clients connect via Tailscale tsnet on port 443:
 # https://netclode-control-plane.YOUR-TAILNET.ts.net
 # Internal agents connect via h2c on port 3001

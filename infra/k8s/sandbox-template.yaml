@@ -36,7 +36,7 @@ spec:
                   name: netclode-secrets
                   key: anthropic-api-key
             - name: CONTROL_PLANE_URL
-              value: "http://control-plane.netclode.svc.cluster.local:3001"
+              value: "http://control-plane.netclode.svc.cluster.local"
             - name: POD_NAME
               valueFrom:
                 fieldRef:
@@ -78,7 +78,7 @@ spec:
           - protocol: TCP
             port: 8080
     egress:
-      # Allow connection to control-plane service (port 80 -> 3000, 3001)
+      # Allow connection to control-plane (port 80 -> 3000)
       - to:
           - podSelector:
               matchLabels:
@@ -88,8 +88,6 @@ spec:
             port: 80
           - protocol: TCP
             port: 3000
-          - protocol: TCP
-            port: 3001
       # Allow internet access
       - to:
           - ipBlock:
