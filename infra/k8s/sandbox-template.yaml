@@ -45,15 +45,15 @@ spec:
             - name: agent-home
               mountPath: /agent
           # Agent connects TO control-plane, no ports exposed
-          # Readiness: check that node process is running
+          # Readiness: check for ready file created by agent
           readinessProbe:
             exec:
-              command: ["pgrep", "-f", "node"]
+              command: ["test", "-f", "/tmp/agent-ready"]
             initialDelaySeconds: 3
             periodSeconds: 5
           livenessProbe:
             exec:
-              command: ["pgrep", "-f", "node"]
+              command: ["test", "-f", "/tmp/agent-ready"]
             initialDelaySeconds: 30
             periodSeconds: 10
   volumeClaimTemplates:

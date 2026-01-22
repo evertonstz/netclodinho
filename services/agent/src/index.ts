@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { writeFileSync } from "fs";
 import { connectToControlPlane } from "./connect-client.js";
 
 const controlPlaneUrl = process.env.CONTROL_PLANE_URL || "http://control-plane.netclode.svc.cluster.local";
@@ -10,6 +11,14 @@ let sessionId = process.env.SESSION_ID;
 console.log("[agent] Starting agent...");
 console.log(`[agent] Config: controlPlaneUrl=${controlPlaneUrl}, podName=${podName}, sessionId=${sessionId || "(warm pool mode)"}`);
 console.log(`[agent] Environment: ANTHROPIC_API_KEY=${process.env.ANTHROPIC_API_KEY ? "set" : "NOT SET"}`);
+
+// Create ready file for k8s readiness probe
+try {
+  writeFileSync("/tmp/agent-ready", "ready");
+  console.log("[agent] Ready file created");
+} catch (e) {
+  console.warn("[agent] Could not create ready file:", e);
+}
 
 /**
  * Fetch session config from control plane (for warm pool mode)
