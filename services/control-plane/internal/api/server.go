@@ -288,7 +288,21 @@ func (s *Server) handleSessionConfig(w http.ResponseWriter, r *http.Request) {
 	if sessionID == "" {
 		podName := r.URL.Query().Get("pod")
 		if podName != "" {
+			// First try to extract from pod name pattern (sess-<sessionID>-*)
 			sessionID = extractSessionIDFromPodName(podName)
+
+			// If that doesn't work (warm pool pods have different names),
+			// query K8s to find the sandbox with this pod name
+			if sessionID == "" {
+				var err error
+				sessionID, err = s.manager.GetSessionIDByPodName(r.Context(), podName)
+				if err != nil {
+					slog.Debug("No session found for pod", "podName", podName, "error", err)
+					// Return empty response - agent will retry
+					http.Error(w, "no session assigned yet", http.StatusNotFound)
+					return
+				}
+			}
 		}
 	}
 

@@ -973,6 +973,11 @@ func (m *Manager) ListGitHubRepos(ctx context.Context) ([]github.Repository, err
 	return m.github.ListInstallationRepositories(ctx)
 }
 
+// GetSessionIDByPodName finds the session ID for a pod name (used by warm pool agents).
+func (m *Manager) GetSessionIDByPodName(ctx context.Context, podName string) (string, error) {
+	return m.k8s.GetSessionIDByPodName(ctx, podName)
+}
+
 // GetSessionConfig returns session configuration for the agent.
 // This is used by agents to get session-specific config when using warm pools.
 func (m *Manager) GetSessionConfig(ctx context.Context, sessionID string) (map[string]string, error) {

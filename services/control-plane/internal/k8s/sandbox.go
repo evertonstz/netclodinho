@@ -990,6 +990,44 @@ func (r *k8sRuntime) GetSandboxByName(ctx context.Context, name string) (*Sandbo
 	return sandbox, nil
 }
 
+// GetSessionIDByPodName finds the session ID for a sandbox by its pod name.
+// This is used by warm pool agents which don't have session ID in their pod name.
+// It searches sandboxes for one with the agents.x-k8s.io/pod-name annotation matching the given pod name.
+func (r *k8sRuntime) GetSessionIDByPodName(ctx context.Context, podName string) (string, error) {
+	// First check the cache for efficiency
+	r.cacheMu.RLock()
+	for sessionID, sandbox := range r.sandboxCache {
+		if sandbox.Annotations != nil {
+			if sandbox.Annotations["agents.x-k8s.io/pod-name"] == podName {
+				r.cacheMu.RUnlock()
+				return sessionID, nil
+			}
+		}
+	}
+	r.cacheMu.RUnlock()
+
+	// If not in cache, list all sandboxes from K8s API
+	list, err := r.dynamicClient.Resource(SandboxGVR).Namespace(r.namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return "", fmt.Errorf("list sandboxes: %w", err)
+	}
+
+	for _, item := range list.Items {
+		sandbox := r.unstructuredToSandbox(&item)
+		if sandbox == nil {
+			continue
+		}
+		if sandbox.Annotations != nil && sandbox.Annotations["agents.x-k8s.io/pod-name"] == podName {
+			// Found it - get session ID from label
+			if sessionID, ok := sandbox.Labels["netclode.io/session"]; ok && sessionID != "" {
+				return sessionID, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("no sandbox found for pod %s", podName)
+}
+
 // LabelSandbox adds the netclode.io/session label to a sandbox so the informer can track it.
 func (r *k8sRuntime) LabelSandbox(ctx context.Context, sandboxName string, sessionID string) error {
 	patch := []byte(fmt.Sprintf(`{"metadata":{"labels":{"netclode.io/session":"%s"}}}`, sessionID))
