@@ -88,9 +88,9 @@ buf breaking --against '.git#branch=master'
 
 We use [Connect](https://connectrpc.com/) instead of raw gRPC because:
 
-- **Browser/mobile compatible** - Works with standard HTTP/2, no special proxy needed
-- **Simpler deployment** - Single port serves both unary and streaming
-- **Better tooling** - curl-friendly JSON encoding alongside binary protobuf
+- **Browser-native** - No gRPC-web proxy needed, works directly with fetch/XMLHttpRequest
+- **HTTP/1.1 fallback** - Unary calls work over HTTP/1.1 when HTTP/2 isn't available
+- **curl-friendly** - JSON encoding out of the box alongside binary protobuf
 
 ### Clients
 
