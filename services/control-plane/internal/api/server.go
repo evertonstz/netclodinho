@@ -103,6 +103,9 @@ func (s *Server) ListenAndServe(ctx context.Context, httpAddr string, cfg *confi
 	// Create Connect handler with both ClientService and AgentService
 	connectMux := http.NewServeMux()
 
+	// Internal endpoints (also available on Connect server for agents)
+	connectMux.HandleFunc("GET /internal/session-config", s.handleSessionConfig)
+
 	// ClientService for iOS clients
 	clientHandler := NewConnectClientServiceHandler(s.manager, s)
 	clientPath, clientHandlerFunc := netclodev1connect.NewClientServiceHandler(clientHandler)
