@@ -15,9 +15,12 @@ Claude Code agent that runs inside Kata Container VMs. Uses the Claude Agent SDK
 services/agent/
 ├── src/
 │   ├── index.ts           # Entry point
-│   ├── connect-server.ts  # Connect protocol server
-│   ├── grpc-service.ts    # Service implementation
-│   └── git.ts             # Git operations
+│   ├── connect-client.ts  # Bidirectional Connect client to control plane
+│   ├── git.ts             # Git operations
+│   └── services/
+│       ├── prompt.ts      # Prompt execution via Claude SDK
+│       ├── terminal.ts    # PTY management
+│       └── title.ts       # Title generation
 ├── gen/                   # Generated protobuf types
 ├── package.json
 └── tsconfig.json
@@ -28,90 +31,63 @@ services/agent/
 | Variable | Description |
 |----------|-------------|
 | `ANTHROPIC_API_KEY` | Anthropic API key |
-| `AGENT_PORT` | Agent Connect server port (default 3002) |
+| `CONTROL_PLANE_URL` | Control plane URL (default `http://control-plane.netclode.svc.cluster.local`) |
+| `SESSION_ID` | Session ID (set by control plane, or polled via warm pool) |
 
 ## API
 
-Connect protocol (gRPC-compatible) on port `3002`. See `proto/netclode/v1/agent.proto` for full definitions.
-
-### ExecutePrompt (streaming)
-
-Execute a prompt, stream results back via server streaming.
+The agent connects TO the control plane (not the other way around) using a single bidirectional Connect stream. See `proto/netclode/v1/agent.proto` for full definitions.
 
 ```protobuf
-rpc ExecutePrompt(ExecutePromptRequest) returns (stream AgentStreamResponse);
+service AgentService {
+  rpc Connect(stream AgentMessage) returns (stream ControlPlaneMessage);
+}
 ```
 
-Request:
-```
-session_id: "sess-abc123"
-text: "Fix the bug in auth.ts"
-config: { repo: "github.com/user/repo", github_token: "..." }
-```
+### Connection Flow
 
-Response stream includes:
-- `text_delta` - Text content (partial or complete)
-- `event` - Tool events, thinking, file changes, etc.
-- `system_message` - SDK system messages
-- `result` - Final result with token counts
-- `error` - Error messages
+1. Agent starts and connects to control plane
+2. Agent sends `AgentRegister` with session ID
+3. Control plane responds with `AgentRegistered` (includes session config)
+4. Bidirectional communication begins
 
-### Interrupt
+### Agent → Control Plane Messages
 
-Stop current execution.
+| Message | Description |
+|---------|-------------|
+| `register` | Initial registration with session ID |
+| `prompt_response` | Streaming response (text, events, result, error) |
+| `terminal_output` | PTY output data |
+| `title_response` | Generated session title |
+| `git_status_response` | Git status result |
+| `git_diff_response` | Git diff result |
 
-```protobuf
-rpc Interrupt(InterruptRequest) returns (InterruptResponse);
-```
+### Control Plane → Agent Messages
 
-### GenerateTitle
+| Message | Description |
+|---------|-------------|
+| `registered` | Registration acknowledgment with session config |
+| `execute_prompt` | Execute a prompt |
+| `interrupt` | Stop current execution |
+| `generate_title` | Generate session title |
+| `get_git_status` | Request git status |
+| `get_git_diff` | Request git diff |
+| `terminal_input` | Terminal input (data or resize) |
 
-Generate session title from first prompt.
-
-```protobuf
-rpc GenerateTitle(GenerateTitleRequest) returns (GenerateTitleResponse);
-```
-
-### GetGitStatus / GetGitDiff
-
-Query git state of the workspace.
-
-```protobuf
-rpc GetGitStatus(GetGitStatusRequest) returns (GetGitStatusResponse);
-rpc GetGitDiff(GetGitDiffRequest) returns (GetGitDiffResponse);
-```
-
-### Terminal (bidirectional streaming)
-
-Interactive terminal via bidirectional streaming.
-
-```protobuf
-rpc Terminal(stream TerminalInput) returns (stream TerminalOutput);
-```
-
-Client sends:
-- `data` - Terminal input (keystrokes)
-- `resize` - Terminal dimensions (cols, rows)
-
-Server streams:
-- `data` - Terminal output
+### Terminal
 
 The PTY is managed by [node-pty](https://github.com/microsoft/node-pty). It's spawned lazily on first input to avoid idle shell processes. The shell runs as root in `/agent/workspace`.
 
 ```
-iOS/Web ──► Control Plane ──► Agent ──► node-pty ──► bash
-            (Connect)        (Connect)    (PTY)
+iOS ──► Control Plane ──► Agent ──► node-pty ──► bash
+        (Connect)         (Connect)    (PTY)
 ```
 
-The control plane maintains a Connect stream to the agent and bridges messages. Multiple clients can share the same terminal session.
+Terminal input/output flows through the same bidirectional stream as prompts. Multiple clients can share the same terminal session via the control plane.
 
 ### Health
 
-```protobuf
-rpc Health(HealthRequest) returns (HealthResponse);
-```
-
-Also available at `GET /health` for k8s probes.
+Available at `GET /health` for k8s probes.
 
 ## Claude Agent SDK
 
@@ -202,6 +178,7 @@ The preview URL is then `http://sandbox-abc123.tailnet-name.ts.net:3000`. Access
 npm install
 npm run dev
 npm run typecheck
+npm run test
 npm run build
 ```
 
