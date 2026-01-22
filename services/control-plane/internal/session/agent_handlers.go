@@ -49,11 +49,10 @@ func (m *Manager) handleTextDelta(ctx context.Context, sessionID string, state *
 	}
 
 	state.ContentBuilder.WriteString(delta.Content)
-	content := state.ContentBuilder.String()
 	m.mu.Unlock()
 
-	// Emit to clients
-	m.emit(ctx, sessionID, protocol.NewAgentMessage(sessionID, content, delta.Partial, messageID))
+	// Emit delta to clients (not accumulated content) - client accumulates
+	m.emit(ctx, sessionID, protocol.NewAgentMessage(sessionID, delta.Content, delta.Partial, messageID))
 
 	return nil
 }

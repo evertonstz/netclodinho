@@ -641,7 +641,9 @@ final class ConnectService {
         // eventData is serialized JSON, decode it to RawAgentEventData
         let eventData: PersistedEvent.RawAgentEventData
         do {
-            eventData = try JSONDecoder().decode(PersistedEvent.RawAgentEventData.self, from: proto.eventData)
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            eventData = try decoder.decode(PersistedEvent.RawAgentEventData.self, from: proto.eventData)
         } catch {
             // Log the decode failure for debugging
             let dataPreview = String(data: proto.eventData.prefix(200), encoding: .utf8) ?? "<binary>"
