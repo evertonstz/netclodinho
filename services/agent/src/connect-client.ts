@@ -35,7 +35,7 @@ import {
 
 // Import modular services
 import { executePrompt, type PromptEvent, setInterruptSignal, clearInterruptSignal } from "./services/prompt.js";
-import { handleTerminalInput, setTerminalOutputCallback } from "./services/terminal.js";
+import { handleTerminalInput, resizeTerminal, setTerminalOutputCallback } from "./services/terminal.js";
 import { generateTitle } from "./services/title.js";
 import { getGitStatus, getGitDiff, type GitFileChange } from "./git.js";
 
@@ -490,8 +490,7 @@ function handleTerminalInputMessage(input: {
       handleTerminalInput(input.input.value);
       break;
     case "resize":
-      // TODO: Implement terminal resize
-      console.log("[agent] Terminal resize:", input.input.value.cols, "x", input.input.value.rows);
+      resizeTerminal(input.input.value.cols, input.input.value.rows);
       break;
   }
 }
