@@ -87,6 +87,12 @@ struct SessionsView: View {
             }
         }
         .refreshable {
+            // Reconnect if needed, then refresh session list
+            if !connectService.connectionState.isConnected {
+                connectService.ensureConnected(to: settingsStore.serverURL)
+                // Wait a bit for connection to establish
+                try? await Task.sleep(nanoseconds: 500_000_000)
+            }
             connectService.send(.sessionList)
         }
         .alert("Delete Session?", isPresented: .init(
