@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -14,12 +13,10 @@ import (
 
 	pb "github.com/angristan/netclode/services/control-plane/gen/netclode/v1"
 	"github.com/angristan/netclode/services/control-plane/gen/netclode/v1/netclodev1connect"
-	"github.com/angristan/netclode/services/control-plane/internal/config"
 	"github.com/angristan/netclode/services/control-plane/internal/protocol"
 	"github.com/angristan/netclode/services/control-plane/internal/session"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
-	"tailscale.com/tsnet"
 )
 
 const (
@@ -29,10 +26,8 @@ const (
 
 // Server is the HTTP server with Connect protocol and graceful shutdown support.
 type Server struct {
-	manager       *session.Manager
-	httpServer    *http.Server
-	connectServer *http.Server
-	tsnetServer   *tsnet.Server // Tailscale tsnet server (optional)
+	manager    *session.Manager
+	httpServer *http.Server
 
 	// Connect connection tracking
 	connectConnections sync.Map // map[*ConnectConnection]struct{}
@@ -76,7 +71,7 @@ func (s *Server) BroadcastToAllConnect(msg *pb.ServerMessage, exclude *ConnectCo
 }
 
 // ListenAndServe starts the HTTP server with Connect protocol support.
-func (s *Server) ListenAndServe(ctx context.Context, httpAddr string, cfg *config.Config) error {
+func (s *Server) ListenAndServe(ctx context.Context, httpAddr string) error {
 	// Create a single mux for both HTTP endpoints and Connect services
 	mux := http.NewServeMux()
 
@@ -104,7 +99,7 @@ func (s *Server) ListenAndServe(ctx context.Context, httpAddr string, cfg *confi
 
 	slog.Info("Starting h2c server (HTTP/1.1 + HTTP/2)", "addr", httpAddr)
 
-	errCh := make(chan error, 2)
+	errCh := make(chan error, 1)
 
 	// Start the main h2c server (handles both HTTP and Connect)
 	go func() {
@@ -113,81 +108,12 @@ func (s *Server) ListenAndServe(ctx context.Context, httpAddr string, cfg *confi
 		}
 	}()
 
-	// Also start tsnet server for external clients (iOS app) if configured
-	if cfg.UseTailscale() {
-		if err := s.startTsnetConnectServer(ctx, cfg, mux, errCh); err != nil {
-			return err
-		}
-	}
-
 	select {
 	case <-ctx.Done():
 		return s.gracefulShutdown()
 	case err := <-errCh:
 		return err
 	}
-}
-
-// startTsnetConnectServer starts the Connect server using Tailscale tsnet with automatic TLS.
-func (s *Server) startTsnetConnectServer(ctx context.Context, cfg *config.Config, handler http.Handler, errCh chan error) error {
-	s.tsnetServer = &tsnet.Server{
-		Hostname: cfg.TailscaleHostname,
-		Dir:      cfg.TailscaleStateDir,
-		AuthKey:  cfg.TailscaleAuthKey,
-	}
-
-	// Start tsnet (joins the tailnet)
-	status, err := s.tsnetServer.Up(ctx)
-	if err != nil {
-		return fmt.Errorf("tsnet up: %w", err)
-	}
-
-	slog.Info("Tailscale tsnet started",
-		"hostname", cfg.TailscaleHostname,
-		"tailscaleIP", status.TailscaleIPs[0].String(),
-	)
-
-	// Get plain TCP listener on tailscale interface
-	ln, err := s.tsnetServer.Listen("tcp", ":443")
-	if err != nil {
-		return fmt.Errorf("tsnet listen: %w", err)
-	}
-
-	// Get the local client (needed for TLS cert management)
-	lc, err := s.tsnetServer.LocalClient()
-	if err != nil {
-		return fmt.Errorf("tsnet local client: %w", err)
-	}
-
-	// Create TLS config with HTTP/2 support using tsnet's certificate
-	tlsConfig := &tls.Config{
-		GetCertificate: lc.GetCertificate,
-		NextProtos:     []string{"h2", "http/1.1"}, // Enable HTTP/2 via ALPN
-	}
-
-	// Wrap listener with TLS
-	tlsLn := tls.NewListener(ln, tlsConfig)
-
-	s.connectServer = &http.Server{
-		Handler: handler,
-	}
-
-	// Configure HTTP/2 for the server (required for bidirectional streaming)
-	if err := http2.ConfigureServer(s.connectServer, &http2.Server{}); err != nil {
-		return fmt.Errorf("configure http2: %w", err)
-	}
-
-	// Get the full hostname for logging
-	fullHostname := fmt.Sprintf("https://%s.%s", cfg.TailscaleHostname, status.CurrentTailnet.MagicDNSSuffix)
-	slog.Info("Starting Connect server with Tailscale TLS", "url", fullHostname)
-
-	go func() {
-		if err := s.connectServer.Serve(tlsLn); err != http.ErrServerClosed {
-			errCh <- fmt.Errorf("connect server (tsnet): %w", err)
-		}
-	}()
-
-	return nil
 }
 
 // gracefulShutdown performs graceful shutdown with connection draining.
@@ -226,22 +152,6 @@ func (s *Server) gracefulShutdown() error {
 			}
 			return true
 		})
-	}
-
-	// Shutdown Connect server
-	if s.connectServer != nil {
-		slog.Info("Stopping Connect server")
-		if err := s.connectServer.Shutdown(ctx); err != nil {
-			slog.Warn("Error shutting down Connect server", "error", err)
-		}
-	}
-
-	// Shutdown tsnet server
-	if s.tsnetServer != nil {
-		slog.Info("Stopping Tailscale tsnet server")
-		if err := s.tsnetServer.Close(); err != nil {
-			slog.Warn("Error closing tsnet server", "error", err)
-		}
 	}
 
 	// Shutdown the HTTP server

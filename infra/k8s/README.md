@@ -306,37 +306,28 @@ kubectl $CTX scale deployment coredns -n kube-system --replicas=2
 
 ## Control Plane Exposure
 
-The control plane uses [tsnet](https://tailscale.com/kb/1522/tsnet-server) to join the tailnet directly and serve HTTPS with automatic TLS certificates.
+The control plane is exposed via Tailscale Ingress with HTTPS and automatic Let's Encrypt certificates.
 
-### Why tsnet?
+### Architecture
 
 The iOS app uses URLSession which only supports HTTP/2 over HTTPS. HTTP/2 is required for
-bidirectional streaming (Connect protocol). Using tsnet allows the control-plane to:
-- Join the tailnet directly as a node
-- Serve HTTPS on port 443 with automatic Let's Encrypt certificates
-- Avoid issues with Tailscale Ingress L7 proxy (which doesn't support HTTP/2 to h2c backends)
+bidirectional streaming (Connect protocol). The setup uses:
+
+- **Tailscale Ingress** (`control-plane-ingress.yaml`) - Exposes the control-plane on the tailnet
+- **Custom proxy image** (`ghcr.io/angristan/tailscale:connect-fix`) - Adds h2c support for Connect protocol content types
+
+The custom proxy image patches Tailscale's reverse proxy to enable h2c (HTTP/2 cleartext) for
+Connect RPC content types (`application/connect+proto`, `application/connect+json`), not just gRPC.
 
 ### Configuration
 
-The control-plane needs a Tailscale auth key. Add to your `.env`:
-
-```bash
-TAILSCALE_AUTHKEY=tskey-auth-xxx  # Get from Tailscale admin console
-```
-
-The key is deployed to the `netclode-secrets` Kubernetes secret by Ansible.
-
-Environment variables in `control-plane.yaml`:
-- `TS_AUTHKEY` - Tailscale auth key (from secret)
-- `TS_HOSTNAME` - Hostname on the tailnet (default: `netclode-control-plane`)
-- `TS_STATE_DIR` - Directory for tsnet state (default: `/var/lib/tailscale`)
-
-A PersistentVolumeClaim stores the tsnet state so authentication persists between restarts.
+The Tailscale operator is deployed via Ansible and configured in `infra/ansible/roles/tailscale-operator/`.
+It uses OAuth credentials from `/var/secrets/ts-oauth-client-id` and `/var/secrets/ts-oauth-client-secret`.
 
 ### Accessing the Control Plane
 
 After deployment, the control plane will be available at:
-`https://netclode-control-plane.YOUR-TAILNET.ts.net`
+`https://netclode-control-plane-ingress.YOUR-TAILNET.ts.net`
 
 ### Finding Your Tailnet Name
 
@@ -352,8 +343,8 @@ tailscale status
 
 ```bash
 # Test HTTPS endpoint
-curl -v https://netclode-control-plane.YOUR-TAILNET.ts.net/health
+curl -v https://netclode-control-plane-ingress.YOUR-TAILNET.ts.net/health
 
-# Check the control-plane logs for tsnet startup
-kubectl --context netclode -n netclode logs -l app=control-plane | grep -i tailscale
+# Check the ingress status
+kubectl --context netclode -n netclode describe ingress control-plane
 ```

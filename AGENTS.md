@@ -68,4 +68,4 @@ kubectl -n netclode get pods
 ## Tailscale Hostnames
 
 - `netclode-host` - The server itself
-- `netclode-control-plane` - Control plane service (port 80)
+- `netclode-control-plane-ingress` - Control plane HTTPS endpoint (via Tailscale Ingress)

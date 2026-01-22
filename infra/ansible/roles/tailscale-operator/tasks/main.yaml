@@ -73,4 +73,12 @@
       oauth:
         clientId: "{{ ts_oauth_client_id.content | b64decode | trim }}"
         clientSecret: "{{ ts_oauth_client_secret.content | b64decode | trim }}"
+      # Use custom proxy image with Connect RPC protocol support
+      # This image adds h2c support for application/connect+* content types
+      # Source: https://github.com/angristan/tailscale (connect-fix branch)
+      proxyConfig:
+        defaultTags: "tag:k8s"
+        image:
+          repository: ghcr.io/angristan/tailscale
+          tag: connect-fix
   when: has_ts_oauth

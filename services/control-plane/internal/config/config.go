@@ -24,11 +24,6 @@ type Config struct {
 	GitHubAppID          int64
 	GitHubAppPrivateKey  string // PEM-encoded private key
 	GitHubInstallationID int64
-
-	// Tailscale tsnet integration (for HTTPS Connect endpoint)
-	TailscaleAuthKey  string // TS_AUTHKEY - if set, enables tsnet for Connect server
-	TailscaleHostname string // Hostname on the tailnet (default: netclode-control-plane)
-	TailscaleStateDir string // Directory to store tsnet state (default: /var/lib/tailscale)
 }
 
 func Load() *Config {
@@ -50,17 +45,7 @@ func Load() *Config {
 		GitHubAppID:          getEnvInt64("GITHUB_APP_ID", 0),
 		GitHubAppPrivateKey:  getGitHubPrivateKey(),
 		GitHubInstallationID: getEnvInt64("GITHUB_INSTALLATION_ID", 0),
-
-		// Tailscale tsnet integration
-		TailscaleAuthKey:  getEnv("TS_AUTHKEY", ""),
-		TailscaleHostname: getEnv("TS_HOSTNAME", "netclode-control-plane"),
-		TailscaleStateDir: getEnv("TS_STATE_DIR", "/var/lib/tailscale"),
 	}
-}
-
-// UseTailscale returns true if tsnet is configured.
-func (c *Config) UseTailscale() bool {
-	return c.TailscaleAuthKey != ""
 }
 
 // getGitHubPrivateKey returns the GitHub App private key.

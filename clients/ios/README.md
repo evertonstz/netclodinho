@@ -41,7 +41,7 @@ Tests cover:
 ## Usage
 
 1. Open the app
-2. Settings → enter your server URL: `https://netclode-control-plane.YOUR-TAILNET.ts.net`
+2. Settings → enter your server URL: `https://netclode-control-plane-ingress.YOUR-TAILNET.ts.net`
 3. The app will connect automatically
 4. Tap + to create a session
 
@@ -49,8 +49,8 @@ Tests cover:
 
 The iOS app requires **HTTPS** to enable HTTP/2, which is needed for bidirectional streaming.
 
-The control plane uses [tsnet](https://tailscale.com/kb/1522/tsnet-server) to join your tailnet directly and serve HTTPS with automatic Let's Encrypt certificates.
-Your server URL will be: `https://netclode-control-plane.YOUR-TAILNET.ts.net`
+The control plane is exposed via Tailscale Ingress with automatic Let's Encrypt certificates.
+Your server URL will be: `https://netclode-control-plane-ingress.YOUR-TAILNET.ts.net`
 
 To find your tailnet name, check the [Tailscale admin console](https://login.tailscale.com/admin/machines) or run `tailscale status`.
 
