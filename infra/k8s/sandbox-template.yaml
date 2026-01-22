@@ -27,9 +27,6 @@ spec:
           imagePullPolicy: Always
           securityContext:
             privileged: true  # See security note above
-          ports:
-            - containerPort: 3002
-              name: http
           env:
             - name: NODE_ENV
               value: "production"
@@ -38,19 +35,25 @@ spec:
                 secretKeyRef:
                   name: netclode-secrets
                   key: anthropic-api-key
+            - name: CONTROL_PLANE_URL
+              value: "http://control-plane.netclode.svc.cluster.local:3000"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
           volumeMounts:
             - name: agent-home
               mountPath: /agent
+          # Agent connects TO control-plane, no ports exposed
+          # Readiness: check that node process is running
           readinessProbe:
-            httpGet:
-              path: /health
-              port: 3002
+            exec:
+              command: ["pgrep", "-f", "node"]
             initialDelaySeconds: 3
-            periodSeconds: 2
+            periodSeconds: 5
           livenessProbe:
-            httpGet:
-              path: /health
-              port: 3002
+            exec:
+              command: ["pgrep", "-f", "node"]
             initialDelaySeconds: 30
             periodSeconds: 10
   volumeClaimTemplates:
@@ -63,16 +66,8 @@ spec:
           requests:
             storage: 10Gi
   networkPolicy:
-    # Ingress: Allow control-plane and Tailscale proxy to connect to agent
+    # Ingress: Allow Tailscale proxy for preview URLs (agent web servers)
     ingress:
-      - from:
-          - podSelector:
-              matchLabels:
-                app: control-plane
-        ports:
-          - protocol: TCP
-            port: 3002
-      # Allow Tailscale proxy for preview URLs
       - from:
           - namespaceSelector:
               matchLabels:
@@ -80,7 +75,19 @@ spec:
         ports:
           - protocol: TCP
             port: 3002
+          - protocol: TCP
+            port: 8080
     egress:
+      # Allow connection to control-plane
+      - to:
+          - podSelector:
+              matchLabels:
+                app: control-plane
+        ports:
+          - protocol: TCP
+            port: 3000
+          - protocol: TCP
+            port: 3001
       # Allow internet access
       - to:
           - ipBlock:
