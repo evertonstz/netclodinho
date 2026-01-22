@@ -4,7 +4,7 @@ import SwiftUI
 struct RepoAutocomplete: View {
     @Binding var text: String
     @Environment(GitHubStore.self) private var githubStore
-    @Environment(WebSocketService.self) private var webSocketService
+    @Environment(ConnectService.self) private var connectService
     @Environment(SettingsStore.self) private var settingsStore
     
     @State private var isDropdownVisible = false
@@ -35,7 +35,7 @@ struct RepoAutocomplete: View {
                 .onChange(of: isFocused) { _, focused in
                     if focused {
                         // Fetch repos when focused (if cache is stale)
-                        githubStore.fetchIfNeeded(webSocketService: webSocketService)
+                        githubStore.fetchIfNeeded(connectService: connectService)
                     }
                     withAnimation(.easeInOut(duration: 0.15)) {
                         isDropdownVisible = focused
@@ -52,7 +52,7 @@ struct RepoAutocomplete: View {
                         if settingsStore.hapticFeedbackEnabled {
                             HapticFeedback.light()
                         }
-                        githubStore.fetchIfNeeded(webSocketService: webSocketService, force: true)
+                        githubStore.fetchIfNeeded(connectService: connectService, force: true)
                     } label: {
                         Image(systemName: "arrow.clockwise")
                             .font(.system(size: 14))
@@ -157,6 +157,6 @@ private struct RepoDropdownRow: View {
             .padding()
     }
     .environment(GitHubStore())
-    .environment(WebSocketService())
+    .environment(ConnectService())
     .environment(SettingsStore())
 }

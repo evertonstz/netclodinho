@@ -28,8 +28,17 @@ final class SettingsStore {
         }
     }
 
+    /// Optional Connect protocol port override. When empty, uses default port 3001
+    /// or derives from serverURL (e.g., :3000 -> :3001 for local dev).
+    var connectPort: String {
+        didSet {
+            UserDefaults.standard.set(connectPort, forKey: "netclode_connect_port")
+        }
+    }
+
     init() {
         serverURL = UserDefaults.standard.string(forKey: "netclode_server_url") ?? ""
+        connectPort = UserDefaults.standard.string(forKey: "netclode_connect_port") ?? ""
 
         if let scheme = UserDefaults.standard.string(forKey: "netclode_color_scheme") {
             preferredColorScheme = scheme == "light" ? .light : scheme == "dark" ? .dark : nil

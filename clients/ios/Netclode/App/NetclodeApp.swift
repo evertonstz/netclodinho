@@ -11,7 +11,7 @@ struct NetclodeApp: App {
     @State private var settingsStore = SettingsStore()
     @State private var githubStore = GitHubStore()
     @State private var gitStore = GitStore()
-    @State private var webSocketService: WebSocketService
+    @State private var connectService: ConnectService
     @State private var messageRouter: MessageRouter
 
     init() {
@@ -22,13 +22,13 @@ struct NetclodeApp: App {
         let terminal = TerminalStore()
         let github = GitHubStore()
         let git = GitStore()
-        let ws = WebSocketService()
+        let connect = ConnectService()
         
-        // Wire up terminal store to WebSocket for input handling
-        terminal.webSocketService = ws
+        // Wire up terminal store to Connect service for input handling
+        terminal.connectService = connect
         
         let router = MessageRouter(
-            webSocketService: ws,
+            connectService: connect,
             sessionStore: sessions,
             chatStore: chat,
             eventStore: events,
@@ -44,7 +44,7 @@ struct NetclodeApp: App {
         _terminalStore = State(initialValue: terminal)
         _githubStore = State(initialValue: github)
         _gitStore = State(initialValue: git)
-        _webSocketService = State(initialValue: ws)
+        _connectService = State(initialValue: connect)
         _messageRouter = State(initialValue: router)
     }
 
@@ -58,12 +58,12 @@ struct NetclodeApp: App {
                 .environment(settingsStore)
                 .environment(githubStore)
                 .environment(gitStore)
-                .environment(webSocketService)
+                .environment(connectService)
                 .environment(messageRouter)
                 .preferredColorScheme(settingsStore.preferredColorScheme)
                 .onAppear {
                     if !settingsStore.serverURL.isEmpty {
-                        webSocketService.connect(to: settingsStore.serverURL)
+                        connectService.connect(to: settingsStore.serverURL, connectPort: settingsStore.connectPort)
                     }
                 }
         }
@@ -78,7 +78,7 @@ struct NetclodeApp: App {
             // App came to foreground - ensure connection is alive
             print("[App] Scene became active, checking connection")
             if !settingsStore.serverURL.isEmpty {
-                webSocketService.ensureConnected(to: settingsStore.serverURL)
+                connectService.ensureConnected(to: settingsStore.serverURL, connectPort: settingsStore.connectPort)
             }
         case .inactive:
             // Transitioning (e.g., control center opened)

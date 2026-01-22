@@ -102,7 +102,7 @@ func (m *Manager) Initialize(ctx context.Context) error {
 			}
 		} else if sb.Ready {
 			state.ServiceFQDN = sb.ServiceFQDN
-			// Reset to ready if was creating or running (we lost the SSE connection on restart)
+			// Reset to ready if was creating or running (we lost the agent connection on restart)
 			if state.Session.Status == protocol.StatusCreating || state.Session.Status == protocol.StatusRunning {
 				state.Session.Status = protocol.StatusReady
 				_ = m.storage.UpdateSessionStatus(ctx, id, protocol.StatusReady)
@@ -556,7 +556,7 @@ func (m *Manager) Pause(ctx context.Context, id string) (*protocol.Session, erro
 		return nil, fmt.Errorf("session %s not found", id)
 	}
 
-	// Disconnect terminal WebSocket
+	// Disconnect terminal connection
 	m.terminal.Disconnect(id)
 
 	// Delete claim if using warm pool
@@ -596,7 +596,7 @@ func (m *Manager) Pause(ctx context.Context, id string) (*protocol.Session, erro
 
 // Delete deletes a session and all its resources.
 func (m *Manager) Delete(ctx context.Context, id string) error {
-	// Disconnect terminal WebSocket
+	// Disconnect terminal connection
 	m.terminal.Disconnect(id)
 
 	// Close the session state (stops broadcast loop)

@@ -2,7 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(SettingsStore.self) private var settingsStore
-    @Environment(WebSocketService.self) private var webSocketService
+    @Environment(ConnectService.self) private var connectService
 
     var body: some View {
         ScrollView {
@@ -30,9 +30,10 @@ struct SettingsView: View {
 
 struct ServerConfigSection: View {
     @Environment(SettingsStore.self) private var settingsStore
-    @Environment(WebSocketService.self) private var webSocketService
+    @Environment(ConnectService.self) private var connectService
 
     @State private var serverURL: String = ""
+    @State private var connectPort: String = ""
     @State private var isConnecting = false
 
     var body: some View {
@@ -54,7 +55,7 @@ struct ServerConfigSection: View {
                         .foregroundStyle(.secondary)
 
                     GlassTextField(
-                        "netclode.your-tailnet.ts.net:3000",
+                        "netclode.your-tailnet.ts.net",
                         text: $serverURL,
                         icon: "link"
                     )
@@ -62,19 +63,42 @@ struct ServerConfigSection: View {
                     .keyboardType(.URL)
                     .autocorrectionDisabled()
 
-                    Text("Include port if needed (default: 3000)")
+                    Text("Your Tailscale hostname or IP address")
+                        .font(.netclodeCaption)
+                        .foregroundStyle(.tertiary)
+                }
+
+                // Connect Port override (advanced)
+                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                    Text("Connect Port (optional)")
+                        .font(.netclodeCaption)
+                        .foregroundStyle(.secondary)
+
+                    GlassTextField(
+                        "Leave empty for auto",
+                        text: $connectPort,
+                        icon: "number"
+                    )
+                    .textInputAutocapitalization(.never)
+                    .keyboardType(.numberPad)
+                    .autocorrectionDisabled()
+                    .onChange(of: connectPort) { _, newValue in
+                        settingsStore.connectPort = newValue
+                    }
+
+                    Text("Override the Connect protocol port (default: auto-detect)")
                         .font(.netclodeCaption)
                         .foregroundStyle(.tertiary)
                 }
 
                 // Connection status
                 HStack {
-                    ConnectionStatusBadge(state: webSocketService.connectionState)
+                    ConnectionStatusBadge(state: connectService.connectionState)
 
                     Spacer()
 
                     GlassButton(
-                        webSocketService.connectionState.isConnected ? "Reconnect" : "Connect",
+                        connectService.connectionState.isConnected ? "Reconnect" : "Connect",
                         icon: "arrow.triangle.2.circlepath",
                         isLoading: isConnecting
                     ) {
@@ -85,6 +109,7 @@ struct ServerConfigSection: View {
         }
         .onAppear {
             serverURL = settingsStore.serverURL
+            connectPort = settingsStore.connectPort
         }
     }
 
@@ -95,13 +120,13 @@ struct ServerConfigSection: View {
         settingsStore.serverURL = serverURL
 
         // Disconnect if already connected
-        if webSocketService.connectionState.isConnected {
-            webSocketService.disconnect()
+        if connectService.connectionState.isConnected {
+            connectService.disconnect()
         }
 
         // Connect with slight delay for UI feedback
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            webSocketService.connect(to: serverURL)
+            connectService.connect(to: serverURL, connectPort: settingsStore.connectPort)
             isConnecting = false
         }
     }
@@ -166,13 +191,13 @@ struct AppearanceSection: View {
 
 struct DangerZoneSection: View {
     @Environment(SettingsStore.self) private var settingsStore
-    @Environment(WebSocketService.self) private var webSocketService
+    @Environment(ConnectService.self) private var connectService
 
     @State private var showDeleteAllConfirmation = false
     @State private var isDeleting = false
 
     private var isConnected: Bool {
-        webSocketService.connectionState.isConnected
+        connectService.connectionState.isConnected
     }
 
     var body: some View {
@@ -233,7 +258,7 @@ struct DangerZoneSection: View {
         if settingsStore.hapticFeedbackEnabled {
             HapticFeedback.warning()
         }
-        webSocketService.send(.sessionDeleteAll)
+        connectService.send(.sessionDeleteAll)
         // Reset after a short delay (server will broadcast the result)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             isDeleting = false
@@ -312,5 +337,5 @@ struct AboutSection: View {
         SettingsView()
     }
     .environment(SettingsStore())
-    .environment(WebSocketService())
+    .environment(ConnectService())
 }

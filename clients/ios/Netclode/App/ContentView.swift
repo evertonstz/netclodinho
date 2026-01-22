@@ -16,6 +16,6 @@ struct ContentView: View {
         .environment(EventStore())
         .environment(TerminalStore())
         .environment(SettingsStore())
-        .environment(WebSocketService())
+        .environment(ConnectService())
         .environment(MessageRouter.preview)
 }

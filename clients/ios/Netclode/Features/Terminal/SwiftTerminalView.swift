@@ -80,26 +80,32 @@ struct SwiftTerminalView: UIViewRepresentable {
 
 // MARK: - Preview
 
+private struct SwiftTerminalPreviewContent: View {
+    @State private var bridge = SwiftTermBridge(sessionId: "preview", connectService: nil)
+    
+    var body: some View {
+        SwiftTerminalView(bridge: bridge)
+            .frame(height: 400)
+            .onAppear {
+                bridge.feedData("""
+                \u{1B}[32m$\u{1B}[0m ls -la
+                total 48
+                drwxr-xr-x  12 user  staff   384 Jan  6 10:30 \u{1B}[34m.\u{1B}[0m
+                drwxr-xr-x   5 user  staff   160 Jan  5 14:20 \u{1B}[34m..\u{1B}[0m
+                -rw-r--r--   1 user  staff  1234 Jan  6 10:30 README.md
+                -rw-r--r--   1 user  staff  5678 Jan  6 10:25 \u{1B}[33mpackage.json\u{1B}[0m
+                drwxr-xr-x   8 user  staff   256 Jan  6 10:30 \u{1B}[34msrc\u{1B}[0m
+
+                \u{1B}[32m$\u{1B}[0m npm run build
+                Building project...
+                \u{1B}[32m✓\u{1B}[0m Compiled successfully in 2.3s
+
+                \u{1B}[32m$\u{1B}[0m\u{0020}
+                """)
+            }
+    }
+}
+
 #Preview {
-    let bridge = SwiftTermBridge(sessionId: "preview", webSocketService: nil)
-    
-    // Feed some sample output with ANSI colors
-    bridge.feedData("""
-    \u{1B}[32m$\u{1B}[0m ls -la
-    total 48
-    drwxr-xr-x  12 user  staff   384 Jan  6 10:30 \u{1B}[34m.\u{1B}[0m
-    drwxr-xr-x   5 user  staff   160 Jan  5 14:20 \u{1B}[34m..\u{1B}[0m
-    -rw-r--r--   1 user  staff  1234 Jan  6 10:30 README.md
-    -rw-r--r--   1 user  staff  5678 Jan  6 10:25 \u{1B}[33mpackage.json\u{1B}[0m
-    drwxr-xr-x   8 user  staff   256 Jan  6 10:30 \u{1B}[34msrc\u{1B}[0m
-
-    \u{1B}[32m$\u{1B}[0m npm run build
-    Building project...
-    \u{1B}[32m✓\u{1B}[0m Compiled successfully in 2.3s
-
-    \u{1B}[32m$\u{1B}[0m\u{0020}
-    """)
-    
-    return SwiftTerminalView(bridge: bridge)
-        .frame(height: 400)
+    SwiftTerminalPreviewContent()
 }

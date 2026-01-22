@@ -4,7 +4,7 @@ import SwiftUI
 @MainActor
 @Observable
 final class MessageRouter {
-    private let webSocketService: WebSocketService
+    private let connectService: ConnectService
     private let sessionStore: SessionStore
     private let chatStore: ChatStore
     private let eventStore: EventStore
@@ -15,7 +15,7 @@ final class MessageRouter {
     private var routingTask: Task<Void, Never>?
 
     init(
-        webSocketService: WebSocketService,
+        connectService: ConnectService,
         sessionStore: SessionStore,
         chatStore: ChatStore,
         eventStore: EventStore,
@@ -23,7 +23,7 @@ final class MessageRouter {
         githubStore: GitHubStore,
         gitStore: GitStore
     ) {
-        self.webSocketService = webSocketService
+        self.connectService = connectService
         self.sessionStore = sessionStore
         self.chatStore = chatStore
         self.eventStore = eventStore
@@ -38,7 +38,7 @@ final class MessageRouter {
         routingTask = Task { [weak self] in
             guard let self else { return }
 
-            for await message in webSocketService.messages {
+            for await message in connectService.messages {
                 self.route(message)
             }
         }
@@ -260,7 +260,7 @@ final class MessageRouter {
 
     static var preview: MessageRouter {
         MessageRouter(
-            webSocketService: WebSocketService(),
+            connectService: ConnectService(),
             sessionStore: SessionStore(),
             chatStore: ChatStore(),
             eventStore: EventStore(),

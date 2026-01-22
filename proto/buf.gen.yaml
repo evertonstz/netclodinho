@@ -1,0 +1,36 @@
+version: v2
+managed:
+  enabled: true
+  override:
+    - file_option: go_package_prefix
+      value: github.com/angristan/netclode/services/control-plane/gen
+plugins:
+  # Go protobuf
+  - remote: buf.build/protocolbuffers/go
+    out: ../services/control-plane/gen
+    opt: paths=source_relative
+  # Go gRPC
+  - remote: buf.build/grpc/go
+    out: ../services/control-plane/gen
+    opt: paths=source_relative
+  # Go Connect (for agent client)
+  - remote: buf.build/connectrpc/go
+    out: ../services/control-plane/gen
+    opt: paths=source_relative
+  # TypeScript/ES (Protobuf-ES v2 - includes service descriptors for Connect)
+  - remote: buf.build/bufbuild/es:v2.2.0
+    out: ../services/agent/gen
+    opt:
+      - target=ts
+  # Swift protobuf (SwiftProtobuf messages)
+  - remote: buf.build/apple/swift
+    out: ../clients/ios/Netclode/Generated
+    opt:
+      - Visibility=Public
+  # Swift Connect (Connect-Swift client)
+  - remote: buf.build/connectrpc/swift
+    out: ../clients/ios/Netclode/Generated
+    opt:
+      - GenerateAsyncMethods=true
+      - GenerateCallbackMethods=false
+      - Visibility=Public

@@ -71,7 +71,7 @@ extension View {
             .environment(EventStore())
             .environment(TerminalStore())
             .environment(SettingsStore())
-            .environment(WebSocketService())
+            .environment(ConnectService())
             .environment(MessageRouter.preview)
     }
 }

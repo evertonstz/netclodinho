@@ -46,10 +46,10 @@ I wanted a self-hosted Claude Code environment with the UX I actually want:
     └────────────────┘
 ```
 
-1. iOS app connects to control plane via WebSocket over Tailscale
+1. iOS app connects to control plane via Connect protocol (gRPC-compatible) over Tailscale
 2. Control plane grabs a pre-booted VM from the warm pool (or creates one)
 3. Prompts go to the Claude Agent SDK running inside the VM
-4. Responses stream back in real-time via Redis Streams (no missed events on reconnect)
+4. Responses stream back in real-time via bidirectional streaming (with Redis persistence for reconnect)
 5. Pause deletes the VM, but JuiceFS PVC keeps the data (workspace, mise tools, Docker)
 6. Resume mounts the same storage in a new VM, conversation continues
 

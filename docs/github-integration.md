@@ -105,14 +105,23 @@ make rollout-control-plane
 
 ### Creating a Session with a Repository
 
-When creating a session via WebSocket, include the `repo` and optionally `repoAccess` fields:
+When creating a session via Connect protocol, include the `repo` and optionally `repo_access` fields in the `CreateSessionRequest`:
 
+```protobuf
+message CreateSessionRequest {
+  optional string name = 1;
+  optional string repo = 2;
+  optional string repo_access = 3; // "read" or "write"
+  optional string initial_prompt = 4;
+}
+```
+
+Example (as JSON for clarity):
 ```json
 {
-  "type": "session.create",
   "name": "my-feature",
   "repo": "owner/repo",
-  "repoAccess": "write"
+  "repo_access": "write"
 }
 ```
 

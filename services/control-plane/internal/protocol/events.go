@@ -6,15 +6,16 @@ package protocol
 type AgentEventKind string
 
 const (
-	EventKindToolStart    AgentEventKind = "tool_start"    // Agent started using a tool
-	EventKindToolInput    AgentEventKind = "tool_input"    // Streaming tool input delta
-	EventKindToolEnd      AgentEventKind = "tool_end"      // Tool execution completed
-	EventKindFileChange   AgentEventKind = "file_change"   // File was created/edited/deleted
-	EventKindCommandStart AgentEventKind = "command_start" // Shell command started
-	EventKindCommandEnd   AgentEventKind = "command_end"   // Shell command completed
-	EventKindThinking     AgentEventKind = "thinking"      // Agent thinking/reasoning
-	EventKindPortExposed  AgentEventKind = "port_exposed"  // Port exposed for preview access
-	EventKindRepoClone    AgentEventKind = "repo_clone"    // Repository clone progress
+	EventKindToolStart         AgentEventKind = "tool_start"          // Agent started using a tool
+	EventKindToolInput         AgentEventKind = "tool_input"          // Streaming tool input delta
+	EventKindToolInputComplete AgentEventKind = "tool_input_complete" // Tool input streaming complete with full input
+	EventKindToolEnd           AgentEventKind = "tool_end"            // Tool execution completed
+	EventKindFileChange        AgentEventKind = "file_change"         // File was created/edited/deleted
+	EventKindCommandStart      AgentEventKind = "command_start"       // Shell command started
+	EventKindCommandEnd        AgentEventKind = "command_end"         // Shell command completed
+	EventKindThinking          AgentEventKind = "thinking"            // Agent thinking/reasoning
+	EventKindPortExposed       AgentEventKind = "port_exposed"        // Port exposed for preview access
+	EventKindRepoClone         AgentEventKind = "repo_clone"          // Repository clone progress
 )
 
 // AgentEvent is a polymorphic event type. Fields are optional based on Kind.

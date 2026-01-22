@@ -2,13 +2,15 @@ package session
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"sync"
 	"time"
 
-	"github.com/coder/websocket"
+	"connectrpc.com/connect"
+	v1 "github.com/angristan/netclode/services/control-plane/gen/netclode/v1"
+	"github.com/angristan/netclode/services/control-plane/gen/netclode/v1/netclodev1connect"
 )
 
 const (
@@ -16,7 +18,7 @@ const (
 	initialReconnectDelay = 1 * time.Second
 )
 
-// TerminalManager manages WebSocket connections to agent terminals.
+// TerminalManager manages Connect streams to agent terminals.
 type TerminalManager struct {
 	mu    sync.RWMutex
 	conns map[string]*terminalConn // sessionID -> connection
@@ -28,21 +30,13 @@ type TerminalManager struct {
 	agentPort int
 }
 
-// terminalConn represents a WebSocket connection to an agent's terminal.
+// terminalConn represents a Connect bidirectional stream to an agent's terminal.
 type terminalConn struct {
 	sessionID string
 	fqdn      string
-	ws        *websocket.Conn
+	stream    *connect.BidiStreamForClient[v1.TerminalInput, v1.TerminalOutput]
 	cancel    context.CancelFunc
 	writeMu   sync.Mutex
-}
-
-// terminalMessage represents messages sent to/from the agent terminal.
-type terminalMessage struct {
-	Type string `json:"type"`
-	Data string `json:"data,omitempty"`
-	Cols int    `json:"cols,omitempty"`
-	Rows int    `json:"rows,omitempty"`
 }
 
 // NewTerminalManager creates a new terminal manager.
@@ -54,7 +48,7 @@ func NewTerminalManager(emitOutput func(ctx context.Context, sessionID, data str
 	}
 }
 
-// EnsureConnected ensures a terminal WebSocket connection exists for the session.
+// EnsureConnected ensures a terminal Connect stream exists for the session.
 // If not connected, it connects to the agent.
 func (tm *TerminalManager) EnsureConnected(ctx context.Context, sessionID, fqdn string) error {
 	tm.mu.RLock()
@@ -68,7 +62,7 @@ func (tm *TerminalManager) EnsureConnected(ctx context.Context, sessionID, fqdn 
 	return tm.connect(ctx, sessionID, fqdn)
 }
 
-// connect establishes a WebSocket connection to the agent's terminal.
+// connect establishes a Connect bidirectional stream to the agent's terminal.
 func (tm *TerminalManager) connect(ctx context.Context, sessionID, fqdn string) error {
 	tm.mu.Lock()
 	// Double-check after acquiring write lock
@@ -78,19 +72,20 @@ func (tm *TerminalManager) connect(ctx context.Context, sessionID, fqdn string) 
 	}
 	tm.mu.Unlock()
 
-	url := fmt.Sprintf("ws://%s:%d/terminal/ws", fqdn, tm.agentPort)
-	slog.Info("Connecting to agent terminal", "sessionID", sessionID, "url", url)
+	baseURL := fmt.Sprintf("http://%s:%d", fqdn, tm.agentPort)
+	slog.Info("Connecting to agent terminal via Connect", "sessionID", sessionID, "url", baseURL)
 
-	ws, _, err := websocket.Dial(ctx, url, nil)
-	if err != nil {
-		return fmt.Errorf("dial agent terminal: %w", err)
-	}
+	client := netclodev1connect.NewAgentServiceClient(http.DefaultClient, baseURL)
 
+	// Create a context that can be cancelled for this connection
 	connCtx, cancel := context.WithCancel(context.Background())
+
+	stream := client.Terminal(connCtx)
+
 	conn := &terminalConn{
 		sessionID: sessionID,
 		fqdn:      fqdn,
-		ws:        ws,
+		stream:    stream,
 		cancel:    cancel,
 	}
 
@@ -101,14 +96,14 @@ func (tm *TerminalManager) connect(ctx context.Context, sessionID, fqdn string) 
 	// Start reading output
 	go tm.readLoop(connCtx, conn)
 
-	slog.Info("Connected to agent terminal", "sessionID", sessionID)
+	slog.Info("Connected to agent terminal via Connect", "sessionID", sessionID)
 	return nil
 }
 
 // readLoop reads output from the agent terminal and forwards to clients.
 func (tm *TerminalManager) readLoop(ctx context.Context, conn *terminalConn) {
 	defer func() {
-		conn.ws.Close(websocket.StatusNormalClosure, "")
+		conn.stream.CloseResponse()
 		tm.scheduleReconnect(conn.sessionID, conn.fqdn)
 	}()
 
@@ -119,23 +114,17 @@ func (tm *TerminalManager) readLoop(ctx context.Context, conn *terminalConn) {
 		default:
 		}
 
-		_, data, err := conn.ws.Read(ctx)
+		msg, err := conn.stream.Receive()
 		if err != nil {
 			if ctx.Err() != nil {
 				// Context cancelled, don't reconnect
 				return
 			}
-			slog.Warn("Terminal WebSocket read error", "sessionID", conn.sessionID, "error", err)
+			slog.Warn("Terminal Connect stream error", "sessionID", conn.sessionID, "error", err)
 			return
 		}
 
-		var msg terminalMessage
-		if err := json.Unmarshal(data, &msg); err != nil {
-			slog.Warn("Terminal message parse error", "sessionID", conn.sessionID, "error", err)
-			continue
-		}
-
-		if msg.Type == "output" && tm.emitOutput != nil {
+		if msg != nil && msg.Data != "" && tm.emitOutput != nil {
 			tm.emitOutput(ctx, conn.sessionID, msg.Data)
 		}
 	}
@@ -192,8 +181,12 @@ func (tm *TerminalManager) SendInput(sessionID, data string) error {
 		return fmt.Errorf("no terminal connection for session %s", sessionID)
 	}
 
-	msg := terminalMessage{Type: "input", Data: data}
-	return tm.sendMessage(conn, msg)
+	conn.writeMu.Lock()
+	defer conn.writeMu.Unlock()
+
+	return conn.stream.Send(&v1.TerminalInput{
+		Input: &v1.TerminalInput_Data{Data: data},
+	})
 }
 
 // Resize sends a resize command to the agent terminal.
@@ -206,24 +199,17 @@ func (tm *TerminalManager) Resize(sessionID string, cols, rows int) error {
 		return fmt.Errorf("no terminal connection for session %s", sessionID)
 	}
 
-	msg := terminalMessage{Type: "resize", Cols: cols, Rows: rows}
-	return tm.sendMessage(conn, msg)
-}
-
-// sendMessage sends a JSON message to the agent terminal.
-func (tm *TerminalManager) sendMessage(conn *terminalConn, msg terminalMessage) error {
-	data, err := json.Marshal(msg)
-	if err != nil {
-		return err
-	}
-
 	conn.writeMu.Lock()
 	defer conn.writeMu.Unlock()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	return conn.ws.Write(ctx, websocket.MessageText, data)
+	return conn.stream.Send(&v1.TerminalInput{
+		Input: &v1.TerminalInput_Resize{
+			Resize: &v1.TerminalResize{
+				Cols: int32(cols),
+				Rows: int32(rows),
+			},
+		},
+	})
 }
 
 // Disconnect closes the terminal connection for a session.
@@ -237,7 +223,7 @@ func (tm *TerminalManager) Disconnect(sessionID string) {
 	tm.mu.Unlock()
 
 	if conn != nil {
-		conn.ws.Close(websocket.StatusNormalClosure, "session paused")
+		conn.stream.CloseRequest()
 		slog.Info("Terminal disconnected", "sessionID", sessionID)
 	}
 }
@@ -249,7 +235,7 @@ func (tm *TerminalManager) Close() {
 
 	for sessionID, conn := range tm.conns {
 		conn.cancel()
-		conn.ws.Close(websocket.StatusGoingAway, "shutdown")
+		conn.stream.CloseRequest()
 		slog.Info("Terminal closed", "sessionID", sessionID)
 	}
 	tm.conns = make(map[string]*terminalConn)

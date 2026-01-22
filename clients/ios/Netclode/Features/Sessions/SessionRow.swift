@@ -5,7 +5,7 @@ struct SessionRow: View {
     let onDelete: () -> Void
 
     @Environment(ChatStore.self) private var chatStore
-    @Environment(WebSocketService.self) private var webSocketService
+    @Environment(ConnectService.self) private var connectService
     @Environment(SettingsStore.self) private var settingsStore
 
     private var messageCount: Int {
@@ -51,14 +51,14 @@ struct SessionRow: View {
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             if session.status == .paused {
                 Button {
-                    webSocketService.send(.sessionResume(id: session.id))
+                    connectService.send(.sessionResume(id: session.id))
                 } label: {
                     Label("Resume", systemImage: "play.fill")
                 }
                 .tint(.green)
             } else if session.status == .ready || session.status == .running {
                 Button {
-                    webSocketService.send(.sessionPause(id: session.id))
+                    connectService.send(.sessionPause(id: session.id))
                 } label: {
                     Label("Pause", systemImage: "pause.fill")
                 }
@@ -68,13 +68,13 @@ struct SessionRow: View {
         .contextMenu {
             if session.status == .paused {
                 Button {
-                    webSocketService.send(.sessionResume(id: session.id))
+                    connectService.send(.sessionResume(id: session.id))
                 } label: {
                     Label("Resume", systemImage: "play.fill")
                 }
             } else if session.status == .ready || session.status == .running {
                 Button {
-                    webSocketService.send(.sessionPause(id: session.id))
+                    connectService.send(.sessionPause(id: session.id))
                 } label: {
                     Label("Pause", systemImage: "pause.fill")
                 }
@@ -103,6 +103,6 @@ struct SessionRow: View {
     .listStyle(.plain)
     .background(Theme.Colors.background)
     .environment(ChatStore())
-    .environment(WebSocketService())
+    .environment(ConnectService())
     .environment(SettingsStore())
 }

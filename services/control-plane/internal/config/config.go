@@ -8,6 +8,7 @@ import (
 
 type Config struct {
 	Port                  int
+	ConnectPort           int // Port for Connect protocol server (default 3001)
 	AnthropicAPIKey       string
 	K8sNamespace          string
 	AgentImage            string
@@ -19,7 +20,7 @@ type Config struct {
 	MaxEventsPerSession   int
 	UseWarmPool           bool
 	MaxActiveSessions     int
-	AgentPort             int // Port where agent listens (default 3002)
+	AgentPort             int // Port where agent Connect server listens (default 3002)
 
 	// GitHub App integration
 	GitHubAppID          int64
@@ -30,6 +31,7 @@ type Config struct {
 func Load() *Config {
 	return &Config{
 		Port:                  getEnvInt("PORT", 3000),
+		ConnectPort:           getEnvInt("CONNECT_PORT", 3001),
 		AnthropicAPIKey:       getEnv("ANTHROPIC_API_KEY", ""),
 		K8sNamespace:          getEnv("K8S_NAMESPACE", "netclode"),
 		AgentImage:            getEnv("AGENT_IMAGE", "ghcr.io/angristan/netclode-agent:latest"),

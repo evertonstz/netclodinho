@@ -4,7 +4,7 @@ struct TerminalView: View {
     let sessionId: String
 
     @Environment(TerminalStore.self) private var terminalStore
-    @Environment(WebSocketService.self) private var webSocketService
+    @Environment(ConnectService.self) private var connectService
 
     @Environment(\.colorScheme) private var colorScheme
     
@@ -23,7 +23,7 @@ struct TerminalView: View {
                 // Send initial terminal size to trigger PTY spawn
                 let bridge = terminalStore.bridge(for: sessionId)
                 if bridge.cols > 0 && bridge.rows > 0 {
-                    webSocketService.send(.terminalResize(
+                    connectService.send(.terminalResize(
                         sessionId: sessionId,
                         cols: bridge.cols,
                         rows: bridge.rows
@@ -37,8 +37,8 @@ struct TerminalView: View {
 
 #Preview {
     let terminalStore = TerminalStore()
-    let webSocketService = WebSocketService()
-    terminalStore.webSocketService = webSocketService
+    let connectService = ConnectService()
+    terminalStore.connectService = connectService
     
     // Add sample output with ANSI colors
     terminalStore.appendOutput(sessionId: "test", data: """
@@ -61,5 +61,5 @@ struct TerminalView: View {
         TerminalView(sessionId: "test")
     }
     .environment(terminalStore)
-    .environment(webSocketService)
+    .environment(connectService)
 }

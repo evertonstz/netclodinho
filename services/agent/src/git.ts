@@ -86,6 +86,90 @@ async function configureGitCredentials(token: string): Promise<void> {
 /**
  * Clone or update a repository.
  */
+/**
+ * Parsed git file change from status --porcelain
+ */
+export interface GitFileChange {
+  path: string;
+  status: "modified" | "added" | "deleted" | "renamed" | "copied" | "untracked" | "ignored" | "unmerged";
+  staged: boolean;
+}
+
+/**
+ * Parse git status --porcelain=v1 output into structured data
+ */
+export function parseGitStatus(output: string): GitFileChange[] {
+  const files: GitFileChange[] = [];
+  const lines = output.split("\n").filter((line) => line.length > 0);
+
+  for (const line of lines) {
+    const indexStatus = line[0];
+    const workTreeStatus = line[1];
+    const path = line.substring(3).split(" -> ").pop() || line.substring(3);
+
+    let status: GitFileChange["status"];
+    let staged = false;
+
+    if (workTreeStatus === "M") {
+      status = "modified";
+    } else if (workTreeStatus === "D") {
+      status = "deleted";
+    } else if (workTreeStatus === "?") {
+      status = "untracked";
+    } else if (workTreeStatus === "!") {
+      status = "ignored";
+    } else if (workTreeStatus === "U" || indexStatus === "U") {
+      status = "unmerged";
+    } else if (indexStatus === "M") {
+      status = "modified";
+      staged = true;
+    } else if (indexStatus === "A") {
+      status = "added";
+      staged = true;
+    } else if (indexStatus === "D") {
+      status = "deleted";
+      staged = true;
+    } else if (indexStatus === "R") {
+      status = "renamed";
+      staged = true;
+    } else if (indexStatus === "C") {
+      status = "copied";
+      staged = true;
+    } else {
+      status = "modified";
+    }
+
+    files.push({ path, status, staged });
+  }
+
+  return files;
+}
+
+/**
+ * Get the git status for a workspace
+ */
+export async function getGitStatus(workspaceDir: string): Promise<GitFileChange[]> {
+  console.log("[git] Getting git status");
+  const result = await runGit(["status", "--porcelain=v1"], workspaceDir);
+  const files = parseGitStatus(result.stdout);
+  console.log(`[git] Git status: ${files.length} changed files`);
+  return files;
+}
+
+/**
+ * Get the git diff for a workspace or specific file
+ */
+export async function getGitDiff(workspaceDir: string, file?: string): Promise<string> {
+  console.log(`[git] Getting git diff for: ${file || "all files"}`);
+  const args = ["diff", "--no-color"];
+  if (file) {
+    args.push("--", file);
+  }
+  const result = await runGit(args, workspaceDir);
+  console.log(`[git] Git diff: ${result.stdout.length} chars`);
+  return result.stdout;
+}
+
 export async function setupRepository(
   repoUrl: string,
   workspaceDir: string,

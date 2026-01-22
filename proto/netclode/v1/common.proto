@@ -1,0 +1,95 @@
+syntax = "proto3";
+
+package netclode.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// Session represents a coding session with an AI agent.
+message Session {
+  string id = 1;
+  string name = 2;
+  SessionStatus status = 3;
+  optional string repo = 4;
+  optional string repo_access = 5; // "read" or "write"
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp last_active_at = 7;
+}
+
+// SessionStatus represents the lifecycle state of a session.
+enum SessionStatus {
+  SESSION_STATUS_UNSPECIFIED = 0;
+  SESSION_STATUS_CREATING = 1;
+  SESSION_STATUS_RESUMING = 2;
+  SESSION_STATUS_READY = 3;
+  SESSION_STATUS_RUNNING = 4;
+  SESSION_STATUS_PAUSED = 5;
+  SESSION_STATUS_ERROR = 6;
+}
+
+// SessionWithMeta includes session data plus metadata for list views.
+message SessionWithMeta {
+  Session session = 1;
+  optional int32 message_count = 2;
+  optional string last_message_id = 3;
+}
+
+// SessionConfig contains configuration passed to the agent.
+message SessionConfig {
+  string session_id = 1;
+  string workspace_dir = 2;
+  optional string github_token = 3;
+  optional string repo = 4;
+  optional string repo_access = 5;
+  string control_plane_url = 6;
+}
+
+// GitHubRepo represents a GitHub repository.
+message GitHubRepo {
+  string name = 1;
+  string full_name = 2;
+  bool private = 3;
+  optional string description = 4;
+}
+
+// GitFileChange represents a changed file from git status.
+message GitFileChange {
+  string path = 1;
+  GitFileStatus status = 2;
+  bool staged = 3;
+}
+
+// GitFileStatus represents the type of change to a file.
+enum GitFileStatus {
+  GIT_FILE_STATUS_UNSPECIFIED = 0;
+  GIT_FILE_STATUS_MODIFIED = 1;
+  GIT_FILE_STATUS_ADDED = 2;
+  GIT_FILE_STATUS_DELETED = 3;
+  GIT_FILE_STATUS_RENAMED = 4;
+  GIT_FILE_STATUS_UNTRACKED = 5;
+  GIT_FILE_STATUS_COPIED = 6;
+  GIT_FILE_STATUS_IGNORED = 7;
+  GIT_FILE_STATUS_UNMERGED = 8;
+}
+
+// PersistedMessage represents a chat message stored in history.
+message PersistedMessage {
+  string id = 1;
+  MessageRole role = 2;
+  string content = 3;
+  google.protobuf.Timestamp timestamp = 4;
+}
+
+// MessageRole identifies the sender of a message.
+enum MessageRole {
+  MESSAGE_ROLE_UNSPECIFIED = 0;
+  MESSAGE_ROLE_USER = 1;
+  MESSAGE_ROLE_ASSISTANT = 2;
+}
+
+// PersistedEvent represents an agent event stored in history.
+message PersistedEvent {
+  string id = 1;
+  string message_id = 2; // Parent message ID
+  bytes event_data = 3;  // Serialized AgentEvent
+  google.protobuf.Timestamp timestamp = 4;
+}

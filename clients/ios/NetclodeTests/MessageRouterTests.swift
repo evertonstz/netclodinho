@@ -12,15 +12,16 @@ final class MessageRouterTests: XCTestCase {
         let chatStore = ChatStore()
         let eventStore = EventStore()
         let terminalStore = TerminalStore()
-        let webSocketService = WebSocketService()
+        let connectService = ConnectService()
 
         let router = MessageRouter(
-            webSocketService: webSocketService,
+            connectService: connectService,
             sessionStore: sessionStore,
             chatStore: chatStore,
             eventStore: eventStore,
             terminalStore: terminalStore,
-            githubStore: GitHubStore()
+            githubStore: GitHubStore(),
+            gitStore: GitStore()
         )
 
         // Add initial session with default name
@@ -194,15 +195,17 @@ final class MessageRouterTests: XCTestCase {
         chatStore: ChatStore = ChatStore(),
         eventStore: EventStore = EventStore(),
         terminalStore: TerminalStore = TerminalStore(),
-        githubStore: GitHubStore = GitHubStore()
+        githubStore: GitHubStore = GitHubStore(),
+        gitStore: GitStore = GitStore()
     ) -> MessageRouter {
         MessageRouter(
-            webSocketService: WebSocketService(),
+            connectService: ConnectService(),
             sessionStore: sessionStore,
             chatStore: chatStore,
             eventStore: eventStore,
             terminalStore: terminalStore,
-            githubStore: githubStore
+            githubStore: githubStore,
+            gitStore: gitStore
         )
     }
 }

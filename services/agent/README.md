@@ -7,22 +7,18 @@ Claude Code agent that runs inside Kata Container VMs. Uses the Claude Agent SDK
 - Executes prompts via the SDK's `query()` async iterator
 - Full access to Docker, root, any tools - VM handles isolation
 - Persistent workspace survives pause/resume
-- Terminal access via WebSocket
+- Terminal access via bidirectional Connect streaming
 
 ## Structure
 
 ```
 services/agent/
 ├── src/
-│   ├── index.ts        # HTTP server
-│   ├── config.ts       # Configuration
-│   ├── sdk/
-│   │   ├── agent.ts    # Claude Agent SDK wrapper
-│   │   └── tools.ts    # Tool configuration
-│   ├── events/
-│   │   └── emitter.ts  # Event streaming
-│   └── ipc/
-│       └── handler.ts
+│   ├── index.ts           # Entry point
+│   ├── connect-server.ts  # Connect protocol server
+│   ├── grpc-service.ts    # Service implementation
+│   └── git.ts             # Git operations
+├── gen/                   # Generated protobuf types
 ├── package.json
 └── tsconfig.json
 ```
@@ -32,69 +28,90 @@ services/agent/
 | Variable | Description |
 |----------|-------------|
 | `ANTHROPIC_API_KEY` | Anthropic API key |
-| `SESSION_ID` | Session ID |
-| `GIT_REPO` | Optional repo to clone |
+| `AGENT_PORT` | Agent Connect server port (default 3002) |
 
 ## API
 
-HTTP on port `3002`.
+Connect protocol (gRPC-compatible) on port `3002`. See `proto/netclode/v1/agent.proto` for full definitions.
 
-### POST /prompt
+### ExecutePrompt (streaming)
 
-Execute a prompt, stream results via SSE.
+Execute a prompt, stream results back via server streaming.
+
+```protobuf
+rpc ExecutePrompt(ExecutePromptRequest) returns (stream AgentStreamResponse);
+```
 
 Request:
-```json
-{"sessionId": "abc123", "text": "Fix the bug in auth.ts"}
+```
+session_id: "sess-abc123"
+text: "Fix the bug in auth.ts"
+config: { repo: "github.com/user/repo", github_token: "..." }
 ```
 
-Response (SSE):
+Response stream includes:
+- `text_delta` - Text content (partial or complete)
+- `event` - Tool events, thinking, file changes, etc.
+- `system_message` - SDK system messages
+- `result` - Final result with token counts
+- `error` - Error messages
+
+### Interrupt
+
+Stop current execution.
+
+```protobuf
+rpc Interrupt(InterruptRequest) returns (InterruptResponse);
 ```
-data: {"type":"tool_call","tool":"Read","path":"auth.ts"}
-data: {"type":"assistant","content":"I found the issue..."}
-```
 
-### POST /interrupt
-
-Interrupt current operation. Returns `{"ok": true}`.
-
-### POST /generate-title
+### GenerateTitle
 
 Generate session title from first prompt.
 
-Request:
-```json
-{"prompt": "Build a REST API"}
+```protobuf
+rpc GenerateTitle(GenerateTitleRequest) returns (GenerateTitleResponse);
 ```
 
-Response:
-```json
-{"title": "REST API"}
+### GetGitStatus / GetGitDiff
+
+Query git state of the workspace.
+
+```protobuf
+rpc GetGitStatus(GetGitStatusRequest) returns (GetGitStatusResponse);
+rpc GetGitDiff(GetGitDiffRequest) returns (GetGitDiffResponse);
 ```
 
-### GET /health
+### Terminal (bidirectional streaming)
 
-Returns `ok`.
+Interactive terminal via bidirectional streaming.
 
-### WebSocket /terminal/ws
+```protobuf
+rpc Terminal(stream TerminalInput) returns (stream TerminalOutput);
+```
 
-Interactive terminal.
+Client sends:
+- `data` - Terminal input (keystrokes)
+- `resize` - Terminal dimensions (cols, rows)
 
-Client → Server:
-- `{"type": "input", "data": "ls\n"}`
-- `{"type": "resize", "cols": 80, "rows": 24}`
+Server streams:
+- `data` - Terminal output
 
-Server → Client:
-- `{"type": "output", "data": "..."}`
-
-The PTY is managed by [node-pty](https://github.com/microsoft/node-pty). It's spawned lazily on first input (not on WebSocket connect) to avoid idle shell processes. The shell runs as root in `/agent/workspace`.
+The PTY is managed by [node-pty](https://github.com/microsoft/node-pty). It's spawned lazily on first input to avoid idle shell processes. The shell runs as root in `/agent/workspace`.
 
 ```
 iOS/Web ──► Control Plane ──► Agent ──► node-pty ──► bash
-              (proxy)         (WS)       (PTY)
+            (Connect)        (Connect)    (PTY)
 ```
 
-The control plane maintains a WebSocket connection to the agent and bridges messages. Multiple clients can share the same terminal session.
+The control plane maintains a Connect stream to the agent and bridges messages. Multiple clients can share the same terminal session.
+
+### Health
+
+```protobuf
+rpc Health(HealthRequest) returns (HealthResponse);
+```
+
+Also available at `GET /health` for k8s probes.
 
 ## Claude Agent SDK
 
@@ -185,6 +202,7 @@ The preview URL is then `http://sandbox-abc123.tailnet-name.ts.net:3000`. Access
 npm install
 npm run dev
 npm run typecheck
+npm run build
 ```
 
 ## Docker image
@@ -195,30 +213,23 @@ docker build -t ghcr.io/angristan/netclode-agent:latest -f services/agent/Docker
 
 Includes Debian bookworm-slim, Node.js via mise, Docker, Git, curl, build-essential, Claude CLI.
 
-## SSE Event Types
+## Agent Events
 
-Events streamed via Server-Sent Events during prompt execution:
-
-| Type | Description |
-|------|-------------|
-| `start` | Prompt execution started |
-| `agent.system` | SDK system message (init, session ID) |
-| `agent.message` | Text content from Claude (`partial: true` for streaming) |
-| `agent.event` | Tool/command events (see below) |
-| `agent.result` | Final result with `numTurns` and `costUsd` |
-| `done` | Prompt execution completed |
-| `error` | Error occurred |
-
-### Agent Events (`agent.event`)
+Events streamed during prompt execution:
 
 | Event Kind | Description | Fields |
 |------------|-------------|--------|
 | `tool_start` | Tool invocation started | `tool`, `toolUseId`, `input` |
 | `tool_input` | Streaming tool input | `toolUseId`, `inputDelta` |
+| `tool_input_complete` | Tool input finished | `toolUseId`, `input` |
 | `tool_end` | Tool completed | `tool`, `toolUseId`, `result?`, `error?` |
 | `thinking` | Extended thinking content | `thinkingId`, `content`, `partial` |
+| `file_change` | File created/edited/deleted | `path`, `action`, `linesAdded?`, `linesRemoved?` |
+| `command_start` | Shell command started | `command`, `cwd` |
+| `command_end` | Shell command completed | `command`, `exitCode`, `output` |
+| `repo_clone` | Repository clone progress | `repo`, `stage`, `message` |
 
-All events include a `timestamp` field (ISO 8601).
+All events include a `timestamp` field.
 
 ### Thinking Events
 

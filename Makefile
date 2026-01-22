@@ -1,7 +1,23 @@
 CONTEXT ?= netclode
 NAMESPACE ?= netclode
 
-.PHONY: rollout rollout-control-plane deploy test-ios
+.PHONY: rollout rollout-control-plane deploy test-ios proto proto-lint proto-breaking proto-setup
+
+# Proto generation
+proto: proto-setup ## Generate code from proto files
+	@mkdir -p services/control-plane/gen
+	@mkdir -p services/agent/gen
+	@mkdir -p clients/ios/Netclode/Generated
+	cd proto && buf generate
+
+proto-lint: proto-setup ## Lint proto files
+	cd proto && buf lint
+
+proto-breaking: proto-setup ## Check for breaking changes against main
+	cd proto && buf breaking --against '.git#branch=main'
+
+proto-setup: ## Install buf if not present
+	@which buf > /dev/null || (echo "Installing buf..." && brew install bufbuild/buf/buf)
 
 rollout: ## Rollout a deployment: make rollout target=control-plane
 ifndef target

@@ -2,7 +2,7 @@ import SwiftUI
 
 struct SessionsView: View {
     @Environment(SessionStore.self) private var sessionStore
-    @Environment(WebSocketService.self) private var webSocketService
+    @Environment(ConnectService.self) private var connectService
     @Environment(SettingsStore.self) private var settingsStore
 
     @State private var showPromptSheet = false
@@ -37,9 +37,9 @@ struct SessionsView: View {
                     Circle()
                         .fill(connectionColor)
                         .frame(width: 6, height: 6)
-                        .pulsing(webSocketService.connectionState.isConnected)
+                        .pulsing(connectService.connectionState.isConnected)
                 }
-                .onChange(of: webSocketService.connectionState) { oldState, newState in
+                .onChange(of: connectService.connectionState) { oldState, newState in
                     handleConnectionChange(from: oldState, to: newState)
                 }
             }
@@ -62,12 +62,12 @@ struct SessionsView: View {
                         }
                     }
             }
-            .environment(webSocketService)
+            .environment(connectService)
             .environment(settingsStore)
         }
         .fullScreenCover(isPresented: $showPromptSheet) {
             PromptSheet()
-                .environment(webSocketService)
+                .environment(connectService)
                 .environment(settingsStore)
                 .environment(sessionStore)
         }
@@ -82,12 +82,12 @@ struct SessionsView: View {
             }
         }
         .onAppear {
-            if webSocketService.connectionState.isConnected {
-                webSocketService.send(.sessionList)
+            if connectService.connectionState.isConnected {
+                connectService.send(.sessionList)
             }
         }
         .refreshable {
-            webSocketService.send(.sessionList)
+            connectService.send(.sessionList)
         }
         .alert("Delete Session?", isPresented: .init(
             get: { sessionToDelete != nil },
@@ -105,7 +105,7 @@ struct SessionsView: View {
                     withAnimation {
                         sessionStore.removeSession(id: sessionId)
                     }
-                    webSocketService.send(.sessionDelete(id: sessionId))
+                    connectService.send(.sessionDelete(id: sessionId))
                     sessionToDelete = nil
                 }
             }
@@ -117,7 +117,7 @@ struct SessionsView: View {
     }
 
     private var connectionColor: Color {
-        switch webSocketService.connectionState {
+        switch connectService.connectionState {
         case .connected: .green
         case .connecting, .reconnecting: .orange
         case .disconnected: .red
@@ -230,7 +230,7 @@ struct EmptySessionsView: View {
     .environment(EventStore())
     .environment(TerminalStore())
     .environment(SettingsStore())
-    .environment(WebSocketService())
+    .environment(ConnectService())
     .environment(MessageRouter.preview)
 }
 
@@ -246,6 +246,6 @@ struct EmptySessionsView: View {
     .environment(EventStore())
     .environment(TerminalStore())
     .environment(SettingsStore())
-    .environment(WebSocketService())
+    .environment(ConnectService())
     .environment(MessageRouter.preview)
 }

@@ -6,7 +6,7 @@ Go service that orchestrates Netclode. Manages sessions, proxies communication b
 
 - Session lifecycle (create, pause, resume, delete)
 - Creates Sandbox CRDs, monitors readiness via k8s informers
-- Bridges WebSocket clients to HTTP/SSE agents
+- Bridges Connect clients to Connect agents
 - Stores sessions, messages, and events in Redis
 - Real-time sync across clients via Redis Streams
 
@@ -16,7 +16,7 @@ Go service that orchestrates Netclode. Manages sessions, proxies communication b
 services/control-plane/
 ├── cmd/control-plane/     # Entry point
 └── internal/
-    ├── api/               # HTTP/WebSocket server
+    ├── api/               # Connect protocol server
     ├── session/           # Session manager
     ├── k8s/               # Kubernetes client (Sandbox CRDs)
     ├── storage/           # Redis persistence
@@ -28,7 +28,9 @@ services/control-plane/
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PORT` | `3000` | Server port |
+| `PORT` | `3000` | HTTP port (health checks) |
+| `CONNECT_PORT` | `3001` | Connect protocol port |
+| `AGENT_PORT` | `3002` | Agent Connect port |
 | `K8S_NAMESPACE` | `netclode` | Kubernetes namespace |
 | `AGENT_IMAGE` | `ghcr.io/angristan/netclode-agent:latest` | Agent image |
 | `SANDBOX_TEMPLATE` | `netclode-agent` | SandboxTemplate name |
@@ -38,68 +40,87 @@ services/control-plane/
 | `MAX_MESSAGES_PER_SESSION` | `1000` | Message history limit |
 | `MAX_EVENTS_PER_SESSION` | `50` | Event history limit |
 
-## WebSocket API
+## Connect API
 
-Connect to `/ws`. JSON messages.
+Connect to port `3001` using Connect protocol (gRPC-compatible). See `proto/netclode/v1/client.proto` for full definitions.
 
-### Client → Server
+### Bidirectional streaming
 
-| Type | Fields | Description |
-|------|--------|-------------|
-| `session.create` | `name`, `repo?` | Create session |
-| `session.list` | | List sessions |
-| `session.open` | `id`, `lastNotificationId?` | Open with history |
-| `session.resume` | `id` | Resume paused |
-| `session.pause` | `id` | Pause |
-| `session.delete` | `id` | Delete |
-| `prompt` | `sessionId`, `text` | Send prompt |
-| `prompt.interrupt` | `sessionId` | Interrupt |
-| `port.expose` | `sessionId`, `port` | Expose port |
-| `terminal.input` | `sessionId`, `data` | Terminal input |
-| `terminal.resize` | `sessionId`, `cols`, `rows` | Resize terminal |
-| `sync` | | Get all sessions |
+The main client API is a single bidirectional stream:
 
-### Server → Client
+```protobuf
+rpc Connect(stream ClientMessage) returns (stream ServerMessage);
+```
 
-| Type | Description |
-|------|-------------|
-| `session.created` | Session created |
-| `session.updated` | Status changed |
-| `session.deleted` | Deleted |
-| `session.list` | List of sessions |
-| `session.state` | Session with history |
-| `session.error` | Operation failed |
-| `sync.response` | All sessions |
-| `agent.message` | Text from agent (`partial` for streaming) |
-| `agent.event` | Tool event |
-| `agent.done` | Finished |
-| `agent.error` | Error |
-| `user.message` | User prompt (cross-client sync) |
-| `port.exposed` | Port exposed with `previewUrl` |
-| `terminal.output` | Terminal output |
+### Client → Server messages
+
+| Message Type | Fields | Description |
+|--------------|--------|-------------|
+| `create_session` | `name`, `repo?`, `repo_access?` | Create session |
+| `list_sessions` | | List sessions |
+| `open_session` | `session_id`, `last_notification_id?` | Open with history |
+| `resume_session` | `session_id` | Resume paused |
+| `pause_session` | `session_id` | Pause |
+| `delete_session` | `session_id` | Delete |
+| `delete_all_sessions` | | Delete all |
+| `send_prompt` | `session_id`, `text` | Send prompt |
+| `interrupt_prompt` | `session_id` | Interrupt |
+| `expose_port` | `session_id`, `port` | Expose port |
+| `terminal_input` | `session_id`, `data` | Terminal input |
+| `terminal_resize` | `session_id`, `cols`, `rows` | Resize terminal |
+| `sync` | | Get all sessions with metadata |
+| `git_status` | `session_id` | Get git status |
+| `git_diff` | `session_id`, `file?` | Get git diff |
+| `list_github_repos` | | List available GitHub repos |
+
+### Server → Client messages
+
+| Message Type | Description |
+|--------------|-------------|
+| `session_created` | Session created |
+| `session_updated` | Status changed |
+| `session_deleted` | Deleted |
+| `sessions_deleted_all` | All deleted |
+| `session_list` | List of sessions |
+| `session_state` | Session with history |
+| `session_error` | Operation failed |
+| `sync_response` | All sessions with metadata |
+| `agent_message` | Text from agent (`partial` for streaming) |
+| `agent_event` | Tool event |
+| `agent_done` | Finished |
+| `agent_error` | Error |
+| `user_message` | User prompt (cross-client sync) |
+| `port_exposed` | Port exposed with `preview_url` |
+| `port_error` | Port exposure failed |
+| `terminal_output` | Terminal output |
+| `github_repos` | Available GitHub repos |
+| `git_status` | Git status |
+| `git_diff` | Git diff |
+| `git_error` | Git operation failed |
 | `error` | Generic error |
 
 ### Agent events
 
-Delivered via `agent.event`:
+Delivered via `agent_event`:
 
 | Kind | Description |
 |------|-------------|
-| `tool_start` | Tool started |
-| `tool_input` | Input delta |
+| `tool_start` | Tool started (includes `input` if available) |
+| `tool_input` | Input delta (streaming) |
+| `tool_input_complete` | Tool input finished (full `input` object) |
 | `tool_end` | Tool completed |
 | `file_change` | File created/edited/deleted |
 | `command_start` | Shell command started |
 | `command_end` | Shell command completed |
 | `thinking` | Agent reasoning |
 | `port_exposed` | Port exposed |
+| `repo_clone` | Repository clone progress |
 
 ## HTTP
 
 | Endpoint | Description |
 |----------|-------------|
 | `GET /health` | Health check |
-| `GET /ready` | Readiness check |
 
 ## Redis
 
@@ -117,12 +138,12 @@ The classic approach for real-time updates is: fetch history, then subscribe to 
 
 Redis Streams solve this with cursor-based reading. Each entry in a stream has an ID (e.g., `1234567890123-0`). When a client opens a session:
 
-1. Server returns current state + `lastNotificationId` (the latest stream ID)
+1. Server returns current state + `last_notification_id` (the latest stream ID)
 2. Client stores this cursor
 3. Server starts a blocking read with `XREAD BLOCK 0 STREAMS session:{id}:notifications {cursor}`
 4. New events get pushed to the client as they arrive
 
-On reconnect, the client sends its stored `lastNotificationId`. The server resumes from that position. Events that happened while disconnected are delivered immediately.
+On reconnect, the client sends its stored `last_notification_id`. The server resumes from that position. Events that happened while disconnected are delivered immediately.
 
 ```
 Client A connects
@@ -155,7 +176,7 @@ The streams are trimmed to keep memory bounded (`MAXLEN ~50` for events, configu
 ## Data flow
 
 ```
-┌─────────┐     WebSocket      ┌───────────────┐      HTTP/SSE      ┌─────────┐
+┌─────────┐      Connect       ┌───────────────┐      Connect       ┌─────────┐
 │ Client  │◄──────────────────►│ Control Plane │◄──────────────────►│  Agent  │
 └─────────┘                    └───────┬───────┘                    └─────────┘
                                        │
@@ -165,10 +186,10 @@ The streams are trimmed to keep memory bounded (`MAXLEN ~50` for events, configu
                                └───────────────┘
 ```
 
-1. Client sends prompt via WebSocket
+1. Client sends prompt via Connect stream
 2. Control plane persists to Redis, publishes to notifications stream
-3. Control plane forwards to agent via HTTP
-4. Agent streams SSE events back
+3. Control plane forwards to agent via Connect
+4. Agent streams responses back
 5. Control plane persists and publishes to Redis Stream
 6. All clients read via XREAD BLOCK
 
@@ -179,24 +200,24 @@ The control plane proxies terminal I/O between clients and the agent's PTY:
 ```
 Client                Control Plane              Agent
   │                        │                       │
-  │ terminal.input ───────►│                       │
-  │                        │ WS: {"type":"input"}─►│
+  │ terminal_input ───────►│                       │
+  │                        │ Connect stream ──────►│
   │                        │                       │ node-pty
-  │                        │◄─ WS: {"type":"output"}│
-  │◄─── terminal.output ───│                       │
+  │                        │◄─── Connect stream ───│
+  │◄─── terminal_output ───│                       │
 ```
 
-The control plane maintains one WebSocket connection per active session to the agent's `/terminal/ws` endpoint. Multiple clients can connect to the same session and share the same PTY.
+The control plane maintains one Connect bidirectional stream per active session to the agent's Terminal RPC. Multiple clients can connect to the same session and share the same PTY.
 
 Terminal data is ephemeral (not persisted to Redis).
 
 ## Preview URLs
 
-When a client sends `port.expose`, the control plane:
+When a client sends `expose_port`, the control plane:
 
 1. Creates a Tailscale Service for the sandbox pod (if not already created)
 2. Waits for Tailscale to assign a MagicDNS hostname
-3. Returns `port.exposed` with the preview URL
+3. Returns `port_exposed` with the preview URL
 
 ```
 sandbox-{sessionId}.tailnet-name.ts.net:{port}

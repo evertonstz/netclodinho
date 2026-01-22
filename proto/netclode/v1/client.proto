@@ -1,0 +1,242 @@
+syntax = "proto3";
+
+package netclode.v1;
+
+import "netclode/v1/common.proto";
+import "netclode/v1/events.proto";
+import "google/protobuf/timestamp.proto";
+
+// ClientService handles communication between clients (iOS app) and the control plane.
+// Uses a single bidirectional stream for all operations.
+service ClientService {
+  // Connect establishes a bidirectional stream for all client-server communication.
+  rpc Connect(stream ClientMessage) returns (stream ServerMessage);
+}
+
+// ClientMessage is the union of all client-to-server messages.
+message ClientMessage {
+  oneof message {
+    CreateSessionRequest create_session = 1;
+    ListSessionsRequest list_sessions = 2;
+    OpenSessionRequest open_session = 3;
+    ResumeSessionRequest resume_session = 4;
+    PauseSessionRequest pause_session = 5;
+    DeleteSessionRequest delete_session = 6;
+    DeleteAllSessionsRequest delete_all_sessions = 7;
+    SendPromptRequest send_prompt = 8;
+    InterruptPromptRequest interrupt_prompt = 9;
+    TerminalInputRequest terminal_input = 10;
+    TerminalResizeRequest terminal_resize = 11;
+    ExposePortRequest expose_port = 12;
+    SyncRequest sync = 13;
+    ListGitHubReposRequest list_github_repos = 14;
+    GitStatusRequest git_status = 15;
+    GitDiffRequest git_diff = 16;
+  }
+}
+
+// ServerMessage is the union of all server-to-client messages.
+message ServerMessage {
+  oneof message {
+    SessionCreatedResponse session_created = 1;
+    SessionUpdatedResponse session_updated = 2;
+    SessionDeletedResponse session_deleted = 3;
+    SessionsDeletedAllResponse sessions_deleted_all = 4;
+    SessionListResponse session_list = 5;
+    SessionStateResponse session_state = 6;
+    SessionErrorResponse session_error = 7;
+    SyncResponse sync_response = 8;
+    AgentEventResponse agent_event = 9;
+    AgentMessageResponse agent_message = 10;
+    AgentDoneResponse agent_done = 11;
+    AgentErrorResponse agent_error = 12;
+    UserMessageResponse user_message = 13;
+    TerminalOutputResponse terminal_output = 14;
+    PortExposedResponse port_exposed = 15;
+    PortErrorResponse port_error = 16;
+    GitHubReposResponse github_repos = 17;
+    GitStatusResponse git_status = 18;
+    GitDiffResponse git_diff = 19;
+    GitErrorResponse git_error = 20;
+    ErrorResponse error = 21;
+  }
+}
+
+// ============================================================================
+// Client Request Messages
+// ============================================================================
+
+message CreateSessionRequest {
+  optional string name = 1;
+  optional string repo = 2;
+  optional string repo_access = 3; // "read" or "write"
+  optional string initial_prompt = 4;
+}
+
+message ListSessionsRequest {}
+
+message OpenSessionRequest {
+  string session_id = 1;
+  optional string last_message_id = 2;       // For pagination
+  optional string last_notification_id = 3;  // For cursor-based reconnection
+}
+
+message ResumeSessionRequest {
+  string session_id = 1;
+}
+
+message PauseSessionRequest {
+  string session_id = 1;
+}
+
+message DeleteSessionRequest {
+  string session_id = 1;
+}
+
+message DeleteAllSessionsRequest {}
+
+message SendPromptRequest {
+  string session_id = 1;
+  string text = 2;
+}
+
+message InterruptPromptRequest {
+  string session_id = 1;
+}
+
+message TerminalInputRequest {
+  string session_id = 1;
+  string data = 2;
+}
+
+message TerminalResizeRequest {
+  string session_id = 1;
+  int32 cols = 2;
+  int32 rows = 3;
+}
+
+message ExposePortRequest {
+  string session_id = 1;
+  int32 port = 2;
+}
+
+message SyncRequest {}
+
+message ListGitHubReposRequest {}
+
+message GitStatusRequest {
+  string session_id = 1;
+}
+
+message GitDiffRequest {
+  string session_id = 1;
+  optional string file = 2; // Specific file, or all if empty
+}
+
+// ============================================================================
+// Server Response Messages
+// ============================================================================
+
+message SessionCreatedResponse {
+  Session session = 1;
+}
+
+message SessionUpdatedResponse {
+  Session session = 1;
+}
+
+message SessionDeletedResponse {
+  string session_id = 1;
+}
+
+message SessionsDeletedAllResponse {
+  repeated string deleted_ids = 1;
+}
+
+message SessionListResponse {
+  repeated Session sessions = 1;
+}
+
+message SessionStateResponse {
+  Session session = 1;
+  repeated PersistedMessage messages = 2;
+  repeated PersistedEvent events = 3;
+  bool has_more = 4;
+  optional string last_notification_id = 5;
+}
+
+message SessionErrorResponse {
+  string session_id = 1;
+  string error = 2;
+}
+
+message SyncResponse {
+  repeated SessionWithMeta sessions = 1;
+  google.protobuf.Timestamp server_time = 2;
+}
+
+message AgentEventResponse {
+  string session_id = 1;
+  AgentEvent event = 2;
+}
+
+message AgentMessageResponse {
+  string session_id = 1;
+  string content = 2;
+  bool partial = 3;       // true for streaming deltas
+  string message_id = 4;  // Correlates partial messages
+}
+
+message AgentDoneResponse {
+  string session_id = 1;
+}
+
+message AgentErrorResponse {
+  string session_id = 1;
+  string error = 2;
+}
+
+message UserMessageResponse {
+  string session_id = 1;
+  string content = 2;
+}
+
+message TerminalOutputResponse {
+  string session_id = 1;
+  string data = 2;
+}
+
+message PortExposedResponse {
+  string session_id = 1;
+  int32 port = 2;
+  string preview_url = 3;
+}
+
+message PortErrorResponse {
+  string session_id = 1;
+  int32 port = 2;
+  string error = 3;
+}
+
+message GitHubReposResponse {
+  repeated GitHubRepo repos = 1;
+}
+
+message GitStatusResponse {
+  string session_id = 1;
+  repeated GitFileChange files = 2;
+}
+
+message GitDiffResponse {
+  string session_id = 1;
+  string diff = 2;
+}
+
+message GitErrorResponse {
+  string session_id = 1;
+  string error = 2;
+}
+
+message ErrorResponse {
+  string message = 1;
+}

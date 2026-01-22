@@ -2,7 +2,7 @@ import SwiftUI
 
 struct PromptSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(WebSocketService.self) private var webSocketService
+    @Environment(ConnectService.self) private var connectService
     @Environment(SettingsStore.self) private var settingsStore
     @Environment(SessionStore.self) private var sessionStore
     @Environment(GitHubStore.self) private var githubStore
@@ -136,7 +136,7 @@ struct PromptSheet: View {
         let accessParam = repoParam != nil ? repoAccess : nil
         
         // Create session
-        webSocketService.send(.sessionCreate(name: nil, repo: repoParam, repoAccess: accessParam, initialPrompt: text))
+        connectService.send(.sessionCreate(name: nil, repo: repoParam, repoAccess: accessParam, initialPrompt: text))
 
         dismiss()
     }
@@ -148,7 +148,7 @@ struct PromptSheet: View {
     Color.clear
         .sheet(isPresented: .constant(true)) {
             PromptSheet()
-                .environment(WebSocketService())
+                .environment(ConnectService())
                 .environment(SettingsStore())
                 .environment(SessionStore())
                 .environment(GitHubStore())

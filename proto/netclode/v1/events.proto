@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package netclode.v1;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+// AgentEvent represents events emitted during agent execution.
+// This is a polymorphic type - fields are populated based on kind.
+message AgentEvent {
+  AgentEventKind kind = 1;
+  google.protobuf.Timestamp timestamp = 2;
+
+  // Tool events (tool_start, tool_input, tool_end)
+  optional string tool = 3;
+  optional string tool_use_id = 4;
+  optional string parent_tool_use_id = 5; // Set when tool runs inside a Task/subagent
+  optional google.protobuf.Struct input = 6;
+  optional string input_delta = 7;  // Streaming input for tool_input
+  optional string result = 8;
+  optional string error = 9;
+
+  // File change events (file_change)
+  optional string path = 10;
+  optional string action = 11; // "create", "edit", "delete"
+  optional int32 lines_added = 12;
+  optional int32 lines_removed = 13;
+
+  // Command events (command_start, command_end)
+  optional string command = 14;
+  optional string cwd = 15;
+  optional int32 exit_code = 16;
+  optional string output = 17;
+
+  // Thinking events (thinking)
+  optional string thinking_id = 18;
+  optional string content = 19;
+  optional bool partial = 20; // true for streaming thinking deltas
+
+  // Port exposed events (port_exposed)
+  optional int32 port = 21;
+  optional string process = 22;
+  optional string preview_url = 23;
+
+  // Repo clone events (repo_clone)
+  optional string repo = 24;
+  optional string stage = 25;   // "starting", "cloning", "done", "error"
+  optional string message = 26; // Progress message
+}
+
+// AgentEventKind identifies the type of event.
+enum AgentEventKind {
+  AGENT_EVENT_KIND_UNSPECIFIED = 0;
+  AGENT_EVENT_KIND_TOOL_START = 1;
+  AGENT_EVENT_KIND_TOOL_INPUT = 2;
+  AGENT_EVENT_KIND_TOOL_END = 3;
+  AGENT_EVENT_KIND_FILE_CHANGE = 4;
+  AGENT_EVENT_KIND_COMMAND_START = 5;
+  AGENT_EVENT_KIND_COMMAND_END = 6;
+  AGENT_EVENT_KIND_THINKING = 7;
+  AGENT_EVENT_KIND_PORT_EXPOSED = 8;
+  AGENT_EVENT_KIND_REPO_CLONE = 9;
+  AGENT_EVENT_KIND_TOOL_INPUT_COMPLETE = 10; // Emitted when tool input streaming finishes
+}

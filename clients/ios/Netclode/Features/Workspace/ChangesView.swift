@@ -5,7 +5,7 @@ struct ChangesView: View {
     let sessionId: String
     
     @Environment(GitStore.self) private var gitStore
-    @Environment(WebSocketService.self) private var webSocketService
+    @Environment(ConnectService.self) private var connectService
     
     @State private var isRefreshing = false
     
@@ -124,7 +124,7 @@ struct ChangesView: View {
     private func requestGitStatus() {
         print("[ChangesView] requestGitStatus for session: \(sessionId)")
         gitStore.setLoadingStatus(true, for: sessionId)
-        webSocketService.send(.gitStatus(sessionId: sessionId))
+        connectService.send(.gitStatus(sessionId: sessionId))
     }
     
     private func toggleFile(_ path: String) {
@@ -135,7 +135,7 @@ struct ChangesView: View {
             // Expand and fetch diff
             gitStore.selectFile(path, for: sessionId)
             gitStore.setLoadingDiff(true, for: sessionId)
-            webSocketService.send(.gitDiff(sessionId: sessionId, file: path))
+            connectService.send(.gitDiff(sessionId: sessionId, file: path))
         }
     }
 }
@@ -259,11 +259,11 @@ private struct FileChangeDisclosure: View {
     
     return ChangesView(sessionId: "preview-session")
         .environment(gitStore)
-        .environment(WebSocketService())
+        .environment(ConnectService())
 }
 
 #Preview("Changes View - Empty") {
     ChangesView(sessionId: "empty-session")
         .environment(GitStore())
-        .environment(WebSocketService())
+        .environment(ConnectService())
 }

@@ -51,7 +51,7 @@ Tests cover:
 Netclode/
 ├── App/                    # Entry point
 ├── Models/                 # Session, Messages, Events, ChatMessage
-├── Services/               # WebSocketService, MessageRouter
+├── Services/               # ConnectService, MessageRouter
 ├── Stores/                 # @Observable state (Session, Chat, Event, Terminal, Settings)
 ├── Features/
 │   ├── Sessions/           # Session list, creation
@@ -61,33 +61,35 @@ Netclode/
 │   └── Settings/           # Server config
 ├── Components/             # GlassCard, GlassButton, GlassTextField
 ├── Design/                 # Theme, colors
+├── Generated/              # Protobuf generated code
 └── Extensions/
 ```
 
-## WebSocket protocol
+## Connect protocol
 
-The app communicates with the control plane via WebSocket.
+The app communicates with the control plane via Connect protocol (gRPC-compatible) using bidirectional streaming.
 
 Client → Server:
 
 ```swift
-ClientMessage.sessionList
-ClientMessage.sessionCreate(name: "My Project", repo: "owner/repo", repoAccess: .write, initialPrompt: nil)
-ClientMessage.sessionOpen(id: "xxx", lastNotificationId: nil)
-ClientMessage.sessionResume(id: "xxx")
-ClientMessage.sessionPause(id: "xxx")
-ClientMessage.prompt(sessionId: "xxx", text: "Fix the bug")
-ClientMessage.terminalInput(sessionId: "xxx", data: "ls\n")
+// Messages sent via ConnectService
+createSession(name: "My Project", repo: "owner/repo", repoAccess: .write, initialPrompt: nil)
+openSession(id: "xxx", lastNotificationId: nil)
+resumeSession(id: "xxx")
+pauseSession(id: "xxx")
+sendPrompt(sessionId: "xxx", text: "Fix the bug")
+terminalInput(sessionId: "xxx", data: "ls\n")
 ```
 
 Server → Client:
 
 ```swift
-ServerMessage.sessionList(sessions: [...])
-ServerMessage.sessionCreated(session: Session)
-ServerMessage.agentMessage(sessionId: "xxx", content: "...", partial: true)
-ServerMessage.agentEvent(sessionId: "xxx", event: AgentEvent)
-ServerMessage.terminalOutput(sessionId: "xxx", data: "...")
+// Messages received and routed by MessageRouter
+sessionList(sessions: [...])
+sessionCreated(session: Session)
+agentMessage(sessionId: "xxx", content: "...", partial: true)
+agentEvent(sessionId: "xxx", event: AgentEvent)
+terminalOutput(sessionId: "xxx", data: "...")
 ```
 
 On reconnect, the app sends `lastNotificationId` to resume from where it left off.
@@ -117,13 +119,13 @@ The app uses iOS 26's glass effects:
 
 ## Terminal
 
-Terminal emulation uses [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm). The app sends `terminal.input` messages to the control plane, which proxies them to the agent's PTY. Output comes back via `terminal.output`.
+Terminal emulation uses [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm). The app sends terminal input messages to the control plane, which proxies them to the agent's PTY. Output comes back via terminal output messages.
 
 ```
-SwiftTerminalView ──► WebSocketService ──► Control Plane ──► Agent PTY
+SwiftTerminalView ──► ConnectService ──► Control Plane ──► Agent PTY
 ```
 
-`SwiftTermBridge.swift` adapts SwiftTerm's `LocalProcessTerminalView` delegate to work over WebSocket instead of a local process.
+`SwiftTermBridge.swift` adapts SwiftTerm's `LocalProcessTerminalView` delegate to work over the Connect stream instead of a local process.
 
 ## License
 

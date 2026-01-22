@@ -98,16 +98,16 @@ final class GitHubStore {
     }
     
     /// Request repos from server if cache is stale
-    /// - Parameter webSocketService: The WebSocket service to send the request
+    /// - Parameter connectService: The Connect service to send the request
     /// - Parameter force: Force refresh even if cache is valid
-    func fetchIfNeeded(webSocketService: WebSocketService, force: Bool = false) {
+    func fetchIfNeeded(connectService: ConnectService, force: Bool = false) {
         guard force || isCacheStale else { return }
         guard !isLoading else { return }
-        guard webSocketService.connectionState.isConnected else { return }
+        guard connectService.connectionState.isConnected else { return }
         
         isLoading = true
         errorMessage = nil
-        webSocketService.send(.githubReposList)
+        connectService.send(.githubReposList)
     }
     
     /// Handle incoming repos from server

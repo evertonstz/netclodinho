@@ -4,7 +4,7 @@ struct WorkspaceView: View {
     let sessionId: String
 
     @Environment(SessionStore.self) private var sessionStore
-    @Environment(WebSocketService.self) private var webSocketService
+    @Environment(ConnectService.self) private var connectService
     @Environment(TerminalStore.self) private var terminalStore
     @Environment(\.dismiss) private var dismiss
 
@@ -79,13 +79,13 @@ struct WorkspaceView: View {
                         // Actions
                         if session.status == .paused {
                             Button {
-                                webSocketService.send(.sessionResume(id: sessionId))
+                                connectService.send(.sessionResume(id: sessionId))
                             } label: {
                                 Label("Resume", systemImage: "play.fill")
                             }
                         } else if session.status == .ready || session.status == .running {
                             Button {
-                                webSocketService.send(.sessionPause(id: sessionId))
+                                connectService.send(.sessionPause(id: sessionId))
                             } label: {
                                 Label("Pause", systemImage: "pause.fill")
                             }
@@ -110,7 +110,7 @@ struct WorkspaceView: View {
             titleVisibility: .visible
         ) {
             Button("Delete", role: .destructive) {
-                webSocketService.send(.sessionDelete(id: sessionId))
+                connectService.send(.sessionDelete(id: sessionId))
                 dismiss()
             }
             Button("Cancel", role: .cancel) {}
@@ -123,17 +123,17 @@ struct WorkspaceView: View {
         .task {
             // Wait for connection before opening session
             // This fetches messages and events from server
-            while !webSocketService.connectionState.isConnected {
+            while !connectService.connectionState.isConnected {
                 try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
             }
             // Initial open - no cursor needed
             // Only resume if actually paused (to avoid brief status flash)
             let session = sessionStore.sessions.first { $0.id == sessionId }
             let needsResume = session?.status == .paused
-            webSocketService.openSession(id: sessionId, resume: needsResume)
+            connectService.openSession(id: sessionId, resume: needsResume)
             hasOpenedSession = true
         }
-        .onChange(of: webSocketService.connectionState) { oldState, newState in
+        .onChange(of: connectService.connectionState) { oldState, newState in
             // Detect reconnection: was disconnected/reconnecting, now connected
             let wasDisconnected = !oldState.isConnected
             let isNowConnected = newState.isConnected
@@ -144,7 +144,7 @@ struct WorkspaceView: View {
                 let session = sessionStore.sessions.first { $0.id == sessionId }
                 let needsResume = session?.status == .paused
                 print("[WorkspaceView] Reconnected, reopening session with cursor: \(cursor ?? "nil"), resume: \(needsResume)")
-                webSocketService.openSession(id: sessionId, lastNotificationId: cursor, resume: needsResume)
+                connectService.openSession(id: sessionId, lastNotificationId: cursor, resume: needsResume)
             }
         }
         .onDisappear {
@@ -155,7 +155,7 @@ struct WorkspaceView: View {
             if newTab == .terminal {
                 let bridge = terminalStore.bridge(for: sessionId)
                 if bridge.cols > 0 && bridge.rows > 0 {
-                    webSocketService.send(.terminalResize(
+                    connectService.send(.terminalResize(
                         sessionId: sessionId,
                         cols: bridge.cols,
                         rows: bridge.rows
@@ -181,6 +181,6 @@ struct WorkspaceView: View {
     .environment(TerminalStore())
     .environment(SettingsStore())
     .environment(GitStore())
-    .environment(WebSocketService())
+    .environment(ConnectService())
     .environment(MessageRouter.preview)
 }

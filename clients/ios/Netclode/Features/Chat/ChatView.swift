@@ -60,7 +60,7 @@ struct ChatView: View {
     @Environment(ChatStore.self) private var chatStore
     @Environment(EventStore.self) private var eventStore
     @Environment(SessionStore.self) private var sessionStore
-    @Environment(WebSocketService.self) private var webSocketService
+    @Environment(ConnectService.self) private var connectService
     @Environment(SettingsStore.self) private var settingsStore
 
     @State private var inputText = ""
@@ -457,7 +457,7 @@ struct ChatView: View {
         sessionStore.setProcessing(for: sessionId, processing: true)
 
         // Send to server
-        webSocketService.send(.prompt(sessionId: sessionId, text: text))
+        connectService.send(.prompt(sessionId: sessionId, text: text))
 
         // Clear input
         inputText = ""
@@ -467,7 +467,7 @@ struct ChatView: View {
         if settingsStore.hapticFeedbackEnabled {
             HapticFeedback.warning()
         }
-        webSocketService.send(.promptInterrupt(sessionId: sessionId))
+        connectService.send(.promptInterrupt(sessionId: sessionId))
     }
 
     /// Update cached timeline only when data changes
@@ -659,5 +659,5 @@ struct ExposePortSheet: View {
     .environment(EventStore())
     .environment(SessionStore())
     .environment(SettingsStore())
-    .environment(WebSocketService())
+    .environment(ConnectService())
 }

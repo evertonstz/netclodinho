@@ -11,12 +11,13 @@
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.5",
     "@anthropic-ai/sdk": "^0.71.2",
-    "node-pty": "^1.0.0",
-    "ws": "^8.18.0"
+    "@bufbuild/protobuf": "^2.11.0",
+    "@connectrpc/connect": "^2.1.1",
+    "@connectrpc/connect-node": "^2.1.1",
+    "node-pty": "^1.0.0"
   },
   "devDependencies": {
     "@types/node": "^25.0.9",
-    "@types/ws": "^8.5.13",
     "esbuild": "^0.27.2",
     "tsx": "^4.19.0",
     "typescript": "^5.7.2"

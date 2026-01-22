@@ -62,7 +62,7 @@ kubectl -n netclode get pods
 
 ## Architecture
 
-- **control-plane**: API server, WebSocket handler, session manager
+- **control-plane**: API server, Connect protocol handler, session manager
 - **agent**: Runs inside sandboxes created by control-plane (not a separate deployment)
 
 ## Tailscale Hostnames

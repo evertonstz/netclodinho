@@ -2,12 +2,12 @@ import Foundation
 import SwiftTerm
 import UIKit
 
-/// Bridges WebSocket terminal data to/from SwiftTerm's TerminalView.
+/// Bridges Connect service terminal data to/from SwiftTerm's TerminalView.
 /// Each session has its own bridge instance.
 @MainActor
 final class SwiftTermBridge: TerminalViewDelegate {
     let sessionId: String
-    weak var webSocketService: WebSocketService?
+    weak var connectService: ConnectService?
     
     /// Reference to the terminal view (set when view is created)
     weak var terminalView: SwiftTerm.TerminalView?
@@ -22,9 +22,9 @@ final class SwiftTermBridge: TerminalViewDelegate {
     /// Whether the terminal has received its first valid size
     private var hasReceivedInitialSize = false
     
-    init(sessionId: String, webSocketService: WebSocketService?) {
+    init(sessionId: String, connectService: ConnectService?) {
         self.sessionId = sessionId
-        self.webSocketService = webSocketService
+        self.connectService = connectService
     }
     
     /// Attach a terminal view to this bridge
@@ -43,7 +43,7 @@ final class SwiftTermBridge: TerminalViewDelegate {
         hasReceivedInitialSize = false
     }
     
-    /// Feed data from WebSocket to the terminal
+    /// Feed data from the server to the terminal
     func feedData(_ data: String) {
         guard let bytes = data.data(using: .utf8) else { return }
         let byteArray = [UInt8](bytes)
@@ -63,7 +63,7 @@ final class SwiftTermBridge: TerminalViewDelegate {
         }
     }
     
-    /// Feed raw bytes from WebSocket to the terminal
+    /// Feed raw bytes from the server to the terminal
     func feedData(_ bytes: [UInt8]) {
         let processed = preprocessBytes(bytes)
         
@@ -107,7 +107,7 @@ final class SwiftTermBridge: TerminalViewDelegate {
         guard let string = String(bytes: bytes, encoding: .utf8) else { return }
         
         Task { @MainActor in
-            self.webSocketService?.send(.terminalInput(sessionId: self.sessionId, data: string))
+            self.connectService?.send(.terminalInput(sessionId: self.sessionId, data: string))
         }
     }
     
@@ -126,7 +126,7 @@ final class SwiftTermBridge: TerminalViewDelegate {
         Task { @MainActor in
             self.cols = newCols
             self.rows = newRows
-            self.webSocketService?.send(.terminalResize(sessionId: self.sessionId, cols: newCols, rows: newRows))
+            self.connectService?.send(.terminalResize(sessionId: self.sessionId, cols: newCols, rows: newRows))
             
             // Feed pending data after first valid size is received
             // This ensures buffered content renders with correct column width

@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -10,9 +11,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	pb "github.com/angristan/netclode/services/control-plane/gen/netclode/v1"
+	"github.com/angristan/netclode/services/control-plane/gen/netclode/v1/netclodev1connect"
 	"github.com/angristan/netclode/services/control-plane/internal/protocol"
 	"github.com/angristan/netclode/services/control-plane/internal/session"
-	"github.com/coder/websocket"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 )
 
 const (
@@ -20,16 +24,18 @@ const (
 	ShutdownTimeout = 30 * time.Second
 )
 
-// Server is the HTTP/WebSocket server with graceful shutdown support.
+// Server is the HTTP server with Connect protocol and graceful shutdown support.
 type Server struct {
-	manager *session.Manager
-	server  *http.Server
+	manager       *session.Manager
+	httpServer    *http.Server
+	connectServer *http.Server
 
-	// Connection tracking for graceful shutdown
-	connections sync.Map // map[*Connection]struct{}
-	connCount   atomic.Int64
-	shutdownCh  chan struct{}
-	wg          sync.WaitGroup
+	// Connect connection tracking
+	connectConnections sync.Map // map[*ConnectConnection]struct{}
+
+	connCount  atomic.Int64
+	shutdownCh chan struct{}
+	wg         sync.WaitGroup
 }
 
 // NewServer creates a new server.
@@ -41,49 +47,78 @@ func NewServer(manager *session.Manager) *Server {
 
 	// Set up callback for auto-pause broadcasts
 	manager.SetOnSessionUpdated(func(session *protocol.Session) {
-		s.BroadcastToAll(protocol.NewSessionUpdated(session), nil)
+		// Convert protocol.ServerMessage to pb.ServerMessage for Connect clients
+		protoMsg := protocol.NewSessionUpdated(session)
+		pbMsg := convertServerMessage(protoMsg)
+		s.BroadcastToAllConnect(pbMsg, nil)
 	})
 
 	return s
 }
 
-// BroadcastToAll sends a message to all connected clients except the sender.
-func (s *Server) BroadcastToAll(msg protocol.ServerMessage, exclude *Connection) {
-	s.connections.Range(func(key, value interface{}) bool {
-		if conn, ok := key.(*Connection); ok && conn != exclude {
+// BroadcastToAllConnect sends a message to all connected Connect clients except the sender.
+func (s *Server) BroadcastToAllConnect(msg *pb.ServerMessage, exclude *ConnectConnection) {
+	s.connectConnections.Range(func(key, value interface{}) bool {
+		if conn, ok := key.(*ConnectConnection); ok && conn != exclude {
 			// Non-blocking send to avoid blocking broadcast
 			select {
 			case conn.globalMessages <- msg:
 			default:
-				slog.Debug("Skipping global message for slow client")
+				slog.Debug("Skipping global message for slow Connect client")
 			}
 		}
 		return true
 	})
 }
 
-// ListenAndServe starts the HTTP server.
-func (s *Server) ListenAndServe(ctx context.Context, addr string) error {
+// ListenAndServe starts the HTTP server with Connect protocol support.
+func (s *Server) ListenAndServe(ctx context.Context, httpAddr string, connectPort int) error {
+	// Create the main mux for HTTP endpoints
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /health", s.handleHealth)
-	mux.HandleFunc("GET /ws", s.handleWebSocket)
 	mux.HandleFunc("GET /internal/session-config", s.handleSessionConfig)
 	mux.HandleFunc("POST /internal/session/{sessionID}/event", s.handleInternalEvent)
 
-	s.server = &http.Server{
-		Addr:    addr,
+	s.httpServer = &http.Server{
+		Addr:    httpAddr,
 		Handler: mux,
 	}
 
-	slog.Info("Starting HTTP server", "addr", addr)
+	slog.Info("Starting HTTP server", "addr", httpAddr)
 
-	errCh := make(chan error, 1)
+	errCh := make(chan error, 2)
+
+	// Start HTTP server (for health checks and internal endpoints)
 	go func() {
-		if err := s.server.ListenAndServe(); err != http.ErrServerClosed {
-			errCh <- err
+		if err := s.httpServer.ListenAndServe(); err != http.ErrServerClosed {
+			errCh <- fmt.Errorf("http server: %w", err)
 		}
-		close(errCh)
+	}()
+
+	// Start Connect server (for iOS clients)
+	connectAddr := fmt.Sprintf(":%d", connectPort)
+	connectMux := http.NewServeMux()
+
+	// Register the Connect handler
+	clientHandler := NewConnectClientServiceHandler(s.manager, s)
+	path, handler := netclodev1connect.NewClientServiceHandler(clientHandler)
+	connectMux.Handle(path, handler)
+
+	// Use h2c for HTTP/2 without TLS (required for bidirectional streaming)
+	h2cHandler := h2c.NewHandler(connectMux, &http2.Server{})
+
+	s.connectServer = &http.Server{
+		Addr:    connectAddr,
+		Handler: h2cHandler,
+	}
+
+	slog.Info("Starting Connect server", "addr", connectAddr)
+
+	go func() {
+		if err := s.connectServer.ListenAndServe(); err != http.ErrServerClosed {
+			errCh <- fmt.Errorf("connect server: %w", err)
+		}
 	}()
 
 	select {
@@ -99,13 +134,18 @@ func (s *Server) gracefulShutdown() error {
 	slog.Info("Starting graceful shutdown", "activeConnections", s.connCount.Load())
 
 	// Signal all connections to start closing
-	close(s.shutdownCh)
+	select {
+	case <-s.shutdownCh:
+		// Already closed
+	default:
+		close(s.shutdownCh)
+	}
 
 	// Create a context with timeout for the entire shutdown process
 	ctx, cancel := context.WithTimeout(context.Background(), ShutdownTimeout)
 	defer cancel()
 
-	// Wait for all WebSocket connections to close (with timeout)
+	// Wait for all connections to close (with timeout)
 	done := make(chan struct{})
 	go func() {
 		s.wg.Wait()
@@ -114,21 +154,32 @@ func (s *Server) gracefulShutdown() error {
 
 	select {
 	case <-done:
-		slog.Info("All WebSocket connections closed gracefully")
+		slog.Info("All connections closed gracefully")
 	case <-ctx.Done():
-		slog.Warn("Timeout waiting for WebSocket connections, forcing close",
+		slog.Warn("Timeout waiting for connections, forcing close",
 			"remainingConnections", s.connCount.Load())
-		// Force close remaining connections
-		s.connections.Range(func(key, value interface{}) bool {
-			if conn, ok := key.(*Connection); ok {
-				conn.Close()
+		// Force close remaining Connect connections
+		s.connectConnections.Range(func(key, value interface{}) bool {
+			if conn, ok := key.(*ConnectConnection); ok {
+				conn.close()
 			}
 			return true
 		})
 	}
 
+	// Shutdown Connect server
+	if s.connectServer != nil {
+		slog.Info("Stopping Connect server")
+		if err := s.connectServer.Shutdown(ctx); err != nil {
+			slog.Warn("Error shutting down Connect server", "error", err)
+		}
+	}
+
 	// Shutdown the HTTP server
-	return s.server.Shutdown(ctx)
+	if s.httpServer != nil {
+		return s.httpServer.Shutdown(ctx)
+	}
+	return nil
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
@@ -202,53 +253,12 @@ func (s *Server) handleInternalEvent(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
-	// Check if we're shutting down
-	select {
-	case <-s.shutdownCh:
-		http.Error(w, "Server is shutting down", http.StatusServiceUnavailable)
-		return
-	default:
-	}
-
-	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
-		InsecureSkipVerify: true, // Allow any origin for now
-	})
-	if err != nil {
-		slog.Error("Failed to accept WebSocket", "error", err)
-		return
-	}
-
-	c := NewConnection(conn, s.manager, s)
-
-	// Track connection
-	s.connections.Store(c, struct{}{})
-	s.connCount.Add(1)
-	s.wg.Add(1)
-
-	slog.Info("WebSocket connection opened",
-		"remoteAddr", r.RemoteAddr,
-		"activeConnections", s.connCount.Load())
-
-	// Handle the connection
-	c.Run(r.Context())
-
-	// Untrack connection
-	s.connections.Delete(c)
-	s.connCount.Add(-1)
-	s.wg.Done()
-
-	slog.Info("WebSocket connection closed",
-		"remoteAddr", r.RemoteAddr,
-		"activeConnections", s.connCount.Load())
-}
-
 // Shutdown initiates graceful shutdown.
 func (s *Server) Shutdown(ctx context.Context) error {
 	return s.gracefulShutdown()
 }
 
-// ActiveConnections returns the number of active WebSocket connections.
+// ActiveConnections returns the number of active Connect connections.
 func (s *Server) ActiveConnections() int64 {
 	return s.connCount.Load()
 }

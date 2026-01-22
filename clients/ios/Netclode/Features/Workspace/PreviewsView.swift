@@ -4,7 +4,7 @@ struct PreviewsView: View {
     let sessionId: String
 
     @Environment(EventStore.self) private var eventStore
-    @Environment(WebSocketService.self) private var webSocketService
+    @Environment(ConnectService.self) private var connectService
 
     @State private var showExposePortSheet = false
     @State private var portToExpose = ""
@@ -48,7 +48,7 @@ struct PreviewsView: View {
             ExposePortSheet(
                 portText: $portToExpose,
                 onExpose: { port in
-                    webSocketService.send(.portExpose(sessionId: sessionId, port: port))
+                    connectService.send(.portExpose(sessionId: sessionId, port: port))
                     showExposePortSheet = false
                     portToExpose = ""
                 }
@@ -129,5 +129,5 @@ struct PreviewCard: View {
         PreviewsView(sessionId: "test")
     }
     .environment(EventStore())
-    .environment(WebSocketService())
+    .environment(ConnectService())
 }

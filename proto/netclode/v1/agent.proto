@@ -1,0 +1,148 @@
+syntax = "proto3";
+
+package netclode.v1;
+
+import "netclode/v1/common.proto";
+import "netclode/v1/events.proto";
+
+// AgentService handles communication between the control plane and agent sandboxes.
+// Uses Connect protocol (gRPC-compatible) for flexibility.
+service AgentService {
+  // ExecutePrompt sends a prompt to the agent and streams back responses.
+  rpc ExecutePrompt(ExecutePromptRequest) returns (stream AgentStreamResponse);
+
+  // Interrupt stops the current agent execution.
+  rpc Interrupt(InterruptRequest) returns (InterruptResponse);
+
+  // GenerateTitle generates a session title based on conversation.
+  rpc GenerateTitle(GenerateTitleRequest) returns (GenerateTitleResponse);
+
+  // GetGitStatus returns the git status of the workspace.
+  rpc GetGitStatus(GetGitStatusRequest) returns (GetGitStatusResponse);
+
+  // GetGitDiff returns the git diff for the workspace or a specific file.
+  rpc GetGitDiff(GetGitDiffRequest) returns (GetGitDiffResponse);
+
+  // Terminal establishes a bidirectional stream for PTY I/O.
+  rpc Terminal(stream TerminalInput) returns (stream TerminalOutput);
+
+  // Health returns the health status of the agent.
+  rpc Health(HealthRequest) returns (HealthResponse);
+}
+
+// ============================================================================
+// ExecutePrompt
+// ============================================================================
+
+message ExecutePromptRequest {
+  string session_id = 1;
+  string text = 2;
+  SessionConfig config = 3;
+}
+
+// AgentStreamResponse is streamed back during prompt execution.
+message AgentStreamResponse {
+  oneof response {
+    AgentTextDelta text_delta = 1;
+    AgentEvent event = 2;
+    AgentSystemMessage system_message = 3;
+    AgentResult result = 4;
+    AgentStreamError error = 5;
+  }
+}
+
+// AgentTextDelta represents a partial text response from the agent.
+message AgentTextDelta {
+  string content = 1;
+  bool partial = 2;
+  string message_id = 3;
+}
+
+// AgentSystemMessage represents system-level messages during execution.
+message AgentSystemMessage {
+  string message = 1;
+}
+
+// AgentResult represents the final result of prompt execution.
+message AgentResult {
+  int32 input_tokens = 1;
+  int32 output_tokens = 2;
+  int32 total_turns = 3;
+}
+
+// AgentStreamError represents an error during prompt execution.
+message AgentStreamError {
+  string message = 1;
+  bool retryable = 2;
+}
+
+// ============================================================================
+// Interrupt
+// ============================================================================
+
+message InterruptRequest {}
+
+message InterruptResponse {
+  bool success = 1;
+}
+
+// ============================================================================
+// GenerateTitle
+// ============================================================================
+
+message GenerateTitleRequest {
+  string prompt = 1;
+}
+
+message GenerateTitleResponse {
+  string title = 1;
+}
+
+// ============================================================================
+// Git Operations
+// ============================================================================
+
+message GetGitStatusRequest {}
+
+message GetGitStatusResponse {
+  repeated GitFileChange files = 1;
+}
+
+message GetGitDiffRequest {
+  optional string file = 1; // Specific file, or all if empty
+}
+
+message GetGitDiffResponse {
+  string diff = 1;
+}
+
+// ============================================================================
+// Terminal
+// ============================================================================
+
+message TerminalInput {
+  oneof input {
+    string data = 1;
+    TerminalResize resize = 2;
+  }
+}
+
+message TerminalResize {
+  int32 cols = 1;
+  int32 rows = 2;
+}
+
+message TerminalOutput {
+  string data = 1;
+}
+
+// ============================================================================
+// Health
+// ============================================================================
+
+message HealthRequest {}
+
+message HealthResponse {
+  bool healthy = 1;
+  string version = 2;
+}

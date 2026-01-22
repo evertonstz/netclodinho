@@ -37,6 +37,7 @@ func run() error {
 	cfg := config.Load()
 	slog.Info("Configuration loaded",
 		"port", cfg.Port,
+		"connectPort", cfg.ConnectPort,
 		"namespace", cfg.K8sNamespace,
 		"agentImage", cfg.AgentImage,
 		"redisURL", storage.ParseRedisURL(cfg.RedisURL),
@@ -83,7 +84,7 @@ func run() error {
 		return fmt.Errorf("init manager: %w", err)
 	}
 
-	// Create HTTP/WebSocket server
+	// Create HTTP/Connect server
 	server := api.NewServer(manager)
 
 	// Handle shutdown signals
@@ -97,8 +98,8 @@ func run() error {
 	}()
 
 	// Start server (blocks until shutdown)
-	addr := fmt.Sprintf(":%d", cfg.Port)
-	if err := server.ListenAndServe(ctx, addr); err != nil {
+	httpAddr := fmt.Sprintf(":%d", cfg.Port)
+	if err := server.ListenAndServe(ctx, httpAddr, cfg.ConnectPort); err != nil {
 		return fmt.Errorf("server error: %w", err)
 	}
 

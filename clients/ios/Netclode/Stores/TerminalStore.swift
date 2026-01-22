@@ -9,8 +9,8 @@ final class TerminalStore {
     /// Bridges per session
     private var bridgesBySession: [String: SwiftTermBridge] = [:]
     
-    /// Reference to WebSocket service (set during init)
-    weak var webSocketService: WebSocketService?
+    /// Reference to Connect service (set during init)
+    weak var connectService: ConnectService?
     
     private let maxOutputLength = 100_000 // 100KB buffer per session
     
@@ -20,7 +20,7 @@ final class TerminalStore {
             return existing
         }
         
-        let bridge = SwiftTermBridge(sessionId: sessionId, webSocketService: webSocketService)
+        let bridge = SwiftTermBridge(sessionId: sessionId, connectService: connectService)
         bridgesBySession[sessionId] = bridge
         
         // Feed any buffered output to the new bridge
