@@ -1,0 +1,229 @@
+package client
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+
+	"connectrpc.com/connect"
+	pb "github.com/angristan/netclode/services/control-plane/gen/netclode/v1"
+	"github.com/angristan/netclode/services/control-plane/gen/netclode/v1/netclodev1connect"
+)
+
+// Client wraps the Connect client for CLI operations.
+type Client struct {
+	baseURL string
+	client  netclodev1connect.ClientServiceClient
+}
+
+// New creates a new CLI client.
+func New(baseURL string) *Client {
+	httpClient := &http.Client{}
+	return &Client{
+		baseURL: baseURL,
+		client:  netclodev1connect.NewClientServiceClient(httpClient, baseURL),
+	}
+}
+
+// ListSessions returns all sessions.
+func (c *Client) ListSessions(ctx context.Context) ([]*pb.Session, error) {
+	stream := c.client.Connect(ctx)
+	defer stream.CloseRequest()
+
+	if err := stream.Send(&pb.ClientMessage{
+		Message: &pb.ClientMessage_ListSessions{
+			ListSessions: &pb.ListSessionsRequest{},
+		},
+	}); err != nil {
+		return nil, fmt.Errorf("send request: %w", err)
+	}
+
+	msg, err := stream.Receive()
+	if err != nil {
+		return nil, fmt.Errorf("receive response: %w", err)
+	}
+
+	if resp := msg.GetSessionList(); resp != nil {
+		return resp.Sessions, nil
+	}
+	if errResp := msg.GetError(); errResp != nil {
+		return nil, fmt.Errorf("%s: %s", errResp.Error.Code, errResp.Error.Message)
+	}
+
+	return nil, fmt.Errorf("unexpected response type: %T", msg.GetMessage())
+}
+
+// SyncSessions returns all sessions with metadata (message counts).
+func (c *Client) SyncSessions(ctx context.Context) ([]*pb.SessionSummary, error) {
+	stream := c.client.Connect(ctx)
+	defer stream.CloseRequest()
+
+	if err := stream.Send(&pb.ClientMessage{
+		Message: &pb.ClientMessage_Sync{
+			Sync: &pb.SyncRequest{},
+		},
+	}); err != nil {
+		return nil, fmt.Errorf("send request: %w", err)
+	}
+
+	msg, err := stream.Receive()
+	if err != nil {
+		return nil, fmt.Errorf("receive response: %w", err)
+	}
+
+	if resp := msg.GetSyncResponse(); resp != nil {
+		return resp.Sessions, nil
+	}
+	if errResp := msg.GetError(); errResp != nil {
+		return nil, fmt.Errorf("%s: %s", errResp.Error.Code, errResp.Error.Message)
+	}
+
+	return nil, fmt.Errorf("unexpected response type: %T", msg.GetMessage())
+}
+
+// SessionState contains session details with messages and events.
+type SessionState struct {
+	Session            *pb.Session
+	Messages           []*pb.PersistedMessage
+	Events             []*pb.PersistedEvent
+	HasMore            bool
+	LastNotificationID string
+}
+
+// GetSession returns a session with its messages and events.
+func (c *Client) GetSession(ctx context.Context, sessionID string) (*SessionState, error) {
+	stream := c.client.Connect(ctx)
+	defer stream.CloseRequest()
+
+	if err := stream.Send(&pb.ClientMessage{
+		Message: &pb.ClientMessage_OpenSession{
+			OpenSession: &pb.OpenSessionRequest{
+				SessionId: sessionID,
+			},
+		},
+	}); err != nil {
+		return nil, fmt.Errorf("send request: %w", err)
+	}
+
+	msg, err := stream.Receive()
+	if err != nil {
+		return nil, fmt.Errorf("receive response: %w", err)
+	}
+
+	if resp := msg.GetSessionState(); resp != nil {
+		state := &SessionState{
+			Session:  resp.Session,
+			Messages: resp.Messages,
+			Events:   resp.Events,
+			HasMore:  resp.HasMore,
+		}
+		if resp.LastNotificationId != nil {
+			state.LastNotificationID = *resp.LastNotificationId
+		}
+		return state, nil
+	}
+	if errResp := msg.GetError(); errResp != nil {
+		return nil, fmt.Errorf("%s: %s", errResp.Error.Code, errResp.Error.Message)
+	}
+
+	return nil, fmt.Errorf("unexpected response type: %T", msg.GetMessage())
+}
+
+// DeleteSession deletes a session.
+func (c *Client) DeleteSession(ctx context.Context, sessionID string) error {
+	stream := c.client.Connect(ctx)
+	defer stream.CloseRequest()
+
+	if err := stream.Send(&pb.ClientMessage{
+		Message: &pb.ClientMessage_DeleteSession{
+			DeleteSession: &pb.DeleteSessionRequest{
+				SessionId: sessionID,
+			},
+		},
+	}); err != nil {
+		return fmt.Errorf("send request: %w", err)
+	}
+
+	msg, err := stream.Receive()
+	if err != nil {
+		return fmt.Errorf("receive response: %w", err)
+	}
+
+	if msg.GetSessionDeleted() != nil {
+		return nil
+	}
+	if errResp := msg.GetError(); errResp != nil {
+		return fmt.Errorf("%s: %s", errResp.Error.Code, errResp.Error.Message)
+	}
+
+	return fmt.Errorf("unexpected response type: %T", msg.GetMessage())
+}
+
+// EventHandler is called for each event received during tailing.
+type EventHandler func(event *pb.AgentEventResponse) error
+
+// MessageHandler is called for each message received during tailing.
+type MessageHandler func(msg *pb.AgentMessageResponse) error
+
+// TailEvents opens a session and streams events in real-time.
+func (c *Client) TailEvents(ctx context.Context, sessionID string, onEvent EventHandler, onMessage MessageHandler) error {
+	stream := c.client.Connect(ctx)
+	defer stream.CloseRequest()
+
+	// Open session to start receiving events
+	if err := stream.Send(&pb.ClientMessage{
+		Message: &pb.ClientMessage_OpenSession{
+			OpenSession: &pb.OpenSessionRequest{
+				SessionId: sessionID,
+			},
+		},
+	}); err != nil {
+		return fmt.Errorf("send request: %w", err)
+	}
+
+	// First message should be SessionStateResponse
+	msg, err := stream.Receive()
+	if err != nil {
+		return fmt.Errorf("receive initial response: %w", err)
+	}
+
+	if errResp := msg.GetError(); errResp != nil {
+		return fmt.Errorf("%s: %s", errResp.Error.Code, errResp.Error.Message)
+	}
+
+	// Stream events
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		msg, err := stream.Receive()
+		if err != nil {
+			return err
+		}
+
+		if event := msg.GetAgentEvent(); event != nil && onEvent != nil {
+			if err := onEvent(event); err != nil {
+				return err
+			}
+		}
+
+		if agentMsg := msg.GetAgentMessage(); agentMsg != nil && onMessage != nil {
+			if err := onMessage(agentMsg); err != nil {
+				return err
+			}
+		}
+
+		// Handle other message types as needed
+		if msg.GetAgentDone() != nil {
+			// Agent finished processing - continue waiting for more
+		}
+	}
+}
+
+// Stream returns a raw bidirectional stream for advanced usage.
+func (c *Client) Stream(ctx context.Context) *connect.BidiStreamForClient[pb.ClientMessage, pb.ServerMessage] {
+	return c.client.Connect(ctx)
+}
