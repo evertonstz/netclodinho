@@ -90,11 +90,30 @@ func (s *Server) ListenAndServe(ctx context.Context, httpAddr string) error {
 	mux.Handle(agentPath, agentHandlerFunc)
 
 	// Wrap with h2c to support both HTTP/1.1 and HTTP/2 on the same port
-	h2cHandler := h2c.NewHandler(mux, &http2.Server{})
+	// Configure HTTP/2 with aggressive keep-alive settings to prevent
+	// iOS Tailscale network extension from terminating idle connections
+	h2s := &http2.Server{
+		// ReadIdleTimeout is how long to wait before sending a PING frame
+		// when the connection appears idle. This is crucial for keeping
+		// bidirectional streams alive through iOS Tailscale.
+		ReadIdleTimeout: 5 * time.Second,
+		// PingTimeout is how long to wait for a PING response before
+		// considering the connection dead.
+		PingTimeout: 10 * time.Second,
+		// MaxConcurrentStreams limits streams per connection (default 250)
+		MaxConcurrentStreams: 100,
+	}
+	h2cHandler := h2c.NewHandler(mux, h2s)
 
 	s.httpServer = &http.Server{
 		Addr:    httpAddr,
 		Handler: h2cHandler,
+		// IdleTimeout is the maximum time to wait for the next request.
+		// For bidirectional streams, this doesn't apply during active streaming.
+		// Set relatively high since we use HTTP/2 PING for keep-alive.
+		IdleTimeout: 120 * time.Second,
+		// ReadHeaderTimeout prevents slowloris attacks
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	slog.Info("Starting h2c server (HTTP/1.1 + HTTP/2)", "addr", httpAddr)
