@@ -1,5 +1,6 @@
 import Foundation
 import Connect
+import ConnectNIO
 import SwiftProtobuf
 import os.log
 
@@ -257,8 +258,11 @@ final class ConnectService {
     
     /// Establish the actual connection (called within timeout context).
     private func establishConnection(to grpcHost: String) async throws {
+        // Use NIOHTTPClient instead of URLSessionHTTPClient for better HTTP/2
+        // handling through iOS Tailscale network extension. NIOHTTPClient uses
+        // Swift NIO's HTTP/2 implementation which bypasses URLSession.
         client = ProtocolClient(
-            httpClient: URLSessionHTTPClient(),
+            httpClient: NIOHTTPClient(host: grpcHost, timeout: 120),
             config: ProtocolClientConfig(
                 host: grpcHost,
                 networkProtocol: .connect,
@@ -919,7 +923,6 @@ final class ConnectService {
 
         recordActivity()
         let protoMessage = convertToProtoMessage(message)
-        logger.debug("Sending: \(String(describing: message))")
         
         Task {
             do {

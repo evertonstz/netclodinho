@@ -11,6 +11,7 @@
 		D10000000000000000000003 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = P20000000000000000000002 /* MarkdownUI */; };
 		D10000000000000000000004 /* Connect in Frameworks */ = {isa = PBXBuildFile; productRef = P20000000000000000000003 /* Connect */; };
 		D10000000000000000000005 /* SwiftProtobuf in Frameworks */ = {isa = PBXBuildFile; productRef = P20000000000000000000004 /* SwiftProtobuf */; };
+		D10000000000000000000006 /* ConnectNIO in Frameworks */ = {isa = PBXBuildFile; productRef = P20000000000000000000005 /* ConnectNIO */; };
 		T10000000000000000000001 /* EventStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T20000000000000000000001 /* EventStoreTests.swift */; };
 		T10000000000000000000002 /* MessageRouterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T20000000000000000000002 /* MessageRouterTests.swift */; };
 		A10000000000000000000001 /* NetclodeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000001 /* NetclodeApp.swift */; };
@@ -152,6 +153,7 @@
 				D10000000000000000000003 /* MarkdownUI in Frameworks */,
 				D10000000000000000000004 /* Connect in Frameworks */,
 				D10000000000000000000005 /* SwiftProtobuf in Frameworks */,
+				D10000000000000000000006 /* ConnectNIO in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -428,6 +430,7 @@
 				P20000000000000000000002 /* MarkdownUI */,
 				P20000000000000000000003 /* Connect */,
 				P20000000000000000000004 /* SwiftProtobuf */,
+				P20000000000000000000005 /* ConnectNIO */,
 			);
 			productName = Netclode;
 			productReference = C10000000000000000000001 /* Netclode.app */;
@@ -902,6 +905,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = P10000000000000000000004 /* XCRemoteSwiftPackageReference "swift-protobuf" */;
 			productName = SwiftProtobuf;
+		};
+		P20000000000000000000005 /* ConnectNIO */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = P10000000000000000000003 /* XCRemoteSwiftPackageReference "connect-swift" */;
+			productName = ConnectNIO;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
