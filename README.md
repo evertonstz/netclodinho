@@ -160,7 +160,8 @@ Main interface is the **iOS/Mac app** (SwiftUI, iOS 26 Liquid Glass).
 ```
 netclode/
 ├── clients/
-│   └── ios/              # iOS/Mac app (SwiftUI)
+│   ├── ios/              # iOS/Mac app (SwiftUI)
+│   └── cli/              # Debug CLI (Go)
 ├── services/
 │   ├── control-plane/    # Session orchestration (Go)
 │   └── agent/            # Claude Agent SDK runner (Node.js)
@@ -188,6 +189,7 @@ Quick version:
 - [Operations](docs/operations.md) - Day-to-day management
 - [GitHub Integration](docs/github-integration.md) - Clone repos and push commits
 - [iOS App](clients/ios/README.md)
+- [CLI](clients/cli/README.md) - Debug CLI for inspecting sessions
 - [Control Plane](services/control-plane/README.md)
 - [Agent](services/agent/README.md)
 - [Infrastructure](infra/k8s/README.md)
