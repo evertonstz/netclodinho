@@ -110,8 +110,13 @@ func (m *Manager) Initialize(ctx context.Context) error {
 			}
 		} else if sb.Ready {
 			state.ServiceFQDN = sb.ServiceFQDN
-			// Reset to ready if was creating or running (we lost the agent connection on restart)
-			if state.Session.Status == pb.SessionStatus_SESSION_STATUS_CREATING || state.Session.Status == pb.SessionStatus_SESSION_STATUS_RUNNING {
+			// If session was running, mark as interrupted (agent was processing when we lost connection)
+			// If session was creating, mark as ready (sandbox is ready to accept prompts)
+			if state.Session.Status == pb.SessionStatus_SESSION_STATUS_RUNNING {
+				slog.Info("Session was running on restart, marking as interrupted", "sessionID", id)
+				state.Session.Status = pb.SessionStatus_SESSION_STATUS_INTERRUPTED
+				_ = m.storage.UpdateSessionStatus(ctx, id, pb.SessionStatus_SESSION_STATUS_INTERRUPTED)
+			} else if state.Session.Status == pb.SessionStatus_SESSION_STATUS_CREATING {
 				state.Session.Status = pb.SessionStatus_SESSION_STATUS_READY
 				_ = m.storage.UpdateSessionStatus(ctx, id, pb.SessionStatus_SESSION_STATUS_READY)
 			}
