@@ -158,24 +158,14 @@ func notificationToServerMessage(sessionID string, n *storage.Notification) *pb.
 		}
 
 	case "message":
-		// The payload contains message data including partial flag
-		var payload struct {
-			ID      string `json:"id"`
-			Content string `json:"content"`
-			Partial bool   `json:"partial"`
-		}
-		if err := json.Unmarshal(n.Payload, &payload); err != nil {
+		var msg pb.AgentMessageResponse
+		if err := protojson.Unmarshal(n.Payload, &msg); err != nil {
 			slog.Warn("failed to unmarshal message payload", "session", sessionID, "error", err)
 			return nil
 		}
 		return &pb.ServerMessage{
 			Message: &pb.ServerMessage_AgentMessage{
-				AgentMessage: &pb.AgentMessageResponse{
-					SessionId: sessionID,
-					Content:   payload.Content,
-					Partial:   payload.Partial,
-					MessageId: payload.ID,
-				},
+				AgentMessage: &msg,
 			},
 		}
 
@@ -194,90 +184,66 @@ func notificationToServerMessage(sessionID string, n *storage.Notification) *pb.
 		}
 
 	case "user_message":
-		var payload struct {
-			Text string `json:"text"`
-		}
-		if err := json.Unmarshal(n.Payload, &payload); err != nil {
+		var msg pb.UserMessageResponse
+		if err := protojson.Unmarshal(n.Payload, &msg); err != nil {
 			slog.Warn("failed to unmarshal user message payload", "session", sessionID, "error", err)
 			return nil
 		}
 		return &pb.ServerMessage{
 			Message: &pb.ServerMessage_UserMessage{
-				UserMessage: &pb.UserMessageResponse{
-					SessionId: sessionID,
-					Content:   payload.Text,
-				},
+				UserMessage: &msg,
 			},
 		}
 
 	case "agent_done":
+		var msg pb.AgentDoneResponse
+		if err := protojson.Unmarshal(n.Payload, &msg); err != nil {
+			slog.Warn("failed to unmarshal agent done payload", "session", sessionID, "error", err)
+			return nil
+		}
 		return &pb.ServerMessage{
 			Message: &pb.ServerMessage_AgentDone{
-				AgentDone: &pb.AgentDoneResponse{
-					SessionId: sessionID,
-				},
+				AgentDone: &msg,
 			},
 		}
 
 	case "agent_error":
-		var payload struct {
-			Error string `json:"error"`
-		}
-		if err := json.Unmarshal(n.Payload, &payload); err != nil {
-			slog.Warn("failed to unmarshal agent error payload", "session", sessionID, "error", err)
+		var err pb.Error
+		if unmarshalErr := protojson.Unmarshal(n.Payload, &err); unmarshalErr != nil {
+			slog.Warn("failed to unmarshal agent error payload", "session", sessionID, "error", unmarshalErr)
 			return nil
 		}
 		return &pb.ServerMessage{
 			Message: &pb.ServerMessage_Error{
 				Error: &pb.ErrorResponse{
-					Error: &pb.Error{
-						Code:      "AGENT_ERROR",
-						Message:   payload.Error,
-						SessionId: &sessionID,
-					},
+					Error: &err,
 				},
 			},
 		}
 
 	case "session_error":
-		var payload struct {
-			Error     string `json:"error"`
-			SessionID string `json:"sessionId"`
-		}
-		if err := json.Unmarshal(n.Payload, &payload); err != nil {
-			slog.Warn("failed to unmarshal session error payload", "session", sessionID, "error", err)
+		var err pb.Error
+		if unmarshalErr := protojson.Unmarshal(n.Payload, &err); unmarshalErr != nil {
+			slog.Warn("failed to unmarshal session error payload", "session", sessionID, "error", unmarshalErr)
 			return nil
-		}
-		sid := payload.SessionID
-		if sid == "" {
-			sid = sessionID
 		}
 		return &pb.ServerMessage{
 			Message: &pb.ServerMessage_Error{
 				Error: &pb.ErrorResponse{
-					Error: &pb.Error{
-						Code:      "SESSION_ERROR",
-						Message:   payload.Error,
-						SessionId: &sid,
-					},
+					Error: &err,
 				},
 			},
 		}
 
 	case "terminal_output":
-		var payload struct {
-			Data string `json:"data"`
-		}
-		if err := json.Unmarshal(n.Payload, &payload); err != nil {
+		var msg pb.TerminalOutputResponse
+		if err := protojson.Unmarshal(n.Payload, &msg); err != nil {
 			slog.Warn("failed to unmarshal terminal output payload", "session", sessionID, "error", err)
 			return nil
 		}
 		return &pb.ServerMessage{
 			Message: &pb.ServerMessage_TerminalOutput{
-				TerminalOutput: &pb.TerminalOutputResponse{
-					SessionId: sessionID,
-					Data:      payload.Data,
-				},
+				TerminalOutput: &msg,
 			},
 		}
 

@@ -2,7 +2,6 @@ package session
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -14,6 +13,7 @@ import (
 	"github.com/angristan/netclode/services/control-plane/internal/k8s"
 	"github.com/angristan/netclode/services/control-plane/internal/storage"
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -1044,9 +1044,14 @@ func (m *Manager) publishNotification(ctx context.Context, sessionID string, not
 	}
 }
 
+// protoJsonOpts configures protojson to emit readable enum names instead of numbers.
+var protoJsonOpts = protojson.MarshalOptions{
+	UseEnumNumbers: false,
+}
+
 // emitSessionUpdated broadcasts a session update to all subscribers.
 func (m *Manager) emitSessionUpdated(ctx context.Context, session *pb.Session) {
-	payload, _ := json.Marshal(sessionToJSON(session))
+	payload, _ := protoJsonOpts.Marshal(session)
 	m.publishNotification(ctx, session.Id, &storage.Notification{
 		Type:      "session_update",
 		Payload:   payload,
@@ -1056,9 +1061,10 @@ func (m *Manager) emitSessionUpdated(ctx context.Context, session *pb.Session) {
 
 // emitSessionError broadcasts a session error to all subscribers.
 func (m *Manager) emitSessionError(ctx context.Context, sessionID, errMsg string) {
-	payload, _ := json.Marshal(map[string]string{
-		"error":     errMsg,
-		"sessionId": sessionID,
+	payload, _ := protoJsonOpts.Marshal(&pb.Error{
+		Code:      "SESSION_ERROR",
+		Message:   errMsg,
+		SessionId: &sessionID,
 	})
 	m.publishNotification(ctx, sessionID, &storage.Notification{
 		Type:      "session_error",
@@ -1069,7 +1075,7 @@ func (m *Manager) emitSessionError(ctx context.Context, sessionID, errMsg string
 
 // emitAgentEvent broadcasts an agent event to all subscribers.
 func (m *Manager) emitAgentEvent(ctx context.Context, sessionID string, event *pb.AgentEvent) {
-	payload, _ := json.Marshal(agentEventToJSON(event))
+	payload, _ := protoJsonOpts.Marshal(event)
 	m.publishNotification(ctx, sessionID, &storage.Notification{
 		Type:      "event",
 		Payload:   payload,
@@ -1079,12 +1085,11 @@ func (m *Manager) emitAgentEvent(ctx context.Context, sessionID string, event *p
 
 // emitAgentMessage broadcasts an agent message to all subscribers.
 func (m *Manager) emitAgentMessage(ctx context.Context, sessionID, messageID, content string, partial bool) {
-	payload, _ := json.Marshal(map[string]interface{}{
-		"id":        messageID,
-		"sessionId": sessionID,
-		"role":      "assistant",
-		"content":   content,
-		"partial":   partial,
+	payload, _ := protoJsonOpts.Marshal(&pb.AgentMessageResponse{
+		SessionId: sessionID,
+		MessageId: messageID,
+		Content:   content,
+		Partial:   partial,
 	})
 	m.publishNotification(ctx, sessionID, &storage.Notification{
 		Type:      "message",
@@ -1095,17 +1100,22 @@ func (m *Manager) emitAgentMessage(ctx context.Context, sessionID, messageID, co
 
 // emitAgentDone broadcasts agent completion to all subscribers.
 func (m *Manager) emitAgentDone(ctx context.Context, sessionID string) {
+	payload, _ := protoJsonOpts.Marshal(&pb.AgentDoneResponse{
+		SessionId: sessionID,
+	})
 	m.publishNotification(ctx, sessionID, &storage.Notification{
 		Type:      "agent_done",
-		Payload:   json.RawMessage(`{}`),
+		Payload:   payload,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	})
 }
 
 // emitAgentError broadcasts an agent error to all subscribers.
 func (m *Manager) emitAgentError(ctx context.Context, sessionID, errMsg string) {
-	payload, _ := json.Marshal(map[string]string{
-		"error": errMsg,
+	payload, _ := protoJsonOpts.Marshal(&pb.Error{
+		Code:      "AGENT_ERROR",
+		Message:   errMsg,
+		SessionId: &sessionID,
 	})
 	m.publishNotification(ctx, sessionID, &storage.Notification{
 		Type:      "agent_error",
@@ -1116,216 +1126,15 @@ func (m *Manager) emitAgentError(ctx context.Context, sessionID, errMsg string) 
 
 // emitUserMessage broadcasts a user message to all subscribers.
 func (m *Manager) emitUserMessage(ctx context.Context, sessionID, text string) {
-	payload, _ := json.Marshal(map[string]string{
-		"text":      text,
-		"sessionId": sessionID,
+	payload, _ := protoJsonOpts.Marshal(&pb.UserMessageResponse{
+		SessionId: sessionID,
+		Content:   text,
 	})
 	m.publishNotification(ctx, sessionID, &storage.Notification{
 		Type:      "user_message",
 		Payload:   payload,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	})
-}
-
-// sessionToJSON converts a pb.Session to a JSON-friendly map.
-func sessionToJSON(s *pb.Session) map[string]interface{} {
-	result := map[string]interface{}{
-		"id":     s.Id,
-		"name":   s.Name,
-		"status": sessionStatusToString(s.Status),
-	}
-	if s.Repo != nil {
-		result["repo"] = *s.Repo
-	}
-	if s.RepoAccess != nil {
-		result["repoAccess"] = repoAccessToString(*s.RepoAccess)
-	}
-	if s.CreatedAt != nil {
-		result["createdAt"] = s.CreatedAt.AsTime().Format(time.RFC3339)
-	}
-	if s.LastActiveAt != nil {
-		result["lastActiveAt"] = s.LastActiveAt.AsTime().Format(time.RFC3339)
-	}
-	return result
-}
-
-// sessionStatusToString converts pb.SessionStatus to string for JSON.
-func sessionStatusToString(s pb.SessionStatus) string {
-	switch s {
-	case pb.SessionStatus_SESSION_STATUS_CREATING:
-		return "creating"
-	case pb.SessionStatus_SESSION_STATUS_RESUMING:
-		return "resuming"
-	case pb.SessionStatus_SESSION_STATUS_READY:
-		return "ready"
-	case pb.SessionStatus_SESSION_STATUS_RUNNING:
-		return "running"
-	case pb.SessionStatus_SESSION_STATUS_PAUSED:
-		return "paused"
-	case pb.SessionStatus_SESSION_STATUS_ERROR:
-		return "error"
-	case pb.SessionStatus_SESSION_STATUS_INTERRUPTED:
-		return "interrupted"
-	default:
-		return "unknown"
-	}
-}
-
-// repoAccessToString converts pb.RepoAccess to string for JSON.
-func repoAccessToString(r pb.RepoAccess) string {
-	switch r {
-	case pb.RepoAccess_REPO_ACCESS_READ:
-		return "read"
-	case pb.RepoAccess_REPO_ACCESS_WRITE:
-		return "write"
-	default:
-		return ""
-	}
-}
-
-// agentEventToJSON converts a pb.AgentEvent to a JSON-friendly map.
-// This preserves the flat structure expected by clients.
-func agentEventToJSON(e *pb.AgentEvent) map[string]interface{} {
-	result := map[string]interface{}{
-		"kind": agentEventKindToString(e.Kind),
-	}
-	if e.Timestamp != nil {
-		result["timestamp"] = e.Timestamp.AsTime().Format(time.RFC3339)
-	}
-
-	// Extract fields from oneof payload
-	switch p := e.Payload.(type) {
-	case *pb.AgentEvent_Tool:
-		if p.Tool != nil {
-			result["tool"] = p.Tool.Tool
-			result["toolUseId"] = p.Tool.ToolUseId
-			if p.Tool.ParentToolUseId != nil {
-				result["parentToolUseId"] = *p.Tool.ParentToolUseId
-			}
-			if p.Tool.Input != nil {
-				result["input"] = p.Tool.Input.AsMap()
-			}
-			if p.Tool.InputDelta != nil && *p.Tool.InputDelta != "" {
-				result["inputDelta"] = *p.Tool.InputDelta
-			}
-			if p.Tool.Result != nil {
-				result["result"] = *p.Tool.Result
-			}
-			if p.Tool.Error != nil {
-				result["error"] = *p.Tool.Error
-			}
-		}
-	case *pb.AgentEvent_FileChange:
-		if p.FileChange != nil {
-			result["path"] = p.FileChange.Path
-			result["action"] = fileActionToString(p.FileChange.Action)
-			if p.FileChange.LinesAdded != nil {
-				result["linesAdded"] = *p.FileChange.LinesAdded
-			}
-			if p.FileChange.LinesRemoved != nil {
-				result["linesRemoved"] = *p.FileChange.LinesRemoved
-			}
-		}
-	case *pb.AgentEvent_Command:
-		if p.Command != nil {
-			result["command"] = p.Command.Command
-			if p.Command.Cwd != nil {
-				result["cwd"] = *p.Command.Cwd
-			}
-			if p.Command.ExitCode != nil {
-				result["exitCode"] = *p.Command.ExitCode
-			}
-			if p.Command.Output != nil {
-				result["output"] = *p.Command.Output
-			}
-		}
-	case *pb.AgentEvent_Thinking:
-		if p.Thinking != nil {
-			result["content"] = p.Thinking.Content
-			result["thinkingId"] = p.Thinking.ThinkingId
-			result["partial"] = p.Thinking.Partial
-		}
-	case *pb.AgentEvent_PortExposed:
-		if p.PortExposed != nil {
-			result["port"] = p.PortExposed.Port
-			if p.PortExposed.Process != nil {
-				result["process"] = *p.PortExposed.Process
-			}
-			if p.PortExposed.PreviewUrl != nil {
-				result["previewUrl"] = *p.PortExposed.PreviewUrl
-			}
-		}
-	case *pb.AgentEvent_RepoClone:
-		if p.RepoClone != nil {
-			result["repo"] = p.RepoClone.Repo
-			result["stage"] = repoCloneStageToString(p.RepoClone.Stage)
-			result["message"] = p.RepoClone.Message
-		}
-	}
-
-	return result
-}
-
-// agentEventKindToString converts pb.AgentEventKind to string for JSON.
-func agentEventKindToString(k pb.AgentEventKind) string {
-	switch k {
-	case pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_START:
-		return "tool_start"
-	case pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_INPUT:
-		return "tool_input"
-	case pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_INPUT_COMPLETE:
-		return "tool_input_complete"
-	case pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_END:
-		return "tool_end"
-	case pb.AgentEventKind_AGENT_EVENT_KIND_FILE_CHANGE:
-		return "file_change"
-	case pb.AgentEventKind_AGENT_EVENT_KIND_COMMAND_START:
-		return "command_start"
-	case pb.AgentEventKind_AGENT_EVENT_KIND_COMMAND_END:
-		return "command_end"
-	case pb.AgentEventKind_AGENT_EVENT_KIND_THINKING:
-		return "thinking"
-	case pb.AgentEventKind_AGENT_EVENT_KIND_PORT_EXPOSED:
-		return "port_exposed"
-	case pb.AgentEventKind_AGENT_EVENT_KIND_REPO_CLONE:
-		return "repo_clone"
-	case pb.AgentEventKind_AGENT_EVENT_KIND_AGENT_DISCONNECTED:
-		return "agent_disconnected"
-	case pb.AgentEventKind_AGENT_EVENT_KIND_AGENT_RECONNECTED:
-		return "agent_reconnected"
-	default:
-		return "unknown"
-	}
-}
-
-// fileActionToString converts pb.FileAction to string for JSON.
-func fileActionToString(a pb.FileAction) string {
-	switch a {
-	case pb.FileAction_FILE_ACTION_CREATE:
-		return "create"
-	case pb.FileAction_FILE_ACTION_EDIT:
-		return "edit"
-	case pb.FileAction_FILE_ACTION_DELETE:
-		return "delete"
-	default:
-		return ""
-	}
-}
-
-// repoCloneStageToString converts pb.RepoCloneStage to string for JSON.
-func repoCloneStageToString(s pb.RepoCloneStage) string {
-	switch s {
-	case pb.RepoCloneStage_REPO_CLONE_STAGE_STARTING:
-		return "starting"
-	case pb.RepoCloneStage_REPO_CLONE_STAGE_CLONING:
-		return "cloning"
-	case pb.RepoCloneStage_REPO_CLONE_STAGE_DONE:
-		return "done"
-	case pb.RepoCloneStage_REPO_CLONE_STAGE_ERROR:
-		return "error"
-	default:
-		return ""
-	}
 }
 
 // EmitEvent broadcasts an event from a sandbox to all connected clients.
@@ -1348,28 +1157,15 @@ func (m *Manager) EmitEvent(ctx context.Context, sessionID string, event *pb.Age
 
 // emitTerminalOutput broadcasts terminal output to all connected clients.
 func (m *Manager) emitTerminalOutput(ctx context.Context, sessionID, data string) {
-	// Terminal output is ephemeral (not persisted), so we broadcast directly
-	// to all subscribed clients without going through Redis Streams.
-	// Use json.Marshal to properly encode the data (handles escape sequences correctly)
-	payload := struct {
-		SessionID string `json:"sessionId"`
-		Data      string `json:"data"`
-	}{
-		SessionID: sessionID,
+	payload, _ := protoJsonOpts.Marshal(&pb.TerminalOutputResponse{
+		SessionId: sessionID,
 		Data:      data,
-	}
-	payloadBytes, err := json.Marshal(payload)
-	if err != nil {
-		slog.Warn("Failed to marshal terminal output", "sessionID", sessionID, "error", err)
-		return
-	}
-
-	notification := &storage.Notification{
+	})
+	m.publishNotification(ctx, sessionID, &storage.Notification{
 		Type:      "terminal_output",
-		Payload:   json.RawMessage(payloadBytes),
+		Payload:   payload,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
-	}
-	m.publishNotification(ctx, sessionID, notification)
+	})
 }
 
 // SendTerminalInput sends input to the agent terminal.
