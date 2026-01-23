@@ -41,15 +41,6 @@ if [ -n "$GITHUB_TOKEN" ]; then
 	chmod 600 /agent/.git-credentials
 fi
 
-# Configure git credentials if GitHub token is provided
-if [ -n "$GITHUB_TOKEN" ]; then
-	echo "[entrypoint] Configuring git credentials..."
-	mkdir -p /agent/.config/git
-	echo "https://x-access-token:${GITHUB_TOKEN}@github.com" >/agent/.git-credentials
-	chown -R agent:agent /agent/.config /agent/.git-credentials
-	chmod 600 /agent/.git-credentials
-fi
-
 # Drop privileges and run agent
 # Preserve PATH and mise env vars for the agent user
 # Include shims path so mise-installed tools are available
