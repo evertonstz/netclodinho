@@ -28,7 +28,7 @@ func New(baseURL string) *Client {
 // ListSessions returns all sessions.
 func (c *Client) ListSessions(ctx context.Context) ([]*pb.Session, error) {
 	stream := c.client.Connect(ctx)
-	defer stream.CloseRequest()
+	defer func() { _ = stream.CloseRequest() }()
 
 	if err := stream.Send(&pb.ClientMessage{
 		Message: &pb.ClientMessage_ListSessions{
@@ -56,7 +56,7 @@ func (c *Client) ListSessions(ctx context.Context) ([]*pb.Session, error) {
 // SyncSessions returns all sessions with metadata (message counts).
 func (c *Client) SyncSessions(ctx context.Context) ([]*pb.SessionSummary, error) {
 	stream := c.client.Connect(ctx)
-	defer stream.CloseRequest()
+	defer func() { _ = stream.CloseRequest() }()
 
 	if err := stream.Send(&pb.ClientMessage{
 		Message: &pb.ClientMessage_Sync{
@@ -93,7 +93,7 @@ type SessionState struct {
 // GetSession returns a session with its messages and events.
 func (c *Client) GetSession(ctx context.Context, sessionID string) (*SessionState, error) {
 	stream := c.client.Connect(ctx)
-	defer stream.CloseRequest()
+	defer func() { _ = stream.CloseRequest() }()
 
 	if err := stream.Send(&pb.ClientMessage{
 		Message: &pb.ClientMessage_OpenSession{
@@ -132,7 +132,7 @@ func (c *Client) GetSession(ctx context.Context, sessionID string) (*SessionStat
 // DeleteSession deletes a session.
 func (c *Client) DeleteSession(ctx context.Context, sessionID string) error {
 	stream := c.client.Connect(ctx)
-	defer stream.CloseRequest()
+	defer func() { _ = stream.CloseRequest() }()
 
 	if err := stream.Send(&pb.ClientMessage{
 		Message: &pb.ClientMessage_DeleteSession{
@@ -168,7 +168,7 @@ type MessageHandler func(msg *pb.AgentMessageResponse) error
 // TailEvents opens a session and streams events in real-time.
 func (c *Client) TailEvents(ctx context.Context, sessionID string, onEvent EventHandler, onMessage MessageHandler) error {
 	stream := c.client.Connect(ctx)
-	defer stream.CloseRequest()
+	defer func() { _ = stream.CloseRequest() }()
 
 	// Open session to start receiving events
 	if err := stream.Send(&pb.ClientMessage{
@@ -216,10 +216,8 @@ func (c *Client) TailEvents(ctx context.Context, sessionID string, onEvent Event
 			}
 		}
 
-		// Handle other message types as needed
-		if msg.GetAgentDone() != nil {
-			// Agent finished processing - continue waiting for more
-		}
+		// Handle other message types as needed (AgentDone, etc.)
+		// Agent finished processing - continue waiting for more
 	}
 }
 

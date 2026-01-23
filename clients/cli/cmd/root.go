@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -56,9 +55,4 @@ func getServerURL() string {
 
 func isJSONOutput() bool {
 	return jsonOutput
-}
-
-func exitError(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, "Error: "+format+"\n", args...)
-	os.Exit(1)
 }

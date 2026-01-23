@@ -91,8 +91,8 @@ func printMessages(messages []*pb.PersistedMessage) {
 			roleColor = output.IDColor
 		}
 
-		roleColor.Printf("[%s] ", role)
-		output.TimeColor.Printf("%s\n", timestamp)
+		_, _ = roleColor.Printf("[%s] ", role)
+		_, _ = output.TimeColor.Printf("%s\n", timestamp)
 
 		// Message content (indented)
 		lines := strings.Split(msg.Content, "\n")

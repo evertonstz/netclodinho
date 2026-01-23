@@ -72,7 +72,7 @@ func printSessionsTable(sessions []*pb.SessionSummary) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 
 	// Header
-	output.HeaderColor.Fprintf(w, "ID\tNAME\tSTATUS\tREPO\tMSGS\tCREATED\tACTIVE\n")
+	_, _ = output.HeaderColor.Fprintf(w, "ID\tNAME\tSTATUS\tREPO\tMSGS\tCREATED\tACTIVE\n")
 
 	for _, s := range sessions {
 		sess := s.Session
@@ -92,16 +92,16 @@ func printSessionsTable(sessions []*pb.SessionSummary) {
 
 		statusColor := output.StatusColor(sess.Status.String())
 
-		output.IDColor.Fprintf(w, "%s\t", id)
-		output.NameColor.Fprintf(w, "%s\t", name)
-		statusColor.Fprintf(w, "%s\t", status)
-		fmt.Fprintf(w, "%s\t", repo)
-		fmt.Fprintf(w, "%s\t", msgs)
-		output.TimeColor.Fprintf(w, "%s\t", created)
-		output.TimeColor.Fprintf(w, "%s\n", active)
+		_, _ = output.IDColor.Fprintf(w, "%s\t", id)
+		_, _ = output.NameColor.Fprintf(w, "%s\t", name)
+		_, _ = statusColor.Fprintf(w, "%s\t", status)
+		_, _ = fmt.Fprintf(w, "%s\t", repo)
+		_, _ = fmt.Fprintf(w, "%s\t", msgs)
+		_, _ = output.TimeColor.Fprintf(w, "%s\t", created)
+		_, _ = output.TimeColor.Fprintf(w, "%s\n", active)
 	}
 
-	w.Flush()
+	_ = w.Flush()
 }
 
 func formatStatus(status string) string {
@@ -138,17 +138,17 @@ func printSessionDetails(state *client.SessionState) {
 	sess := state.Session
 
 	fmt.Println()
-	output.HeaderColor.Println("Session Details")
+	_, _ = output.HeaderColor.Println("Session Details")
 	fmt.Println(strings.Repeat("-", 40))
 
 	fmt.Printf("%-15s ", "ID:")
-	output.IDColor.Println(sess.Id)
+	_, _ = output.IDColor.Println(sess.Id)
 
 	fmt.Printf("%-15s %s\n", "Name:", sess.Name)
 
 	status := formatStatus(sess.Status.String())
 	fmt.Printf("%-15s ", "Status:")
-	output.StatusColor(sess.Status.String()).Println(status)
+	_, _ = output.StatusColor(sess.Status.String()).Println(status)
 
 	repo := "-"
 	if sess.Repo != nil {
@@ -165,12 +165,12 @@ func printSessionDetails(state *client.SessionState) {
 		output.RelativeTime(sess.LastActiveAt))
 
 	fmt.Println()
-	output.HeaderColor.Println("Statistics")
+	_, _ = output.HeaderColor.Println("Statistics")
 	fmt.Println(strings.Repeat("-", 40))
 	fmt.Printf("%-15s %d\n", "Messages:", len(state.Messages))
 	fmt.Printf("%-15s %d\n", "Events:", len(state.Events))
 	if state.HasMore {
-		output.MutedColor.Println("(more messages available)")
+		_, _ = output.MutedColor.Println("(more messages available)")
 	}
 	fmt.Println()
 }
@@ -190,6 +190,6 @@ func runSessionsDelete(cmd *cobra.Command, args []string) error {
 		})
 	}
 
-	output.SuccessColor.Printf("Deleted session %s\n", sessionID)
+	_, _ = output.SuccessColor.Printf("Deleted session %s\n", sessionID)
 	return nil
 }

@@ -101,7 +101,7 @@ func formatEventKind(kind pb.AgentEventKind) string {
 func printEventsTable(events []*pb.PersistedEvent) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 
-	output.HeaderColor.Fprintf(w, "TIME\tKIND\tTOOL/PATH\tDETAILS\n")
+	_, _ = output.HeaderColor.Fprintf(w, "TIME\tKIND\tTOOL/PATH\tDETAILS\n")
 
 	for _, pe := range events {
 		e := pe.Event
@@ -116,13 +116,13 @@ func printEventsTable(events []*pb.PersistedEvent) {
 
 		kindColor := output.EventKindColor(kind)
 
-		output.TimeColor.Fprintf(w, "%s\t", timestamp)
-		kindColor.Fprintf(w, "%s\t", kind)
-		fmt.Fprintf(w, "%s\t", output.Truncate(toolOrPath, 30))
-		fmt.Fprintf(w, "%s\n", output.Truncate(details, 50))
+		_, _ = output.TimeColor.Fprintf(w, "%s\t", timestamp)
+		_, _ = kindColor.Fprintf(w, "%s\t", kind)
+		_, _ = fmt.Fprintf(w, "%s\t", output.Truncate(toolOrPath, 30))
+		_, _ = fmt.Fprintf(w, "%s\n", output.Truncate(details, 50))
 	}
 
-	w.Flush()
+	_ = w.Flush()
 }
 
 func getToolOrPath(e *pb.AgentEvent) string {
@@ -270,15 +270,15 @@ func printStreamEvent(resp *pb.AgentEventResponse) {
 
 	kindColor := output.EventKindColor(kind)
 
-	output.TimeColor.Printf("[%s] ", timestamp)
-	kindColor.Printf("%-15s ", kind)
+	_, _ = output.TimeColor.Printf("[%s] ", timestamp)
+	_, _ = kindColor.Printf("%-15s ", kind)
 	fmt.Printf("%-20s ", output.Truncate(toolOrPath, 20))
-	output.MutedColor.Printf("%s\n", details)
+	_, _ = output.MutedColor.Printf("%s\n", details)
 }
 
 func printStreamMessage(msg *pb.AgentMessageResponse) {
-	output.TimeColor.Print("[message] ")
-	output.IDColor.Printf("assistant: ")
+	_, _ = output.TimeColor.Print("[message] ")
+	_, _ = output.IDColor.Printf("assistant: ")
 	// Show first line only for streaming view
 	content := msg.Content
 	if idx := strings.Index(content, "\n"); idx > 0 {

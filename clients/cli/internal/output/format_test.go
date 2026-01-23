@@ -232,7 +232,7 @@ func TestJSON(t *testing.T) {
 	data := map[string]string{"key": "value"}
 	err := JSON(data)
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = old
 
 	if err != nil {
@@ -240,7 +240,7 @@ func TestJSON(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	buf.ReadFrom(r)
+	_, _ = buf.ReadFrom(r)
 	output := buf.String()
 
 	var result map[string]string
@@ -262,7 +262,7 @@ func TestJSONLine(t *testing.T) {
 	data := map[string]int{"count": 42}
 	err := JSONLine(data)
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = old
 
 	if err != nil {
@@ -270,7 +270,7 @@ func TestJSONLine(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	buf.ReadFrom(r)
+	_, _ = buf.ReadFrom(r)
 	output := buf.String()
 
 	// Should be a single line

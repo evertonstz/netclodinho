@@ -169,12 +169,12 @@ func setupTestServer(t *testing.T, handler *mockClientServiceHandler) (string, f
 	}
 
 	server := &http.Server{Handler: h2cHandler}
-	go server.Serve(listener)
+	go func() { _ = server.Serve(listener) }()
 
 	url := "http://" + listener.Addr().String()
 	cleanup := func() {
-		server.Close()
-		listener.Close()
+		_ = server.Close()
+		_ = listener.Close()
 	}
 
 	return url, cleanup
@@ -449,9 +449,9 @@ func BenchmarkListSessions(b *testing.B) {
 
 	listener, _ := net.Listen("tcp", "127.0.0.1:0")
 	server := &http.Server{Handler: h2cHandler}
-	go server.Serve(listener)
-	defer server.Close()
-	defer listener.Close()
+	go func() { _ = server.Serve(listener) }()
+	defer func() { _ = server.Close() }()
+	defer func() { _ = listener.Close() }()
 
 	client := newTestClient("http://" + listener.Addr().String())
 
