@@ -74,3 +74,10 @@
     path: /tmp/kata-static.tar.zst
     state: absent
   when: kata_needs_install
+
+# Increase VM memory for Docker builds (default 2048 is too small)
+- name: Configure Kata VM memory
+  ansible.builtin.lineinfile:
+    path: "{{ kata_dir }}/share/defaults/kata-containers/configuration-clh.toml"
+    regexp: '^default_memory\s*='
+    line: 'default_memory = 4096'
