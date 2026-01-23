@@ -40,6 +40,9 @@ gh run watch
 
 # Rollout control-plane
 make rollout-control-plane
+
+# Rollout agent (drains warm pool to pick up new image)
+make rollout-agent
 ```
 
 ### Manual kubectl access

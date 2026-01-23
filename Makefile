@@ -1,7 +1,7 @@
 CONTEXT ?= netclode
 NAMESPACE ?= netclode
 
-.PHONY: rollout rollout-control-plane deploy test-ios proto proto-lint proto-breaking proto-setup
+.PHONY: rollout rollout-control-plane rollout-agent deploy test-ios proto proto-lint proto-breaking proto-setup
 
 # Proto generation
 proto: proto-setup ## Generate code from proto files
@@ -27,6 +27,15 @@ endif
 
 rollout-control-plane: ## Rollout control-plane
 	kubectl --context $(CONTEXT) -n $(NAMESPACE) rollout restart deployment/control-plane
+
+rollout-agent: ## Rollout agent (drains warm pool to pick up new image)
+	@echo "Scaling warm pool to 0..."
+	kubectl --context $(CONTEXT) -n $(NAMESPACE) patch sandboxwarmpool netclode-agent-pool -p '{"spec":{"replicas":0}}' --type=merge
+	@echo "Waiting for warm pods to terminate..."
+	@sleep 5
+	@echo "Scaling warm pool back to 1..."
+	kubectl --context $(CONTEXT) -n $(NAMESPACE) patch sandboxwarmpool netclode-agent-pool -p '{"spec":{"replicas":1}}' --type=merge
+	@echo "Warm pool refreshed with new agent image"
 
 drain-warmpool: ## Drain warm pool to pick up new agent image
 	@echo "Scaling warm pool to 0..."
