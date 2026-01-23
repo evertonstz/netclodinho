@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	"github.com/angristan/netclode/services/control-plane/internal/session"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const (
@@ -233,8 +235,14 @@ func (s *Server) handleInternalEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "failed to read body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	var event pb.AgentEvent
-	if err := json.NewDecoder(r.Body).Decode(&event); err != nil {
+	if err := protojson.Unmarshal(body, &event); err != nil {
 		http.Error(w, "invalid event JSON: "+err.Error(), http.StatusBadRequest)
 		return
 	}

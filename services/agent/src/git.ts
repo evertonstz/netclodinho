@@ -4,28 +4,56 @@ import { dirname } from "path";
 
 const CONTROL_PLANE_URL = process.env.CONTROL_PLANE_URL || "http://control-plane.netclode.svc.cluster.local";
 
-interface CloneEvent {
-  kind: "repo_clone";
-  timestamp: string;
+// Map internal stage names to protobuf enum values
+const stageToProto: Record<string, string> = {
+  starting: "REPO_CLONE_STAGE_STARTING",
+  cloning: "REPO_CLONE_STAGE_CLONING",
+  done: "REPO_CLONE_STAGE_DONE",
+  error: "REPO_CLONE_STAGE_ERROR",
+};
+
+interface CloneEventInput {
   repo: string;
   stage: "starting" | "cloning" | "done" | "error";
   message: string;
 }
 
+// Protobuf-compatible event structure
+interface ProtobufCloneEvent {
+  kind: "AGENT_EVENT_KIND_REPO_CLONE";
+  timestamp: string;
+  repoClone: {
+    repo: string;
+    stage: string;
+    message: string;
+  };
+}
+
 /**
  * Report a clone event to the control plane for broadcasting to clients.
  */
-async function reportEvent(sessionId: string, event: CloneEvent): Promise<void> {
+async function reportEvent(sessionId: string, event: CloneEventInput): Promise<void> {
   if (!sessionId) {
     console.log("[git] No SESSION_ID, skipping event report");
     return;
   }
 
+  // Build protobuf-compatible JSON structure
+  const protoEvent: ProtobufCloneEvent = {
+    kind: "AGENT_EVENT_KIND_REPO_CLONE",
+    timestamp: new Date().toISOString(),
+    repoClone: {
+      repo: event.repo,
+      stage: stageToProto[event.stage],
+      message: event.message,
+    },
+  };
+
   try {
     const response = await fetch(`${CONTROL_PLANE_URL}/internal/session/${sessionId}/event`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(event),
+      body: JSON.stringify(protoEvent),
     });
     if (!response.ok) {
       console.warn(`[git] Failed to report event: ${response.status}`);
@@ -190,8 +218,6 @@ export async function setupRepository(
   if (isExistingRepo) {
     // Repository already exists - pull latest changes
     await reportEvent(sessionId, {
-      kind: "repo_clone",
-      timestamp: new Date().toISOString(),
       repo: repoUrl,
       stage: "starting",
       message: "Pulling latest changes...",
@@ -204,8 +230,6 @@ export async function setupRepository(
 
     if (result.code === 0) {
       await reportEvent(sessionId, {
-        kind: "repo_clone",
-        timestamp: new Date().toISOString(),
         repo: repoUrl,
         stage: "done",
         message: "Repository updated",
@@ -213,8 +237,6 @@ export async function setupRepository(
       console.log("[git] Pull completed successfully");
     } else {
       await reportEvent(sessionId, {
-        kind: "repo_clone",
-        timestamp: new Date().toISOString(),
         repo: repoUrl,
         stage: "done",
         message: "Pull failed, using existing state",
@@ -224,8 +246,6 @@ export async function setupRepository(
   } else {
     // Fresh clone
     await reportEvent(sessionId, {
-      kind: "repo_clone",
-      timestamp: new Date().toISOString(),
       repo: repoUrl,
       stage: "starting",
       message: "Cloning repository...",
@@ -238,8 +258,6 @@ export async function setupRepository(
       await runGit(["config", "--add", "safe.directory", workspaceDir], workspaceDir);
 
       await reportEvent(sessionId, {
-        kind: "repo_clone",
-        timestamp: new Date().toISOString(),
         repo: repoUrl,
         stage: "done",
         message: "Repository cloned successfully",
@@ -247,8 +265,6 @@ export async function setupRepository(
       console.log("[git] Clone completed successfully");
     } else {
       await reportEvent(sessionId, {
-        kind: "repo_clone",
-        timestamp: new Date().toISOString(),
         repo: repoUrl,
         stage: "error",
         message: `Failed to clone: ${result.stderr.slice(0, 200)}`,
