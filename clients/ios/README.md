@@ -82,6 +82,14 @@ Netclode/
 
 The app communicates with the control plane via Connect protocol (gRPC-compatible) using bidirectional streaming.
 
+### HTTP Client
+
+The app uses `NIOHTTPClient` (from [ConnectNIO](https://github.com/connectrpc/connect-swift)) instead of `URLSessionHTTPClient` for HTTP/2 connections.
+
+**Why?** URLSession's HTTP/2 implementation has compatibility issues with Tailscale's iOS network extension. On physical iPhones, bidirectional streams would drop after ~10-15 seconds. Tailscale also [disables TCP keep-alives on iOS](https://github.com/tailscale/tailscale/blob/main/net/netknob/netknob.go) to save battery, which exacerbates the issue.
+
+`NIOHTTPClient` uses Swift NIO's HTTP/2 implementation with POSIX sockets, bypassing URLSession entirely. This provides stable long-lived connections through Tailscale.
+
 Client → Server:
 
 ```swift
