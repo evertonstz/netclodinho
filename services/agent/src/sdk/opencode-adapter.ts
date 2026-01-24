@@ -65,6 +65,8 @@ export class OpenCodeAdapter implements SDKAdapter {
         OPENCODE_CONFIG_CONTENT: JSON.stringify(opencodeConfig),
         // Use existing Anthropic API key
         ANTHROPIC_API_KEY: this.config?.anthropicApiKey || process.env.ANTHROPIC_API_KEY,
+        // Disable default plugins (anthropic-auth, gitlab-auth) - they require npm downloads
+        OPENCODE_DISABLE_DEFAULT_PLUGINS: "true",
       },
       stdio: ["pipe", "pipe", "pipe"],
       cwd: WORKSPACE_DIR,
