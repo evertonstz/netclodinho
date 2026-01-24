@@ -20,6 +20,9 @@ enum ClientMessage: Encodable, Sendable {
     // Git operations
     case gitStatus(sessionId: String)
     case gitDiff(sessionId: String, file: String?)
+    // Copilot
+    case listModels(sdkType: SdkType, copilotBackend: CopilotBackend?)
+    case getCopilotStatus
 
     private enum CodingKeys: String, CodingKey {
         case type
@@ -103,6 +106,14 @@ enum ClientMessage: Encodable, Sendable {
             try container.encode("git.diff", forKey: .type)
             try container.encode(sessionId, forKey: .sessionId)
             try container.encodeIfPresent(file, forKey: .file)
+
+        case .listModels(let sdkType, let copilotBackend):
+            try container.encode("models.list", forKey: .type)
+            try container.encode(sdkType.rawValue, forKey: .sdkType)
+            try container.encodeIfPresent(copilotBackend?.rawValue, forKey: .copilotBackend)
+
+        case .getCopilotStatus:
+            try container.encode("copilot.status", forKey: .type)
         }
     }
 }

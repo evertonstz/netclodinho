@@ -11,8 +11,12 @@ final class MessageRouter {
     private let terminalStore: TerminalStore
     private let githubStore: GitHubStore
     private let gitStore: GitStore
+    private let copilotStore: CopilotStore
 
     private var routingTask: Task<Void, Never>?
+
+    /// Track which backend we're waiting for models from
+    private var pendingModelsBackend: CopilotBackend?
 
     init(
         connectService: ConnectService,
@@ -21,7 +25,8 @@ final class MessageRouter {
         eventStore: EventStore,
         terminalStore: TerminalStore,
         githubStore: GitHubStore,
-        gitStore: GitStore
+        gitStore: GitStore,
+        copilotStore: CopilotStore
     ) {
         self.connectService = connectService
         self.sessionStore = sessionStore
@@ -30,8 +35,14 @@ final class MessageRouter {
         self.terminalStore = terminalStore
         self.githubStore = githubStore
         self.gitStore = gitStore
+        self.copilotStore = copilotStore
 
         startRouting()
+    }
+
+    /// Set which backend we're fetching models for (used to route the response)
+    func setPendingModelsBackend(_ backend: CopilotBackend?) {
+        pendingModelsBackend = backend
     }
 
     private func startRouting() {
@@ -254,6 +265,22 @@ final class MessageRouter {
             gitStore.setLoadingStatus(false, for: sessionId)
             gitStore.setLoadingDiff(false, for: sessionId)
             gitStore.setError(error, for: sessionId)
+
+        // Copilot messages
+        case .modelsResponse(let models):
+            print("[MessageRouter] models received: \(models.count) models")
+            // Route to the appropriate backend based on what we were waiting for
+            if let backend = pendingModelsBackend {
+                copilotStore.updateModels(models, for: backend)
+                pendingModelsBackend = nil
+            } else {
+                // Default to anthropic if we don't know
+                copilotStore.updateModels(models, for: .anthropic)
+            }
+
+        case .copilotStatusResponse(let status):
+            print("[MessageRouter] copilot status received: authenticated=\(status.auth.isAuthenticated)")
+            copilotStore.updateStatus(status)
         }
     }
 
@@ -269,7 +296,8 @@ final class MessageRouter {
             eventStore: EventStore(),
             terminalStore: TerminalStore(),
             githubStore: GitHubStore(),
-            gitStore: GitStore()
+            gitStore: GitStore(),
+            copilotStore: CopilotStore()
         )
     }
 }

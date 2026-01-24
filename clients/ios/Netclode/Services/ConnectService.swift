@@ -420,13 +420,36 @@ final class ConnectService {
             }
             return .error(message: errorMessage)
             
-        case .models:
-            // Models response - currently not handled in UI, can be added later
-            return nil
+        case .models(let msg):
+            let models = msg.models.map { proto in
+                CopilotModel(
+                    id: proto.id,
+                    name: proto.name,
+                    provider: proto.hasProvider ? proto.provider : nil,
+                    billingMultiplier: proto.hasBillingMultiplier ? proto.billingMultiplier : nil,
+                    capabilities: proto.capabilities
+                )
+            }
+            return .modelsResponse(models: models)
 
-        case .copilotStatus:
-            // Copilot status response - currently not handled in UI, can be added later
-            return nil
+        case .copilotStatus(let msg):
+            let auth = CopilotAuthStatus(
+                isAuthenticated: msg.auth.isAuthenticated,
+                authType: msg.auth.hasAuthType ? msg.auth.authType : nil,
+                login: msg.auth.hasLogin ? msg.auth.login : nil
+            )
+            let quota: CopilotPremiumQuota?
+            if msg.hasQuota {
+                quota = CopilotPremiumQuota(
+                    used: Int(msg.quota.used),
+                    limit: Int(msg.quota.limit),
+                    remaining: Int(msg.quota.remaining),
+                    resetAt: msg.quota.hasResetAt ? msg.quota.resetAt : nil
+                )
+            } else {
+                quota = nil
+            }
+            return .copilotStatusResponse(status: CopilotStatus(auth: auth, quota: quota))
 
         case .none:
             return nil
@@ -1134,6 +1157,17 @@ final class ConnectService {
                 req.file = file
             }
             proto.message = .gitDiff(req)
+
+        case .listModels(let sdkType, let copilotBackend):
+            var req = Netclode_V1_ListModelsRequest()
+            req.sdkType = convertToProtoSdkType(sdkType)
+            if let copilotBackend = copilotBackend {
+                req.copilotBackend = convertToProtoCopilotBackend(copilotBackend)
+            }
+            proto.message = .listModels(req)
+
+        case .getCopilotStatus:
+            proto.message = .getCopilotStatus(Netclode_V1_GetCopilotStatusRequest())
         }
         
         return proto

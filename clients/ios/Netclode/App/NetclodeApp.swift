@@ -12,6 +12,7 @@ struct NetclodeApp: App {
     @State private var githubStore = GitHubStore()
     @State private var gitStore = GitStore()
     @State private var modelsStore = ModelsStore()
+    @State private var copilotStore = CopilotStore()
     @State private var connectService: ConnectService
     @State private var messageRouter: MessageRouter
 
@@ -24,6 +25,7 @@ struct NetclodeApp: App {
         let github = GitHubStore()
         let git = GitStore()
         let models = ModelsStore()
+        let copilot = CopilotStore()
         let connect = ConnectService()
         
         // Wire up terminal store to Connect service for input handling
@@ -36,7 +38,8 @@ struct NetclodeApp: App {
             eventStore: events,
             terminalStore: terminal,
             githubStore: github,
-            gitStore: git
+            gitStore: git,
+            copilotStore: copilot
         )
 
         _settingsStore = State(initialValue: settings)
@@ -47,6 +50,7 @@ struct NetclodeApp: App {
         _githubStore = State(initialValue: github)
         _gitStore = State(initialValue: git)
         _modelsStore = State(initialValue: models)
+        _copilotStore = State(initialValue: copilot)
         _connectService = State(initialValue: connect)
         _messageRouter = State(initialValue: router)
     }
@@ -62,6 +66,7 @@ struct NetclodeApp: App {
                 .environment(githubStore)
                 .environment(gitStore)
                 .environment(modelsStore)
+                .environment(copilotStore)
                 .environment(connectService)
                 .environment(messageRouter)
                 .preferredColorScheme(settingsStore.preferredColorScheme)

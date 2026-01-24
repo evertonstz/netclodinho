@@ -1,5 +1,54 @@
 import Foundation
 
+/// Model information for Copilot SDK
+struct CopilotModel: Identifiable, Hashable, Sendable {
+    let id: String
+    let name: String
+    let provider: String?
+    let billingMultiplier: Double?
+    let capabilities: [String]
+
+    /// Display name with multiplier badge
+    var displayNameWithMultiplier: String {
+        if let multiplier = billingMultiplier {
+            let badge = multiplier < 1.0 ? "(\(String(format: "%.2fx", multiplier)))" : 
+                       multiplier > 1.0 ? "(\(String(format: "%.0fx", multiplier)))" : ""
+            return badge.isEmpty ? name : "\(name) \(badge)"
+        }
+        return name
+    }
+}
+
+/// Copilot authentication status
+struct CopilotAuthStatus: Sendable {
+    let isAuthenticated: Bool
+    let authType: String?
+    let login: String?
+}
+
+/// Copilot premium request quota
+struct CopilotPremiumQuota: Sendable {
+    let used: Int
+    let limit: Int
+    let remaining: Int
+    let resetAt: String?
+
+    var usagePercentage: Double {
+        guard limit > 0 else { return 0 }
+        return Double(used) / Double(limit)
+    }
+
+    var displayString: String {
+        "\(remaining) of \(limit) remaining"
+    }
+}
+
+/// Copilot status response
+struct CopilotStatus: Sendable {
+    let auth: CopilotAuthStatus
+    let quota: CopilotPremiumQuota?
+}
+
 enum ServerMessage: Sendable {
     case sessionCreated(session: Session)
     case sessionUpdated(session: Session)
@@ -32,6 +81,10 @@ enum ServerMessage: Sendable {
     case gitStatusResponse(sessionId: String, files: [GitFileChange])
     case gitDiffResponse(sessionId: String, diff: String)
     case gitError(sessionId: String, error: String)
+
+    // Copilot
+    case modelsResponse(models: [CopilotModel])
+    case copilotStatusResponse(status: CopilotStatus)
 }
 
 extension ServerMessage: Decodable {

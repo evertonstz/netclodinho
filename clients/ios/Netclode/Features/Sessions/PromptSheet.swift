@@ -7,6 +7,7 @@ struct PromptSheet: View {
     @Environment(SessionStore.self) private var sessionStore
     @Environment(GitHubStore.self) private var githubStore
     @Environment(ModelsStore.self) private var modelsStore
+    @Environment(CopilotStore.self) private var copilotStore
 
     @State private var promptText = ""
     @State private var repoURL = ""
@@ -14,6 +15,7 @@ struct PromptSheet: View {
     @State private var selectedSdkType: SdkType = .claude
     @State private var selectedModelId: String = ModelsStore.defaultModelId
     @State private var selectedCopilotBackend: CopilotBackend = .anthropic
+    @State private var selectedCopilotModelId: String = CopilotStore.defaultAnthropicModelId
     @State private var isSubmitting = false
     @State private var canSubmit = false
     @FocusState private var isFocused: Bool
@@ -73,7 +75,7 @@ struct PromptSheet: View {
                         .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
                     }
 
-                    // Backend picker (only shown for Copilot)
+                    // Backend and model picker (only shown for Copilot)
                     if selectedSdkType == .copilot {
                         HStack(spacing: Theme.Spacing.xs) {
                             Image(systemName: "server.rack")
@@ -90,6 +92,51 @@ struct PromptSheet: View {
                             }
                         }
                         .pickerStyle(.segmented)
+                        .onChange(of: selectedCopilotBackend) { _, newBackend in
+                            // Reset model selection when backend changes
+                            selectedCopilotModelId = copilotStore.defaultModelId(for: newBackend)
+                            // Fetch models for the new backend
+                            fetchCopilotModels(for: newBackend)
+                        }
+
+                        // Model picker for Copilot
+                        HStack(spacing: Theme.Spacing.xs) {
+                            Image(systemName: "sparkles")
+                                .foregroundStyle(.secondary)
+                            Text("Model")
+                                .font(.netclodeCaption)
+                                .foregroundStyle(.secondary)
+                            
+                            if copilotStore.isLoadingModels {
+                                ProgressView()
+                                    .scaleEffect(0.7)
+                            }
+                        }
+                        .padding(.top, Theme.Spacing.xs)
+
+                        let models = copilotStore.models(for: selectedCopilotBackend)
+                        if models.isEmpty && !copilotStore.isLoadingModels {
+                            // Show default model when models haven't loaded
+                            Text(copilotStore.defaultModelId(for: selectedCopilotBackend))
+                                .font(.netclodeCaption)
+                                .foregroundStyle(.secondary)
+                                .padding(.vertical, Theme.Spacing.xs)
+                        } else {
+                            Picker("Model", selection: $selectedCopilotModelId) {
+                                ForEach(models) { model in
+                                    HStack {
+                                        Text(model.name)
+                                        if let multiplier = model.billingMultiplier, multiplier != 1.0 {
+                                            Text(multiplier < 1.0 ? "(\(String(format: "%.2fx", multiplier)))" : "(\(String(format: "%.0fx", multiplier)))")
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                    .tag(model.id)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
+                        }
                     }
                 }
                 .padding(.horizontal, Theme.Spacing.md)
@@ -169,6 +216,16 @@ struct PromptSheet: View {
             }
             .onAppear {
                 isFocused = true
+                // Fetch Copilot models if Copilot SDK is selected
+                if selectedSdkType == .copilot {
+                    fetchCopilotModels(for: selectedCopilotBackend)
+                }
+            }
+            .onChange(of: selectedSdkType) { _, newSdkType in
+                // Fetch models when switching to Copilot
+                if newSdkType == .copilot {
+                    fetchCopilotModels(for: selectedCopilotBackend)
+                }
             }
             .onChange(of: promptText) { _, newValue in
                 canSubmit = !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSubmitting
@@ -202,8 +259,20 @@ struct PromptSheet: View {
 
         // SDK, model, and backend params
         let sdkParam = selectedSdkType
-        let modelParam = selectedSdkType == .opencode ? selectedModelId : nil
-        let copilotBackendParam = selectedSdkType == .copilot ? selectedCopilotBackend : nil
+        let modelParam: String?
+        let copilotBackendParam: CopilotBackend?
+        
+        switch selectedSdkType {
+        case .opencode:
+            modelParam = selectedModelId
+            copilotBackendParam = nil
+        case .copilot:
+            modelParam = selectedCopilotModelId
+            copilotBackendParam = selectedCopilotBackend
+        case .claude:
+            modelParam = nil
+            copilotBackendParam = nil
+        }
         
         // Create session
         connectService.send(.sessionCreate(
@@ -218,6 +287,11 @@ struct PromptSheet: View {
 
         dismiss()
     }
+
+    private func fetchCopilotModels(for backend: CopilotBackend) {
+        copilotStore.setLoadingModels(true)
+        connectService.send(.listModels(sdkType: .copilot, copilotBackend: backend))
+    }
 }
 
 // MARK: - Preview
@@ -231,5 +305,6 @@ struct PromptSheet: View {
                 .environment(SessionStore())
                 .environment(GitHubStore())
                 .environment(ModelsStore())
+                .environment(CopilotStore())
         }
 }
