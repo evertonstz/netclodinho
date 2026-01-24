@@ -260,14 +260,14 @@ func TestGetSession(t *testing.T) {
 				Name:   "Test Session",
 				Status: pb.SessionStatus_SESSION_STATUS_READY,
 			},
-			Messages: []*pb.PersistedMessage{
+			Messages: []*pb.Message{
 				{
 					Id:      "msg-1",
 					Role:    pb.MessageRole_MESSAGE_ROLE_USER,
 					Content: "Hello",
 				},
 			},
-			Events: []*pb.PersistedEvent{
+			Events: []*pb.Event{
 				{
 					Id: "evt-1",
 					Event: &pb.AgentEvent{

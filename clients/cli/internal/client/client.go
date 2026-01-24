@@ -25,6 +25,63 @@ func New(baseURL string) *Client {
 	}
 }
 
+// CreateSessionOptions contains options for creating a session.
+type CreateSessionOptions struct {
+	Name    string
+	Repo    string
+	SdkType pb.SdkType
+	Model   string
+}
+
+// CreateSession creates a new session and returns it.
+func (c *Client) CreateSession(ctx context.Context, opts CreateSessionOptions) (*pb.Session, error) {
+	stream := c.client.Connect(ctx)
+	defer func() { _ = stream.CloseRequest() }()
+
+	req := &pb.CreateSessionRequest{}
+	if opts.Name != "" {
+		req.Name = &opts.Name
+	}
+	if opts.Repo != "" {
+		req.Repo = &opts.Repo
+	}
+	if opts.SdkType != pb.SdkType_SDK_TYPE_UNSPECIFIED {
+		req.SdkType = &opts.SdkType
+	}
+	if opts.Model != "" {
+		req.Model = &opts.Model
+	}
+
+	if err := stream.Send(&pb.ClientMessage{
+		Message: &pb.ClientMessage_CreateSession{
+			CreateSession: req,
+		},
+	}); err != nil {
+		return nil, fmt.Errorf("send request: %w", err)
+	}
+
+	// May receive SessionCreated followed by SessionUpdated as sandbox boots
+	for {
+		msg, err := stream.Receive()
+		if err != nil {
+			return nil, fmt.Errorf("receive response: %w", err)
+		}
+
+		if resp := msg.GetSessionCreated(); resp != nil {
+			return resp.Session, nil
+		}
+		if resp := msg.GetSessionUpdated(); resp != nil {
+			// Session created and updated (sandbox started)
+			return resp.Session, nil
+		}
+		if errResp := msg.GetError(); errResp != nil {
+			return nil, fmt.Errorf("%s: %s", errResp.Error.Code, errResp.Error.Message)
+		}
+
+		return nil, fmt.Errorf("unexpected response type: %T", msg.GetMessage())
+	}
+}
+
 // ListSessions returns all sessions.
 func (c *Client) ListSessions(ctx context.Context) ([]*pb.Session, error) {
 	stream := c.client.Connect(ctx)
@@ -84,8 +141,8 @@ func (c *Client) SyncSessions(ctx context.Context) ([]*pb.SessionSummary, error)
 // SessionState contains session details with messages and events.
 type SessionState struct {
 	Session            *pb.Session
-	Messages           []*pb.PersistedMessage
-	Events             []*pb.PersistedEvent
+	Messages           []*pb.Message
+	Events             []*pb.Event
 	HasMore            bool
 	LastNotificationID string
 }

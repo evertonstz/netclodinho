@@ -43,7 +43,7 @@ func runMessages(cmd *cobra.Command, args []string) error {
 
 	// Filter by role if specified
 	if messagesRole != "" {
-		filtered := make([]*pb.PersistedMessage, 0)
+		filtered := make([]*pb.Message, 0)
 		targetRole := strings.ToUpper(messagesRole)
 		if !strings.HasPrefix(targetRole, "MESSAGE_ROLE_") {
 			targetRole = "MESSAGE_ROLE_" + targetRole
@@ -74,7 +74,7 @@ func runMessages(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func printMessages(messages []*pb.PersistedMessage) {
+func printMessages(messages []*pb.Message) {
 	for i, msg := range messages {
 		if i > 0 {
 			fmt.Println()

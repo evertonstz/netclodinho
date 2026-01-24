@@ -55,7 +55,7 @@ func runEvents(cmd *cobra.Command, args []string) error {
 
 	// Filter by kind if specified
 	if eventsKind != "" {
-		filtered := make([]*pb.PersistedEvent, 0)
+		filtered := make([]*pb.Event, 0)
 		targetKind := normalizeEventKind(eventsKind)
 		for _, e := range events {
 			if e.Event != nil && formatEventKind(e.Event.Kind) == targetKind {
@@ -98,7 +98,7 @@ func formatEventKind(kind pb.AgentEventKind) string {
 	return s
 }
 
-func printEventsTable(events []*pb.PersistedEvent) {
+func printEventsTable(events []*pb.Event) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 
 	_, _ = output.HeaderColor.Fprintf(w, "TIME\tKIND\tTOOL/PATH\tDETAILS\n")

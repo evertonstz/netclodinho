@@ -39,11 +39,30 @@ var sessionsDeleteCmd = &cobra.Command{
 	RunE:  runSessionsDelete,
 }
 
+var sessionsCreateCmd = &cobra.Command{
+	Use:   "create",
+	Short: "Create a new session",
+	RunE:  runSessionsCreate,
+}
+
+var (
+	createName    string
+	createRepo    string
+	createSdkType string
+	createModel   string
+)
+
 func init() {
 	rootCmd.AddCommand(sessionsCmd)
 	sessionsCmd.AddCommand(sessionsListCmd)
 	sessionsCmd.AddCommand(sessionsGetCmd)
 	sessionsCmd.AddCommand(sessionsDeleteCmd)
+	sessionsCmd.AddCommand(sessionsCreateCmd)
+
+	sessionsCreateCmd.Flags().StringVar(&createName, "name", "", "Session name")
+	sessionsCreateCmd.Flags().StringVar(&createRepo, "repo", "", "GitHub repository (owner/repo)")
+	sessionsCreateCmd.Flags().StringVar(&createSdkType, "sdk", "claude", "SDK type (claude or opencode)")
+	sessionsCreateCmd.Flags().StringVar(&createModel, "model", "", "Model ID for OpenCode (e.g., anthropic/claude-sonnet-4-0)")
 }
 
 func runSessionsList(cmd *cobra.Command, args []string) error {
@@ -192,4 +211,59 @@ func runSessionsDelete(cmd *cobra.Command, args []string) error {
 
 	_, _ = output.SuccessColor.Printf("Deleted session %s\n", sessionID)
 	return nil
+}
+
+func runSessionsCreate(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+	c := client.New(getServerURL())
+
+	// Parse SDK type
+	var sdkType pb.SdkType
+	switch strings.ToLower(createSdkType) {
+	case "opencode":
+		sdkType = pb.SdkType_SDK_TYPE_OPENCODE
+	case "claude", "":
+		sdkType = pb.SdkType_SDK_TYPE_CLAUDE
+	default:
+		return fmt.Errorf("invalid SDK type: %s (use 'claude' or 'opencode')", createSdkType)
+	}
+
+	opts := client.CreateSessionOptions{
+		Name:    createName,
+		Repo:    createRepo,
+		SdkType: sdkType,
+		Model:   createModel,
+	}
+
+	session, err := c.CreateSession(ctx, opts)
+	if err != nil {
+		return fmt.Errorf("create session: %w", err)
+	}
+
+	if isJSONOutput() {
+		return output.JSON(session)
+	}
+
+	_, _ = output.SuccessColor.Printf("Created session %s\n", session.Id)
+	fmt.Printf("  Name:     %s\n", session.Name)
+	fmt.Printf("  Status:   %s\n", formatStatus(session.Status.String()))
+	if session.SdkType != nil {
+		fmt.Printf("  SDK:      %s\n", formatSdkType(*session.SdkType))
+	}
+	if session.Model != nil {
+		fmt.Printf("  Model:    %s\n", *session.Model)
+	}
+
+	return nil
+}
+
+func formatSdkType(sdkType pb.SdkType) string {
+	switch sdkType {
+	case pb.SdkType_SDK_TYPE_OPENCODE:
+		return "opencode"
+	case pb.SdkType_SDK_TYPE_CLAUDE:
+		return "claude"
+	default:
+		return "unknown"
+	}
 }
