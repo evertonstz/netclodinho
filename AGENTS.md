@@ -74,10 +74,14 @@ kubectl -n netclode get pods
 
 The `netclode` CLI (`clients/cli/`) is available for debugging sessions.
 
-Set the control-plane URL (get tailnet name from Tailscale admin console):
+Set the control-plane URL:
 
 ```bash
-export NETCLODE_URL=https://netclode-control-plane-ingress.<tailnet>.ts.net
+# Get the ingress hostname
+kubectl --context netclode -n netclode get ingress control-plane -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+
+# Export it
+export NETCLODE_URL=https://$(kubectl --context netclode -n netclode get ingress control-plane -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
 ```
 
 ### List sessions
