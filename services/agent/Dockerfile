@@ -58,6 +58,13 @@ RUN esbuild src/index.ts --bundle --platform=node --format=esm --packages=extern
 RUN --mount=type=cache,target=/root/.npm \
     npm install -g @anthropic-ai/claude-code
 
+# OpenCode CLI (download Linux x64 binary from GitHub releases)
+RUN curl -fsSL "https://github.com/anomalyco/opencode/releases/latest/download/opencode-linux-x64.tar.gz" -o /tmp/opencode.tar.gz && \
+    tar -xzf /tmp/opencode.tar.gz -C /tmp && \
+    mv /tmp/opencode /usr/local/bin/opencode && \
+    chmod +x /usr/local/bin/opencode && \
+    rm -rf /tmp/opencode.tar.gz
+
 # =============================================================================
 # Runtime
 # =============================================================================
@@ -75,6 +82,9 @@ RUN useradd -m -u 1000 -G docker -d /agent agent && \
 # Copy bundled app and dependencies
 COPY --from=builder --chown=agent:agent /build/services/agent/dist/agent.js /opt/agent/
 COPY --from=builder --chown=agent:agent /build/services/agent/node_modules /opt/agent/node_modules
+
+# Copy OpenCode binary from builder
+COPY --from=builder /usr/local/bin/opencode /usr/local/bin/opencode
 
 # Copy mise and node to /opt (NOT /agent which is a volume mount)
 # mise binary and shims need to be in a persistent location

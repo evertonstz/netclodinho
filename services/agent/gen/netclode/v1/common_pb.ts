@@ -14,7 +14,7 @@ import type { Message as Message$1 } from "@bufbuild/protobuf";
  * Describes the file netclode/v1/common.proto.
  */
 export const file_netclode_v1_common: GenFile = /*@__PURE__*/
-  fileDesc("ChhuZXRjbG9kZS92MS9jb21tb24ucHJvdG8SC25ldGNsb2RlLnYxIpICCgdTZXNzaW9uEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSKgoGc3RhdHVzGAMgASgOMhoubmV0Y2xvZGUudjEuU2Vzc2lvblN0YXR1cxIRCgRyZXBvGAQgASgJSACIAQESMQoLcmVwb19hY2Nlc3MYBSABKA4yFy5uZXRjbG9kZS52MS5SZXBvQWNjZXNzSAGIAQESLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMgoObGFzdF9hY3RpdmVfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQgcKBV9yZXBvQg4KDF9yZXBvX2FjY2VzcyKXAQoOU2Vzc2lvblN1bW1hcnkSJQoHc2Vzc2lvbhgBIAEoCzIULm5ldGNsb2RlLnYxLlNlc3Npb24SGgoNbWVzc2FnZV9jb3VudBgCIAEoBUgAiAEBEhwKD2xhc3RfbWVzc2FnZV9pZBgDIAEoCUgBiAEBQhAKDl9tZXNzYWdlX2NvdW50QhIKEF9sYXN0X21lc3NhZ2VfaWQi4AEKDVNlc3Npb25Db25maWcSEgoKc2Vzc2lvbl9pZBgBIAEoCRIVCg13b3Jrc3BhY2VfZGlyGAIgASgJEhkKDGdpdGh1Yl90b2tlbhgDIAEoCUgAiAEBEhEKBHJlcG8YBCABKAlIAYgBARIxCgtyZXBvX2FjY2VzcxgFIAEoDjIXLm5ldGNsb2RlLnYxLlJlcG9BY2Nlc3NIAogBARIZChFjb250cm9sX3BsYW5lX3VybBgGIAEoCUIPCg1fZ2l0aHViX3Rva2VuQgcKBV9yZXBvQg4KDF9yZXBvX2FjY2VzcyJoCgpHaXRIdWJSZXBvEgwKBG5hbWUYASABKAkSEQoJZnVsbF9uYW1lGAIgASgJEg8KB3ByaXZhdGUYAyABKAgSGAoLZGVzY3JpcHRpb24YBCABKAlIAIgBAUIOCgxfZGVzY3JpcHRpb24iWQoNR2l0RmlsZUNoYW5nZRIMCgRwYXRoGAEgASgJEioKBnN0YXR1cxgCIAEoDjIaLm5ldGNsb2RlLnYxLkdpdEZpbGVTdGF0dXMSDgoGc3RhZ2VkGAMgASgIIn0KB01lc3NhZ2USCgoCaWQYASABKAkSJgoEcm9sZRgCIAEoDjIYLm5ldGNsb2RlLnYxLk1lc3NhZ2VSb2xlEg8KB2NvbnRlbnQYAyABKAkSLQoJdGltZXN0YW1wGAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJ+CgVFdmVudBIKCgJpZBgBIAEoCRISCgptZXNzYWdlX2lkGAIgASgJEi0KCXRpbWVzdGFtcBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASJgoFZXZlbnQYBCABKAsyFy5uZXRjbG9kZS52MS5BZ2VudEV2ZW50IrABCgVFcnJvchIMCgRjb2RlGAEgASgJEg8KB21lc3NhZ2UYAiABKAkSFwoKc2Vzc2lvbl9pZBgDIAEoCUgAiAEBEjAKB2RldGFpbHMYBCADKAsyHy5uZXRjbG9kZS52MS5FcnJvci5EZXRhaWxzRW50cnkaLgoMRGV0YWlsc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAFCDQoLX3Nlc3Npb25faWQqVgoKUmVwb0FjY2VzcxIbChdSRVBPX0FDQ0VTU19VTlNQRUNJRklFRBAAEhQKEFJFUE9fQUNDRVNTX1JFQUQQARIVChFSRVBPX0FDQ0VTU19XUklURRACKvQBCg1TZXNzaW9uU3RhdHVzEh4KGlNFU1NJT05fU1RBVFVTX1VOU1BFQ0lGSUVEEAASGwoXU0VTU0lPTl9TVEFUVVNfQ1JFQVRJTkcQARIbChdTRVNTSU9OX1NUQVRVU19SRVNVTUlORxACEhgKFFNFU1NJT05fU1RBVFVTX1JFQURZEAMSGgoWU0VTU0lPTl9TVEFUVVNfUlVOTklORxAEEhkKFVNFU1NJT05fU1RBVFVTX1BBVVNFRBAFEhgKFFNFU1NJT05fU1RBVFVTX0VSUk9SEAYSHgoaU0VTU0lPTl9TVEFUVVNfSU5URVJSVVBURUQQByqZAgoNR2l0RmlsZVN0YXR1cxIfChtHSVRfRklMRV9TVEFUVVNfVU5TUEVDSUZJRUQQABIcChhHSVRfRklMRV9TVEFUVVNfTU9ESUZJRUQQARIZChVHSVRfRklMRV9TVEFUVVNfQURERUQQAhIbChdHSVRfRklMRV9TVEFUVVNfREVMRVRFRBADEhsKF0dJVF9GSUxFX1NUQVRVU19SRU5BTUVEEAQSHQoZR0lUX0ZJTEVfU1RBVFVTX1VOVFJBQ0tFRBAFEhoKFkdJVF9GSUxFX1NUQVRVU19DT1BJRUQQBhIbChdHSVRfRklMRV9TVEFUVVNfSUdOT1JFRBAHEhwKGEdJVF9GSUxFX1NUQVRVU19VTk1FUkdFRBAIKl4KC01lc3NhZ2VSb2xlEhwKGE1FU1NBR0VfUk9MRV9VTlNQRUNJRklFRBAAEhUKEU1FU1NBR0VfUk9MRV9VU0VSEAESGgoWTUVTU0FHRV9ST0xFX0FTU0lTVEFOVBACQrwBCg9jb20ubmV0Y2xvZGUudjFCC0NvbW1vblByb3RvUAFaT2dpdGh1Yi5jb20vYW5ncmlzdGFuL25ldGNsb2RlL3NlcnZpY2VzL2NvbnRyb2wtcGxhbmUvZ2VuL25ldGNsb2RlL3YxO25ldGNsb2RldjGiAgNOWFiqAgtOZXRjbG9kZS5WMcoCC05ldGNsb2RlXFYx4gIXTmV0Y2xvZGVcVjFcR1BCTWV0YWRhdGHqAgxOZXRjbG9kZTo6VjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_netclode_v1_events]);
+  fileDesc("ChhuZXRjbG9kZS92MS9jb21tb24ucHJvdG8SC25ldGNsb2RlLnYxIuoCCgdTZXNzaW9uEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSKgoGc3RhdHVzGAMgASgOMhoubmV0Y2xvZGUudjEuU2Vzc2lvblN0YXR1cxIRCgRyZXBvGAQgASgJSACIAQESMQoLcmVwb19hY2Nlc3MYBSABKA4yFy5uZXRjbG9kZS52MS5SZXBvQWNjZXNzSAGIAQESLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMgoObGFzdF9hY3RpdmVfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEisKCHNka190eXBlGAggASgOMhQubmV0Y2xvZGUudjEuU2RrVHlwZUgCiAEBEhIKBW1vZGVsGAkgASgJSAOIAQFCBwoFX3JlcG9CDgoMX3JlcG9fYWNjZXNzQgsKCV9zZGtfdHlwZUIICgZfbW9kZWwilwEKDlNlc3Npb25TdW1tYXJ5EiUKB3Nlc3Npb24YASABKAsyFC5uZXRjbG9kZS52MS5TZXNzaW9uEhoKDW1lc3NhZ2VfY291bnQYAiABKAVIAIgBARIcCg9sYXN0X21lc3NhZ2VfaWQYAyABKAlIAYgBAUIQCg5fbWVzc2FnZV9jb3VudEISChBfbGFzdF9tZXNzYWdlX2lkIrgCCg1TZXNzaW9uQ29uZmlnEhIKCnNlc3Npb25faWQYASABKAkSFQoNd29ya3NwYWNlX2RpchgCIAEoCRIZCgxnaXRodWJfdG9rZW4YAyABKAlIAIgBARIRCgRyZXBvGAQgASgJSAGIAQESMQoLcmVwb19hY2Nlc3MYBSABKA4yFy5uZXRjbG9kZS52MS5SZXBvQWNjZXNzSAKIAQESGQoRY29udHJvbF9wbGFuZV91cmwYBiABKAkSKwoIc2RrX3R5cGUYByABKA4yFC5uZXRjbG9kZS52MS5TZGtUeXBlSAOIAQESEgoFbW9kZWwYCCABKAlIBIgBAUIPCg1fZ2l0aHViX3Rva2VuQgcKBV9yZXBvQg4KDF9yZXBvX2FjY2Vzc0ILCglfc2RrX3R5cGVCCAoGX21vZGVsImgKCkdpdEh1YlJlcG8SDAoEbmFtZRgBIAEoCRIRCglmdWxsX25hbWUYAiABKAkSDwoHcHJpdmF0ZRgDIAEoCBIYCgtkZXNjcmlwdGlvbhgEIAEoCUgAiAEBQg4KDF9kZXNjcmlwdGlvbiJZCg1HaXRGaWxlQ2hhbmdlEgwKBHBhdGgYASABKAkSKgoGc3RhdHVzGAIgASgOMhoubmV0Y2xvZGUudjEuR2l0RmlsZVN0YXR1cxIOCgZzdGFnZWQYAyABKAgifQoHTWVzc2FnZRIKCgJpZBgBIAEoCRImCgRyb2xlGAIgASgOMhgubmV0Y2xvZGUudjEuTWVzc2FnZVJvbGUSDwoHY29udGVudBgDIAEoCRItCgl0aW1lc3RhbXAYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIn4KBUV2ZW50EgoKAmlkGAEgASgJEhIKCm1lc3NhZ2VfaWQYAiABKAkSLQoJdGltZXN0YW1wGAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBImCgVldmVudBgEIAEoCzIXLm5ldGNsb2RlLnYxLkFnZW50RXZlbnQisAEKBUVycm9yEgwKBGNvZGUYASABKAkSDwoHbWVzc2FnZRgCIAEoCRIXCgpzZXNzaW9uX2lkGAMgASgJSACIAQESMAoHZGV0YWlscxgEIAMoCzIfLm5ldGNsb2RlLnYxLkVycm9yLkRldGFpbHNFbnRyeRouCgxEZXRhaWxzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUINCgtfc2Vzc2lvbl9pZCpWCgpSZXBvQWNjZXNzEhsKF1JFUE9fQUNDRVNTX1VOU1BFQ0lGSUVEEAASFAoQUkVQT19BQ0NFU1NfUkVBRBABEhUKEVJFUE9fQUNDRVNTX1dSSVRFEAIqTwoHU2RrVHlwZRIYChRTREtfVFlQRV9VTlNQRUNJRklFRBAAEhMKD1NES19UWVBFX0NMQVVERRABEhUKEVNES19UWVBFX09QRU5DT0RFEAIq9AEKDVNlc3Npb25TdGF0dXMSHgoaU0VTU0lPTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIbChdTRVNTSU9OX1NUQVRVU19DUkVBVElORxABEhsKF1NFU1NJT05fU1RBVFVTX1JFU1VNSU5HEAISGAoUU0VTU0lPTl9TVEFUVVNfUkVBRFkQAxIaChZTRVNTSU9OX1NUQVRVU19SVU5OSU5HEAQSGQoVU0VTU0lPTl9TVEFUVVNfUEFVU0VEEAUSGAoUU0VTU0lPTl9TVEFUVVNfRVJST1IQBhIeChpTRVNTSU9OX1NUQVRVU19JTlRFUlJVUFRFRBAHKpkCCg1HaXRGaWxlU3RhdHVzEh8KG0dJVF9GSUxFX1NUQVRVU19VTlNQRUNJRklFRBAAEhwKGEdJVF9GSUxFX1NUQVRVU19NT0RJRklFRBABEhkKFUdJVF9GSUxFX1NUQVRVU19BRERFRBACEhsKF0dJVF9GSUxFX1NUQVRVU19ERUxFVEVEEAMSGwoXR0lUX0ZJTEVfU1RBVFVTX1JFTkFNRUQQBBIdChlHSVRfRklMRV9TVEFUVVNfVU5UUkFDS0VEEAUSGgoWR0lUX0ZJTEVfU1RBVFVTX0NPUElFRBAGEhsKF0dJVF9GSUxFX1NUQVRVU19JR05PUkVEEAcSHAoYR0lUX0ZJTEVfU1RBVFVTX1VOTUVSR0VEEAgqXgoLTWVzc2FnZVJvbGUSHAoYTUVTU0FHRV9ST0xFX1VOU1BFQ0lGSUVEEAASFQoRTUVTU0FHRV9ST0xFX1VTRVIQARIaChZNRVNTQUdFX1JPTEVfQVNTSVNUQU5UEAJCvAEKD2NvbS5uZXRjbG9kZS52MUILQ29tbW9uUHJvdG9QAVpPZ2l0aHViLmNvbS9hbmdyaXN0YW4vbmV0Y2xvZGUvc2VydmljZXMvY29udHJvbC1wbGFuZS9nZW4vbmV0Y2xvZGUvdjE7bmV0Y2xvZGV2MaICA05YWKoCC05ldGNsb2RlLlYxygILTmV0Y2xvZGVcVjHiAhdOZXRjbG9kZVxWMVxHUEJNZXRhZGF0YeoCDE5ldGNsb2RlOjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp, file_netclode_v1_events]);
 
 /**
  * Session represents a coding session with an AI agent.
@@ -60,6 +60,20 @@ export type Session = Message$1<"netclode.v1.Session"> & {
    * @generated from field: google.protobuf.Timestamp last_active_at = 7;
    */
   lastActiveAt?: Timestamp;
+
+  /**
+   * SDK to use (defaults to CLAUDE)
+   *
+   * @generated from field: optional netclode.v1.SdkType sdk_type = 8;
+   */
+  sdkType?: SdkType;
+
+  /**
+   * Model ID for OpenCode (e.g., "claude-sonnet-4-0")
+   *
+   * @generated from field: optional string model = 9;
+   */
+  model?: string;
 };
 
 /**
@@ -147,6 +161,20 @@ export type SessionConfig = Message$1<"netclode.v1.SessionConfig"> & {
    * @generated from field: string control_plane_url = 6;
    */
   controlPlaneUrl: string;
+
+  /**
+   * SDK type for agent to use
+   *
+   * @generated from field: optional netclode.v1.SdkType sdk_type = 7;
+   */
+  sdkType?: SdkType;
+
+  /**
+   * Model ID (e.g., "anthropic/claude-sonnet-4-0")
+   *
+   * @generated from field: optional string model = 8;
+   */
+  model?: string;
 };
 
 /**
@@ -381,6 +409,40 @@ export const RepoAccessSchema: GenEnum<RepoAccess> = /*@__PURE__*/
   enumDesc(file_netclode_v1_common, 0);
 
 /**
+ * SdkType defines which agent SDK to use for the session.
+ *
+ * @generated from enum netclode.v1.SdkType
+ */
+export enum SdkType {
+  /**
+   * Defaults to Claude Code SDK
+   *
+   * @generated from enum value: SDK_TYPE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Anthropic Claude Code SDK (direct integration)
+   *
+   * @generated from enum value: SDK_TYPE_CLAUDE = 1;
+   */
+  CLAUDE = 1,
+
+  /**
+   * OpenCode SDK (multi-provider support)
+   *
+   * @generated from enum value: SDK_TYPE_OPENCODE = 2;
+   */
+  OPENCODE = 2,
+}
+
+/**
+ * Describes the enum netclode.v1.SdkType.
+ */
+export const SdkTypeSchema: GenEnum<SdkType> = /*@__PURE__*/
+  enumDesc(file_netclode_v1_common, 1);
+
+/**
  * SessionStatus represents the lifecycle state of a session.
  *
  * @generated from enum netclode.v1.SessionStatus
@@ -445,7 +507,7 @@ export enum SessionStatus {
  * Describes the enum netclode.v1.SessionStatus.
  */
 export const SessionStatusSchema: GenEnum<SessionStatus> = /*@__PURE__*/
-  enumDesc(file_netclode_v1_common, 1);
+  enumDesc(file_netclode_v1_common, 2);
 
 /**
  * GitFileStatus represents the type of change to a file.
@@ -503,7 +565,7 @@ export enum GitFileStatus {
  * Describes the enum netclode.v1.GitFileStatus.
  */
 export const GitFileStatusSchema: GenEnum<GitFileStatus> = /*@__PURE__*/
-  enumDesc(file_netclode_v1_common, 2);
+  enumDesc(file_netclode_v1_common, 3);
 
 /**
  * MessageRole identifies the sender of a message.
@@ -531,5 +593,5 @@ export enum MessageRole {
  * Describes the enum netclode.v1.MessageRole.
  */
 export const MessageRoleSchema: GenEnum<MessageRole> = /*@__PURE__*/
-  enumDesc(file_netclode_v1_common, 3);
+  enumDesc(file_netclode_v1_common, 4);
 

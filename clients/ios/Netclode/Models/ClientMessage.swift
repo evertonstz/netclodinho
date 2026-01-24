@@ -1,7 +1,7 @@
 import Foundation
 
 enum ClientMessage: Encodable, Sendable {
-    case sessionCreate(name: String?, repo: String?, repoAccess: RepoAccess?, initialPrompt: String?)
+    case sessionCreate(name: String?, repo: String?, repoAccess: RepoAccess?, initialPrompt: String?, sdkType: SdkType?, model: String?)
     case sessionList
     case sessionResume(id: String)
     case sessionPause(id: String)
@@ -23,19 +23,21 @@ enum ClientMessage: Encodable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case type
-        case name, repo, repoAccess, id, sessionId, text, data, cols, rows, port, lastMessageId, lastNotificationId, initialPrompt, file
+        case name, repo, repoAccess, id, sessionId, text, data, cols, rows, port, lastMessageId, lastNotificationId, initialPrompt, file, sdkType, model
     }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
 
         switch self {
-        case .sessionCreate(let name, let repo, let repoAccess, let initialPrompt):
+        case .sessionCreate(let name, let repo, let repoAccess, let initialPrompt, let sdkType, let model):
             try container.encode("session.create", forKey: .type)
             try container.encodeIfPresent(name, forKey: .name)
             try container.encodeIfPresent(repo, forKey: .repo)
             try container.encodeIfPresent(repoAccess?.rawValue, forKey: .repoAccess)
             try container.encodeIfPresent(initialPrompt, forKey: .initialPrompt)
+            try container.encodeIfPresent(sdkType?.rawValue, forKey: .sdkType)
+            try container.encodeIfPresent(model, forKey: .model)
 
         case .sessionList:
             try container.encode("session.list", forKey: .type)

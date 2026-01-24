@@ -38,15 +38,43 @@ import {
 } from "../gen/netclode/v1/common_pb.js";
 
 // Import modular services
-import { executePrompt, type PromptEvent, setInterruptSignal, clearInterruptSignal } from "./services/prompt.js";
 import { handleTerminalInput, resizeTerminal, setTerminalOutputCallback } from "./services/terminal.js";
 import { generateTitle } from "./services/title.js";
 import { getGitStatus, getGitDiff, type GitFileChange } from "./git.js";
+
+// Import SDK abstraction layer
+import {
+  createSDKAdapter,
+  parseSdkType,
+  getAdapter,
+  shutdownAllAdapters,
+  type SDKAdapter,
+  type PromptEvent,
+  type SdkType,
+} from "./sdk/index.js";
+import { SdkType as ProtoSdkType } from "../gen/netclode/v1/common_pb.js";
 
 const WORKSPACE_DIR = "/agent/workspace";
 
 // Track if a prompt is currently running (to prevent concurrent prompts)
 let isPromptRunning = false;
+
+// Current SDK adapter for the session
+let currentAdapter: SDKAdapter | null = null;
+
+/**
+ * Convert proto SdkType enum to internal SdkType string
+ */
+function parseSdkTypeFromProto(protoSdkType: ProtoSdkType | undefined): SdkType {
+  switch (protoSdkType) {
+    case ProtoSdkType.OPENCODE:
+      return "opencode";
+    case ProtoSdkType.CLAUDE:
+    case ProtoSdkType.UNSPECIFIED:
+    default:
+      return "claude";
+  }
+}
 
 /**
  * Convert local repo clone stage to protobuf enum
@@ -336,6 +364,17 @@ export async function connectToControlPlane(
     // Clear terminal output callback
     setTerminalOutputCallback(null);
     connection = null;
+
+    // Shutdown SDK adapters
+    if (currentAdapter) {
+      try {
+        await currentAdapter.shutdown();
+      } catch (err) {
+        console.error("[agent] Error shutting down SDK adapter:", err);
+      }
+      currentAdapter = null;
+    }
+
     console.log("[agent] Disconnected from control plane");
   }
 }
@@ -354,6 +393,23 @@ async function handleControlPlaneMessage(
         console.log("[agent] Registered with control plane");
         if (connection && msg.message.value.config) {
           connection.sessionConfig = msg.message.value.config;
+
+          // Initialize SDK adapter based on session config
+          const config = msg.message.value.config;
+          const sdkType = parseSdkTypeFromProto(config.sdkType);
+          console.log(`[agent] Initializing SDK adapter: ${sdkType}, model: ${config.model || "(default)"}`);
+
+          try {
+            currentAdapter = await createSDKAdapter({
+              sdkType,
+              workspaceDir: WORKSPACE_DIR,
+              anthropicApiKey: process.env.ANTHROPIC_API_KEY || "",
+              model: config.model,
+            });
+          } catch (err) {
+            console.error("[agent] Failed to initialize SDK adapter:", err);
+            throw new Error(`SDK initialization failed: ${err instanceof Error ? err.message : String(err)}`);
+          }
         }
       } else {
         console.error("[agent] Registration failed:", msg.message.value.error);
@@ -379,7 +435,9 @@ async function handleControlPlaneMessage(
 
     case "interrupt":
       console.log("[agent] Interrupt requested");
-      setInterruptSignal();
+      if (currentAdapter) {
+        currentAdapter.setInterruptSignal();
+      }
       break;
 
     case "generateTitle":
@@ -413,8 +471,30 @@ async function handleExecutePrompt(
 ): Promise<void> {
   const config = connection?.sessionConfig;
 
+  if (!currentAdapter) {
+    console.error("[agent] No SDK adapter initialized");
+    send(
+      create(AgentMessageSchema, {
+        message: {
+          case: "promptResponse",
+          value: create(AgentStreamResponseSchema, {
+            response: {
+              case: "error",
+              value: {
+                $typeName: "netclode.v1.AgentError",
+                message: "SDK adapter not initialized",
+                retryable: false,
+              },
+            },
+          }),
+        },
+      })
+    );
+    return;
+  }
+
   try {
-    for await (const event of executePrompt(
+    for await (const event of currentAdapter.executePrompt(
       sessionId,
       text,
       config ? { repo: config.repo, githubToken: config.githubToken } : undefined

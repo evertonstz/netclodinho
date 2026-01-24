@@ -96,6 +96,13 @@ func (h *ConnectAgentServiceHandler) Connect(ctx context.Context, stream *connec
 	if token, ok := config["GITHUB_TOKEN"]; ok {
 		sessionConfig.GithubToken = &token
 	}
+	if sdkTypeStr, ok := config["SDK_TYPE"]; ok {
+		sdkType := parseSdkTypeFromString(sdkTypeStr)
+		sessionConfig.SdkType = &sdkType
+	}
+	if model, ok := config["MODEL"]; ok {
+		sessionConfig.Model = &model
+	}
 
 	if err := conn.send(&v1.ControlPlaneMessage{
 		Message: &v1.ControlPlaneMessage_Registered{
@@ -316,4 +323,16 @@ func (c *AgentConnection) ResizeTerminal(cols, rows int) error {
 
 func strPtr(s string) *string {
 	return &s
+}
+
+// parseSdkTypeFromString converts a string to v1.SdkType enum.
+func parseSdkTypeFromString(s string) v1.SdkType {
+	switch s {
+	case "SDK_TYPE_CLAUDE":
+		return v1.SdkType_SDK_TYPE_CLAUDE
+	case "SDK_TYPE_OPENCODE":
+		return v1.SdkType_SDK_TYPE_OPENCODE
+	default:
+		return v1.SdkType_SDK_TYPE_UNSPECIFIED
+	}
 }

@@ -56,6 +56,7 @@
 		A10000000000000000000034 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000034 /* Assets.xcassets */; };
 		A10000000000000000000043 /* GitHubRepo.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000043 /* GitHubRepo.swift */; };
 		A10000000000000000000044 /* GitHubStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000044 /* GitHubStore.swift */; };
+		A10000000000000000000080 /* ModelsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000080 /* ModelsStore.swift */; };
 		A10000000000000000000045 /* RepoAutocomplete.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000045 /* RepoAutocomplete.swift */; };
 		A10000000000000000000046 /* GitFileChange.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000046 /* GitFileChange.swift */; };
 		A10000000000000000000047 /* GitStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000047 /* GitStore.swift */; };
@@ -118,6 +119,7 @@
 		B10000000000000000000035 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B10000000000000000000043 /* GitHubRepo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubRepo.swift; sourceTree = "<group>"; };
 		B10000000000000000000044 /* GitHubStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubStore.swift; sourceTree = "<group>"; };
+		B10000000000000000000080 /* ModelsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelsStore.swift; sourceTree = "<group>"; };
 		B10000000000000000000045 /* RepoAutocomplete.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepoAutocomplete.swift; sourceTree = "<group>"; };
 		B10000000000000000000046 /* GitFileChange.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitFileChange.swift; sourceTree = "<group>"; };
 		B10000000000000000000047 /* GitStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitStore.swift; sourceTree = "<group>"; };
@@ -248,6 +250,7 @@
 				B10000000000000000000014 /* SettingsStore.swift */,
 				B10000000000000000000044 /* GitHubStore.swift */,
 				B10000000000000000000047 /* GitStore.swift */,
+				B10000000000000000000080 /* ModelsStore.swift */,
 			);
 			path = Stores;
 			sourceTree = "<group>";
@@ -555,6 +558,7 @@
 				A10000000000000000000033 /* PreviewData.swift in Sources */,
 				A10000000000000000000043 /* GitHubRepo.swift in Sources */,
 				A10000000000000000000044 /* GitHubStore.swift in Sources */,
+				A10000000000000000000080 /* ModelsStore.swift in Sources */,
 				A10000000000000000000045 /* RepoAutocomplete.swift in Sources */,
 				A10000000000000000000046 /* GitFileChange.swift in Sources */,
 				A10000000000000000000047 /* GitStore.swift in Sources */,

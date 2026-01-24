@@ -68,6 +68,8 @@ message CreateSessionRequest {
   optional string repo = 3;                  // GitHub repository to clone (e.g., "owner/repo")
   optional RepoAccess repo_access = 4;       // Permission level for repository
   optional string initial_prompt = 5;        // Optional prompt to send immediately after creation
+  optional SdkType sdk_type = 6;             // SDK to use (defaults to CLAUDE)
+  optional string model = 7;                  // Model ID for OpenCode (e.g., "claude-sonnet-4-0")
 }
 
 message ListSessionsRequest {

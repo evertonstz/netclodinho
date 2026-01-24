@@ -302,11 +302,20 @@ func (c *ConnectConnection) unsubscribe(sessionID string) {
 func (c *ConnectConnection) handleSessionCreate(ctx context.Context, req *pb.CreateSessionRequest) error {
 	var repoPtr *string
 	var repoAccessPtr *pb.RepoAccess
+	var sdkTypePtr *pb.SdkType
+	var modelPtr *string
+
 	if req.Repo != nil {
 		repoPtr = req.Repo
 	}
 	if req.RepoAccess != nil {
 		repoAccessPtr = req.RepoAccess
+	}
+	if req.SdkType != nil {
+		sdkTypePtr = req.SdkType
+	}
+	if req.Model != nil {
+		modelPtr = req.Model
 	}
 
 	name := ""
@@ -314,7 +323,7 @@ func (c *ConnectConnection) handleSessionCreate(ctx context.Context, req *pb.Cre
 		name = *req.Name
 	}
 
-	sess, err := c.manager.Create(ctx, name, repoPtr, repoAccessPtr)
+	sess, err := c.manager.Create(ctx, name, repoPtr, repoAccessPtr, sdkTypePtr, modelPtr)
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,6 @@
 # Agent
 
-Claude Code agent that runs inside Kata Container VMs. Uses the Claude Agent SDK to execute coding tasks.
+AI coding agent that runs inside Kata Container VMs. Supports multiple SDK backends (Claude Code SDK, OpenCode SDK) to execute coding tasks.
 
 ## What it does
 
@@ -17,8 +17,12 @@ services/agent/
 │   ├── index.ts           # Entry point
 │   ├── connect-client.ts  # Bidirectional Connect client to control plane
 │   ├── git.ts             # Git operations
+│   ├── sdk/               # SDK abstraction layer
+│   │   ├── types.ts       # SDKAdapter interface, event types
+│   │   ├── factory.ts     # Creates appropriate adapter based on config
+│   │   ├── claude-adapter.ts   # Claude Code SDK implementation
+│   │   └── opencode-adapter.ts # OpenCode SDK implementation
 │   └── services/
-│       ├── prompt.ts      # Prompt execution via Claude SDK
 │       ├── terminal.ts    # PTY management
 │       └── title.ts       # Title generation
 ├── gen/                   # Generated protobuf types
@@ -89,7 +93,11 @@ Terminal input/output flows through the same bidirectional stream as prompts. Mu
 
 Available at `GET /health` for k8s probes.
 
-## Claude Agent SDK
+## SDK Adapters
+
+The agent supports multiple AI SDK backends. Users select which SDK to use when creating a session.
+
+### Claude Code SDK (default)
 
 ```typescript
 import { query } from "@anthropic-ai/claude-agent-sdk";
@@ -113,6 +121,26 @@ for await (const message of q) {
 
 Available tools (all enabled via `bypassPermissions`): Read, Write, Edit, Bash, Glob, Grep, WebSearch, WebFetch.
 
+### OpenCode SDK
+
+Uses the OpenCode CLI in server mode. The agent spawns `opencode serve` and communicates via REST API + SSE.
+
+```typescript
+// Start server
+const process = spawn("opencode", ["serve", "--port", port]);
+
+// Create session
+const res = await fetch(`http://localhost:${port}/session`, {
+  method: "POST",
+  body: JSON.stringify({ path: workspaceDir }),
+});
+
+// Send message and stream response via SSE
+const eventSource = new EventSource(`http://localhost:${port}/session/${id}/message`);
+```
+
+OpenCode supports multiple model providers (Anthropic, OpenAI, etc.). The model is specified in the session config (e.g., `anthropic/claude-sonnet-4-0`).
+
 ## VM environment
 
 ```
@@ -129,7 +157,7 @@ Available tools (all enabled via `bypassPermissions`): Read, Write, Edit, Bash, 
 
 ### Session ID mapping
 
-The control plane assigns session IDs (`sess-abc123`). The Claude Agent SDK has its own session IDs for conversation persistence. These are different.
+The control plane assigns session IDs (`sess-abc123`). Both the Claude Agent SDK and OpenCode SDK have their own session IDs for conversation persistence. These are different.
 
 When you pause and resume a session, you get a new VM, but the JuiceFS PVC is the same. The agent needs to know which SDK session to resume.
 
@@ -141,7 +169,7 @@ When you pause and resume a session, you get a new VM, but the JuiceFS PVC is th
 }
 ```
 
-On first prompt, the agent stores the SDK session ID. On resume, it reads the mapping and passes `resume: sdkSessionId` to the SDK's `query()` call. Conversations survive pause/resume.
+On first prompt, the agent stores the SDK session ID. On resume, it reads the mapping and resumes the conversation. This works for both Claude and OpenCode SDKs.
 
 Tools persist via mise:
 

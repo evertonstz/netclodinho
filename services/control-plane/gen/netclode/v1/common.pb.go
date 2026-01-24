@@ -72,6 +72,56 @@ func (RepoAccess) EnumDescriptor() ([]byte, []int) {
 	return file_netclode_v1_common_proto_rawDescGZIP(), []int{0}
 }
 
+// SdkType defines which agent SDK to use for the session.
+type SdkType int32
+
+const (
+	SdkType_SDK_TYPE_UNSPECIFIED SdkType = 0 // Defaults to Claude Code SDK
+	SdkType_SDK_TYPE_CLAUDE      SdkType = 1 // Anthropic Claude Code SDK (direct integration)
+	SdkType_SDK_TYPE_OPENCODE    SdkType = 2 // OpenCode SDK (multi-provider support)
+)
+
+// Enum value maps for SdkType.
+var (
+	SdkType_name = map[int32]string{
+		0: "SDK_TYPE_UNSPECIFIED",
+		1: "SDK_TYPE_CLAUDE",
+		2: "SDK_TYPE_OPENCODE",
+	}
+	SdkType_value = map[string]int32{
+		"SDK_TYPE_UNSPECIFIED": 0,
+		"SDK_TYPE_CLAUDE":      1,
+		"SDK_TYPE_OPENCODE":    2,
+	}
+)
+
+func (x SdkType) Enum() *SdkType {
+	p := new(SdkType)
+	*p = x
+	return p
+}
+
+func (x SdkType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SdkType) Descriptor() protoreflect.EnumDescriptor {
+	return file_netclode_v1_common_proto_enumTypes[1].Descriptor()
+}
+
+func (SdkType) Type() protoreflect.EnumType {
+	return &file_netclode_v1_common_proto_enumTypes[1]
+}
+
+func (x SdkType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SdkType.Descriptor instead.
+func (SdkType) EnumDescriptor() ([]byte, []int) {
+	return file_netclode_v1_common_proto_rawDescGZIP(), []int{1}
+}
+
 // SessionStatus represents the lifecycle state of a session.
 type SessionStatus int32
 
@@ -121,11 +171,11 @@ func (x SessionStatus) String() string {
 }
 
 func (SessionStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_netclode_v1_common_proto_enumTypes[1].Descriptor()
+	return file_netclode_v1_common_proto_enumTypes[2].Descriptor()
 }
 
 func (SessionStatus) Type() protoreflect.EnumType {
-	return &file_netclode_v1_common_proto_enumTypes[1]
+	return &file_netclode_v1_common_proto_enumTypes[2]
 }
 
 func (x SessionStatus) Number() protoreflect.EnumNumber {
@@ -134,7 +184,7 @@ func (x SessionStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use SessionStatus.Descriptor instead.
 func (SessionStatus) EnumDescriptor() ([]byte, []int) {
-	return file_netclode_v1_common_proto_rawDescGZIP(), []int{1}
+	return file_netclode_v1_common_proto_rawDescGZIP(), []int{2}
 }
 
 // GitFileStatus represents the type of change to a file.
@@ -189,11 +239,11 @@ func (x GitFileStatus) String() string {
 }
 
 func (GitFileStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_netclode_v1_common_proto_enumTypes[2].Descriptor()
+	return file_netclode_v1_common_proto_enumTypes[3].Descriptor()
 }
 
 func (GitFileStatus) Type() protoreflect.EnumType {
-	return &file_netclode_v1_common_proto_enumTypes[2]
+	return &file_netclode_v1_common_proto_enumTypes[3]
 }
 
 func (x GitFileStatus) Number() protoreflect.EnumNumber {
@@ -202,7 +252,7 @@ func (x GitFileStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use GitFileStatus.Descriptor instead.
 func (GitFileStatus) EnumDescriptor() ([]byte, []int) {
-	return file_netclode_v1_common_proto_rawDescGZIP(), []int{2}
+	return file_netclode_v1_common_proto_rawDescGZIP(), []int{3}
 }
 
 // MessageRole identifies the sender of a message.
@@ -239,11 +289,11 @@ func (x MessageRole) String() string {
 }
 
 func (MessageRole) Descriptor() protoreflect.EnumDescriptor {
-	return file_netclode_v1_common_proto_enumTypes[3].Descriptor()
+	return file_netclode_v1_common_proto_enumTypes[4].Descriptor()
 }
 
 func (MessageRole) Type() protoreflect.EnumType {
-	return &file_netclode_v1_common_proto_enumTypes[3]
+	return &file_netclode_v1_common_proto_enumTypes[4]
 }
 
 func (x MessageRole) Number() protoreflect.EnumNumber {
@@ -252,7 +302,7 @@ func (x MessageRole) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use MessageRole.Descriptor instead.
 func (MessageRole) EnumDescriptor() ([]byte, []int) {
-	return file_netclode_v1_common_proto_rawDescGZIP(), []int{3}
+	return file_netclode_v1_common_proto_rawDescGZIP(), []int{4}
 }
 
 // Session represents a coding session with an AI agent.
@@ -265,6 +315,8 @@ type Session struct {
 	RepoAccess    *RepoAccess            `protobuf:"varint,5,opt,name=repo_access,json=repoAccess,proto3,enum=netclode.v1.RepoAccess,oneof" json:"repo_access,omitempty"` // Permission level for repository operations
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	LastActiveAt  *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=last_active_at,json=lastActiveAt,proto3" json:"last_active_at,omitempty"`
+	SdkType       *SdkType               `protobuf:"varint,8,opt,name=sdk_type,json=sdkType,proto3,enum=netclode.v1.SdkType,oneof" json:"sdk_type,omitempty"` // SDK to use (defaults to CLAUDE)
+	Model         *string                `protobuf:"bytes,9,opt,name=model,proto3,oneof" json:"model,omitempty"`                                              // Model ID for OpenCode (e.g., "claude-sonnet-4-0")
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -348,6 +400,20 @@ func (x *Session) GetLastActiveAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *Session) GetSdkType() SdkType {
+	if x != nil && x.SdkType != nil {
+		return *x.SdkType
+	}
+	return SdkType_SDK_TYPE_UNSPECIFIED
+}
+
+func (x *Session) GetModel() string {
+	if x != nil && x.Model != nil {
+		return *x.Model
+	}
+	return ""
+}
+
 // SessionSummary includes session data plus metadata for list views.
 type SessionSummary struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -418,6 +484,8 @@ type SessionConfig struct {
 	Repo            *string                `protobuf:"bytes,4,opt,name=repo,proto3,oneof" json:"repo,omitempty"`                                                            // Repository to clone (e.g., "owner/repo")
 	RepoAccess      *RepoAccess            `protobuf:"varint,5,opt,name=repo_access,json=repoAccess,proto3,enum=netclode.v1.RepoAccess,oneof" json:"repo_access,omitempty"` // Permission level for repository operations
 	ControlPlaneUrl string                 `protobuf:"bytes,6,opt,name=control_plane_url,json=controlPlaneUrl,proto3" json:"control_plane_url,omitempty"`                   // URL of control plane for callbacks
+	SdkType         *SdkType               `protobuf:"varint,7,opt,name=sdk_type,json=sdkType,proto3,enum=netclode.v1.SdkType,oneof" json:"sdk_type,omitempty"`             // SDK type for agent to use
+	Model           *string                `protobuf:"bytes,8,opt,name=model,proto3,oneof" json:"model,omitempty"`                                                          // Model ID (e.g., "anthropic/claude-sonnet-4-0")
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -490,6 +558,20 @@ func (x *SessionConfig) GetRepoAccess() RepoAccess {
 func (x *SessionConfig) GetControlPlaneUrl() string {
 	if x != nil {
 		return x.ControlPlaneUrl
+	}
+	return ""
+}
+
+func (x *SessionConfig) GetSdkType() SdkType {
+	if x != nil && x.SdkType != nil {
+		return *x.SdkType
+	}
+	return SdkType_SDK_TYPE_UNSPECIFIED
+}
+
+func (x *SessionConfig) GetModel() string {
+	if x != nil && x.Model != nil {
+		return *x.Model
 	}
 	return ""
 }
@@ -836,7 +918,7 @@ var File_netclode_v1_common_proto protoreflect.FileDescriptor
 
 const file_netclode_v1_common_proto_rawDesc = "" +
 	"\n" +
-	"\x18netclode/v1/common.proto\x12\vnetclode.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x18netclode/v1/events.proto\"\xcf\x02\n" +
+	"\x18netclode/v1/common.proto\x12\vnetclode.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x18netclode/v1/events.proto\"\xb7\x03\n" +
 	"\aSession\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x122\n" +
@@ -846,15 +928,19 @@ const file_netclode_v1_common_proto_rawDesc = "" +
 	"repoAccess\x88\x01\x01\x129\n" +
 	"\n" +
 	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12@\n" +
-	"\x0elast_active_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\flastActiveAtB\a\n" +
+	"\x0elast_active_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\flastActiveAt\x124\n" +
+	"\bsdk_type\x18\b \x01(\x0e2\x14.netclode.v1.SdkTypeH\x02R\asdkType\x88\x01\x01\x12\x19\n" +
+	"\x05model\x18\t \x01(\tH\x03R\x05model\x88\x01\x01B\a\n" +
 	"\x05_repoB\x0e\n" +
-	"\f_repo_access\"\xbd\x01\n" +
+	"\f_repo_accessB\v\n" +
+	"\t_sdk_typeB\b\n" +
+	"\x06_model\"\xbd\x01\n" +
 	"\x0eSessionSummary\x12.\n" +
 	"\asession\x18\x01 \x01(\v2\x14.netclode.v1.SessionR\asession\x12(\n" +
 	"\rmessage_count\x18\x02 \x01(\x05H\x00R\fmessageCount\x88\x01\x01\x12+\n" +
 	"\x0flast_message_id\x18\x03 \x01(\tH\x01R\rlastMessageId\x88\x01\x01B\x10\n" +
 	"\x0e_message_countB\x12\n" +
-	"\x10_last_message_id\"\xa9\x02\n" +
+	"\x10_last_message_id\"\x91\x03\n" +
 	"\rSessionConfig\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12#\n" +
@@ -863,10 +949,14 @@ const file_netclode_v1_common_proto_rawDesc = "" +
 	"\x04repo\x18\x04 \x01(\tH\x01R\x04repo\x88\x01\x01\x12=\n" +
 	"\vrepo_access\x18\x05 \x01(\x0e2\x17.netclode.v1.RepoAccessH\x02R\n" +
 	"repoAccess\x88\x01\x01\x12*\n" +
-	"\x11control_plane_url\x18\x06 \x01(\tR\x0fcontrolPlaneUrlB\x0f\n" +
+	"\x11control_plane_url\x18\x06 \x01(\tR\x0fcontrolPlaneUrl\x124\n" +
+	"\bsdk_type\x18\a \x01(\x0e2\x14.netclode.v1.SdkTypeH\x03R\asdkType\x88\x01\x01\x12\x19\n" +
+	"\x05model\x18\b \x01(\tH\x04R\x05model\x88\x01\x01B\x0f\n" +
 	"\r_github_tokenB\a\n" +
 	"\x05_repoB\x0e\n" +
-	"\f_repo_access\"\x8e\x01\n" +
+	"\f_repo_accessB\v\n" +
+	"\t_sdk_typeB\b\n" +
+	"\x06_model\"\x8e\x01\n" +
 	"\n" +
 	"GitHubRepo\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1b\n" +
@@ -903,7 +993,11 @@ const file_netclode_v1_common_proto_rawDesc = "" +
 	"RepoAccess\x12\x1b\n" +
 	"\x17REPO_ACCESS_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10REPO_ACCESS_READ\x10\x01\x12\x15\n" +
-	"\x11REPO_ACCESS_WRITE\x10\x02*\xf4\x01\n" +
+	"\x11REPO_ACCESS_WRITE\x10\x02*O\n" +
+	"\aSdkType\x12\x18\n" +
+	"\x14SDK_TYPE_UNSPECIFIED\x10\x00\x12\x13\n" +
+	"\x0fSDK_TYPE_CLAUDE\x10\x01\x12\x15\n" +
+	"\x11SDK_TYPE_OPENCODE\x10\x02*\xf4\x01\n" +
 	"\rSessionStatus\x12\x1e\n" +
 	"\x1aSESSION_STATUS_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17SESSION_STATUS_CREATING\x10\x01\x12\x1b\n" +
@@ -941,43 +1035,46 @@ func file_netclode_v1_common_proto_rawDescGZIP() []byte {
 	return file_netclode_v1_common_proto_rawDescData
 }
 
-var file_netclode_v1_common_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
+var file_netclode_v1_common_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
 var file_netclode_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_netclode_v1_common_proto_goTypes = []any{
 	(RepoAccess)(0),               // 0: netclode.v1.RepoAccess
-	(SessionStatus)(0),            // 1: netclode.v1.SessionStatus
-	(GitFileStatus)(0),            // 2: netclode.v1.GitFileStatus
-	(MessageRole)(0),              // 3: netclode.v1.MessageRole
-	(*Session)(nil),               // 4: netclode.v1.Session
-	(*SessionSummary)(nil),        // 5: netclode.v1.SessionSummary
-	(*SessionConfig)(nil),         // 6: netclode.v1.SessionConfig
-	(*GitHubRepo)(nil),            // 7: netclode.v1.GitHubRepo
-	(*GitFileChange)(nil),         // 8: netclode.v1.GitFileChange
-	(*Message)(nil),               // 9: netclode.v1.Message
-	(*Event)(nil),                 // 10: netclode.v1.Event
-	(*Error)(nil),                 // 11: netclode.v1.Error
-	nil,                           // 12: netclode.v1.Error.DetailsEntry
-	(*timestamppb.Timestamp)(nil), // 13: google.protobuf.Timestamp
-	(*AgentEvent)(nil),            // 14: netclode.v1.AgentEvent
+	(SdkType)(0),                  // 1: netclode.v1.SdkType
+	(SessionStatus)(0),            // 2: netclode.v1.SessionStatus
+	(GitFileStatus)(0),            // 3: netclode.v1.GitFileStatus
+	(MessageRole)(0),              // 4: netclode.v1.MessageRole
+	(*Session)(nil),               // 5: netclode.v1.Session
+	(*SessionSummary)(nil),        // 6: netclode.v1.SessionSummary
+	(*SessionConfig)(nil),         // 7: netclode.v1.SessionConfig
+	(*GitHubRepo)(nil),            // 8: netclode.v1.GitHubRepo
+	(*GitFileChange)(nil),         // 9: netclode.v1.GitFileChange
+	(*Message)(nil),               // 10: netclode.v1.Message
+	(*Event)(nil),                 // 11: netclode.v1.Event
+	(*Error)(nil),                 // 12: netclode.v1.Error
+	nil,                           // 13: netclode.v1.Error.DetailsEntry
+	(*timestamppb.Timestamp)(nil), // 14: google.protobuf.Timestamp
+	(*AgentEvent)(nil),            // 15: netclode.v1.AgentEvent
 }
 var file_netclode_v1_common_proto_depIdxs = []int32{
-	1,  // 0: netclode.v1.Session.status:type_name -> netclode.v1.SessionStatus
+	2,  // 0: netclode.v1.Session.status:type_name -> netclode.v1.SessionStatus
 	0,  // 1: netclode.v1.Session.repo_access:type_name -> netclode.v1.RepoAccess
-	13, // 2: netclode.v1.Session.created_at:type_name -> google.protobuf.Timestamp
-	13, // 3: netclode.v1.Session.last_active_at:type_name -> google.protobuf.Timestamp
-	4,  // 4: netclode.v1.SessionSummary.session:type_name -> netclode.v1.Session
-	0,  // 5: netclode.v1.SessionConfig.repo_access:type_name -> netclode.v1.RepoAccess
-	2,  // 6: netclode.v1.GitFileChange.status:type_name -> netclode.v1.GitFileStatus
-	3,  // 7: netclode.v1.Message.role:type_name -> netclode.v1.MessageRole
-	13, // 8: netclode.v1.Message.timestamp:type_name -> google.protobuf.Timestamp
-	13, // 9: netclode.v1.Event.timestamp:type_name -> google.protobuf.Timestamp
-	14, // 10: netclode.v1.Event.event:type_name -> netclode.v1.AgentEvent
-	12, // 11: netclode.v1.Error.details:type_name -> netclode.v1.Error.DetailsEntry
-	12, // [12:12] is the sub-list for method output_type
-	12, // [12:12] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	14, // 2: netclode.v1.Session.created_at:type_name -> google.protobuf.Timestamp
+	14, // 3: netclode.v1.Session.last_active_at:type_name -> google.protobuf.Timestamp
+	1,  // 4: netclode.v1.Session.sdk_type:type_name -> netclode.v1.SdkType
+	5,  // 5: netclode.v1.SessionSummary.session:type_name -> netclode.v1.Session
+	0,  // 6: netclode.v1.SessionConfig.repo_access:type_name -> netclode.v1.RepoAccess
+	1,  // 7: netclode.v1.SessionConfig.sdk_type:type_name -> netclode.v1.SdkType
+	3,  // 8: netclode.v1.GitFileChange.status:type_name -> netclode.v1.GitFileStatus
+	4,  // 9: netclode.v1.Message.role:type_name -> netclode.v1.MessageRole
+	14, // 10: netclode.v1.Message.timestamp:type_name -> google.protobuf.Timestamp
+	14, // 11: netclode.v1.Event.timestamp:type_name -> google.protobuf.Timestamp
+	15, // 12: netclode.v1.Event.event:type_name -> netclode.v1.AgentEvent
+	13, // 13: netclode.v1.Error.details:type_name -> netclode.v1.Error.DetailsEntry
+	14, // [14:14] is the sub-list for method output_type
+	14, // [14:14] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_netclode_v1_common_proto_init() }
@@ -996,7 +1093,7 @@ func file_netclode_v1_common_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_netclode_v1_common_proto_rawDesc), len(file_netclode_v1_common_proto_rawDesc)),
-			NumEnums:      4,
+			NumEnums:      5,
 			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   0,

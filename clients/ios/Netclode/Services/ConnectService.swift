@@ -435,8 +435,18 @@ final class ConnectService {
             repo: proto.hasRepo ? proto.repo : nil,
             repoAccess: proto.hasRepoAccess ? convertRepoAccess(proto.repoAccess) : nil,
             createdAt: proto.createdAt.date,
-            lastActiveAt: proto.lastActiveAt.date
+            lastActiveAt: proto.lastActiveAt.date,
+            sdkType: proto.hasSdkType ? convertSdkType(proto.sdkType) : nil,
+            model: proto.hasModel ? proto.model : nil
         )
+    }
+
+    private func convertSdkType(_ proto: Netclode_V1_SdkType) -> SdkType {
+        switch proto {
+        case .claude: return .claude
+        case .opencode: return .opencode
+        case .unspecified, .UNRECOGNIZED: return .claude
+        }
     }
     
     private func convertRepoAccess(_ proto: Netclode_V1_RepoAccess) -> RepoAccess {
@@ -453,6 +463,13 @@ final class ConnectService {
         case .write: return .write
         }
     }
+
+    private func convertToProtoSdkType(_ sdkType: SdkType) -> Netclode_V1_SdkType {
+        switch sdkType {
+        case .claude: return .claude
+        case .opencode: return .opencode
+        }
+    }
     
     private func convertSessionSummary(_ proto: Netclode_V1_SessionSummary) -> SessionWithMeta {
         let session = proto.session
@@ -465,7 +482,9 @@ final class ConnectService {
             createdAt: session.createdAt.date,
             lastActiveAt: session.lastActiveAt.date,
             messageCount: proto.hasMessageCount ? Int(proto.messageCount) : nil,
-            lastMessageId: proto.hasLastMessageID ? proto.lastMessageID : nil
+            lastMessageId: proto.hasLastMessageID ? proto.lastMessageID : nil,
+            sdkType: session.hasSdkType ? convertSdkType(session.sdkType) : nil,
+            model: session.hasModel ? session.model : nil
         )
     }
     
@@ -986,7 +1005,7 @@ final class ConnectService {
         case .sync:
             proto.message = .sync(Netclode_V1_SyncRequest())
             
-        case .sessionCreate(let name, let repo, let repoAccess, let initialPrompt):
+        case .sessionCreate(let name, let repo, let repoAccess, let initialPrompt, let sdkType, let model):
             var req = Netclode_V1_CreateSessionRequest()
             if let name = name {
                 req.name = name
@@ -999,6 +1018,12 @@ final class ConnectService {
             }
             if let initialPrompt = initialPrompt {
                 req.initialPrompt = initialPrompt
+            }
+            if let sdkType = sdkType {
+                req.sdkType = convertToProtoSdkType(sdkType)
+            }
+            if let model = model {
+                req.model = model
             }
             proto.message = .createSession(req)
             

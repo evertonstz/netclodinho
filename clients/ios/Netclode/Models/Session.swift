@@ -47,6 +47,26 @@ enum RepoAccess: String, Codable, Sendable {
     case write
 }
 
+/// SDK type for agent sessions.
+enum SdkType: String, Codable, CaseIterable, Sendable {
+    case claude
+    case opencode
+
+    var displayName: String {
+        switch self {
+        case .claude: "Claude Code"
+        case .opencode: "OpenCode"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .claude: "Direct Claude integration"
+        case .opencode: "Multi-provider support"
+        }
+    }
+}
+
 struct Session: Identifiable, Codable, Hashable, Sendable {
     let id: String
     var name: String
@@ -55,6 +75,8 @@ struct Session: Identifiable, Codable, Hashable, Sendable {
     var repoAccess: RepoAccess?
     let createdAt: Date
     var lastActiveAt: Date
+    var sdkType: SdkType?
+    var model: String?
 
     var isActive: Bool {
         status == .ready || status == .running

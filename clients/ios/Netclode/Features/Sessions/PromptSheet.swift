@@ -6,10 +6,13 @@ struct PromptSheet: View {
     @Environment(SettingsStore.self) private var settingsStore
     @Environment(SessionStore.self) private var sessionStore
     @Environment(GitHubStore.self) private var githubStore
+    @Environment(ModelsStore.self) private var modelsStore
 
     @State private var promptText = ""
     @State private var repoURL = ""
     @State private var repoAccess: RepoAccess = .write
+    @State private var selectedSdkType: SdkType = .claude
+    @State private var selectedModelId: String = ModelsStore.defaultModelId
     @State private var isSubmitting = false
     @State private var canSubmit = false
     @FocusState private var isFocused: Bool
@@ -31,6 +34,46 @@ struct PromptSheet: View {
                 .padding(.horizontal, Theme.Spacing.md)
                 .padding(.top, Theme.Spacing.md)
                 .focused($isFocused)
+
+                // SDK and Model section
+                VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                    HStack(spacing: Theme.Spacing.xs) {
+                        Image(systemName: "cpu")
+                            .foregroundStyle(.secondary)
+                        Text("Agent SDK")
+                            .font(.netclodeCaption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Picker("SDK", selection: $selectedSdkType) {
+                        ForEach(SdkType.allCases, id: \.self) { sdk in
+                            Text(sdk.displayName).tag(sdk)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    // Model picker (only shown for OpenCode)
+                    if selectedSdkType == .opencode {
+                        HStack(spacing: Theme.Spacing.xs) {
+                            Image(systemName: "sparkles")
+                                .foregroundStyle(.secondary)
+                            Text("Model")
+                                .font(.netclodeCaption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.top, Theme.Spacing.xs)
+
+                        Picker("Model", selection: $selectedModelId) {
+                            ForEach(modelsStore.anthropicModels) { model in
+                                Text(model.name).tag(model.fullModelId)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
+                    }
+                }
+                .padding(.horizontal, Theme.Spacing.md)
+                .padding(.top, Theme.Spacing.md)
 
                 // Repository section
                 VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
@@ -136,9 +179,20 @@ struct PromptSheet: View {
         let repo = repoURL.trimmingCharacters(in: .whitespacesAndNewlines)
         let repoParam = repo.isEmpty ? nil : repo
         let accessParam = repoParam != nil ? repoAccess : nil
+
+        // SDK and model params
+        let sdkParam = selectedSdkType
+        let modelParam = selectedSdkType == .opencode ? selectedModelId : nil
         
         // Create session
-        connectService.send(.sessionCreate(name: nil, repo: repoParam, repoAccess: accessParam, initialPrompt: text))
+        connectService.send(.sessionCreate(
+            name: nil,
+            repo: repoParam,
+            repoAccess: accessParam,
+            initialPrompt: text,
+            sdkType: sdkParam,
+            model: modelParam
+        ))
 
         dismiss()
     }
@@ -154,5 +208,6 @@ struct PromptSheet: View {
                 .environment(SettingsStore())
                 .environment(SessionStore())
                 .environment(GitHubStore())
+                .environment(ModelsStore())
         }
 }

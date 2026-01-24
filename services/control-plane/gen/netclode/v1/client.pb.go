@@ -659,6 +659,8 @@ type CreateSessionRequest struct {
 	Repo          *string                `protobuf:"bytes,3,opt,name=repo,proto3,oneof" json:"repo,omitempty"`                                                            // GitHub repository to clone (e.g., "owner/repo")
 	RepoAccess    *RepoAccess            `protobuf:"varint,4,opt,name=repo_access,json=repoAccess,proto3,enum=netclode.v1.RepoAccess,oneof" json:"repo_access,omitempty"` // Permission level for repository
 	InitialPrompt *string                `protobuf:"bytes,5,opt,name=initial_prompt,json=initialPrompt,proto3,oneof" json:"initial_prompt,omitempty"`                     // Optional prompt to send immediately after creation
+	SdkType       *SdkType               `protobuf:"varint,6,opt,name=sdk_type,json=sdkType,proto3,enum=netclode.v1.SdkType,oneof" json:"sdk_type,omitempty"`             // SDK to use (defaults to CLAUDE)
+	Model         *string                `protobuf:"bytes,7,opt,name=model,proto3,oneof" json:"model,omitempty"`                                                          // Model ID for OpenCode (e.g., "claude-sonnet-4-0")
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -724,6 +726,20 @@ func (x *CreateSessionRequest) GetRepoAccess() RepoAccess {
 func (x *CreateSessionRequest) GetInitialPrompt() string {
 	if x != nil && x.InitialPrompt != nil {
 		return *x.InitialPrompt
+	}
+	return ""
+}
+
+func (x *CreateSessionRequest) GetSdkType() SdkType {
+	if x != nil && x.SdkType != nil {
+		return *x.SdkType
+	}
+	return SdkType_SDK_TYPE_UNSPECIFIED
+}
+
+func (x *CreateSessionRequest) GetModel() string {
+	if x != nil && x.Model != nil {
+		return *x.Model
 	}
 	return ""
 }
@@ -2547,7 +2563,7 @@ const file_netclode_v1_client_proto_rawDesc = "" +
 	"git_status\x18\x0f \x01(\v2\x1e.netclode.v1.GitStatusResponseH\x00R\tgitStatus\x129\n" +
 	"\bgit_diff\x18\x10 \x01(\v2\x1c.netclode.v1.GitDiffResponseH\x00R\agitDiff\x122\n" +
 	"\x05error\x18\x11 \x01(\v2\x1a.netclode.v1.ErrorResponseH\x00R\x05errorB\t\n" +
-	"\amessage\"\x9b\x02\n" +
+	"\amessage\"\x83\x03\n" +
 	"\x14CreateSessionRequest\x12\"\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tH\x00R\trequestId\x88\x01\x01\x12\x17\n" +
@@ -2555,12 +2571,16 @@ const file_netclode_v1_client_proto_rawDesc = "" +
 	"\x04repo\x18\x03 \x01(\tH\x02R\x04repo\x88\x01\x01\x12=\n" +
 	"\vrepo_access\x18\x04 \x01(\x0e2\x17.netclode.v1.RepoAccessH\x03R\n" +
 	"repoAccess\x88\x01\x01\x12*\n" +
-	"\x0einitial_prompt\x18\x05 \x01(\tH\x04R\rinitialPrompt\x88\x01\x01B\r\n" +
+	"\x0einitial_prompt\x18\x05 \x01(\tH\x04R\rinitialPrompt\x88\x01\x01\x124\n" +
+	"\bsdk_type\x18\x06 \x01(\x0e2\x14.netclode.v1.SdkTypeH\x05R\asdkType\x88\x01\x01\x12\x19\n" +
+	"\x05model\x18\a \x01(\tH\x06R\x05model\x88\x01\x01B\r\n" +
 	"\v_request_idB\a\n" +
 	"\x05_nameB\a\n" +
 	"\x05_repoB\x0e\n" +
 	"\f_repo_accessB\x11\n" +
-	"\x0f_initial_prompt\"H\n" +
+	"\x0f_initial_promptB\v\n" +
+	"\t_sdk_typeB\b\n" +
+	"\x06_model\"H\n" +
 	"\x13ListSessionsRequest\x12\"\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tH\x00R\trequestId\x88\x01\x01B\r\n" +
@@ -2804,15 +2824,16 @@ var file_netclode_v1_client_proto_goTypes = []any{
 	(*GitDiffResponse)(nil),            // 33: netclode.v1.GitDiffResponse
 	(*ErrorResponse)(nil),              // 34: netclode.v1.ErrorResponse
 	(RepoAccess)(0),                    // 35: netclode.v1.RepoAccess
-	(*Session)(nil),                    // 36: netclode.v1.Session
-	(*Message)(nil),                    // 37: netclode.v1.Message
-	(*Event)(nil),                      // 38: netclode.v1.Event
-	(*SessionSummary)(nil),             // 39: netclode.v1.SessionSummary
-	(*timestamppb.Timestamp)(nil),      // 40: google.protobuf.Timestamp
-	(*AgentEvent)(nil),                 // 41: netclode.v1.AgentEvent
-	(*GitHubRepo)(nil),                 // 42: netclode.v1.GitHubRepo
-	(*GitFileChange)(nil),              // 43: netclode.v1.GitFileChange
-	(*Error)(nil),                      // 44: netclode.v1.Error
+	(SdkType)(0),                       // 36: netclode.v1.SdkType
+	(*Session)(nil),                    // 37: netclode.v1.Session
+	(*Message)(nil),                    // 38: netclode.v1.Message
+	(*Event)(nil),                      // 39: netclode.v1.Event
+	(*SessionSummary)(nil),             // 40: netclode.v1.SessionSummary
+	(*timestamppb.Timestamp)(nil),      // 41: google.protobuf.Timestamp
+	(*AgentEvent)(nil),                 // 42: netclode.v1.AgentEvent
+	(*GitHubRepo)(nil),                 // 43: netclode.v1.GitHubRepo
+	(*GitFileChange)(nil),              // 44: netclode.v1.GitFileChange
+	(*Error)(nil),                      // 45: netclode.v1.Error
 }
 var file_netclode_v1_client_proto_depIdxs = []int32{
 	2,  // 0: netclode.v1.ClientMessage.create_session:type_name -> netclode.v1.CreateSessionRequest
@@ -2849,25 +2870,26 @@ var file_netclode_v1_client_proto_depIdxs = []int32{
 	33, // 31: netclode.v1.ServerMessage.git_diff:type_name -> netclode.v1.GitDiffResponse
 	34, // 32: netclode.v1.ServerMessage.error:type_name -> netclode.v1.ErrorResponse
 	35, // 33: netclode.v1.CreateSessionRequest.repo_access:type_name -> netclode.v1.RepoAccess
-	36, // 34: netclode.v1.SessionCreatedResponse.session:type_name -> netclode.v1.Session
-	36, // 35: netclode.v1.SessionUpdatedResponse.session:type_name -> netclode.v1.Session
-	36, // 36: netclode.v1.SessionListResponse.sessions:type_name -> netclode.v1.Session
-	36, // 37: netclode.v1.SessionStateResponse.session:type_name -> netclode.v1.Session
-	37, // 38: netclode.v1.SessionStateResponse.messages:type_name -> netclode.v1.Message
-	38, // 39: netclode.v1.SessionStateResponse.events:type_name -> netclode.v1.Event
-	39, // 40: netclode.v1.SyncResponse.sessions:type_name -> netclode.v1.SessionSummary
-	40, // 41: netclode.v1.SyncResponse.server_time:type_name -> google.protobuf.Timestamp
-	41, // 42: netclode.v1.AgentEventResponse.event:type_name -> netclode.v1.AgentEvent
-	42, // 43: netclode.v1.GitHubReposResponse.repos:type_name -> netclode.v1.GitHubRepo
-	43, // 44: netclode.v1.GitStatusResponse.files:type_name -> netclode.v1.GitFileChange
-	44, // 45: netclode.v1.ErrorResponse.error:type_name -> netclode.v1.Error
-	0,  // 46: netclode.v1.ClientService.Connect:input_type -> netclode.v1.ClientMessage
-	1,  // 47: netclode.v1.ClientService.Connect:output_type -> netclode.v1.ServerMessage
-	47, // [47:48] is the sub-list for method output_type
-	46, // [46:47] is the sub-list for method input_type
-	46, // [46:46] is the sub-list for extension type_name
-	46, // [46:46] is the sub-list for extension extendee
-	0,  // [0:46] is the sub-list for field type_name
+	36, // 34: netclode.v1.CreateSessionRequest.sdk_type:type_name -> netclode.v1.SdkType
+	37, // 35: netclode.v1.SessionCreatedResponse.session:type_name -> netclode.v1.Session
+	37, // 36: netclode.v1.SessionUpdatedResponse.session:type_name -> netclode.v1.Session
+	37, // 37: netclode.v1.SessionListResponse.sessions:type_name -> netclode.v1.Session
+	37, // 38: netclode.v1.SessionStateResponse.session:type_name -> netclode.v1.Session
+	38, // 39: netclode.v1.SessionStateResponse.messages:type_name -> netclode.v1.Message
+	39, // 40: netclode.v1.SessionStateResponse.events:type_name -> netclode.v1.Event
+	40, // 41: netclode.v1.SyncResponse.sessions:type_name -> netclode.v1.SessionSummary
+	41, // 42: netclode.v1.SyncResponse.server_time:type_name -> google.protobuf.Timestamp
+	42, // 43: netclode.v1.AgentEventResponse.event:type_name -> netclode.v1.AgentEvent
+	43, // 44: netclode.v1.GitHubReposResponse.repos:type_name -> netclode.v1.GitHubRepo
+	44, // 45: netclode.v1.GitStatusResponse.files:type_name -> netclode.v1.GitFileChange
+	45, // 46: netclode.v1.ErrorResponse.error:type_name -> netclode.v1.Error
+	0,  // 47: netclode.v1.ClientService.Connect:input_type -> netclode.v1.ClientMessage
+	1,  // 48: netclode.v1.ClientService.Connect:output_type -> netclode.v1.ServerMessage
+	48, // [48:49] is the sub-list for method output_type
+	47, // [47:48] is the sub-list for method input_type
+	47, // [47:47] is the sub-list for extension type_name
+	47, // [47:47] is the sub-list for extension extendee
+	0,  // [0:47] is the sub-list for field type_name
 }
 
 func init() { file_netclode_v1_client_proto_init() }

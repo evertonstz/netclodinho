@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { PromptConfig } from "./prompt.js";
+import type { PromptConfig } from "../sdk/types.js";
 
 describe("prompt session initialization logic", () => {
   describe("session initialization conditions", () => {

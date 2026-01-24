@@ -92,6 +92,12 @@ func (r *RedisStorage) SaveSession(ctx context.Context, s *pb.Session) error {
 	if s.Repo != nil {
 		pipe.HSet(ctx, sessionKey(s.Id), "repo", *s.Repo)
 	}
+	if s.SdkType != nil {
+		pipe.HSet(ctx, sessionKey(s.Id), "sdkType", s.SdkType.String())
+	}
+	if s.Model != nil {
+		pipe.HSet(ctx, sessionKey(s.Id), "model", *s.Model)
+	}
 
 	_, err := pipe.Exec(ctx)
 	return err
@@ -121,6 +127,13 @@ func (r *RedisStorage) GetSession(ctx context.Context, id string) (*pb.Session, 
 	if repo, ok := data["repo"]; ok && repo != "" {
 		session.Repo = &repo
 	}
+	if sdkTypeStr, ok := data["sdkType"]; ok && sdkTypeStr != "" {
+		sdkType := parseSdkType(sdkTypeStr)
+		session.SdkType = &sdkType
+	}
+	if model, ok := data["model"]; ok && model != "" {
+		session.Model = &model
+	}
 
 	return session, nil
 }
@@ -144,6 +157,18 @@ func parseSessionStatus(s string) pb.SessionStatus {
 		return pb.SessionStatus_SESSION_STATUS_INTERRUPTED
 	default:
 		return pb.SessionStatus_SESSION_STATUS_UNSPECIFIED
+	}
+}
+
+// parseSdkType converts a string to pb.SdkType enum.
+func parseSdkType(s string) pb.SdkType {
+	switch s {
+	case "SDK_TYPE_CLAUDE":
+		return pb.SdkType_SDK_TYPE_CLAUDE
+	case "SDK_TYPE_OPENCODE":
+		return pb.SdkType_SDK_TYPE_OPENCODE
+	default:
+		return pb.SdkType_SDK_TYPE_UNSPECIFIED
 	}
 }
 

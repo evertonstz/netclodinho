@@ -12,6 +12,13 @@ enum RepoAccess {
   REPO_ACCESS_WRITE = 2;  // Read and write access to the repository
 }
 
+// SdkType defines which agent SDK to use for the session.
+enum SdkType {
+  SDK_TYPE_UNSPECIFIED = 0;  // Defaults to Claude Code SDK
+  SDK_TYPE_CLAUDE = 1;       // Anthropic Claude Code SDK (direct integration)
+  SDK_TYPE_OPENCODE = 2;     // OpenCode SDK (multi-provider support)
+}
+
 // Session represents a coding session with an AI agent.
 message Session {
   string id = 1;
@@ -21,6 +28,8 @@ message Session {
   optional RepoAccess repo_access = 5;       // Permission level for repository operations
   google.protobuf.Timestamp created_at = 6;
   google.protobuf.Timestamp last_active_at = 7;
+  optional SdkType sdk_type = 8;             // SDK to use (defaults to CLAUDE)
+  optional string model = 9;                  // Model ID for OpenCode (e.g., "claude-sonnet-4-0")
 }
 
 // SessionStatus represents the lifecycle state of a session.
@@ -50,6 +59,8 @@ message SessionConfig {
   optional string repo = 4;              // Repository to clone (e.g., "owner/repo")
   optional RepoAccess repo_access = 5;   // Permission level for repository operations
   string control_plane_url = 6;          // URL of control plane for callbacks
+  optional SdkType sdk_type = 7;         // SDK type for agent to use
+  optional string model = 8;              // Model ID (e.g., "anthropic/claude-sonnet-4-0")
 }
 
 // GitHubRepo represents a GitHub repository from the user's account.

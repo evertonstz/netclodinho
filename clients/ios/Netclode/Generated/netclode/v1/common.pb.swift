@@ -63,6 +63,51 @@ public enum Netclode_V1_RepoAccess: SwiftProtobuf.Enum, Swift.CaseIterable {
 
 }
 
+/// SdkType defines which agent SDK to use for the session.
+public enum Netclode_V1_SdkType: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+
+  /// Defaults to Claude Code SDK
+  case unspecified // = 0
+
+  /// Anthropic Claude Code SDK (direct integration)
+  case claude // = 1
+
+  /// OpenCode SDK (multi-provider support)
+  case opencode // = 2
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .claude
+    case 2: self = .opencode
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .claude: return 1
+    case .opencode: return 2
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Netclode_V1_SdkType] = [
+    .unspecified,
+    .claude,
+    .opencode,
+  ]
+
+}
+
 /// SessionStatus represents the lifecycle state of a session.
 public enum Netclode_V1_SessionStatus: SwiftProtobuf.Enum, Swift.CaseIterable {
   public typealias RawValue = Int
@@ -288,6 +333,26 @@ public struct Netclode_V1_Session: Sendable {
   /// Clears the value of `lastActiveAt`. Subsequent reads from it will return its default value.
   public mutating func clearLastActiveAt() {self._lastActiveAt = nil}
 
+  /// SDK to use (defaults to CLAUDE)
+  public var sdkType: Netclode_V1_SdkType {
+    get {return _sdkType ?? .unspecified}
+    set {_sdkType = newValue}
+  }
+  /// Returns true if `sdkType` has been explicitly set.
+  public var hasSdkType: Bool {return self._sdkType != nil}
+  /// Clears the value of `sdkType`. Subsequent reads from it will return its default value.
+  public mutating func clearSdkType() {self._sdkType = nil}
+
+  /// Model ID for OpenCode (e.g., "claude-sonnet-4-0")
+  public var model: String {
+    get {return _model ?? String()}
+    set {_model = newValue}
+  }
+  /// Returns true if `model` has been explicitly set.
+  public var hasModel: Bool {return self._model != nil}
+  /// Clears the value of `model`. Subsequent reads from it will return its default value.
+  public mutating func clearModel() {self._model = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -296,6 +361,8 @@ public struct Netclode_V1_Session: Sendable {
   fileprivate var _repoAccess: Netclode_V1_RepoAccess? = nil
   fileprivate var _createdAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
   fileprivate var _lastActiveAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+  fileprivate var _sdkType: Netclode_V1_SdkType? = nil
+  fileprivate var _model: String? = nil
 }
 
 /// SessionSummary includes session data plus metadata for list views.
@@ -386,6 +453,26 @@ public struct Netclode_V1_SessionConfig: Sendable {
   /// URL of control plane for callbacks
   public var controlPlaneURL: String = String()
 
+  /// SDK type for agent to use
+  public var sdkType: Netclode_V1_SdkType {
+    get {return _sdkType ?? .unspecified}
+    set {_sdkType = newValue}
+  }
+  /// Returns true if `sdkType` has been explicitly set.
+  public var hasSdkType: Bool {return self._sdkType != nil}
+  /// Clears the value of `sdkType`. Subsequent reads from it will return its default value.
+  public mutating func clearSdkType() {self._sdkType = nil}
+
+  /// Model ID (e.g., "anthropic/claude-sonnet-4-0")
+  public var model: String {
+    get {return _model ?? String()}
+    set {_model = newValue}
+  }
+  /// Returns true if `model` has been explicitly set.
+  public var hasModel: Bool {return self._model != nil}
+  /// Clears the value of `model`. Subsequent reads from it will return its default value.
+  public mutating func clearModel() {self._model = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -393,6 +480,8 @@ public struct Netclode_V1_SessionConfig: Sendable {
   fileprivate var _githubToken: String? = nil
   fileprivate var _repo: String? = nil
   fileprivate var _repoAccess: Netclode_V1_RepoAccess? = nil
+  fileprivate var _sdkType: Netclode_V1_SdkType? = nil
+  fileprivate var _model: String? = nil
 }
 
 /// GitHubRepo represents a GitHub repository from the user's account.
@@ -554,6 +643,10 @@ extension Netclode_V1_RepoAccess: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0REPO_ACCESS_UNSPECIFIED\0\u{1}REPO_ACCESS_READ\0\u{1}REPO_ACCESS_WRITE\0")
 }
 
+extension Netclode_V1_SdkType: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0SDK_TYPE_UNSPECIFIED\0\u{1}SDK_TYPE_CLAUDE\0\u{1}SDK_TYPE_OPENCODE\0")
+}
+
 extension Netclode_V1_SessionStatus: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0SESSION_STATUS_UNSPECIFIED\0\u{1}SESSION_STATUS_CREATING\0\u{1}SESSION_STATUS_RESUMING\0\u{1}SESSION_STATUS_READY\0\u{1}SESSION_STATUS_RUNNING\0\u{1}SESSION_STATUS_PAUSED\0\u{1}SESSION_STATUS_ERROR\0\u{1}SESSION_STATUS_INTERRUPTED\0")
 }
@@ -568,7 +661,7 @@ extension Netclode_V1_MessageRole: SwiftProtobuf._ProtoNameProviding {
 
 extension Netclode_V1_Session: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Session"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}name\0\u{1}status\0\u{1}repo\0\u{3}repo_access\0\u{3}created_at\0\u{3}last_active_at\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}name\0\u{1}status\0\u{1}repo\0\u{3}repo_access\0\u{3}created_at\0\u{3}last_active_at\0\u{3}sdk_type\0\u{1}model\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -583,6 +676,8 @@ extension Netclode_V1_Session: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
       case 5: try { try decoder.decodeSingularEnumField(value: &self._repoAccess) }()
       case 6: try { try decoder.decodeSingularMessageField(value: &self._createdAt) }()
       case 7: try { try decoder.decodeSingularMessageField(value: &self._lastActiveAt) }()
+      case 8: try { try decoder.decodeSingularEnumField(value: &self._sdkType) }()
+      case 9: try { try decoder.decodeSingularStringField(value: &self._model) }()
       default: break
       }
     }
@@ -614,6 +709,12 @@ extension Netclode_V1_Session: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
     try { if let v = self._lastActiveAt {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
     } }()
+    try { if let v = self._sdkType {
+      try visitor.visitSingularEnumField(value: v, fieldNumber: 8)
+    } }()
+    try { if let v = self._model {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 9)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -625,6 +726,8 @@ extension Netclode_V1_Session: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
     if lhs._repoAccess != rhs._repoAccess {return false}
     if lhs._createdAt != rhs._createdAt {return false}
     if lhs._lastActiveAt != rhs._lastActiveAt {return false}
+    if lhs._sdkType != rhs._sdkType {return false}
+    if lhs._model != rhs._model {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -676,7 +779,7 @@ extension Netclode_V1_SessionSummary: SwiftProtobuf.Message, SwiftProtobuf._Mess
 
 extension Netclode_V1_SessionConfig: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SessionConfig"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_id\0\u{3}workspace_dir\0\u{3}github_token\0\u{1}repo\0\u{3}repo_access\0\u{3}control_plane_url\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_id\0\u{3}workspace_dir\0\u{3}github_token\0\u{1}repo\0\u{3}repo_access\0\u{3}control_plane_url\0\u{3}sdk_type\0\u{1}model\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -690,6 +793,8 @@ extension Netclode_V1_SessionConfig: SwiftProtobuf.Message, SwiftProtobuf._Messa
       case 4: try { try decoder.decodeSingularStringField(value: &self._repo) }()
       case 5: try { try decoder.decodeSingularEnumField(value: &self._repoAccess) }()
       case 6: try { try decoder.decodeSingularStringField(value: &self.controlPlaneURL) }()
+      case 7: try { try decoder.decodeSingularEnumField(value: &self._sdkType) }()
+      case 8: try { try decoder.decodeSingularStringField(value: &self._model) }()
       default: break
       }
     }
@@ -718,6 +823,12 @@ extension Netclode_V1_SessionConfig: SwiftProtobuf.Message, SwiftProtobuf._Messa
     if !self.controlPlaneURL.isEmpty {
       try visitor.visitSingularStringField(value: self.controlPlaneURL, fieldNumber: 6)
     }
+    try { if let v = self._sdkType {
+      try visitor.visitSingularEnumField(value: v, fieldNumber: 7)
+    } }()
+    try { if let v = self._model {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 8)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -728,6 +839,8 @@ extension Netclode_V1_SessionConfig: SwiftProtobuf.Message, SwiftProtobuf._Messa
     if lhs._repo != rhs._repo {return false}
     if lhs._repoAccess != rhs._repoAccess {return false}
     if lhs.controlPlaneURL != rhs.controlPlaneURL {return false}
+    if lhs._sdkType != rhs._sdkType {return false}
+    if lhs._model != rhs._model {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

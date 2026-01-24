@@ -155,7 +155,7 @@ func generateID() string {
 }
 
 // Create creates a new session.
-func (m *Manager) Create(ctx context.Context, name string, repo *string, repoAccess *pb.RepoAccess) (*pb.Session, error) {
+func (m *Manager) Create(ctx context.Context, name string, repo *string, repoAccess *pb.RepoAccess, sdkType *pb.SdkType, model *string) (*pb.Session, error) {
 	// Ensure we have a slot for a new active session
 	m.ensureActiveSlot(ctx, "")
 
@@ -174,6 +174,8 @@ func (m *Manager) Create(ctx context.Context, name string, repo *string, repoAcc
 		RepoAccess:   repoAccess,
 		CreatedAt:    now,
 		LastActiveAt: now,
+		SdkType:      sdkType,
+		Model:        model,
 	}
 
 	// Save to storage
@@ -1036,6 +1038,14 @@ func (m *Manager) GetSessionConfig(ctx context.Context, sessionID string) (map[s
 				config["GITHUB_TOKEN"] = token.Token
 			}
 		}
+	}
+
+	// Add SDK type and model if specified
+	if state.Session.SdkType != nil {
+		config["SDK_TYPE"] = state.Session.SdkType.String()
+	}
+	if state.Session.Model != nil {
+		config["MODEL"] = *state.Session.Model
 	}
 
 	return config, nil

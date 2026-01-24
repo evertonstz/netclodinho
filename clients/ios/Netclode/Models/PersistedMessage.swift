@@ -221,6 +221,8 @@ struct SessionWithMeta: Codable, Sendable {
     let lastActiveAt: Date
     let messageCount: Int?
     let lastMessageId: String?
+    let sdkType: SdkType?
+    let model: String?
 
     func toSession() -> Session {
         Session(
@@ -230,7 +232,9 @@ struct SessionWithMeta: Codable, Sendable {
             repo: repo,
             repoAccess: repoAccess,
             createdAt: createdAt,
-            lastActiveAt: lastActiveAt
+            lastActiveAt: lastActiveAt,
+            sdkType: sdkType,
+            model: model
         )
     }
 }
