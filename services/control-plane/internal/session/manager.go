@@ -2,8 +2,10 @@ package session
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"sync"
 	"time"
 
@@ -61,6 +63,17 @@ type Manager struct {
 
 	// onSessionUpdated is called when a session is updated internally (e.g., auto-pause).
 	onSessionUpdated SessionUpdateCallback
+
+	// Models cache
+	copilotModelsCache   []*pb.ModelInfo
+	copilotModelsCacheAt time.Time
+	modelsDevCache       map[string]*modelsDevCacheEntry
+	copilotModelsMu      sync.RWMutex
+}
+
+type modelsDevCacheEntry struct {
+	models    []*pb.ModelInfo
+	fetchedAt time.Time
 }
 
 // NewManager creates a new session manager.
@@ -1305,20 +1318,300 @@ func (m *Manager) GetAgentConnection(sessionID string) AgentConnection {
 }
 
 // ListModels returns available models for the specified SDK type.
-// For Copilot SDK, it can return different models based on the backend (GitHub vs Anthropic).
+// For Copilot SDK, returns a combined list of GitHub Copilot and Anthropic (BYOK) models.
 func (m *Manager) ListModels(sdkType pb.SdkType, copilotBackend *pb.CopilotBackend) []*pb.ModelInfo {
 	switch sdkType {
 	case pb.SdkType_SDK_TYPE_CLAUDE:
-		return getClaudeModels()
+		return m.fetchModelsFromModelsDev("anthropic")
 	case pb.SdkType_SDK_TYPE_OPENCODE:
-		return getOpenCodeModels()
+		return m.fetchModelsFromModelsDev("opencode")
 	case pb.SdkType_SDK_TYPE_COPILOT:
-		if copilotBackend != nil && *copilotBackend == pb.CopilotBackend_COPILOT_BACKEND_GITHUB {
-			return getGitHubCopilotModels()
-		}
-		return getAnthropicCopilotModels()
+		// Return combined list of GitHub Copilot + Anthropic (BYOK) models
+		return m.fetchCopilotModels()
 	default:
-		return getClaudeModels()
+		return m.fetchModelsFromModelsDev("anthropic")
+	}
+}
+
+// modelsDevResponse represents the response from models.dev API
+type modelsDevResponse map[string]modelsDevProvider
+
+type modelsDevProvider struct {
+	ID     string                    `json:"id"`
+	Name   string                    `json:"name"`
+	Models map[string]modelsDevModel `json:"models"`
+}
+
+type modelsDevModel struct {
+	ID          string            `json:"id"`
+	Name        string            `json:"name"`
+	Family      string            `json:"family"`
+	Attachment  bool              `json:"attachment"`
+	Reasoning   bool              `json:"reasoning"`
+	ToolCall    bool              `json:"tool_call"`
+	Modalities  modelsDevModality `json:"modalities"`
+	Cost        modelsDevCost     `json:"cost"`
+	Limit       modelsDevLimit    `json:"limit"`
+	ReleaseDate string            `json:"release_date"`
+}
+
+type modelsDevModality struct {
+	Input  []string `json:"input"`
+	Output []string `json:"output"`
+}
+
+type modelsDevCost struct {
+	Input  float64 `json:"input"`
+	Output float64 `json:"output"`
+}
+
+type modelsDevLimit struct {
+	Context int `json:"context"`
+	Output  int `json:"output"`
+}
+
+// fetchModelsFromModelsDev fetches models from models.dev API for a specific provider
+func (m *Manager) fetchModelsFromModelsDev(provider string) []*pb.ModelInfo {
+	// Check cache first (valid for 5 minutes)
+	m.copilotModelsMu.RLock()
+	cacheKey := "modelsDev_" + provider
+	if cached, ok := m.modelsDevCache[cacheKey]; ok && time.Since(cached.fetchedAt) < 5*time.Minute {
+		models := cached.models
+		m.copilotModelsMu.RUnlock()
+		return models
+	}
+	m.copilotModelsMu.RUnlock()
+
+	// Fetch from models.dev
+	models := m.doFetchModelsFromModelsDev(provider)
+	if models == nil {
+		return getModelsFallback(provider)
+	}
+
+	// Update cache
+	m.copilotModelsMu.Lock()
+	if m.modelsDevCache == nil {
+		m.modelsDevCache = make(map[string]*modelsDevCacheEntry)
+	}
+	m.modelsDevCache[cacheKey] = &modelsDevCacheEntry{
+		models:    models,
+		fetchedAt: time.Now(),
+	}
+	m.copilotModelsMu.Unlock()
+
+	return models
+}
+
+func (m *Manager) doFetchModelsFromModelsDev(provider string) []*pb.ModelInfo {
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Get("https://models.dev/api.json")
+	if err != nil {
+		slog.Error("Failed to fetch from models.dev", "error", err)
+		return nil
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		slog.Error("models.dev API error", "status", resp.StatusCode)
+		return nil
+	}
+
+	var data modelsDevResponse
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		slog.Error("Failed to decode models.dev response", "error", err)
+		return nil
+	}
+
+	providerData, ok := data[provider]
+	if !ok {
+		slog.Error("Provider not found in models.dev", "provider", provider)
+		return nil
+	}
+
+	models := make([]*pb.ModelInfo, 0, len(providerData.Models))
+	for _, model := range providerData.Models {
+		capabilities := []string{"chat", "code"}
+		for _, input := range model.Modalities.Input {
+			if input == "image" {
+				capabilities = append(capabilities, "vision")
+				break
+			}
+		}
+		if model.Reasoning {
+			capabilities = append(capabilities, "reasoning")
+		}
+
+		// Calculate billing multiplier from cost (rough approximation)
+		var billingMultiplier *float64
+		if model.Cost.Input > 0 {
+			// Normalize to ~1.0 for standard models ($3/M input)
+			mult := model.Cost.Input / 3.0
+			billingMultiplier = &mult
+		}
+
+		models = append(models, &pb.ModelInfo{
+			Id:                model.ID,
+			Name:              model.Name,
+			Provider:          strPtr(providerData.Name),
+			Capabilities:      capabilities,
+			BillingMultiplier: billingMultiplier,
+		})
+	}
+
+	slog.Info("Fetched models from models.dev", "provider", provider, "count", len(models))
+	return models
+}
+
+// fetchCopilotModels fetches combined GitHub Copilot + Anthropic models
+func (m *Manager) fetchCopilotModels() []*pb.ModelInfo {
+	// Check cache first (valid for 5 minutes)
+	m.copilotModelsMu.RLock()
+	if m.copilotModelsCache != nil && time.Since(m.copilotModelsCacheAt) < 5*time.Minute {
+		models := m.copilotModelsCache
+		m.copilotModelsMu.RUnlock()
+		return models
+	}
+	m.copilotModelsMu.RUnlock()
+
+	// Fetch from models.dev - get both github-copilot and anthropic providers
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Get("https://models.dev/api.json")
+	if err != nil {
+		slog.Error("Failed to fetch from models.dev", "error", err)
+		return getCopilotModelsFallback()
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		slog.Error("models.dev API error", "status", resp.StatusCode)
+		return getCopilotModelsFallback()
+	}
+
+	var data modelsDevResponse
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		slog.Error("Failed to decode models.dev response", "error", err)
+		return getCopilotModelsFallback()
+	}
+
+	var models []*pb.ModelInfo
+
+	// Add GitHub Copilot models
+	if copilotData, ok := data["github-copilot"]; ok {
+		for _, model := range copilotData.Models {
+			capabilities := []string{"chat", "code"}
+			for _, input := range model.Modalities.Input {
+				if input == "image" {
+					capabilities = append(capabilities, "vision")
+					break
+				}
+			}
+			if model.Reasoning {
+				capabilities = append(capabilities, "reasoning")
+			}
+
+			// Determine provider from model family
+			provider := "GitHub Copilot"
+			if contains(model.Family, "claude") {
+				provider = "Anthropic"
+			} else if contains(model.Family, "gpt") || contains(model.Family, "o1") || contains(model.Family, "o3") || contains(model.Family, "o4") {
+				provider = "OpenAI"
+			} else if contains(model.Family, "gemini") {
+				provider = "Google"
+			} else if contains(model.Family, "grok") {
+				provider = "xAI"
+			}
+
+			models = append(models, &pb.ModelInfo{
+				Id:           model.ID,
+				Name:         model.Name,
+				Provider:     strPtr(provider),
+				Capabilities: capabilities,
+			})
+		}
+	}
+
+	// Add Anthropic models for BYOK
+	if anthropicData, ok := data["anthropic"]; ok {
+		for _, model := range anthropicData.Models {
+			capabilities := []string{"chat", "code"}
+			for _, input := range model.Modalities.Input {
+				if input == "image" {
+					capabilities = append(capabilities, "vision")
+					break
+				}
+			}
+			if model.Reasoning {
+				capabilities = append(capabilities, "reasoning")
+			}
+
+			// Calculate billing multiplier from cost
+			var billingMultiplier *float64
+			if model.Cost.Input > 0 {
+				mult := model.Cost.Input / 3.0
+				billingMultiplier = &mult
+			}
+
+			models = append(models, &pb.ModelInfo{
+				Id:                model.ID,
+				Name:              model.Name + " (BYOK)",
+				Provider:          strPtr("Anthropic (BYOK)"),
+				Capabilities:      capabilities,
+				BillingMultiplier: billingMultiplier,
+			})
+		}
+	}
+
+	slog.Info("Fetched Copilot models from models.dev", "count", len(models))
+
+	// Update cache
+	m.copilotModelsMu.Lock()
+	m.copilotModelsCache = models
+	m.copilotModelsCacheAt = time.Now()
+	m.copilotModelsMu.Unlock()
+
+	return models
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsLower(s, substr))
+}
+
+func containsLower(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
+// getModelsFallback returns fallback models for a provider when models.dev is unavailable
+func getModelsFallback(provider string) []*pb.ModelInfo {
+	switch provider {
+	case "anthropic":
+		return []*pb.ModelInfo{
+			{Id: "claude-sonnet-4-20250514", Name: "Claude Sonnet 4", Provider: strPtr("Anthropic"), Capabilities: []string{"chat", "vision", "code"}},
+			{Id: "claude-3-5-sonnet-20241022", Name: "Claude 3.5 Sonnet", Provider: strPtr("Anthropic"), Capabilities: []string{"chat", "vision", "code"}},
+		}
+	case "opencode":
+		return []*pb.ModelInfo{
+			{Id: "anthropic/claude-sonnet-4-20250514", Name: "Claude Sonnet 4", Provider: strPtr("Anthropic"), Capabilities: []string{"chat", "vision", "code"}},
+		}
+	default:
+		return nil
+	}
+}
+
+// getCopilotModelsFallback returns fallback models when models.dev is unavailable
+func getCopilotModelsFallback() []*pb.ModelInfo {
+	return []*pb.ModelInfo{
+		// GitHub Copilot models
+		{Id: "gpt-4o", Name: "GPT-4o", Provider: strPtr("OpenAI"), Capabilities: []string{"chat", "vision", "code"}},
+		{Id: "claude-sonnet-4", Name: "Claude Sonnet 4", Provider: strPtr("Anthropic"), Capabilities: []string{"chat", "vision", "code"}},
+		{Id: "gemini-2.5-pro", Name: "Gemini 2.5 Pro", Provider: strPtr("Google"), Capabilities: []string{"chat", "vision", "code"}},
+		// Anthropic BYOK models
+		{Id: "claude-sonnet-4-20250514", Name: "Claude Sonnet 4 (BYOK)", Provider: strPtr("Anthropic (BYOK)"), Capabilities: []string{"chat", "vision", "code"}},
+		{Id: "claude-3-5-sonnet-20241022", Name: "Claude 3.5 Sonnet (BYOK)", Provider: strPtr("Anthropic (BYOK)"), Capabilities: []string{"chat", "vision", "code"}},
 	}
 }
 
@@ -1343,110 +1636,4 @@ func (m *Manager) GetCopilotStatus(ctx context.Context) *pb.CopilotStatusRespons
 // Helper for optional string pointers
 func strPtr(s string) *string {
 	return &s
-}
-
-// floatPtr returns a pointer to a float64 value
-func floatPtr(f float64) *float64 {
-	return &f
-}
-
-// getClaudeModels returns available Claude Code SDK models
-func getClaudeModels() []*pb.ModelInfo {
-	return []*pb.ModelInfo{
-		{
-			Id:           "claude-sonnet-4-20250514",
-			Name:         "Claude Sonnet 4",
-			Provider:     strPtr("anthropic"),
-			Capabilities: []string{"chat", "vision", "code"},
-		},
-		{
-			Id:           "claude-3-5-sonnet-20241022",
-			Name:         "Claude 3.5 Sonnet",
-			Provider:     strPtr("anthropic"),
-			Capabilities: []string{"chat", "vision", "code"},
-		},
-	}
-}
-
-// getOpenCodeModels returns available OpenCode SDK models
-func getOpenCodeModels() []*pb.ModelInfo {
-	return []*pb.ModelInfo{
-		{
-			Id:           "anthropic/claude-sonnet-4-20250514",
-			Name:         "Claude Sonnet 4",
-			Provider:     strPtr("anthropic"),
-			Capabilities: []string{"chat", "vision", "code"},
-		},
-		{
-			Id:           "anthropic/claude-3-5-sonnet-20241022",
-			Name:         "Claude 3.5 Sonnet",
-			Provider:     strPtr("anthropic"),
-			Capabilities: []string{"chat", "vision", "code"},
-		},
-		{
-			Id:           "anthropic/claude-3-5-haiku-20241022",
-			Name:         "Claude 3.5 Haiku",
-			Provider:     strPtr("anthropic"),
-			Capabilities: []string{"chat", "code"},
-		},
-	}
-}
-
-// getAnthropicCopilotModels returns models available when using Copilot SDK with Anthropic backend (BYOK)
-func getAnthropicCopilotModels() []*pb.ModelInfo {
-	return []*pb.ModelInfo{
-		{
-			Id:           "claude-sonnet-4-20250514",
-			Name:         "Claude Sonnet 4",
-			Provider:     strPtr("anthropic"),
-			Capabilities: []string{"chat", "vision", "code"},
-		},
-		{
-			Id:           "claude-3-5-sonnet-20241022",
-			Name:         "Claude 3.5 Sonnet",
-			Provider:     strPtr("anthropic"),
-			Capabilities: []string{"chat", "vision", "code"},
-		},
-		{
-			Id:           "claude-3-5-haiku-20241022",
-			Name:         "Claude 3.5 Haiku",
-			Provider:     strPtr("anthropic"),
-			Capabilities: []string{"chat", "code"},
-		},
-	}
-}
-
-// getGitHubCopilotModels returns models available when using Copilot SDK with GitHub backend
-// These have billing multipliers that affect premium request usage
-func getGitHubCopilotModels() []*pb.ModelInfo {
-	return []*pb.ModelInfo{
-		{
-			Id:                "gpt-4o",
-			Name:              "GPT-4o",
-			Provider:          strPtr("openai"),
-			BillingMultiplier: floatPtr(1.0),
-			Capabilities:      []string{"chat", "vision", "code"},
-		},
-		{
-			Id:                "claude-sonnet-4",
-			Name:              "Claude Sonnet 4",
-			Provider:          strPtr("anthropic"),
-			BillingMultiplier: floatPtr(1.0),
-			Capabilities:      []string{"chat", "vision", "code"},
-		},
-		{
-			Id:                "o3-mini",
-			Name:              "o3-mini",
-			Provider:          strPtr("openai"),
-			BillingMultiplier: floatPtr(1.0),
-			Capabilities:      []string{"chat", "code"},
-		},
-		{
-			Id:                "gemini-2.0-flash",
-			Name:              "Gemini 2.0 Flash",
-			Provider:          strPtr("google"),
-			BillingMultiplier: floatPtr(0.33),
-			Capabilities:      []string{"chat", "vision", "code"},
-		},
-	}
 }
