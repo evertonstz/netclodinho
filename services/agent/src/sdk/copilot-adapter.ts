@@ -237,13 +237,17 @@ export class CopilotAdapter implements SDKAdapter {
    * Translate Copilot SDK events to PromptEvent format
    */
   private translateEvent(event: SessionEvent): PromptEvent | null {
+    // Log all events for debugging
+    console.log(`[copilot-adapter] Event: ${event.type}`, JSON.stringify(event.data).slice(0, 200));
+
     switch (event.type) {
       case "assistant.message_delta": {
-        const data = event.data as { deltaContent?: string };
-        if (data.deltaContent) {
+        const data = event.data as { deltaContent?: string; content?: string };
+        const textContent = data.deltaContent || data.content;
+        if (textContent) {
           return {
             type: "textDelta",
-            content: data.deltaContent,
+            content: textContent,
             partial: true,
           };
         }
