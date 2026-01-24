@@ -61,7 +61,7 @@ func init() {
 
 	sessionsCreateCmd.Flags().StringVar(&createName, "name", "", "Session name")
 	sessionsCreateCmd.Flags().StringVar(&createRepo, "repo", "", "GitHub repository (owner/repo)")
-	sessionsCreateCmd.Flags().StringVar(&createSdkType, "sdk", "claude", "SDK type (claude or opencode)")
+	sessionsCreateCmd.Flags().StringVar(&createSdkType, "sdk", "claude", "SDK type (claude, opencode, or copilot)")
 	sessionsCreateCmd.Flags().StringVar(&createModel, "model", "", "Model ID for OpenCode (e.g., anthropic/claude-sonnet-4-0)")
 }
 
@@ -222,10 +222,12 @@ func runSessionsCreate(cmd *cobra.Command, args []string) error {
 	switch strings.ToLower(createSdkType) {
 	case "opencode":
 		sdkType = pb.SdkType_SDK_TYPE_OPENCODE
+	case "copilot":
+		sdkType = pb.SdkType_SDK_TYPE_COPILOT
 	case "claude", "":
 		sdkType = pb.SdkType_SDK_TYPE_CLAUDE
 	default:
-		return fmt.Errorf("invalid SDK type: %s (use 'claude' or 'opencode')", createSdkType)
+		return fmt.Errorf("invalid SDK type: %s (use 'claude', 'opencode', or 'copilot')", createSdkType)
 	}
 
 	opts := client.CreateSessionOptions{
@@ -261,6 +263,8 @@ func formatSdkType(sdkType pb.SdkType) string {
 	switch sdkType {
 	case pb.SdkType_SDK_TYPE_OPENCODE:
 		return "opencode"
+	case pb.SdkType_SDK_TYPE_COPILOT:
+		return "copilot"
 	case pb.SdkType_SDK_TYPE_CLAUDE:
 		return "claude"
 	default:

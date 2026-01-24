@@ -35,6 +35,12 @@ spec:
                 secretKeyRef:
                   name: netclode-secrets
                   key: anthropic-api-key
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: netclode-secrets
+                  key: github-token
+                  optional: true
             - name: CONTROL_PLANE_URL
               value: "http://control-plane.netclode.svc.cluster.local"
             - name: POD_NAME

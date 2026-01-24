@@ -89,19 +89,16 @@ func (h *ConnectAgentServiceHandler) Connect(ctx context.Context, stream *connec
 		SessionId:       conn.sessionID,
 		WorkspaceDir:    "/workspace",
 		ControlPlaneUrl: "http://control-plane.netclode.svc.cluster.local",
+		SdkType:         config.SdkType,
 	}
-	if repo, ok := config["GIT_REPO"]; ok {
-		sessionConfig.Repo = &repo
+	if config.Repo != "" {
+		sessionConfig.Repo = &config.Repo
 	}
-	if token, ok := config["GITHUB_TOKEN"]; ok {
-		sessionConfig.GithubToken = &token
+	if config.GitHubToken != "" {
+		sessionConfig.GithubToken = &config.GitHubToken
 	}
-	if sdkTypeStr, ok := config["SDK_TYPE"]; ok {
-		sdkType := parseSdkTypeFromString(sdkTypeStr)
-		sessionConfig.SdkType = &sdkType
-	}
-	if model, ok := config["MODEL"]; ok {
-		sessionConfig.Model = &model
+	if config.Model != "" {
+		sessionConfig.Model = &config.Model
 	}
 
 	if err := conn.send(&v1.ControlPlaneMessage{
@@ -323,16 +320,4 @@ func (c *AgentConnection) ResizeTerminal(cols, rows int) error {
 
 func strPtr(s string) *string {
 	return &s
-}
-
-// parseSdkTypeFromString converts a string to v1.SdkType enum.
-func parseSdkTypeFromString(s string) v1.SdkType {
-	switch s {
-	case "SDK_TYPE_CLAUDE":
-		return v1.SdkType_SDK_TYPE_CLAUDE
-	case "SDK_TYPE_OPENCODE":
-		return v1.SdkType_SDK_TYPE_OPENCODE
-	default:
-		return v1.SdkType_SDK_TYPE_UNSPECIFIED
-	}
 }

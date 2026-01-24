@@ -25,6 +25,17 @@ const (
 // This allows the API layer to broadcast updates to connected clients.
 type SessionUpdateCallback func(session *pb.Session)
 
+// AgentSessionConfig contains typed configuration for an agent session.
+type AgentSessionConfig struct {
+	SessionID       string
+	AnthropicAPIKey string
+	GitHubToken     string // For Copilot SDK or repo access
+	Repo            string
+	RepoAccess      *pb.RepoAccess
+	SdkType         *pb.SdkType
+	Model           string
+}
+
 // AgentConnection represents a connected agent that can receive commands.
 type AgentConnection interface {
 	ExecutePrompt(text string) error
@@ -1012,7 +1023,7 @@ func (m *Manager) GetSessionIDByPodName(ctx context.Context, podName string) (st
 
 // GetSessionConfig returns session configuration for the agent.
 // This is used by agents to get session-specific config when using warm pools.
-func (m *Manager) GetSessionConfig(ctx context.Context, sessionID string) (map[string]string, error) {
+func (m *Manager) GetSessionConfig(ctx context.Context, sessionID string) (*AgentSessionConfig, error) {
 	m.mu.RLock()
 	state, ok := m.sessions[sessionID]
 	m.mu.RUnlock()
@@ -1021,19 +1032,21 @@ func (m *Manager) GetSessionConfig(ctx context.Context, sessionID string) (map[s
 		return nil, fmt.Errorf("session %s not found", sessionID)
 	}
 
-	config := map[string]string{
-		"SESSION_ID":        sessionID,
-		"ANTHROPIC_API_KEY": m.config.AnthropicAPIKey,
+	config := &AgentSessionConfig{
+		SessionID:       sessionID,
+		AnthropicAPIKey: m.config.AnthropicAPIKey,
+		GitHubToken:     m.config.GitHubToken,
+		SdkType:         state.Session.SdkType,
 	}
 
-	// Pass GitHub token for Copilot SDK if configured
-	if m.config.GitHubToken != "" {
-		config["GITHUB_TOKEN"] = m.config.GitHubToken
+	if state.Session.Model != nil {
+		config.Model = *state.Session.Model
 	}
 
 	// Setup GitHub repo access if configured
 	if state.Session.Repo != nil && *state.Session.Repo != "" {
-		config["GIT_REPO"] = github.NormalizeRepoURL(*state.Session.Repo)
+		config.Repo = github.NormalizeRepoURL(*state.Session.Repo)
+		config.RepoAccess = state.Session.RepoAccess
 
 		// Generate scoped GitHub token if GitHub App is configured
 		// This overrides the static token with a repo-scoped token
@@ -1047,17 +1060,9 @@ func (m *Manager) GetSessionConfig(ctx context.Context, sessionID string) (map[s
 			if err != nil {
 				slog.Warn("Failed to create GitHub token for session config", "sessionID", sessionID, "error", err)
 			} else {
-				config["GITHUB_TOKEN"] = token.Token
+				config.GitHubToken = token.Token
 			}
 		}
-	}
-
-	// Add SDK type and model if specified
-	if state.Session.SdkType != nil {
-		config["SDK_TYPE"] = state.Session.SdkType.String()
-	}
-	if state.Session.Model != nil {
-		config["MODEL"] = *state.Session.Model
 	}
 
 	return config, nil
