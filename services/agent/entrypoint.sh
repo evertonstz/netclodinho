@@ -8,7 +8,7 @@ set -e
 # /agent/.local/share/mise is for mise installed tools (persisted)
 # /agent/.cache/mise is for mise package cache
 # Note: Can't use /agent/.config - JuiceFS creates a .config file at mount root
-mkdir -p /agent/workspace /agent/docker /agent/.local/share/mise /agent/.cache/mise
+mkdir -p /agent/workspace /agent/docker /agent/.local/share/mise /agent/.cache/mise /agent/.local/config
 chown -R agent:agent /agent
 
 # Start Docker daemon with data on JuiceFS
@@ -54,6 +54,7 @@ fi
 if [ -d /opt/opencode-config ] && [ ! -e /agent/.local/config/opencode ]; then
 	mkdir -p /agent/.local/config
 	ln -s /opt/opencode-config /agent/.local/config/opencode
+	chown -h agent:agent /agent/.local/config/opencode
 fi
 
 # Drop privileges and run agent
@@ -66,6 +67,5 @@ exec su -s /bin/bash agent -c "
     export MISE_CACHE_DIR=/agent/.cache/mise
     export XDG_CONFIG_HOME=/agent/.local/config
     export PATH='/agent/.local/share/mise/shims:/opt/mise/bin:/opt/node/bin:/usr/local/bin:/usr/bin:/bin'
-    mkdir -p /agent/.local/config
     cd /opt/agent && /opt/node/bin/node agent.js
 "
