@@ -42,6 +42,7 @@ export class OpenCodeAdapter implements SDKAdapter {
       return;
     }
 
+    const startTime = Date.now();
     console.log("[opencode-adapter] Starting opencode serve...");
 
     const args = ["serve", `--hostname=${OPENCODE_HOST}`, `--port=${OPENCODE_PORT}`];
@@ -67,6 +68,8 @@ export class OpenCodeAdapter implements SDKAdapter {
         ANTHROPIC_API_KEY: this.config?.anthropicApiKey || process.env.ANTHROPIC_API_KEY,
         // Disable default plugins (anthropic-auth, gitlab-auth) - they require npm downloads
         OPENCODE_DISABLE_DEFAULT_PLUGINS: "true",
+        // Disable models.json fetch - use embedded/cached data instead
+        OPENCODE_DISABLE_MODELS_FETCH: "true",
       },
       stdio: ["pipe", "pipe", "pipe"],
       cwd: WORKSPACE_DIR,
@@ -118,15 +121,21 @@ export class OpenCodeAdapter implements SDKAdapter {
 
       // Poll the server until it's ready - this is the reliable method
       // Only resolve when the server actually responds to HTTP requests
+      let pollCount = 0;
       const pollInterval = setInterval(async () => {
         if (resolved) return;
+        pollCount++;
+        const elapsed = Date.now() - startTime;
+        if (pollCount === 1 || pollCount % 50 === 0) {
+          console.log(`[opencode-adapter] Health check attempt ${pollCount}, elapsed ${elapsed}ms`);
+        }
         try {
           const res = await fetch(`http://${OPENCODE_HOST}:${OPENCODE_PORT}/session`, {
             method: "GET",
             signal: AbortSignal.timeout(1000),
           });
           if (res.ok) {
-            console.log("[opencode-adapter] Server responded to health check");
+            console.log(`[opencode-adapter] Server responded to health check after ${pollCount} attempts, ${elapsed}ms`);
             doResolve(`http://${OPENCODE_HOST}:${OPENCODE_PORT}`);
           }
         } catch {
