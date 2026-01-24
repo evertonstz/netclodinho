@@ -9,6 +9,7 @@ import (
 type Config struct {
 	Port                  int
 	AnthropicAPIKey       string
+	GitHubToken           string // GitHub PAT with copilot scope (for Copilot SDK)
 	K8sNamespace          string
 	AgentImage            string
 	SandboxTemplate       string
@@ -30,6 +31,7 @@ func Load() *Config {
 	return &Config{
 		Port:                  getEnvInt("PORT", 3000),
 		AnthropicAPIKey:       getEnv("ANTHROPIC_API_KEY", ""),
+		GitHubToken:           getEnv("GITHUB_TOKEN", ""),
 		K8sNamespace:          getEnv("K8S_NAMESPACE", "netclode"),
 		AgentImage:            getEnv("AGENT_IMAGE", "ghcr.io/angristan/netclode-agent:latest"),
 		SandboxTemplate:       getEnv("SANDBOX_TEMPLATE", "netclode-agent"),

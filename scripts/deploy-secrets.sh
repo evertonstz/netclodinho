@@ -74,8 +74,14 @@ $KUBECTL_CMD create namespace netclode --dry-run=client -o yaml | $KUBECTL_CMD a
 log "Creating Kubernetes secrets..."
 
 # Netclode secrets (control plane)
+# GITHUB_TOKEN is optional (required for Copilot SDK)
+GITHUB_TOKEN_ARG=""
+if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+    GITHUB_TOKEN_ARG="--from-literal=github-token=$GITHUB_TOKEN"
+fi
 $KUBECTL_CMD -n netclode create secret generic netclode-secrets \
     --from-literal=anthropic-api-key="$ANTHROPIC_API_KEY" \
+    $GITHUB_TOKEN_ARG \
     --dry-run=client -o yaml | $KUBECTL_CMD apply -f -
 
 # JuiceFS secrets (for CSI driver)

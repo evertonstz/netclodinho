@@ -210,11 +210,17 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 		"ANTHROPIC_API_KEY": m.config.AnthropicAPIKey,
 	}
 
+	// Pass GitHub token for Copilot SDK if configured
+	if m.config.GitHubToken != "" {
+		env["GITHUB_TOKEN"] = m.config.GitHubToken
+	}
+
 	// Setup GitHub repo access if configured
 	if repo != nil && *repo != "" {
 		env["GIT_REPO"] = github.NormalizeRepoURL(*repo)
 
 		// Generate scoped GitHub token if GitHub App is configured
+		// This overrides the static token with a repo-scoped token
 		if m.github != nil {
 			access := github.RepoAccessRead
 			if repoAccess != nil && *repoAccess == pb.RepoAccess_REPO_ACCESS_WRITE {
@@ -1020,11 +1026,17 @@ func (m *Manager) GetSessionConfig(ctx context.Context, sessionID string) (map[s
 		"ANTHROPIC_API_KEY": m.config.AnthropicAPIKey,
 	}
 
+	// Pass GitHub token for Copilot SDK if configured
+	if m.config.GitHubToken != "" {
+		config["GITHUB_TOKEN"] = m.config.GitHubToken
+	}
+
 	// Setup GitHub repo access if configured
 	if state.Session.Repo != nil && *state.Session.Repo != "" {
 		config["GIT_REPO"] = github.NormalizeRepoURL(*state.Session.Repo)
 
 		// Generate scoped GitHub token if GitHub App is configured
+		// This overrides the static token with a repo-scoped token
 		if m.github != nil {
 			access := github.RepoAccessRead
 			if state.Session.RepoAccess != nil && *state.Session.RepoAccess == pb.RepoAccess_REPO_ACCESS_WRITE {
