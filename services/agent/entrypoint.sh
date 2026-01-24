@@ -7,15 +7,8 @@ set -e
 # /agent/docker is for Docker data
 # /agent/.local/share/mise is for mise installed tools (persisted)
 # /agent/.cache/mise is for mise package cache
-# /agent/.config is for various tool configs (git, opencode, etc.)
-
-# Fix legacy issue where .config might be a file instead of directory
-if [ -f /agent/.config ]; then
-	echo "[entrypoint] Removing legacy .config file..."
-	rm -f /agent/.config
-fi
-
-mkdir -p /agent/workspace /agent/docker /agent/.local/share/mise /agent/.cache/mise /agent/.config
+# Note: Can't use /agent/.config - JuiceFS creates a .config file at mount root
+mkdir -p /agent/workspace /agent/docker /agent/.local/share/mise /agent/.cache/mise
 chown -R agent:agent /agent
 
 # Start Docker daemon with data on JuiceFS
@@ -43,19 +36,23 @@ fi
 if [ -n "$GITHUB_TOKEN" ]; then
 	echo "[entrypoint] Configuring git credentials..."
 	# Create credentials file for agent user
-	mkdir -p /agent/.config/git
+	# Use .local/config instead of .config (JuiceFS uses .config at mount root)
+	mkdir -p /agent/.local/config/git
 	echo "https://x-access-token:${GITHUB_TOKEN}@github.com" >/agent/.git-credentials
-	chown -R agent:agent /agent/.config /agent/.git-credentials
+	chown -R agent:agent /agent/.local/config /agent/.git-credentials
 	chmod 600 /agent/.git-credentials
 fi
 
 # Drop privileges and run agent
 # Preserve PATH and mise env vars for the agent user
 # Include shims path so mise-installed tools are available
+# Set XDG_CONFIG_HOME to avoid JuiceFS .config file at mount root
 echo "[entrypoint] Starting agent as user 'agent'..."
 exec su -s /bin/bash agent -c "
     export MISE_DATA_DIR=/agent/.local/share/mise
     export MISE_CACHE_DIR=/agent/.cache/mise
+    export XDG_CONFIG_HOME=/agent/.local/config
     export PATH='/agent/.local/share/mise/shims:/opt/mise/bin:/opt/node/bin:/usr/local/bin:/usr/bin:/bin'
+    mkdir -p /agent/.local/config
     cd /opt/agent && /opt/node/bin/node agent.js
 "

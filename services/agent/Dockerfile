@@ -98,12 +98,15 @@ COPY --from=builder /root/.local/share/mise/installs/node/24 /opt/node
 # Add to both /etc/profile.d (login shells) and /etc/bash.bashrc (interactive non-login)
 # MISE_DATA_DIR is in /agent so installed tools persist across pod restarts
 # Shims path is included so mise-installed tools are available
+# XDG_CONFIG_HOME avoids JuiceFS .config file at mount root
 RUN echo 'export MISE_DATA_DIR=/agent/.local/share/mise' >> /etc/profile.d/mise.sh && \
     echo 'export MISE_CACHE_DIR=/agent/.cache/mise' >> /etc/profile.d/mise.sh && \
+    echo 'export XDG_CONFIG_HOME=/agent/.local/config' >> /etc/profile.d/mise.sh && \
     echo 'export PATH="/agent/.local/share/mise/shims:/opt/mise/bin:/opt/node/bin:$PATH"' >> /etc/profile.d/mise.sh && \
     chmod +x /etc/profile.d/mise.sh && \
     echo 'export MISE_DATA_DIR=/agent/.local/share/mise' >> /etc/bash.bashrc && \
     echo 'export MISE_CACHE_DIR=/agent/.cache/mise' >> /etc/bash.bashrc && \
+    echo 'export XDG_CONFIG_HOME=/agent/.local/config' >> /etc/bash.bashrc && \
     echo 'export PATH="/agent/.local/share/mise/shims:/opt/mise/bin:/opt/node/bin:$PATH"' >> /etc/bash.bashrc && \
     echo 'export PS1='"'"'\[\033[01;32m\]\u\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '"'" >> /etc/bash.bashrc
 
@@ -117,6 +120,7 @@ ENV NODE_ENV=production
 ENV HOME=/agent
 ENV MISE_DATA_DIR=/agent/.local/share/mise
 ENV MISE_CACHE_DIR=/agent/.cache/mise
+ENV XDG_CONFIG_HOME=/agent/.local/config
 ENV PATH="/agent/.local/share/mise/shims:/opt/mise/bin:/opt/node/bin:${PATH}"
 
 EXPOSE 3002
