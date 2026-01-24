@@ -1,7 +1,24 @@
 /**
  * GitHub Copilot SDK Adapter
  *
- * Uses @github/copilot-sdk to communicate with GitHub Copilot CLI
+ * Uses @github/copilot-sdk to communicate with GitHub Copilot CLI.
+ *
+ * ## Authentication
+ *
+ * The Copilot SDK supports two authentication modes:
+ *
+ * 1. **BYOK (Bring Your Own Key)** - Uses Anthropic API directly
+ *    - Set ANTHROPIC_API_KEY environment variable
+ *    - Calls Anthropic API instead of GitHub Copilot
+ *    - Recommended for self-hosted deployments
+ *
+ * 2. **GitHub Copilot Auth** - Uses GitHub's Copilot service
+ *    - Requires GITHUB_TOKEN with Copilot access, OR
+ *    - Interactive device flow login (not suitable for server use)
+ *    - NOT currently supported in Netclode (use BYOK mode)
+ *
+ * For Netclode, BYOK mode with Anthropic is recommended since we already
+ * have ANTHROPIC_API_KEY configured for the OpenCode adapter.
  */
 
 import { CopilotClient, type CopilotSession, type SessionEvent } from "@github/copilot-sdk";
@@ -30,7 +47,9 @@ export class CopilotAdapter implements SDKAdapter {
 
   async initialize(config: SDKConfig): Promise<void> {
     this.config = config;
+    const hasAnthropicKey = Boolean(config.anthropicApiKey);
     console.log("[copilot-adapter] Initializing with model:", config.model);
+    console.log("[copilot-adapter] BYOK mode:", hasAnthropicKey ? "enabled (Anthropic)" : "disabled (needs GitHub auth)");
 
     // Create CopilotClient with stdio transport
     this.client = new CopilotClient({
@@ -38,11 +57,9 @@ export class CopilotAdapter implements SDKAdapter {
       logLevel: "info",
       autoStart: true,
       autoRestart: true,
-      // Pass environment variables for authentication
+      // Pass environment variables
       env: {
         ...process.env,
-        // Use Anthropic API key for BYOK mode if no GitHub auth available
-        ANTHROPIC_API_KEY: config.anthropicApiKey,
       },
     });
 
@@ -113,9 +130,7 @@ export class CopilotAdapter implements SDKAdapter {
           onPermissionRequest: async () => ({ kind: "approved" }),
         });
       } else {
-        console.log(`[copilot-adapter] Creating new Copilot session`);
-
-        // Build provider config for BYOK mode if needed
+        // Build provider config for BYOK mode if Anthropic API key is available
         const providerConfig = this.config?.anthropicApiKey
           ? {
               type: "anthropic" as const,
@@ -123,6 +138,10 @@ export class CopilotAdapter implements SDKAdapter {
               apiKey: this.config.anthropicApiKey,
             }
           : undefined;
+
+        console.log(`[copilot-adapter] Creating new Copilot session`);
+        console.log(`[copilot-adapter] Using BYOK provider: ${providerConfig ? "Anthropic" : "NONE (requires GitHub auth)"}`);
+        console.log(`[copilot-adapter] Model: ${this.config?.model || "claude-sonnet-4-20250514"}`);
 
         session = await this.client.createSession({
           model: this.config?.model || "claude-sonnet-4-20250514",
@@ -256,10 +275,11 @@ export class CopilotAdapter implements SDKAdapter {
 
       case "assistant.message": {
         const data = event.data as { content?: string };
-        // Final message - emit empty delta with partial: false to signal completion
+        // Final message - emit the content with partial: false to signal completion
+        // The content may be the full response if streaming wasn't used for deltas
         return {
           type: "textDelta",
-          content: "",
+          content: data.content || "",
           partial: false,
         };
       }
