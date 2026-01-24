@@ -27,11 +27,12 @@ export function buildSystemPrompt(config: SystemPromptConfig): {
     "",
     "## Tools",
     "",
-    "- **mise** is installed for managing tool versions (Node, Python, Go, Rust, etc.)",
-    "  - Use `mise use node@22` to install and activate Node.js 22",
-    "  - Use `mise use python@3.12` for Python",
-    "  - Use `mise use go@latest` for Go",
-    "  - See `mise --help` for more options",
+    "- **Node.js 24** is pre-installed and available via `node`, `npm`, `npx`",
+    "- **mise** is installed for managing additional tool versions (Python, Go, Rust, etc.)",
+    "  - Install: `mise install go@latest && mise use -g go@latest` (may take 1-2 min)",
+    "  - After install, tools are in PATH (e.g., `go version`)",
+    "  - Check installed: `mise list`",
+    "  - Common tools: python, go, rust, java, ruby",
   ];
 
   if (config.currentGitRepo) {
