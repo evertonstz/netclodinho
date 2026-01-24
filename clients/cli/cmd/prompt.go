@@ -11,6 +11,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var promptWait bool
+
 var promptCmd = &cobra.Command{
 	Use:   "prompt <session-id> <text>",
 	Short: "Send a prompt to a session (for testing)",
@@ -19,16 +21,24 @@ var promptCmd = &cobra.Command{
 }
 
 func init() {
+	promptCmd.Flags().BoolVarP(&promptWait, "wait", "w", false, "Wait for and stream the response")
 	rootCmd.AddCommand(promptCmd)
 }
 
 func runPrompt(cmd *cobra.Command, args []string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	sessionID := args[0]
+	text := args[1]
+
+	// Use shorter timeout for non-wait mode
+	timeout := 10 * time.Second
+	if promptWait {
+		timeout = 120 * time.Second
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	c := client.New(getServerURL())
-	sessionID := args[0]
-	text := args[1]
 
 	stream := c.Stream(ctx)
 	defer func() { _ = stream.CloseRequest() }()
@@ -56,8 +66,6 @@ func runPrompt(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("expected session state, got %T", msg.GetMessage())
 	}
 
-	fmt.Printf("Session opened, sending prompt: %q\n", text)
-
 	// Send prompt
 	if err := stream.Send(&pb.ClientMessage{
 		Message: &pb.ClientMessage_SendPrompt{
@@ -68,6 +76,14 @@ func runPrompt(cmd *cobra.Command, args []string) error {
 		},
 	}); err != nil {
 		return fmt.Errorf("send prompt: %w", err)
+	}
+
+	fmt.Printf("Prompt sent to session %s\n", sessionID)
+
+	// If not waiting, just print how to check messages and exit
+	if !promptWait {
+		fmt.Printf("\nTo check messages:\n  netclode messages %s\n", sessionID)
+		return nil
 	}
 
 	fmt.Println("Waiting for response...")
