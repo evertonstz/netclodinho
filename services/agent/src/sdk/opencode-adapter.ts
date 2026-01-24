@@ -21,6 +21,9 @@ interface OpenCodeServer {
 // OpenCode session ID mapping (Netclode session ID -> OpenCode session ID)
 const openCodeSessionMap = new Map<string, string>();
 
+// Track assistant message IDs to filter out user message events
+const assistantMessageIds = new Set<string>();
+
 export class OpenCodeAdapter implements SDKAdapter {
   private config: SDKConfig | null = null;
   private server: OpenCodeServer | null = null;
@@ -372,12 +375,22 @@ export class OpenCodeAdapter implements SDKAdapter {
 
         if (!part) return null;
 
+        // Only process parts that belong to assistant messages
+        const messageId = part.messageID as string | undefined;
+        if (messageId && !assistantMessageIds.has(messageId)) {
+          // This part belongs to a non-assistant message (e.g., user message), skip it
+          return null;
+        }
+
         switch (part.type) {
           case "text":
+            // Only use delta content, not part.text (which is accumulated text)
+            // The control-plane accumulates deltas, so we should only send new content
+            if (!delta) return null;
             return {
               type: "textDelta",
-              content: delta || (part.text as string) || "",
-              partial: !!delta,
+              content: delta,
+              partial: true,
             };
 
           case "reasoning":
@@ -432,6 +445,11 @@ export class OpenCodeAdapter implements SDKAdapter {
         const info = props.info as Record<string, unknown> | undefined;
         if (!info) return null;
 
+        // Track assistant message IDs so we can filter message.part.updated events
+        if (info.role === "assistant" && info.id) {
+          assistantMessageIds.add(info.id as string);
+        }
+
         if (info.role === "assistant" && info.time) {
           const time = info.time as Record<string, unknown>;
           if (time.completed) {
@@ -470,6 +488,8 @@ export class OpenCodeAdapter implements SDKAdapter {
 
   clearInterruptSignal(): void {
     this.interruptSignal = false;
+    // Clear tracked assistant message IDs for new prompt
+    assistantMessageIds.clear();
   }
 
   isInterrupted(): boolean {
@@ -489,5 +509,6 @@ export class OpenCodeAdapter implements SDKAdapter {
     }
 
     openCodeSessionMap.clear();
+    assistantMessageIds.clear();
   }
 }
