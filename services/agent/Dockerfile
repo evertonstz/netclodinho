@@ -101,14 +101,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends unzip && \
     chmod +x /opt/bun && \
     rm -rf /tmp/bun.zip /tmp/bun-linux-x64 /var/lib/apt/lists/*
 
-# Pre-install @opencode-ai/plugin to bun's cache
-# This avoids a ~40s npm download on first OpenCode request
+# Pre-install OpenCode dependencies to bun's cache
+# This avoids npm downloads on first OpenCode request
 # The cache will be copied to /agent/.bun at runtime via entrypoint
 RUN OPENCODE_VERSION=$(/usr/local/bin/opencode --version) && \
     export HOME=/opt/bun-cache-home && \
     mkdir -p $HOME/.bun && \
     mkdir -p /tmp/plugin-install && cd /tmp/plugin-install && \
-    /opt/bun add "@opencode-ai/plugin@${OPENCODE_VERSION}" "@opencode-ai/sdk@${OPENCODE_VERSION}" --exact && \
+    /opt/bun add "@opencode-ai/plugin@${OPENCODE_VERSION}" "@opencode-ai/sdk@${OPENCODE_VERSION}" "zod" --exact && \
     mv $HOME/.bun /opt/bun-cache && \
     rm -rf /tmp/plugin-install $HOME
 
