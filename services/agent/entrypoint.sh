@@ -43,6 +43,14 @@ if [ -n "$GITHUB_TOKEN" ]; then
 	chmod 600 /agent/.git-credentials
 fi
 
+# Copy pre-installed bun cache (contains @opencode-ai/plugin)
+# This avoids ~40s npm download on first OpenCode request
+if [ -d /opt/bun-cache ] && [ ! -d /agent/.bun ]; then
+	echo "[entrypoint] Copying pre-installed bun cache..."
+	cp -r /opt/bun-cache /agent/.bun
+	chown -R agent:agent /agent/.bun
+fi
+
 # Drop privileges and run agent
 # Preserve PATH and mise env vars for the agent user
 # Include shims path so mise-installed tools are available

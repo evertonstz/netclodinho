@@ -63,13 +63,6 @@ export class OpenCodeAdapter implements SDKAdapter {
     const proc = spawn("opencode", args, {
       env: {
         ...process.env,
-        // Use /tmp for OpenCode's cache to avoid JuiceFS cold-start latency (~40s)
-        // The workspace is still on JuiceFS (/agent/workspace), but cache is local
-        HOME: "/tmp/opencode-home",
-        XDG_CACHE_HOME: "/tmp/opencode-cache",
-        XDG_DATA_HOME: "/tmp/opencode-data",
-        XDG_STATE_HOME: "/tmp/opencode-state",
-        XDG_CONFIG_HOME: "/tmp/opencode-config",
         OPENCODE_CONFIG_CONTENT: JSON.stringify(opencodeConfig),
         // Use existing Anthropic API key
         ANTHROPIC_API_KEY: this.config?.anthropicApiKey || process.env.ANTHROPIC_API_KEY,

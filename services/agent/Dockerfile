@@ -101,6 +101,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends unzip && \
     chmod +x /opt/bun && \
     rm -rf /tmp/bun.zip /tmp/bun-linux-x64 /var/lib/apt/lists/*
 
+# Pre-install @opencode-ai/plugin to bun's cache
+# This avoids a ~40s npm download on first OpenCode request
+# The cache will be copied to /agent/.bun at runtime via entrypoint
+RUN OPENCODE_VERSION=$(/usr/local/bin/opencode --version) && \
+    export HOME=/opt/bun-cache-home && \
+    mkdir -p $HOME/.bun && \
+    mkdir -p /tmp/plugin-install && cd /tmp/plugin-install && \
+    /opt/bun add "@opencode-ai/plugin@${OPENCODE_VERSION}" "@opencode-ai/sdk@${OPENCODE_VERSION}" --exact && \
+    mv $HOME/.bun /opt/bun-cache && \
+    rm -rf /tmp/plugin-install $HOME
+
 # Create profile for agent user that sets PATH and mise env vars
 # This ensures any shell spawned (including by Claude Code) has access to mise
 # Add to both /etc/profile.d (login shells) and /etc/bash.bashrc (interactive non-login)
