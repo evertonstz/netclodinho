@@ -55,6 +55,10 @@ export class CopilotAdapter implements SDKAdapter {
   // Accumulate usage data for result event
   private lastUsage: { inputTokens: number; outputTokens: number } | null = null;
 
+  // Track current thinking block ID for correlating streaming reasoning deltas
+  private currentThinkingId: string | null = null;
+  private thinkingIdCounter = 0;
+
   async initialize(config: SDKConfig): Promise<void> {
     this.config = config;
 
@@ -189,6 +193,9 @@ export class CopilotAdapter implements SDKAdapter {
     if (!this.client) {
       throw new Error("Copilot client not initialized");
     }
+
+    // Reset thinking tracking for new prompt
+    this.currentThinkingId = null;
 
     console.log(
       `[copilot-adapter] ExecutePrompt (session=${sessionId}): "${text.slice(0, 100)}${text.length > 100 ? "..." : ""}"`
@@ -414,9 +421,13 @@ export class CopilotAdapter implements SDKAdapter {
       case "assistant.reasoning_delta": {
         const data = event.data as { deltaContent?: string };
         if (data.deltaContent) {
+          // Generate a new thinkingId if we don't have one for this reasoning block
+          if (!this.currentThinkingId) {
+            this.currentThinkingId = `thinking_${Date.now()}_${++this.thinkingIdCounter}`;
+          }
           return {
             type: "thinking",
-            thinkingId: `thinking_${event.id}`,
+            thinkingId: this.currentThinkingId,
             content: data.deltaContent,
             partial: true,
           };
@@ -425,10 +436,12 @@ export class CopilotAdapter implements SDKAdapter {
       }
 
       case "assistant.reasoning": {
-        const data = event.data as { content?: string };
+        // End of reasoning block - emit final event and reset tracking
+        const thinkingId = this.currentThinkingId || `thinking_${Date.now()}_${++this.thinkingIdCounter}`;
+        this.currentThinkingId = null; // Reset for next reasoning block
         return {
           type: "thinking",
-          thinkingId: `thinking_${event.id}`,
+          thinkingId,
           content: "",
           partial: false,
         };
