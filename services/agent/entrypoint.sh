@@ -44,11 +44,21 @@ if [ -n "$GITHUB_TOKEN" ]; then
 fi
 
 # Copy pre-installed bun cache (contains @opencode-ai/plugin)
-# This avoids ~40s npm download on first OpenCode request
+# This speeds up any future bun installs
 if [ -d /opt/bun-cache ] && [ ! -d /agent/.bun ]; then
 	echo "[entrypoint] Copying pre-installed bun cache..."
 	cp -r /opt/bun-cache /agent/.bun
 	chown -R agent:agent /agent/.bun
+fi
+
+# Copy pre-installed OpenCode config (with node_modules)
+# This makes OpenCode skip the bun add step entirely on first request
+# XDG_CONFIG_HOME is set to /agent/.local/config, so OpenCode looks in /agent/.local/config/opencode
+if [ -d /opt/opencode-config ] && [ ! -d /agent/.local/config/opencode/node_modules ]; then
+	echo "[entrypoint] Copying pre-installed OpenCode config..."
+	mkdir -p /agent/.local/config/opencode
+	cp -r /opt/opencode-config/* /agent/.local/config/opencode/
+	chown -R agent:agent /agent/.local/config/opencode
 fi
 
 # Drop privileges and run agent
