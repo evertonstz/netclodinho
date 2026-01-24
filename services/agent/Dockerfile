@@ -93,6 +93,12 @@ RUN mkdir -p /opt/mise/bin /opt/mise/shims && \
     cp -r /root/.local/share/mise /opt/mise/share
 COPY --from=builder /root/.local/share/mise/installs/node/24 /opt/node
 
+# Install bun (single binary, download directly)
+RUN curl -fsSL https://bun.sh/install | bash && \
+    mv /root/.bun/bin/bun /opt/bun && \
+    chmod +x /opt/bun && \
+    rm -rf /root/.bun
+
 # Create profile for agent user that sets PATH and mise env vars
 # This ensures any shell spawned (including by Claude Code) has access to mise
 # Add to both /etc/profile.d (login shells) and /etc/bash.bashrc (interactive non-login)
@@ -102,12 +108,12 @@ COPY --from=builder /root/.local/share/mise/installs/node/24 /opt/node
 RUN echo 'export MISE_DATA_DIR=/agent/.local/share/mise' >> /etc/profile.d/mise.sh && \
     echo 'export MISE_CACHE_DIR=/agent/.cache/mise' >> /etc/profile.d/mise.sh && \
     echo 'export XDG_CONFIG_HOME=/agent/.local/config' >> /etc/profile.d/mise.sh && \
-    echo 'export PATH="/agent/.local/share/mise/shims:/opt/mise/bin:/opt/node/bin:$PATH"' >> /etc/profile.d/mise.sh && \
+    echo 'export PATH="/agent/.local/share/mise/shims:/opt/mise/bin:/opt/node/bin:/opt:$PATH"' >> /etc/profile.d/mise.sh && \
     chmod +x /etc/profile.d/mise.sh && \
     echo 'export MISE_DATA_DIR=/agent/.local/share/mise' >> /etc/bash.bashrc && \
     echo 'export MISE_CACHE_DIR=/agent/.cache/mise' >> /etc/bash.bashrc && \
     echo 'export XDG_CONFIG_HOME=/agent/.local/config' >> /etc/bash.bashrc && \
-    echo 'export PATH="/agent/.local/share/mise/shims:/opt/mise/bin:/opt/node/bin:$PATH"' >> /etc/bash.bashrc && \
+    echo 'export PATH="/agent/.local/share/mise/shims:/opt/mise/bin:/opt/node/bin:/opt:$PATH"' >> /etc/bash.bashrc && \
     echo 'export PS1='"'"'\[\033[01;32m\]\u\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '"'" >> /etc/bash.bashrc
 
 # Copy entrypoint script
@@ -121,7 +127,7 @@ ENV HOME=/agent
 ENV MISE_DATA_DIR=/agent/.local/share/mise
 ENV MISE_CACHE_DIR=/agent/.cache/mise
 ENV XDG_CONFIG_HOME=/agent/.local/config
-ENV PATH="/agent/.local/share/mise/shims:/opt/mise/bin:/opt/node/bin:${PATH}"
+ENV PATH="/agent/.local/share/mise/shims:/opt/mise/bin:/opt/node/bin:/opt:${PATH}"
 
 EXPOSE 3002
 

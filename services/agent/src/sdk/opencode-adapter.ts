@@ -70,7 +70,7 @@ export class OpenCodeAdapter implements SDKAdapter {
       cwd: WORKSPACE_DIR,
     });
 
-    // Wait for server to be ready
+    // Wait for server to be ready - use polling only, stdout detection can be unreliable
     const url = await new Promise<string>((resolve, reject) => {
       const timeout = setTimeout(() => {
         proc.kill();
@@ -79,22 +79,19 @@ export class OpenCodeAdapter implements SDKAdapter {
 
       let stdout = "";
       let stderr = "";
+      let resolved = false;
+
+      const doResolve = (url: string) => {
+        if (resolved) return;
+        resolved = true;
+        clearInterval(pollInterval);
+        clearTimeout(timeout);
+        resolve(url);
+      };
 
       proc.stdout?.on("data", (chunk) => {
         stdout += chunk.toString();
         console.log("[opencode-adapter] stdout:", chunk.toString().trim());
-
-        // Look for server ready message - must be the actual "listening" message
-        // NOT the warning about OPENCODE_SERVER_PASSWORD which contains "server"
-        const lines = stdout.split("\n");
-        for (const line of lines) {
-          // Match: "opencode server listening on http://..."
-          if (line.includes("listening on http")) {
-            clearTimeout(timeout);
-            resolve(`http://${OPENCODE_HOST}:${OPENCODE_PORT}`);
-            return;
-          }
-        }
       });
 
       proc.stderr?.on("data", (chunk) => {
@@ -103,17 +100,21 @@ export class OpenCodeAdapter implements SDKAdapter {
       });
 
       proc.on("exit", (code) => {
+        if (resolved) return;
+        clearInterval(pollInterval);
         clearTimeout(timeout);
         reject(new Error(`opencode serve exited with code ${code}\nstdout: ${stdout}\nstderr: ${stderr}`));
       });
 
       proc.on("error", (error) => {
+        if (resolved) return;
+        clearInterval(pollInterval);
         clearTimeout(timeout);
         reject(error);
       });
 
       // Poll the server until it's ready - this is the reliable method
-      let resolved = false;
+      // Only resolve when the server actually responds to HTTP requests
       const pollInterval = setInterval(async () => {
         if (resolved) return;
         try {
@@ -122,10 +123,8 @@ export class OpenCodeAdapter implements SDKAdapter {
             signal: AbortSignal.timeout(1000),
           });
           if (res.ok) {
-            resolved = true;
-            clearInterval(pollInterval);
-            clearTimeout(timeout);
-            resolve(`http://${OPENCODE_HOST}:${OPENCODE_PORT}`);
+            console.log("[opencode-adapter] Server responded to health check");
+            doResolve(`http://${OPENCODE_HOST}:${OPENCODE_PORT}`);
           }
         } catch {
           // Server not ready yet, keep polling
