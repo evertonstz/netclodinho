@@ -106,3 +106,15 @@
     - { name: "net.bridge.bridge-nf-call-iptables", value: "1" }
     - { name: "net.bridge.bridge-nf-call-ip6tables", value: "1" }
   ignore_errors: yes  # bridge module may not be loaded yet
+
+- name: Set sysctl for inotify limits (needed for Kata containers)
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    sysctl_set: yes
+    state: present
+    reload: yes
+  loop:
+    - { name: "fs.inotify.max_user_instances", value: "8192" }
+    - { name: "fs.inotify.max_user_watches", value: "1048576" }
+    - { name: "fs.file-max", value: "2097152" }

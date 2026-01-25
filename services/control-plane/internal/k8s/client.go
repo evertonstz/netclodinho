@@ -39,6 +39,7 @@ type Runtime interface {
 	DeleteVolumeSnapshot(ctx context.Context, sessionID, snapshotID string) error
 	ListVolumeSnapshots(ctx context.Context, sessionID string) ([]VolumeSnapshotInfo, error)
 	RestoreFromSnapshot(ctx context.Context, sessionID, snapshotID string) error
+	WaitForRestoreJob(ctx context.Context, sessionID, snapshotID string, timeout time.Duration) error
 	GetPVCName(ctx context.Context, sessionID string) (string, error)
 
 	Close()

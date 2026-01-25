@@ -297,6 +297,23 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 		return
 	}
 
+	// If restoring from snapshot, wait for JuiceFS restore job to complete
+	// The restore job runs asynchronously after the PVC is created
+	if len(restoreSnapshotID) > 0 && restoreSnapshotID[0] != "" {
+		slog.Info("Waiting for snapshot restore job", "sessionID", sessionID, "snapshotID", restoreSnapshotID[0])
+		if err := m.k8s.WaitForRestoreJob(ctx, sessionID, restoreSnapshotID[0], 5*time.Minute); err != nil {
+			slog.Error("Snapshot restore job failed", "sessionID", sessionID, "error", err)
+			// Cleanup: delete the sandbox
+			if delErr := m.k8s.DeleteSandbox(ctx, sessionID); delErr != nil {
+				slog.Error("Failed to cleanup sandbox after restore failure", "sessionID", sessionID, "error", delErr)
+			}
+			m.updateSessionStatus(ctx, sessionID, pb.SessionStatus_SESSION_STATUS_ERROR)
+			m.emitSessionError(ctx, sessionID, fmt.Sprintf("snapshot restore failed: %v", err))
+			return
+		}
+		slog.Info("Snapshot restore completed", "sessionID", sessionID, "snapshotID", restoreSnapshotID[0])
+	}
+
 	// Create Tailscale-exposed service for preview URLs
 	if err := m.k8s.CreateSandboxService(ctx, sessionID); err != nil {
 		slog.Warn("Failed to create sandbox service", "sessionID", sessionID, "error", err)

@@ -1309,6 +1309,74 @@ func (r *k8sRuntime) RestoreFromSnapshot(ctx context.Context, sessionID, snapsho
 	return nil
 }
 
+// WaitForRestoreJob waits for the JuiceFS restore job to complete.
+// JuiceFS CSI creates a restore job when a PVC is created from a snapshot.
+// The job name follows the pattern: juicefs-restore-snapshot-{volumesnapshotcontent-uid}
+func (r *k8sRuntime) WaitForRestoreJob(ctx context.Context, sessionID, snapshotID string, timeout time.Duration) error {
+	snapName := snapshotName(sessionID, snapshotID)
+
+	// Get the VolumeSnapshot to find its bound VolumeSnapshotContent
+	u, err := r.dynamicClient.Resource(VolumeSnapshotGVR).Namespace(r.namespace).Get(ctx, snapName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("get snapshot %s: %w", snapName, err)
+	}
+
+	data, err := u.MarshalJSON()
+	if err != nil {
+		return fmt.Errorf("marshal snapshot: %w", err)
+	}
+
+	var snapshot VolumeSnapshot
+	if err := json.Unmarshal(data, &snapshot); err != nil {
+		return fmt.Errorf("unmarshal snapshot: %w", err)
+	}
+
+	if snapshot.Status == nil || snapshot.Status.BoundVolumeSnapshotContentName == nil {
+		return fmt.Errorf("snapshot %s has no bound VolumeSnapshotContent", snapName)
+	}
+
+	// Extract the UID from the VolumeSnapshotContent name (snapcontent-{uid})
+	contentName := *snapshot.Status.BoundVolumeSnapshotContentName
+	uid := strings.TrimPrefix(contentName, "snapcontent-")
+	if uid == contentName {
+		// Not the expected format, try using the full name
+		uid = contentName
+	}
+
+	// JuiceFS restore job name follows pattern: juicefs-restore-snapshot-{uid}
+	jobName := fmt.Sprintf("juicefs-restore-snapshot-%s", uid)
+
+	slog.Info("Waiting for JuiceFS restore job", "sessionID", sessionID, "snapshotID", snapshotID, "jobName", jobName)
+
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		job, err := r.clientset.BatchV1().Jobs("kube-system").Get(ctx, jobName, metav1.GetOptions{})
+		if err != nil {
+			if errors.IsNotFound(err) {
+				// Job might not exist yet, wait and retry
+				time.Sleep(2 * time.Second)
+				continue
+			}
+			return fmt.Errorf("get restore job %s: %w", jobName, err)
+		}
+
+		// Check job status
+		if job.Status.Succeeded > 0 {
+			slog.Info("JuiceFS restore job completed successfully", "sessionID", sessionID, "jobName", jobName)
+			return nil
+		}
+
+		if job.Status.Failed > 0 && job.Spec.BackoffLimit != nil && job.Status.Failed >= *job.Spec.BackoffLimit {
+			return fmt.Errorf("restore job %s failed after %d attempts", jobName, job.Status.Failed)
+		}
+
+		slog.Debug("Restore job still running", "sessionID", sessionID, "jobName", jobName, "active", job.Status.Active, "succeeded", job.Status.Succeeded, "failed", job.Status.Failed)
+		time.Sleep(2 * time.Second)
+	}
+
+	return fmt.Errorf("timeout waiting for restore job %s", jobName)
+}
+
 // GetPVCName returns the PVC name for a session.
 // For warm pool mode, we need to look up the actual PVC name from the sandbox.
 func (r *k8sRuntime) GetPVCName(ctx context.Context, sessionID string) (string, error) {
