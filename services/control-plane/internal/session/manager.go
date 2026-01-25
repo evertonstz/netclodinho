@@ -1741,11 +1741,16 @@ func (m *Manager) RestoreSnapshot(ctx context.Context, sessionID, snapshotID str
 	// Delete the K8s VolumeSnapshots that are newer than the restored one
 	m.deleteK8sSnapshotsAfter(ctx, sessionID, snapshot)
 
-	// Update session status - ready for the sandbox to be recreated
-	state.Session.Status = pb.SessionStatus_SESSION_STATUS_READY
-	_ = m.storage.UpdateSessionStatus(ctx, sessionID, pb.SessionStatus_SESSION_STATUS_READY)
-
 	slog.Info("Snapshot restored", "sessionID", sessionID, "snapshotID", snapshotID, "messagesRestored", snapshot.MessageCount)
+
+	// Resume immediately to create sandbox from snapshot
+	// This runs async so we don't block the restore response
+	go func() {
+		if _, err := m.Resume(context.Background(), sessionID); err != nil {
+			slog.Error("Failed to resume after restore", "sessionID", sessionID, "error", err)
+		}
+	}()
+
 	return snapshot.MessageCount, nil
 }
 
