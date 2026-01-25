@@ -50,10 +50,11 @@ When you restore a snapshot:
        │ RestoreSnapshot     │                        │
        │────────────────────►│                        │
        │                     │                        │
-       │                     │ Delete sandbox/claim   │
+       │                     │ Orphan old PVC         │
+       │                     │ (remove ownerRefs)     │
        │                     │───────────────────────►│
        │                     │                        │
-       │                     │ Delete old PVC         │
+       │                     │ Delete sandbox/claim   │
        │                     │───────────────────────►│
        │                     │                        │
        │                     │ Store restore snapshot │
@@ -69,14 +70,30 @@ When you restore a snapshot:
        │ Resume session      │                        │
        │────────────────────►│                        │
        │                     │                        │
-       │                     │ Create Sandbox with    │
-       │                     │ PVC from snapshot      │
-       │                     │ (dataSource in         │
-       │                     │  VolumeClaimTemplate)  │
+       │                     │ 1. Create PVC with     │
+       │                     │    dataSource pointing │
+       │                     │    to VolumeSnapshot   │
+       │                     │───────────────────────►│
+       │                     │                        │
+       │                     │ 2. Wait for JuiceFS    │
+       │                     │    restore job to      │
+       │                     │    complete            │
+       │                     │◄──────────────────────►│
+       │                     │                        │
+       │                     │ 3. Create Sandbox with │
+       │                     │    existing PVC (via   │
+       │                     │    volumes, not        │
+       │                     │    volumeClaimTemplate)│
        │                     │───────────────────────►│
 ```
 
-**Note**: When restoring, the warm pool is bypassed. A dedicated sandbox is created with a VolumeClaimTemplate that includes a `dataSource` pointing to the VolumeSnapshot. This ensures the new PVC is populated from the snapshot.
+**Note**: When restoring, the warm pool is bypassed. The restore follows a specific order to prevent race conditions:
+
+1. **Create standalone PVC first**: A PVC is created with `dataSource` pointing to the VolumeSnapshot
+2. **Wait for restore job**: JuiceFS CSI creates a restore job that copies snapshot data to the new PVC. We wait for this job to complete before proceeding.
+3. **Create sandbox with existing PVC**: The sandbox is created using `volumes` (referencing the existing PVC) instead of `volumeClaimTemplates`. This ensures the pod doesn't mount the volume until the restore is complete.
+
+This ordering is critical because if the pod mounts the volume while the restore job is running, the restore fails with "directory not empty".
 
 ### Kubernetes VolumeSnapshots
 
@@ -178,7 +195,7 @@ The snapshot feature requires the following Kubernetes components (deployed via 
 | **Snapshot Controller** | Watches VolumeSnapshot objects and triggers the CSI driver to create/delete snapshots |
 | **csi-snapshotter sidecar** | Sidecar container in the JuiceFS CSI controller that handles snapshot operations. The upstream JuiceFS CSI driver doesn't include this by default, so Ansible patches the StatefulSet to add it. |
 | **VolumeSnapshotClass** | Defines the CSI driver (`csi.juicefs.com`) and deletion policy for snapshots |
-| **RBAC** | Control-plane ServiceAccount needs permissions to create/delete VolumeSnapshots |
+| **RBAC** | Control-plane ServiceAccount needs: (1) permissions to create/delete VolumeSnapshots in netclode namespace, (2) ClusterRole to read Jobs in kube-system (to wait for JuiceFS restore jobs) |
 
 ## Limitations
 
