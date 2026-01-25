@@ -1287,22 +1287,14 @@ func (r *k8sRuntime) RestoreFromSnapshot(ctx context.Context, sessionID, snapsho
 	// Wait for sandbox/pod to terminate
 	time.Sleep(2 * time.Second)
 
-	// Delete the old PVC so a new one can be created from snapshot
-	oldPVCName, err := r.GetPVCName(ctx, sessionID)
-	if err == nil && oldPVCName != "" {
-		if err := r.clientset.CoreV1().PersistentVolumeClaims(r.namespace).Delete(ctx, oldPVCName, metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
-			slog.Warn("Failed to delete old PVC", "sessionID", sessionID, "pvc", oldPVCName, "error", err)
-		} else {
-			slog.Info("Deleted old PVC", "sessionID", sessionID, "pvc", oldPVCName)
-			// Wait for PVC deletion
-			for i := 0; i < 30; i++ {
-				_, err := r.clientset.CoreV1().PersistentVolumeClaims(r.namespace).Get(ctx, oldPVCName, metav1.GetOptions{})
-				if errors.IsNotFound(err) {
-					break
-				}
-				time.Sleep(1 * time.Second)
-			}
-		}
+	// NOTE: We intentionally do NOT delete the old PVC here.
+	// JuiceFS snapshots reference the source subvolume data, and deleting the
+	// source PVC would delete that data, making the snapshot unusable for restore.
+	// The old PVC will be orphaned but the new sandbox uses a different PVC name.
+	// Old PVCs should be cleaned up separately after the restore job completes.
+	oldPVCName, _ := r.GetPVCName(ctx, sessionID)
+	if oldPVCName != "" {
+		slog.Info("Keeping old PVC for snapshot restore", "sessionID", sessionID, "pvc", oldPVCName)
 	}
 
 	slog.Info("Ready for restore", "sessionID", sessionID, "snapshotID", snapshotID)
