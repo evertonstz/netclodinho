@@ -18,25 +18,28 @@ const (
 
 // SendPrompt sends a prompt to the agent and streams the response.
 // If the sandbox isn't ready yet, queues the prompt to be sent when ready.
-// If the session is paused, automatically resumes it first.
+// If the session is paused or no agent is connected, automatically resumes it first.
 func (m *Manager) SendPrompt(ctx context.Context, sessionID, text string) error {
 	state := m.getState(sessionID)
 	if state == nil {
 		return fmt.Errorf("session %s not found", sessionID)
 	}
 
-	// Auto-resume if session is paused
-	if state.Session.Status == pb.SessionStatus_SESSION_STATUS_PAUSED {
-		slog.Info("Auto-resuming paused session for prompt", "sessionID", sessionID)
+	// Check if agent is connected
+	agent := m.GetAgentConnection(sessionID)
+
+	// Auto-resume if session is paused OR if no agent is connected (sandbox may not exist)
+	if state.Session.Status == pb.SessionStatus_SESSION_STATUS_PAUSED || agent == nil {
+		slog.Info("Auto-resuming session for prompt", "sessionID", sessionID, "status", state.Session.Status.String(), "hasAgent", agent != nil)
 		if _, err := m.Resume(ctx, sessionID); err != nil {
 			return fmt.Errorf("failed to resume session: %w", err)
 		}
+		// Re-check agent connection after resume
+		agent = m.GetAgentConnection(sessionID)
 	}
 
-	// Check if agent is connected
-	agent := m.GetAgentConnection(sessionID)
 	if agent == nil {
-		// Agent not connected yet - queue the prompt
+		// Agent still not connected - queue the prompt (sandbox is starting)
 		slog.Info("Queueing prompt until agent connects", "sessionID", sessionID)
 		m.mu.Lock()
 		state.PendingPrompt = text
