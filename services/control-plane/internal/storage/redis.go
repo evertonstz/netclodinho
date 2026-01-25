@@ -19,6 +19,14 @@ const (
 	keySessionsAll = "sessions:all"
 )
 
+func snapshotsSetKey(sessionID string) string {
+	return "session:" + sessionID + ":snapshots"
+}
+
+func snapshotKey(sessionID, snapshotID string) string {
+	return "session:" + sessionID + ":snapshot:" + snapshotID
+}
+
 func sessionKey(id string) string {
 	return "session:" + id
 }
@@ -233,6 +241,11 @@ func (r *RedisStorage) UpdateSessionField(ctx context.Context, id, field, value 
 
 // DeleteSession removes a session and all related data from Redis.
 func (r *RedisStorage) DeleteSession(ctx context.Context, id string) error {
+	// First delete all snapshots
+	if err := r.DeleteAllSnapshots(ctx, id); err != nil {
+		slog.Warn("failed to delete snapshots during session delete", "sessionID", id, "error", err)
+	}
+
 	pipe := r.client.TxPipeline()
 	pipe.SRem(ctx, keySessionsAll, id)
 	pipe.Del(ctx, sessionKey(id))
@@ -529,6 +542,182 @@ func (r *RedisStorage) GetLastNotificationID(ctx context.Context, sessionID stri
 // GetRedisClient returns the underlying Redis client for direct access (used by StreamSubscriber).
 func (r *RedisStorage) GetRedisClient() *redis.Client {
 	return r.client
+}
+
+// ============================================================================
+// Snapshot Storage
+// ============================================================================
+
+// SaveSnapshot saves a snapshot to Redis.
+func (r *RedisStorage) SaveSnapshot(ctx context.Context, snapshot *pb.Snapshot) error {
+	pipe := r.client.TxPipeline()
+
+	// Add to sorted set with creation time as score
+	pipe.ZAdd(ctx, snapshotsSetKey(snapshot.SessionId), redis.Z{
+		Score:  float64(snapshot.CreatedAt.AsTime().Unix()),
+		Member: snapshot.Id,
+	})
+
+	// Store snapshot data
+	pipe.HSet(ctx, snapshotKey(snapshot.SessionId, snapshot.Id),
+		"id", snapshot.Id,
+		"sessionId", snapshot.SessionId,
+		"name", snapshot.Name,
+		"createdAt", snapshot.CreatedAt.AsTime().Format(time.RFC3339),
+		"sizeBytes", snapshot.SizeBytes,
+		"turnNumber", snapshot.TurnNumber,
+		"messageCount", snapshot.MessageCount,
+	)
+
+	_, err := pipe.Exec(ctx)
+	return err
+}
+
+// GetSnapshot retrieves a snapshot by ID.
+func (r *RedisStorage) GetSnapshot(ctx context.Context, sessionID, snapshotID string) (*pb.Snapshot, error) {
+	data, err := r.client.HGetAll(ctx, snapshotKey(sessionID, snapshotID)).Result()
+	if err != nil {
+		return nil, err
+	}
+	if len(data) == 0 {
+		return nil, fmt.Errorf("snapshot not found: %s", snapshotID)
+	}
+
+	snapshot := &pb.Snapshot{
+		Id:        data["id"],
+		SessionId: data["sessionId"],
+		Name:      data["name"],
+	}
+
+	if t, err := time.Parse(time.RFC3339, data["createdAt"]); err == nil {
+		snapshot.CreatedAt = timestamppb.New(t)
+	}
+
+	if sizeStr, ok := data["sizeBytes"]; ok {
+		var size int64
+		fmt.Sscanf(sizeStr, "%d", &size)
+		snapshot.SizeBytes = size
+	}
+
+	if turnStr, ok := data["turnNumber"]; ok {
+		var turn int32
+		fmt.Sscanf(turnStr, "%d", &turn)
+		snapshot.TurnNumber = turn
+	}
+
+	if msgCountStr, ok := data["messageCount"]; ok {
+		var count int32
+		fmt.Sscanf(msgCountStr, "%d", &count)
+		snapshot.MessageCount = count
+	}
+
+	return snapshot, nil
+}
+
+// ListSnapshots retrieves all snapshots for a session, ordered by creation time (newest first).
+func (r *RedisStorage) ListSnapshots(ctx context.Context, sessionID string) ([]*pb.Snapshot, error) {
+	// Get all snapshot IDs from sorted set (newest first by score)
+	ids, err := r.client.ZRevRange(ctx, snapshotsSetKey(sessionID), 0, -1).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(ids) == 0 {
+		return []*pb.Snapshot{}, nil
+	}
+
+	// Pipeline to get all snapshot data
+	pipe := r.client.Pipeline()
+	cmds := make([]*redis.MapStringStringCmd, len(ids))
+	for i, id := range ids {
+		cmds[i] = pipe.HGetAll(ctx, snapshotKey(sessionID, id))
+	}
+	_, err = pipe.Exec(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	snapshots := make([]*pb.Snapshot, 0, len(ids))
+	for _, cmd := range cmds {
+		data, err := cmd.Result()
+		if err != nil || len(data) == 0 {
+			continue
+		}
+
+		snapshot := &pb.Snapshot{
+			Id:        data["id"],
+			SessionId: data["sessionId"],
+			Name:      data["name"],
+		}
+
+		if t, err := time.Parse(time.RFC3339, data["createdAt"]); err == nil {
+			snapshot.CreatedAt = timestamppb.New(t)
+		}
+
+		if sizeStr, ok := data["sizeBytes"]; ok {
+			var size int64
+			fmt.Sscanf(sizeStr, "%d", &size)
+			snapshot.SizeBytes = size
+		}
+
+		if turnStr, ok := data["turnNumber"]; ok {
+			var turn int32
+			fmt.Sscanf(turnStr, "%d", &turn)
+			snapshot.TurnNumber = turn
+		}
+
+		if msgCountStr, ok := data["messageCount"]; ok {
+			var count int32
+			fmt.Sscanf(msgCountStr, "%d", &count)
+			snapshot.MessageCount = count
+		}
+
+		snapshots = append(snapshots, snapshot)
+	}
+
+	return snapshots, nil
+}
+
+// DeleteSnapshot removes a snapshot from Redis.
+func (r *RedisStorage) DeleteSnapshot(ctx context.Context, sessionID, snapshotID string) error {
+	pipe := r.client.TxPipeline()
+	pipe.ZRem(ctx, snapshotsSetKey(sessionID), snapshotID)
+	pipe.Del(ctx, snapshotKey(sessionID, snapshotID))
+	_, err := pipe.Exec(ctx)
+	return err
+}
+
+// DeleteAllSnapshots removes all snapshots for a session.
+func (r *RedisStorage) DeleteAllSnapshots(ctx context.Context, sessionID string) error {
+	// Get all snapshot IDs first
+	ids, err := r.client.ZRange(ctx, snapshotsSetKey(sessionID), 0, -1).Result()
+	if err != nil {
+		return err
+	}
+
+	if len(ids) == 0 {
+		return nil
+	}
+
+	// Delete all snapshot data and the set
+	pipe := r.client.TxPipeline()
+	for _, id := range ids {
+		pipe.Del(ctx, snapshotKey(sessionID, id))
+	}
+	pipe.Del(ctx, snapshotsSetKey(sessionID))
+
+	_, err = pipe.Exec(ctx)
+	return err
+}
+
+// TruncateMessages truncates messages to keep only the first N messages.
+func (r *RedisStorage) TruncateMessages(ctx context.Context, sessionID string, keepCount int) error {
+	if keepCount <= 0 {
+		// Delete all messages
+		return r.client.Del(ctx, messagesKey(sessionID)).Err()
+	}
+	// LTRIM with range [0, keepCount-1] keeps first keepCount elements
+	return r.client.LTrim(ctx, messagesKey(sessionID), 0, int64(keepCount-1)).Err()
 }
 
 // ParseRedisURL extracts host from a Redis URL for logging purposes.

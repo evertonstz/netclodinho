@@ -48,6 +48,9 @@ type AgentConnection interface {
 	GetGitDiff(requestID string, file *string) error
 	SendTerminalInput(data string) error
 	ResizeTerminal(cols, rows int) error
+	// Snapshot operations
+	CreateSnapshot(requestID, snapshotID, name string) error
+	RestoreSnapshot(requestID, snapshotID string) error
 }
 
 // Manager handles session lifecycle and agent communication.
@@ -69,6 +72,10 @@ type Manager struct {
 	copilotModelsCacheAt time.Time
 	modelsDevCache       map[string]*modelsDevCacheEntry
 	copilotModelsMu      sync.RWMutex
+
+	// Snapshot operation tracking
+	pendingSnapshotMu       sync.Mutex
+	pendingSnapshotRequests map[string]chan snapshotResult
 }
 
 type modelsDevCacheEntry struct {
@@ -79,12 +86,13 @@ type modelsDevCacheEntry struct {
 // NewManager creates a new session manager.
 func NewManager(store storage.Storage, k8sRuntime k8s.Runtime, cfg *config.Config, githubClient *github.Client) *Manager {
 	return &Manager{
-		storage:  store,
-		k8s:      k8sRuntime,
-		config:   cfg,
-		github:   githubClient,
-		sessions: make(map[string]*SessionState),
-		agents:   make(map[string]AgentConnection),
+		storage:                 store,
+		k8s:                     k8sRuntime,
+		config:                  cfg,
+		github:                  githubClient,
+		sessions:                make(map[string]*SessionState),
+		agents:                  make(map[string]AgentConnection),
+		pendingSnapshotRequests: make(map[string]chan snapshotResult),
 	}
 }
 
@@ -1596,6 +1604,242 @@ func getCopilotModelsFallback() []*pb.ModelInfo {
 		{Id: "claude-sonnet-4-20250514", Name: "Claude Sonnet 4 (BYOK)", Provider: strPtr("Anthropic (BYOK)"), Capabilities: []string{"chat", "vision", "code"}},
 		{Id: "claude-3-5-sonnet-20241022", Name: "Claude 3.5 Sonnet (BYOK)", Provider: strPtr("Anthropic (BYOK)"), Capabilities: []string{"chat", "vision", "code"}},
 	}
+}
+
+// ============================================================================
+// Snapshot Operations
+// ============================================================================
+
+type snapshotResult struct {
+	success   bool
+	sizeBytes int64
+	err       error
+}
+
+// CreateSnapshot creates a snapshot of the session's workspace.
+func (m *Manager) CreateSnapshot(ctx context.Context, sessionID string, name string) (*pb.Snapshot, error) {
+	state := m.getState(sessionID)
+	if state == nil {
+		return nil, fmt.Errorf("session %s not found", sessionID)
+	}
+
+	// Get agent connection
+	agent := m.GetAgentConnection(sessionID)
+	if agent == nil {
+		return nil, fmt.Errorf("no agent connected for session %s", sessionID)
+	}
+
+	// Get message count for the snapshot
+	msgCount, _ := m.storage.GetMessageCount(ctx, sessionID)
+
+	// Count assistant messages (turns)
+	messages, _ := m.storage.GetMessages(ctx, sessionID, nil)
+	turnNumber := 0
+	for _, msg := range messages {
+		if msg.Role == pb.MessageRole_MESSAGE_ROLE_ASSISTANT {
+			turnNumber++
+		}
+	}
+
+	// Generate snapshot ID and request ID
+	snapshotID := uuid.NewString()[:12]
+	requestID := uuid.NewString()[:12]
+
+	// Register pending request
+	resultCh := make(chan snapshotResult, 1)
+	m.pendingSnapshotMu.Lock()
+	m.pendingSnapshotRequests[requestID] = resultCh
+	m.pendingSnapshotMu.Unlock()
+
+	defer func() {
+		m.pendingSnapshotMu.Lock()
+		delete(m.pendingSnapshotRequests, requestID)
+		m.pendingSnapshotMu.Unlock()
+	}()
+
+	// Send snapshot command to agent
+	if err := agent.CreateSnapshot(requestID, snapshotID, name); err != nil {
+		return nil, fmt.Errorf("failed to send snapshot command: %w", err)
+	}
+
+	// Wait for response with timeout
+	select {
+	case result := <-resultCh:
+		if !result.success {
+			return nil, result.err
+		}
+
+		// Create snapshot record
+		snapshot := &pb.Snapshot{
+			Id:           snapshotID,
+			SessionId:    sessionID,
+			Name:         name,
+			CreatedAt:    timestamppb.Now(),
+			SizeBytes:    result.sizeBytes,
+			TurnNumber:   int32(turnNumber),
+			MessageCount: int32(msgCount),
+		}
+
+		// Save to storage
+		if err := m.storage.SaveSnapshot(ctx, snapshot); err != nil {
+			return nil, fmt.Errorf("failed to save snapshot: %w", err)
+		}
+
+		slog.Info("Snapshot created", "sessionID", sessionID, "snapshotID", snapshotID, "name", name)
+		return snapshot, nil
+
+	case <-time.After(60 * time.Second):
+		return nil, fmt.Errorf("snapshot operation timed out")
+
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+// RestoreSnapshot restores a session's workspace from a snapshot.
+// Also truncates messages to the snapshot's message count.
+func (m *Manager) RestoreSnapshot(ctx context.Context, sessionID, snapshotID string) (int32, error) {
+	state := m.getState(sessionID)
+	if state == nil {
+		return 0, fmt.Errorf("session %s not found", sessionID)
+	}
+
+	// Must be ready (not running) to restore
+	if state.Session.Status != pb.SessionStatus_SESSION_STATUS_READY {
+		return 0, fmt.Errorf("cannot restore while session is %s", state.Session.Status.String())
+	}
+
+	// Get snapshot metadata
+	snapshot, err := m.storage.GetSnapshot(ctx, sessionID, snapshotID)
+	if err != nil {
+		return 0, fmt.Errorf("snapshot not found: %w", err)
+	}
+
+	// Get agent connection
+	agent := m.GetAgentConnection(sessionID)
+	if agent == nil {
+		return 0, fmt.Errorf("no agent connected for session %s", sessionID)
+	}
+
+	// Register pending request
+	requestID := uuid.NewString()[:12]
+	resultCh := make(chan snapshotResult, 1)
+	m.pendingSnapshotMu.Lock()
+	m.pendingSnapshotRequests[requestID] = resultCh
+	m.pendingSnapshotMu.Unlock()
+
+	defer func() {
+		m.pendingSnapshotMu.Lock()
+		delete(m.pendingSnapshotRequests, requestID)
+		m.pendingSnapshotMu.Unlock()
+	}()
+
+	// Send restore command to agent
+	if err := agent.RestoreSnapshot(requestID, snapshotID); err != nil {
+		return 0, fmt.Errorf("failed to send restore command: %w", err)
+	}
+
+	// Wait for response with timeout
+	select {
+	case result := <-resultCh:
+		if !result.success {
+			return 0, result.err
+		}
+
+		// Truncate messages to snapshot point
+		if err := m.storage.TruncateMessages(ctx, sessionID, int(snapshot.MessageCount)); err != nil {
+			slog.Warn("Failed to truncate messages", "sessionID", sessionID, "error", err)
+		}
+
+		slog.Info("Snapshot restored", "sessionID", sessionID, "snapshotID", snapshotID, "messagesRestored", snapshot.MessageCount)
+		return snapshot.MessageCount, nil
+
+	case <-time.After(60 * time.Second):
+		return 0, fmt.Errorf("restore operation timed out")
+
+	case <-ctx.Done():
+		return 0, ctx.Err()
+	}
+}
+
+// ListSnapshots returns all snapshots for a session.
+func (m *Manager) ListSnapshots(ctx context.Context, sessionID string) ([]*pb.Snapshot, error) {
+	return m.storage.ListSnapshots(ctx, sessionID)
+}
+
+// HandleSnapshotResult processes snapshot operation results from agent.
+func (m *Manager) HandleSnapshotResult(ctx context.Context, sessionID string, result *pb.AgentSnapshotResult) error {
+	m.pendingSnapshotMu.Lock()
+	ch, ok := m.pendingSnapshotRequests[result.RequestId]
+	m.pendingSnapshotMu.Unlock()
+
+	if !ok {
+		slog.Warn("No pending snapshot request found", "requestID", result.RequestId)
+		return nil
+	}
+
+	if result.Success {
+		ch <- snapshotResult{success: true, sizeBytes: result.GetSizeBytes()}
+	} else {
+		ch <- snapshotResult{success: false, err: fmt.Errorf("%s", result.GetError())}
+	}
+
+	return nil
+}
+
+// AutoSnapshot creates an auto-snapshot after an agent turn completes.
+// This runs asynchronously and doesn't block the main flow.
+func (m *Manager) AutoSnapshot(ctx context.Context, sessionID string, turnNumber int, promptSummary string) {
+	// Truncate prompt for name
+	name := promptSummary
+	if len(name) > 50 {
+		name = name[:47] + "..."
+	}
+	name = fmt.Sprintf("Turn %d: %s", turnNumber, name)
+
+	snapshot, err := m.CreateSnapshot(ctx, sessionID, name)
+	if err != nil {
+		slog.Warn("Auto-snapshot failed", "sessionID", sessionID, "error", err)
+		return
+	}
+
+	// Enforce retention (keep last 10 snapshots)
+	m.enforceSnapshotRetention(ctx, sessionID, 10)
+
+	// Emit snapshot created notification to clients
+	m.emitSnapshotCreated(ctx, sessionID, snapshot)
+
+	slog.Info("Auto-snapshot created", "sessionID", sessionID, "snapshotID", snapshot.Id, "turn", turnNumber)
+}
+
+// enforceSnapshotRetention deletes old snapshots beyond the limit.
+func (m *Manager) enforceSnapshotRetention(ctx context.Context, sessionID string, maxSnapshots int) {
+	snapshots, err := m.storage.ListSnapshots(ctx, sessionID)
+	if err != nil || len(snapshots) <= maxSnapshots {
+		return
+	}
+
+	// Delete oldest snapshots beyond limit (list is already newest-first)
+	for i := maxSnapshots; i < len(snapshots); i++ {
+		if err := m.storage.DeleteSnapshot(ctx, sessionID, snapshots[i].Id); err != nil {
+			slog.Warn("Failed to delete old snapshot", "sessionID", sessionID, "snapshotID", snapshots[i].Id, "error", err)
+		} else {
+			slog.Debug("Deleted old snapshot", "sessionID", sessionID, "snapshotID", snapshots[i].Id)
+		}
+	}
+}
+
+// emitSnapshotCreated broadcasts snapshot created event to clients.
+func (m *Manager) emitSnapshotCreated(ctx context.Context, sessionID string, snapshot *pb.Snapshot) {
+	payload, _ := protoJsonOpts.Marshal(&pb.SnapshotCreatedResponse{
+		SessionId: sessionID,
+		Snapshot:  snapshot,
+	})
+	m.publishNotification(ctx, sessionID, &storage.Notification{
+		Type:      "snapshot_created",
+		Payload:   payload,
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+	})
 }
 
 // GetCopilotStatus returns GitHub Copilot authentication status and quota.

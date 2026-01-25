@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	pb "github.com/angristan/netclode/services/control-plane/gen/netclode/v1"
 	"github.com/google/uuid"
@@ -128,6 +129,16 @@ func (m *Manager) handleAgentResult(ctx context.Context, sessionID string, state
 				slog.Warn("Failed to request title generation", "sessionID", sessionID, "error", err)
 			}
 		}
+	}
+
+	// Create auto-snapshot after each turn (async with timeout)
+	if originalPrompt != "" {
+		turnNumber := int(result.TotalTurns)
+		go func() {
+			snapshotCtx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+			m.AutoSnapshot(snapshotCtx, sessionID, turnNumber, originalPrompt)
+		}()
 	}
 
 	// Reset streaming state for next prompt

@@ -72,6 +72,8 @@ rpc Connect(stream ClientMessage) returns (stream ServerMessage);
 | `git_status` | `session_id` | Get git status |
 | `git_diff` | `session_id`, `file?` | Get git diff |
 | `list_github_repos` | | List available GitHub repos |
+| `list_snapshots` | `session_id` | List session snapshots |
+| `restore_snapshot` | `session_id`, `snapshot_id` | Restore to snapshot |
 
 ### Server → Client messages
 
@@ -97,6 +99,9 @@ rpc Connect(stream ClientMessage) returns (stream ServerMessage);
 | `git_status` | Git status |
 | `git_diff` | Git diff |
 | `git_error` | Git operation failed |
+| `snapshot_created` | Auto-snapshot created after turn |
+| `snapshot_list` | List of session snapshots |
+| `snapshot_restored` | Snapshot restored with message count |
 | `error` | Generic error |
 
 ### Agent events

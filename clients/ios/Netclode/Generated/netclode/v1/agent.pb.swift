@@ -82,6 +82,15 @@ public struct Netclode_V1_AgentMessage: Sendable {
     set {message = .gitDiffResponse(newValue)}
   }
 
+  /// Snapshot operation results
+  public var snapshotResult: Netclode_V1_AgentSnapshotResult {
+    get {
+      if case .snapshotResult(let v)? = message {return v}
+      return Netclode_V1_AgentSnapshotResult()
+    }
+    set {message = .snapshotResult(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Message: Equatable, Sendable {
@@ -97,6 +106,8 @@ public struct Netclode_V1_AgentMessage: Sendable {
     case gitStatusResponse(Netclode_V1_AgentGitStatusResponse)
     /// Git diff result
     case gitDiffResponse(Netclode_V1_AgentGitDiffResponse)
+    /// Snapshot operation results
+    case snapshotResult(Netclode_V1_AgentSnapshotResult)
 
   }
 
@@ -174,6 +185,23 @@ public struct Netclode_V1_ControlPlaneMessage: Sendable {
     set {message = .terminalInput(newValue)}
   }
 
+  /// Snapshot operations
+  public var createSnapshot: Netclode_V1_CreateSnapshotCommand {
+    get {
+      if case .createSnapshot(let v)? = message {return v}
+      return Netclode_V1_CreateSnapshotCommand()
+    }
+    set {message = .createSnapshot(newValue)}
+  }
+
+  public var restoreSnapshot: Netclode_V1_RestoreSnapshotCommand {
+    get {
+      if case .restoreSnapshot(let v)? = message {return v}
+      return Netclode_V1_RestoreSnapshotCommand()
+    }
+    set {message = .restoreSnapshot(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Message: Equatable, Sendable {
@@ -191,6 +219,9 @@ public struct Netclode_V1_ControlPlaneMessage: Sendable {
     case getGitDiff(Netclode_V1_GetGitDiffRequest)
     /// Terminal input
     case terminalInput(Netclode_V1_AgentTerminalInput)
+    /// Snapshot operations
+    case createSnapshot(Netclode_V1_CreateSnapshotCommand)
+    case restoreSnapshot(Netclode_V1_RestoreSnapshotCommand)
 
   }
 
@@ -597,13 +628,90 @@ public struct Netclode_V1_AgentTerminalResize: Sendable {
   public init() {}
 }
 
+/// CreateSnapshotCommand asks the agent to create a workspace snapshot.
+public struct Netclode_V1_CreateSnapshotCommand: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// ID for correlating response
+  public var requestID: String = String()
+
+  /// Pre-generated snapshot ID
+  public var snapshotID: String = String()
+
+  /// Human-readable name for the snapshot
+  public var name: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// RestoreSnapshotCommand asks the agent to restore workspace from a snapshot.
+public struct Netclode_V1_RestoreSnapshotCommand: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// ID for correlating response
+  public var requestID: String = String()
+
+  /// Snapshot to restore from
+  public var snapshotID: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// AgentSnapshotResult contains the result of a snapshot operation.
+public struct Netclode_V1_AgentSnapshotResult: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Echoed from command
+  public var requestID: String = String()
+
+  /// Whether the operation succeeded
+  public var success: Bool = false
+
+  /// Error message if failed
+  public var error: String {
+    get {return _error ?? String()}
+    set {_error = newValue}
+  }
+  /// Returns true if `error` has been explicitly set.
+  public var hasError: Bool {return self._error != nil}
+  /// Clears the value of `error`. Subsequent reads from it will return its default value.
+  public mutating func clearError() {self._error = nil}
+
+  /// Only set for create operations
+  public var sizeBytes: Int64 {
+    get {return _sizeBytes ?? 0}
+    set {_sizeBytes = newValue}
+  }
+  /// Returns true if `sizeBytes` has been explicitly set.
+  public var hasSizeBytes: Bool {return self._sizeBytes != nil}
+  /// Clears the value of `sizeBytes`. Subsequent reads from it will return its default value.
+  public mutating func clearSizeBytes() {self._sizeBytes = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _error: String? = nil
+  fileprivate var _sizeBytes: Int64? = nil
+}
+
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate let _protobuf_package = "netclode.v1"
 
 extension Netclode_V1_AgentMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AgentMessage"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}register\0\u{3}prompt_response\0\u{3}terminal_output\0\u{3}title_response\0\u{3}git_status_response\0\u{3}git_diff_response\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}register\0\u{3}prompt_response\0\u{3}terminal_output\0\u{3}title_response\0\u{3}git_status_response\0\u{3}git_diff_response\0\u{3}snapshot_result\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -689,6 +797,19 @@ extension Netclode_V1_AgentMessage: SwiftProtobuf.Message, SwiftProtobuf._Messag
           self.message = .gitDiffResponse(v)
         }
       }()
+      case 7: try {
+        var v: Netclode_V1_AgentSnapshotResult?
+        var hadOneofValue = false
+        if let current = self.message {
+          hadOneofValue = true
+          if case .snapshotResult(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.message = .snapshotResult(v)
+        }
+      }()
       default: break
       }
     }
@@ -724,6 +845,10 @@ extension Netclode_V1_AgentMessage: SwiftProtobuf.Message, SwiftProtobuf._Messag
       guard case .gitDiffResponse(let v)? = self.message else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
     }()
+    case .snapshotResult?: try {
+      guard case .snapshotResult(let v)? = self.message else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+    }()
     case nil: break
     }
     try unknownFields.traverse(visitor: &visitor)
@@ -738,7 +863,7 @@ extension Netclode_V1_AgentMessage: SwiftProtobuf.Message, SwiftProtobuf._Messag
 
 extension Netclode_V1_ControlPlaneMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ControlPlaneMessage"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}registered\0\u{3}execute_prompt\0\u{1}interrupt\0\u{3}generate_title\0\u{3}get_git_status\0\u{3}get_git_diff\0\u{3}terminal_input\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}registered\0\u{3}execute_prompt\0\u{1}interrupt\0\u{3}generate_title\0\u{3}get_git_status\0\u{3}get_git_diff\0\u{3}terminal_input\0\u{3}create_snapshot\0\u{3}restore_snapshot\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -837,6 +962,32 @@ extension Netclode_V1_ControlPlaneMessage: SwiftProtobuf.Message, SwiftProtobuf.
           self.message = .terminalInput(v)
         }
       }()
+      case 8: try {
+        var v: Netclode_V1_CreateSnapshotCommand?
+        var hadOneofValue = false
+        if let current = self.message {
+          hadOneofValue = true
+          if case .createSnapshot(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.message = .createSnapshot(v)
+        }
+      }()
+      case 9: try {
+        var v: Netclode_V1_RestoreSnapshotCommand?
+        var hadOneofValue = false
+        if let current = self.message {
+          hadOneofValue = true
+          if case .restoreSnapshot(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.message = .restoreSnapshot(v)
+        }
+      }()
       default: break
       }
     }
@@ -875,6 +1026,14 @@ extension Netclode_V1_ControlPlaneMessage: SwiftProtobuf.Message, SwiftProtobuf.
     case .terminalInput?: try {
       guard case .terminalInput(let v)? = self.message else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+    }()
+    case .createSnapshot?: try {
+      guard case .createSnapshot(let v)? = self.message else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+    }()
+    case .restoreSnapshot?: try {
+      guard case .restoreSnapshot(let v)? = self.message else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
     }()
     case nil: break
     }
@@ -1610,6 +1769,130 @@ extension Netclode_V1_AgentTerminalResize: SwiftProtobuf.Message, SwiftProtobuf.
   public static func ==(lhs: Netclode_V1_AgentTerminalResize, rhs: Netclode_V1_AgentTerminalResize) -> Bool {
     if lhs.cols != rhs.cols {return false}
     if lhs.rows != rhs.rows {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Netclode_V1_CreateSnapshotCommand: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CreateSnapshotCommand"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0\u{3}snapshot_id\0\u{1}name\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.requestID) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.snapshotID) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.name) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.requestID.isEmpty {
+      try visitor.visitSingularStringField(value: self.requestID, fieldNumber: 1)
+    }
+    if !self.snapshotID.isEmpty {
+      try visitor.visitSingularStringField(value: self.snapshotID, fieldNumber: 2)
+    }
+    if !self.name.isEmpty {
+      try visitor.visitSingularStringField(value: self.name, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Netclode_V1_CreateSnapshotCommand, rhs: Netclode_V1_CreateSnapshotCommand) -> Bool {
+    if lhs.requestID != rhs.requestID {return false}
+    if lhs.snapshotID != rhs.snapshotID {return false}
+    if lhs.name != rhs.name {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Netclode_V1_RestoreSnapshotCommand: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RestoreSnapshotCommand"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0\u{3}snapshot_id\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.requestID) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.snapshotID) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.requestID.isEmpty {
+      try visitor.visitSingularStringField(value: self.requestID, fieldNumber: 1)
+    }
+    if !self.snapshotID.isEmpty {
+      try visitor.visitSingularStringField(value: self.snapshotID, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Netclode_V1_RestoreSnapshotCommand, rhs: Netclode_V1_RestoreSnapshotCommand) -> Bool {
+    if lhs.requestID != rhs.requestID {return false}
+    if lhs.snapshotID != rhs.snapshotID {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Netclode_V1_AgentSnapshotResult: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".AgentSnapshotResult"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0\u{1}success\0\u{1}error\0\u{3}size_bytes\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.requestID) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.success) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self._error) }()
+      case 4: try { try decoder.decodeSingularInt64Field(value: &self._sizeBytes) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.requestID.isEmpty {
+      try visitor.visitSingularStringField(value: self.requestID, fieldNumber: 1)
+    }
+    if self.success != false {
+      try visitor.visitSingularBoolField(value: self.success, fieldNumber: 2)
+    }
+    try { if let v = self._error {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 3)
+    } }()
+    try { if let v = self._sizeBytes {
+      try visitor.visitSingularInt64Field(value: v, fieldNumber: 4)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Netclode_V1_AgentSnapshotResult, rhs: Netclode_V1_AgentSnapshotResult) -> Bool {
+    if lhs.requestID != rhs.requestID {return false}
+    if lhs.success != rhs.success {return false}
+    if lhs._error != rhs._error {return false}
+    if lhs._sizeBytes != rhs._sizeBytes {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

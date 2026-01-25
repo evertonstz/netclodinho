@@ -156,3 +156,14 @@ message CopilotPremiumQuota {
   int32 remaining = 3;                   // Remaining premium requests
   optional string reset_at = 4;          // ISO timestamp when quota resets
 }
+
+// Snapshot represents a point-in-time snapshot of session workspace and conversation.
+message Snapshot {
+  string id = 1;                         // Unique snapshot ID
+  string session_id = 2;                 // Parent session
+  string name = 3;                       // Human-readable name (e.g., "Turn 3: Fix login bug")
+  google.protobuf.Timestamp created_at = 4;
+  int64 size_bytes = 5;                  // Logical workspace size at snapshot time
+  int32 turn_number = 6;                 // Which turn this was created after (0 = initial)
+  int32 message_count = 7;               // Number of messages at snapshot time
+}

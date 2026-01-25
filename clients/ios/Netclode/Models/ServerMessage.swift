@@ -75,6 +75,11 @@ enum ServerMessage: Sendable {
     // Copilot
     case modelsResponse(models: [CopilotModel])
     case copilotStatusResponse(status: CopilotStatus)
+
+    // Snapshots
+    case snapshotCreated(sessionId: String, snapshot: Snapshot)
+    case snapshotList(sessionId: String, snapshots: [Snapshot])
+    case snapshotRestored(sessionId: String, snapshotId: String, messageCount: Int)
 }
 
 extension ServerMessage: Decodable {
@@ -87,6 +92,7 @@ extension ServerMessage: Decodable {
         case repos
         case deletedIds
         case files, diff
+        case snapshot, snapshots, snapshotId, messageCount
     }
 
     init(from decoder: Decoder) throws {
@@ -196,6 +202,22 @@ extension ServerMessage: Decodable {
             let sessionId = try container.decode(String.self, forKey: .sessionId)
             let error = try container.decode(String.self, forKey: .error)
             self = .gitError(sessionId: sessionId, error: error)
+
+        case "snapshot.created":
+            let sessionId = try container.decode(String.self, forKey: .sessionId)
+            let snapshot = try container.decode(Snapshot.self, forKey: .snapshot)
+            self = .snapshotCreated(sessionId: sessionId, snapshot: snapshot)
+
+        case "snapshot.list":
+            let sessionId = try container.decode(String.self, forKey: .sessionId)
+            let snapshots = try container.decodeIfPresent([Snapshot].self, forKey: .snapshots) ?? []
+            self = .snapshotList(sessionId: sessionId, snapshots: snapshots)
+
+        case "snapshot.restored":
+            let sessionId = try container.decode(String.self, forKey: .sessionId)
+            let snapshotId = try container.decode(String.self, forKey: .snapshotId)
+            let messageCount = try container.decodeIfPresent(Int.self, forKey: .messageCount) ?? 0
+            self = .snapshotRestored(sessionId: sessionId, snapshotId: snapshotId, messageCount: messageCount)
 
         default:
             throw DecodingError.dataCorruptedError(

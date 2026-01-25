@@ -32,6 +32,9 @@ message AgentMessage {
     
     // Git diff result
     AgentGitDiffResponse git_diff_response = 6;
+    
+    // Snapshot operation results
+    AgentSnapshotResult snapshot_result = 7;
   }
 }
 
@@ -58,6 +61,10 @@ message ControlPlaneMessage {
     
     // Terminal input
     AgentTerminalInput terminal_input = 7;
+    
+    // Snapshot operations
+    CreateSnapshotCommand create_snapshot = 8;
+    RestoreSnapshotCommand restore_snapshot = 9;
   }
 }
 
@@ -178,4 +185,31 @@ message AgentTerminalInput {
 message AgentTerminalResize {
   int32 cols = 1;                            // Number of columns
   int32 rows = 2;                            // Number of rows
+}
+
+// ============================================================================
+// Snapshot Messages
+// ============================================================================
+
+// CreateSnapshotCommand asks the agent to create a workspace snapshot.
+message CreateSnapshotCommand {
+  string request_id = 1;                     // ID for correlating response
+  string snapshot_id = 2;                    // Pre-generated snapshot ID
+  string name = 3;                           // Human-readable name for the snapshot
+}
+
+// RestoreSnapshotCommand asks the agent to restore workspace from a snapshot.
+message RestoreSnapshotCommand {
+  string request_id = 1;                     // ID for correlating response
+  string snapshot_id = 2;                    // Snapshot to restore from
+}
+
+// AgentSnapshotResult contains the result of a snapshot operation.
+message AgentSnapshotResult {
+  string request_id = 1;                     // Echoed from command
+  bool success = 2;                          // Whether the operation succeeded
+  optional string error = 3;                 // Error message if failed
+  
+  // Only set for create operations
+  optional int64 size_bytes = 4;             // Workspace size at snapshot time
 }

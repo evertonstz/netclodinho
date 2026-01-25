@@ -450,6 +450,17 @@ final class ConnectService {
             }
             return .copilotStatusResponse(status: CopilotStatus(auth: auth, quota: quota))
 
+        case .snapshotCreated(let msg):
+            let snapshot = convertSnapshot(msg.snapshot)
+            return .snapshotCreated(sessionId: msg.sessionID, snapshot: snapshot)
+
+        case .snapshotList(let msg):
+            let snapshots = msg.snapshots.map { convertSnapshot($0) }
+            return .snapshotList(sessionId: msg.sessionID, snapshots: snapshots)
+
+        case .snapshotRestored(let msg):
+            return .snapshotRestored(sessionId: msg.sessionID, snapshotId: msg.snapshotID, messageCount: Int(msg.messagesRestored))
+
         case .none:
             return nil
         }
@@ -469,6 +480,18 @@ final class ConnectService {
             sdkType: proto.hasSdkType ? convertSdkType(proto.sdkType) : nil,
             model: proto.hasModel ? proto.model : nil,
             copilotBackend: proto.hasCopilotBackend ? convertCopilotBackend(proto.copilotBackend) : nil
+        )
+    }
+
+    private func convertSnapshot(_ proto: Netclode_V1_Snapshot) -> Snapshot {
+        Snapshot(
+            id: proto.id,
+            sessionId: proto.sessionID,
+            name: proto.name,
+            createdAt: proto.createdAt.date,
+            sizeBytes: proto.sizeBytes,
+            turnNumber: proto.turnNumber,
+            messageCount: proto.messageCount
         )
     }
 
@@ -1170,6 +1193,17 @@ final class ConnectService {
 
         case .getCopilotStatus:
             proto.message = .getCopilotStatus(Netclode_V1_GetCopilotStatusRequest())
+
+        case .listSnapshots(let sessionId):
+            var req = Netclode_V1_ListSnapshotsRequest()
+            req.sessionID = sessionId
+            proto.message = .listSnapshots(req)
+
+        case .restoreSnapshot(let sessionId, let snapshotId):
+            var req = Netclode_V1_RestoreSnapshotRequest()
+            req.sessionID = sessionId
+            req.snapshotID = snapshotId
+            proto.message = .restoreSnapshot(req)
         }
         
         return proto

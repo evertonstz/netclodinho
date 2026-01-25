@@ -71,6 +71,16 @@ final class ChatStore {
         scheduleSave()
     }
 
+    /// Truncate messages to a specific count (used for snapshot restore)
+    func truncateMessages(sessionId: String, keepCount: Int) {
+        guard var messages = messagesBySession[sessionId], messages.count > keepCount else {
+            return
+        }
+        messages = Array(messages.prefix(keepCount))
+        messagesBySession[sessionId] = messages
+        scheduleSave()
+    }
+
     // MARK: - Persistence
 
     private func loadFromDiskAsync() async {

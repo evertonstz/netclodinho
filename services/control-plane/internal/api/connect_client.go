@@ -196,6 +196,10 @@ func (c *ConnectConnection) handleMessage(ctx context.Context, msg *pb.ClientMes
 		return c.handleListModels(ctx, m.ListModels)
 	case *pb.ClientMessage_GetCopilotStatus:
 		return c.handleGetCopilotStatus(ctx)
+	case *pb.ClientMessage_ListSnapshots:
+		return c.handleListSnapshots(ctx, m.ListSnapshots)
+	case *pb.ClientMessage_RestoreSnapshot:
+		return c.handleRestoreSnapshot(ctx, m.RestoreSnapshot)
 	default:
 		return connect.NewError(connect.CodeInvalidArgument, errUnknownMessage)
 	}
@@ -698,6 +702,54 @@ func (c *ConnectConnection) handleGetCopilotStatus(ctx context.Context) error {
 	return c.send(&pb.ServerMessage{
 		Message: &pb.ServerMessage_CopilotStatus{
 			CopilotStatus: status,
+		},
+	})
+}
+
+// handleListSnapshots returns all snapshots for a session.
+func (c *ConnectConnection) handleListSnapshots(ctx context.Context, req *pb.ListSnapshotsRequest) error {
+	if req.SessionId == "" {
+		return c.send(makeErrorResponse(req.SessionId, "SNAPSHOT_ERROR", "sessionId is required"))
+	}
+
+	snapshots, err := c.manager.ListSnapshots(ctx, req.SessionId)
+	if err != nil {
+		return c.send(makeErrorResponse(req.SessionId, "SNAPSHOT_ERROR", err.Error()))
+	}
+
+	return c.send(&pb.ServerMessage{
+		Message: &pb.ServerMessage_SnapshotList{
+			SnapshotList: &pb.SnapshotListResponse{
+				SessionId: req.SessionId,
+				Snapshots: snapshots,
+				RequestId: req.RequestId,
+			},
+		},
+	})
+}
+
+// handleRestoreSnapshot restores a session's workspace from a snapshot.
+func (c *ConnectConnection) handleRestoreSnapshot(ctx context.Context, req *pb.RestoreSnapshotRequest) error {
+	if req.SessionId == "" {
+		return c.send(makeErrorResponse(req.SessionId, "SNAPSHOT_ERROR", "sessionId is required"))
+	}
+	if req.SnapshotId == "" {
+		return c.send(makeErrorResponse(req.SessionId, "SNAPSHOT_ERROR", "snapshotId is required"))
+	}
+
+	messagesRestored, err := c.manager.RestoreSnapshot(ctx, req.SessionId, req.SnapshotId)
+	if err != nil {
+		return c.send(makeErrorResponse(req.SessionId, "SNAPSHOT_ERROR", err.Error()))
+	}
+
+	return c.send(&pb.ServerMessage{
+		Message: &pb.ServerMessage_SnapshotRestored{
+			SnapshotRestored: &pb.SnapshotRestoredResponse{
+				SessionId:        req.SessionId,
+				SnapshotId:       req.SnapshotId,
+				MessagesRestored: messagesRestored,
+				RequestId:        req.RequestId,
+			},
 		},
 	})
 }

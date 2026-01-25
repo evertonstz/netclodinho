@@ -1190,6 +1190,99 @@ func (x *CopilotPremiumQuota) GetResetAt() string {
 	return ""
 }
 
+// Snapshot represents a point-in-time snapshot of session workspace and conversation.
+type Snapshot struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`                                // Unique snapshot ID
+	SessionId     string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"` // Parent session
+	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`                            // Human-readable name (e.g., "Turn 3: Fix login bug")
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	SizeBytes     int64                  `protobuf:"varint,5,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`          // Logical workspace size at snapshot time
+	TurnNumber    int32                  `protobuf:"varint,6,opt,name=turn_number,json=turnNumber,proto3" json:"turn_number,omitempty"`       // Which turn this was created after (0 = initial)
+	MessageCount  int32                  `protobuf:"varint,7,opt,name=message_count,json=messageCount,proto3" json:"message_count,omitempty"` // Number of messages at snapshot time
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Snapshot) Reset() {
+	*x = Snapshot{}
+	mi := &file_netclode_v1_common_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Snapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Snapshot) ProtoMessage() {}
+
+func (x *Snapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_netclode_v1_common_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Snapshot.ProtoReflect.Descriptor instead.
+func (*Snapshot) Descriptor() ([]byte, []int) {
+	return file_netclode_v1_common_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *Snapshot) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Snapshot) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *Snapshot) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Snapshot) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *Snapshot) GetSizeBytes() int64 {
+	if x != nil {
+		return x.SizeBytes
+	}
+	return 0
+}
+
+func (x *Snapshot) GetTurnNumber() int32 {
+	if x != nil {
+		return x.TurnNumber
+	}
+	return 0
+}
+
+func (x *Snapshot) GetMessageCount() int32 {
+	if x != nil {
+		return x.MessageCount
+	}
+	return 0
+}
+
 var File_netclode_v1_common_proto protoreflect.FileDescriptor
 
 const file_netclode_v1_common_proto_rawDesc = "" +
@@ -1290,7 +1383,19 @@ const file_netclode_v1_common_proto_rawDesc = "" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x1c\n" +
 	"\tremaining\x18\x03 \x01(\x05R\tremaining\x12\x1e\n" +
 	"\breset_at\x18\x04 \x01(\tH\x00R\aresetAt\x88\x01\x01B\v\n" +
-	"\t_reset_at*V\n" +
+	"\t_reset_at\"\xed\x01\n" +
+	"\bSnapshot\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x02 \x01(\tR\tsessionId\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x129\n" +
+	"\n" +
+	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"size_bytes\x18\x05 \x01(\x03R\tsizeBytes\x12\x1f\n" +
+	"\vturn_number\x18\x06 \x01(\x05R\n" +
+	"turnNumber\x12#\n" +
+	"\rmessage_count\x18\a \x01(\x05R\fmessageCount*V\n" +
 	"\n" +
 	"RepoAccess\x12\x1b\n" +
 	"\x17REPO_ACCESS_UNSPECIFIED\x10\x00\x12\x14\n" +
@@ -1343,7 +1448,7 @@ func file_netclode_v1_common_proto_rawDescGZIP() []byte {
 }
 
 var file_netclode_v1_common_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
-var file_netclode_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_netclode_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_netclode_v1_common_proto_goTypes = []any{
 	(RepoAccess)(0),               // 0: netclode.v1.RepoAccess
 	(SdkType)(0),                  // 1: netclode.v1.SdkType
@@ -1362,15 +1467,16 @@ var file_netclode_v1_common_proto_goTypes = []any{
 	(*ModelInfo)(nil),             // 14: netclode.v1.ModelInfo
 	(*CopilotAuthStatus)(nil),     // 15: netclode.v1.CopilotAuthStatus
 	(*CopilotPremiumQuota)(nil),   // 16: netclode.v1.CopilotPremiumQuota
-	nil,                           // 17: netclode.v1.Error.DetailsEntry
-	(*timestamppb.Timestamp)(nil), // 18: google.protobuf.Timestamp
-	(*AgentEvent)(nil),            // 19: netclode.v1.AgentEvent
+	(*Snapshot)(nil),              // 17: netclode.v1.Snapshot
+	nil,                           // 18: netclode.v1.Error.DetailsEntry
+	(*timestamppb.Timestamp)(nil), // 19: google.protobuf.Timestamp
+	(*AgentEvent)(nil),            // 20: netclode.v1.AgentEvent
 }
 var file_netclode_v1_common_proto_depIdxs = []int32{
 	3,  // 0: netclode.v1.Session.status:type_name -> netclode.v1.SessionStatus
 	0,  // 1: netclode.v1.Session.repo_access:type_name -> netclode.v1.RepoAccess
-	18, // 2: netclode.v1.Session.created_at:type_name -> google.protobuf.Timestamp
-	18, // 3: netclode.v1.Session.last_active_at:type_name -> google.protobuf.Timestamp
+	19, // 2: netclode.v1.Session.created_at:type_name -> google.protobuf.Timestamp
+	19, // 3: netclode.v1.Session.last_active_at:type_name -> google.protobuf.Timestamp
 	1,  // 4: netclode.v1.Session.sdk_type:type_name -> netclode.v1.SdkType
 	2,  // 5: netclode.v1.Session.copilot_backend:type_name -> netclode.v1.CopilotBackend
 	6,  // 6: netclode.v1.SessionSummary.session:type_name -> netclode.v1.Session
@@ -1379,15 +1485,16 @@ var file_netclode_v1_common_proto_depIdxs = []int32{
 	2,  // 9: netclode.v1.SessionConfig.copilot_backend:type_name -> netclode.v1.CopilotBackend
 	4,  // 10: netclode.v1.GitFileChange.status:type_name -> netclode.v1.GitFileStatus
 	5,  // 11: netclode.v1.Message.role:type_name -> netclode.v1.MessageRole
-	18, // 12: netclode.v1.Message.timestamp:type_name -> google.protobuf.Timestamp
-	18, // 13: netclode.v1.Event.timestamp:type_name -> google.protobuf.Timestamp
-	19, // 14: netclode.v1.Event.event:type_name -> netclode.v1.AgentEvent
-	17, // 15: netclode.v1.Error.details:type_name -> netclode.v1.Error.DetailsEntry
-	16, // [16:16] is the sub-list for method output_type
-	16, // [16:16] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	19, // 12: netclode.v1.Message.timestamp:type_name -> google.protobuf.Timestamp
+	19, // 13: netclode.v1.Event.timestamp:type_name -> google.protobuf.Timestamp
+	20, // 14: netclode.v1.Event.event:type_name -> netclode.v1.AgentEvent
+	18, // 15: netclode.v1.Error.details:type_name -> netclode.v1.Error.DetailsEntry
+	19, // 16: netclode.v1.Snapshot.created_at:type_name -> google.protobuf.Timestamp
+	17, // [17:17] is the sub-list for method output_type
+	17, // [17:17] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_netclode_v1_common_proto_init() }
@@ -1410,7 +1517,7 @@ func file_netclode_v1_common_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_netclode_v1_common_proto_rawDesc), len(file_netclode_v1_common_proto_rawDesc)),
 			NumEnums:      6,
-			NumMessages:   12,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

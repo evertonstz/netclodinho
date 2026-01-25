@@ -25,7 +25,8 @@ services/agent/
 │   │   └── copilot-adapter.ts  # GitHub Copilot SDK implementation
 │   └── services/
 │       ├── terminal.ts    # PTY management
-│       └── title.ts       # Title generation
+│       ├── title.ts       # Title generation
+│       └── snapshot.ts    # Workspace snapshots (JuiceFS clone)
 ├── gen/                   # Generated protobuf types
 ├── package.json
 └── tsconfig.json
@@ -67,6 +68,7 @@ service AgentService {
 | `title_response` | Generated session title |
 | `git_status_response` | Git status result |
 | `git_diff_response` | Git diff result |
+| `snapshot_result` | Snapshot create/restore result |
 
 ### Control Plane → Agent Messages
 
@@ -79,6 +81,8 @@ service AgentService {
 | `get_git_status` | Request git status |
 | `get_git_diff` | Request git diff |
 | `terminal_input` | Terminal input (data or resize) |
+| `create_snapshot` | Create workspace snapshot |
+| `restore_snapshot` | Restore workspace from snapshot |
 
 ### Terminal
 
@@ -175,6 +179,7 @@ await session.send({ prompt: text });
 ├── .local/share/mise/      # Installed tools
 ├── .cache/                 # Package caches
 ├── .claude/                # SDK session data
+├── .snapshots/             # Workspace snapshots (CoW clones)
 └── .session-mapping.json   # Session ID mapping
 
 /opt/agent/                 # Agent code (read-only)

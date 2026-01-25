@@ -32,6 +32,7 @@ type AgentMessage struct {
 	//	*AgentMessage_TitleResponse
 	//	*AgentMessage_GitStatusResponse
 	//	*AgentMessage_GitDiffResponse
+	//	*AgentMessage_SnapshotResult
 	Message       isAgentMessage_Message `protobuf_oneof:"message"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -128,6 +129,15 @@ func (x *AgentMessage) GetGitDiffResponse() *AgentGitDiffResponse {
 	return nil
 }
 
+func (x *AgentMessage) GetSnapshotResult() *AgentSnapshotResult {
+	if x != nil {
+		if x, ok := x.Message.(*AgentMessage_SnapshotResult); ok {
+			return x.SnapshotResult
+		}
+	}
+	return nil
+}
+
 type isAgentMessage_Message interface {
 	isAgentMessage_Message()
 }
@@ -162,6 +172,11 @@ type AgentMessage_GitDiffResponse struct {
 	GitDiffResponse *AgentGitDiffResponse `protobuf:"bytes,6,opt,name=git_diff_response,json=gitDiffResponse,proto3,oneof"`
 }
 
+type AgentMessage_SnapshotResult struct {
+	// Snapshot operation results
+	SnapshotResult *AgentSnapshotResult `protobuf:"bytes,7,opt,name=snapshot_result,json=snapshotResult,proto3,oneof"`
+}
+
 func (*AgentMessage_Register) isAgentMessage_Message() {}
 
 func (*AgentMessage_PromptResponse) isAgentMessage_Message() {}
@@ -173,6 +188,8 @@ func (*AgentMessage_TitleResponse) isAgentMessage_Message() {}
 func (*AgentMessage_GitStatusResponse) isAgentMessage_Message() {}
 
 func (*AgentMessage_GitDiffResponse) isAgentMessage_Message() {}
+
+func (*AgentMessage_SnapshotResult) isAgentMessage_Message() {}
 
 // ControlPlaneMessage is sent from control plane to agent.
 type ControlPlaneMessage struct {
@@ -186,6 +203,8 @@ type ControlPlaneMessage struct {
 	//	*ControlPlaneMessage_GetGitStatus
 	//	*ControlPlaneMessage_GetGitDiff
 	//	*ControlPlaneMessage_TerminalInput
+	//	*ControlPlaneMessage_CreateSnapshot
+	//	*ControlPlaneMessage_RestoreSnapshot
 	Message       isControlPlaneMessage_Message `protobuf_oneof:"message"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -291,6 +310,24 @@ func (x *ControlPlaneMessage) GetTerminalInput() *AgentTerminalInput {
 	return nil
 }
 
+func (x *ControlPlaneMessage) GetCreateSnapshot() *CreateSnapshotCommand {
+	if x != nil {
+		if x, ok := x.Message.(*ControlPlaneMessage_CreateSnapshot); ok {
+			return x.CreateSnapshot
+		}
+	}
+	return nil
+}
+
+func (x *ControlPlaneMessage) GetRestoreSnapshot() *RestoreSnapshotCommand {
+	if x != nil {
+		if x, ok := x.Message.(*ControlPlaneMessage_RestoreSnapshot); ok {
+			return x.RestoreSnapshot
+		}
+	}
+	return nil
+}
+
 type isControlPlaneMessage_Message interface {
 	isControlPlaneMessage_Message()
 }
@@ -330,6 +367,15 @@ type ControlPlaneMessage_TerminalInput struct {
 	TerminalInput *AgentTerminalInput `protobuf:"bytes,7,opt,name=terminal_input,json=terminalInput,proto3,oneof"`
 }
 
+type ControlPlaneMessage_CreateSnapshot struct {
+	// Snapshot operations
+	CreateSnapshot *CreateSnapshotCommand `protobuf:"bytes,8,opt,name=create_snapshot,json=createSnapshot,proto3,oneof"`
+}
+
+type ControlPlaneMessage_RestoreSnapshot struct {
+	RestoreSnapshot *RestoreSnapshotCommand `protobuf:"bytes,9,opt,name=restore_snapshot,json=restoreSnapshot,proto3,oneof"`
+}
+
 func (*ControlPlaneMessage_Registered) isControlPlaneMessage_Message() {}
 
 func (*ControlPlaneMessage_ExecutePrompt) isControlPlaneMessage_Message() {}
@@ -343,6 +389,10 @@ func (*ControlPlaneMessage_GetGitStatus) isControlPlaneMessage_Message() {}
 func (*ControlPlaneMessage_GetGitDiff) isControlPlaneMessage_Message() {}
 
 func (*ControlPlaneMessage_TerminalInput) isControlPlaneMessage_Message() {}
+
+func (*ControlPlaneMessage_CreateSnapshot) isControlPlaneMessage_Message() {}
+
+func (*ControlPlaneMessage_RestoreSnapshot) isControlPlaneMessage_Message() {}
 
 // AgentRegister is sent first by the agent to identify itself.
 type AgentRegister struct {
@@ -1382,19 +1432,204 @@ func (x *AgentTerminalResize) GetRows() int32 {
 	return 0
 }
 
+// CreateSnapshotCommand asks the agent to create a workspace snapshot.
+type CreateSnapshotCommand struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RequestId     string                 `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`    // ID for correlating response
+	SnapshotId    string                 `protobuf:"bytes,2,opt,name=snapshot_id,json=snapshotId,proto3" json:"snapshot_id,omitempty"` // Pre-generated snapshot ID
+	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`                               // Human-readable name for the snapshot
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateSnapshotCommand) Reset() {
+	*x = CreateSnapshotCommand{}
+	mi := &file_netclode_v1_agent_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateSnapshotCommand) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateSnapshotCommand) ProtoMessage() {}
+
+func (x *CreateSnapshotCommand) ProtoReflect() protoreflect.Message {
+	mi := &file_netclode_v1_agent_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateSnapshotCommand.ProtoReflect.Descriptor instead.
+func (*CreateSnapshotCommand) Descriptor() ([]byte, []int) {
+	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *CreateSnapshotCommand) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+func (x *CreateSnapshotCommand) GetSnapshotId() string {
+	if x != nil {
+		return x.SnapshotId
+	}
+	return ""
+}
+
+func (x *CreateSnapshotCommand) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+// RestoreSnapshotCommand asks the agent to restore workspace from a snapshot.
+type RestoreSnapshotCommand struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RequestId     string                 `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`    // ID for correlating response
+	SnapshotId    string                 `protobuf:"bytes,2,opt,name=snapshot_id,json=snapshotId,proto3" json:"snapshot_id,omitempty"` // Snapshot to restore from
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RestoreSnapshotCommand) Reset() {
+	*x = RestoreSnapshotCommand{}
+	mi := &file_netclode_v1_agent_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RestoreSnapshotCommand) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RestoreSnapshotCommand) ProtoMessage() {}
+
+func (x *RestoreSnapshotCommand) ProtoReflect() protoreflect.Message {
+	mi := &file_netclode_v1_agent_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RestoreSnapshotCommand.ProtoReflect.Descriptor instead.
+func (*RestoreSnapshotCommand) Descriptor() ([]byte, []int) {
+	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *RestoreSnapshotCommand) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+func (x *RestoreSnapshotCommand) GetSnapshotId() string {
+	if x != nil {
+		return x.SnapshotId
+	}
+	return ""
+}
+
+// AgentSnapshotResult contains the result of a snapshot operation.
+type AgentSnapshotResult struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	RequestId string                 `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"` // Echoed from command
+	Success   bool                   `protobuf:"varint,2,opt,name=success,proto3" json:"success,omitempty"`                     // Whether the operation succeeded
+	Error     *string                `protobuf:"bytes,3,opt,name=error,proto3,oneof" json:"error,omitempty"`                    // Error message if failed
+	// Only set for create operations
+	SizeBytes     *int64 `protobuf:"varint,4,opt,name=size_bytes,json=sizeBytes,proto3,oneof" json:"size_bytes,omitempty"` // Workspace size at snapshot time
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentSnapshotResult) Reset() {
+	*x = AgentSnapshotResult{}
+	mi := &file_netclode_v1_agent_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentSnapshotResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentSnapshotResult) ProtoMessage() {}
+
+func (x *AgentSnapshotResult) ProtoReflect() protoreflect.Message {
+	mi := &file_netclode_v1_agent_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentSnapshotResult.ProtoReflect.Descriptor instead.
+func (*AgentSnapshotResult) Descriptor() ([]byte, []int) {
+	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *AgentSnapshotResult) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+func (x *AgentSnapshotResult) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *AgentSnapshotResult) GetError() string {
+	if x != nil && x.Error != nil {
+		return *x.Error
+	}
+	return ""
+}
+
+func (x *AgentSnapshotResult) GetSizeBytes() int64 {
+	if x != nil && x.SizeBytes != nil {
+		return *x.SizeBytes
+	}
+	return 0
+}
+
 var File_netclode_v1_agent_proto protoreflect.FileDescriptor
 
 const file_netclode_v1_agent_proto_rawDesc = "" +
 	"\n" +
-	"\x17netclode/v1/agent.proto\x12\vnetclode.v1\x1a\x18netclode/v1/common.proto\x1a\x18netclode/v1/events.proto\"\xdf\x03\n" +
+	"\x17netclode/v1/agent.proto\x12\vnetclode.v1\x1a\x18netclode/v1/common.proto\x1a\x18netclode/v1/events.proto\"\xac\x04\n" +
 	"\fAgentMessage\x128\n" +
 	"\bregister\x18\x01 \x01(\v2\x1a.netclode.v1.AgentRegisterH\x00R\bregister\x12K\n" +
 	"\x0fprompt_response\x18\x02 \x01(\v2 .netclode.v1.AgentStreamResponseH\x00R\x0epromptResponse\x12K\n" +
 	"\x0fterminal_output\x18\x03 \x01(\v2 .netclode.v1.AgentTerminalOutputH\x00R\x0eterminalOutput\x12H\n" +
 	"\x0etitle_response\x18\x04 \x01(\v2\x1f.netclode.v1.AgentTitleResponseH\x00R\rtitleResponse\x12U\n" +
 	"\x13git_status_response\x18\x05 \x01(\v2#.netclode.v1.AgentGitStatusResponseH\x00R\x11gitStatusResponse\x12O\n" +
-	"\x11git_diff_response\x18\x06 \x01(\v2!.netclode.v1.AgentGitDiffResponseH\x00R\x0fgitDiffResponseB\t\n" +
-	"\amessage\"\x8f\x04\n" +
+	"\x11git_diff_response\x18\x06 \x01(\v2!.netclode.v1.AgentGitDiffResponseH\x00R\x0fgitDiffResponse\x12K\n" +
+	"\x0fsnapshot_result\x18\a \x01(\v2 .netclode.v1.AgentSnapshotResultH\x00R\x0esnapshotResultB\t\n" +
+	"\amessage\"\xb0\x05\n" +
 	"\x13ControlPlaneMessage\x12>\n" +
 	"\n" +
 	"registered\x18\x01 \x01(\v2\x1c.netclode.v1.AgentRegisteredH\x00R\n" +
@@ -1405,7 +1640,9 @@ const file_netclode_v1_agent_proto_rawDesc = "" +
 	"\x0eget_git_status\x18\x05 \x01(\v2 .netclode.v1.GetGitStatusRequestH\x00R\fgetGitStatus\x12B\n" +
 	"\fget_git_diff\x18\x06 \x01(\v2\x1e.netclode.v1.GetGitDiffRequestH\x00R\n" +
 	"getGitDiff\x12H\n" +
-	"\x0eterminal_input\x18\a \x01(\v2\x1f.netclode.v1.AgentTerminalInputH\x00R\rterminalInputB\t\n" +
+	"\x0eterminal_input\x18\a \x01(\v2\x1f.netclode.v1.AgentTerminalInputH\x00R\rterminalInput\x12M\n" +
+	"\x0fcreate_snapshot\x18\b \x01(\v2\".netclode.v1.CreateSnapshotCommandH\x00R\x0ecreateSnapshot\x12P\n" +
+	"\x10restore_snapshot\x18\t \x01(\v2#.netclode.v1.RestoreSnapshotCommandH\x00R\x0frestoreSnapshotB\t\n" +
 	"\amessage\"H\n" +
 	"\rAgentRegister\x12\x1d\n" +
 	"\n" +
@@ -1477,7 +1714,27 @@ const file_netclode_v1_agent_proto_rawDesc = "" +
 	"\x05input\"=\n" +
 	"\x13AgentTerminalResize\x12\x12\n" +
 	"\x04cols\x18\x01 \x01(\x05R\x04cols\x12\x12\n" +
-	"\x04rows\x18\x02 \x01(\x05R\x04rows2Z\n" +
+	"\x04rows\x18\x02 \x01(\x05R\x04rows\"k\n" +
+	"\x15CreateSnapshotCommand\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x01 \x01(\tR\trequestId\x12\x1f\n" +
+	"\vsnapshot_id\x18\x02 \x01(\tR\n" +
+	"snapshotId\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\"X\n" +
+	"\x16RestoreSnapshotCommand\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x01 \x01(\tR\trequestId\x12\x1f\n" +
+	"\vsnapshot_id\x18\x02 \x01(\tR\n" +
+	"snapshotId\"\xa6\x01\n" +
+	"\x13AgentSnapshotResult\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x01 \x01(\tR\trequestId\x12\x18\n" +
+	"\asuccess\x18\x02 \x01(\bR\asuccess\x12\x19\n" +
+	"\x05error\x18\x03 \x01(\tH\x00R\x05error\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"size_bytes\x18\x04 \x01(\x03H\x01R\tsizeBytes\x88\x01\x01B\b\n" +
+	"\x06_errorB\r\n" +
+	"\v_size_bytes2Z\n" +
 	"\fAgentService\x12J\n" +
 	"\aConnect\x12\x19.netclode.v1.AgentMessage\x1a .netclode.v1.ControlPlaneMessage(\x010\x01B\xbb\x01\n" +
 	"\x0fcom.netclode.v1B\n" +
@@ -1495,7 +1752,7 @@ func file_netclode_v1_agent_proto_rawDescGZIP() []byte {
 	return file_netclode_v1_agent_proto_rawDescData
 }
 
-var file_netclode_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_netclode_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
 var file_netclode_v1_agent_proto_goTypes = []any{
 	(*AgentMessage)(nil),           // 0: netclode.v1.AgentMessage
 	(*ControlPlaneMessage)(nil),    // 1: netclode.v1.ControlPlaneMessage
@@ -1517,9 +1774,12 @@ var file_netclode_v1_agent_proto_goTypes = []any{
 	(*GetGitDiffRequest)(nil),      // 17: netclode.v1.GetGitDiffRequest
 	(*AgentTerminalInput)(nil),     // 18: netclode.v1.AgentTerminalInput
 	(*AgentTerminalResize)(nil),    // 19: netclode.v1.AgentTerminalResize
-	(*AgentEvent)(nil),             // 20: netclode.v1.AgentEvent
-	(*GitFileChange)(nil),          // 21: netclode.v1.GitFileChange
-	(*SessionConfig)(nil),          // 22: netclode.v1.SessionConfig
+	(*CreateSnapshotCommand)(nil),  // 20: netclode.v1.CreateSnapshotCommand
+	(*RestoreSnapshotCommand)(nil), // 21: netclode.v1.RestoreSnapshotCommand
+	(*AgentSnapshotResult)(nil),    // 22: netclode.v1.AgentSnapshotResult
+	(*AgentEvent)(nil),             // 23: netclode.v1.AgentEvent
+	(*GitFileChange)(nil),          // 24: netclode.v1.GitFileChange
+	(*SessionConfig)(nil),          // 25: netclode.v1.SessionConfig
 }
 var file_netclode_v1_agent_proto_depIdxs = []int32{
 	2,  // 0: netclode.v1.AgentMessage.register:type_name -> netclode.v1.AgentRegister
@@ -1528,28 +1788,31 @@ var file_netclode_v1_agent_proto_depIdxs = []int32{
 	9,  // 3: netclode.v1.AgentMessage.title_response:type_name -> netclode.v1.AgentTitleResponse
 	10, // 4: netclode.v1.AgentMessage.git_status_response:type_name -> netclode.v1.AgentGitStatusResponse
 	11, // 5: netclode.v1.AgentMessage.git_diff_response:type_name -> netclode.v1.AgentGitDiffResponse
-	12, // 6: netclode.v1.ControlPlaneMessage.registered:type_name -> netclode.v1.AgentRegistered
-	13, // 7: netclode.v1.ControlPlaneMessage.execute_prompt:type_name -> netclode.v1.ExecutePromptRequest
-	14, // 8: netclode.v1.ControlPlaneMessage.interrupt:type_name -> netclode.v1.InterruptRequest
-	15, // 9: netclode.v1.ControlPlaneMessage.generate_title:type_name -> netclode.v1.GenerateTitleRequest
-	16, // 10: netclode.v1.ControlPlaneMessage.get_git_status:type_name -> netclode.v1.GetGitStatusRequest
-	17, // 11: netclode.v1.ControlPlaneMessage.get_git_diff:type_name -> netclode.v1.GetGitDiffRequest
-	18, // 12: netclode.v1.ControlPlaneMessage.terminal_input:type_name -> netclode.v1.AgentTerminalInput
-	4,  // 13: netclode.v1.AgentStreamResponse.text_delta:type_name -> netclode.v1.AgentTextDelta
-	20, // 14: netclode.v1.AgentStreamResponse.event:type_name -> netclode.v1.AgentEvent
-	5,  // 15: netclode.v1.AgentStreamResponse.system_message:type_name -> netclode.v1.AgentSystemMessage
-	6,  // 16: netclode.v1.AgentStreamResponse.result:type_name -> netclode.v1.AgentResult
-	7,  // 17: netclode.v1.AgentStreamResponse.error:type_name -> netclode.v1.AgentError
-	21, // 18: netclode.v1.AgentGitStatusResponse.files:type_name -> netclode.v1.GitFileChange
-	22, // 19: netclode.v1.AgentRegistered.config:type_name -> netclode.v1.SessionConfig
-	19, // 20: netclode.v1.AgentTerminalInput.resize:type_name -> netclode.v1.AgentTerminalResize
-	0,  // 21: netclode.v1.AgentService.Connect:input_type -> netclode.v1.AgentMessage
-	1,  // 22: netclode.v1.AgentService.Connect:output_type -> netclode.v1.ControlPlaneMessage
-	22, // [22:23] is the sub-list for method output_type
-	21, // [21:22] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	22, // 6: netclode.v1.AgentMessage.snapshot_result:type_name -> netclode.v1.AgentSnapshotResult
+	12, // 7: netclode.v1.ControlPlaneMessage.registered:type_name -> netclode.v1.AgentRegistered
+	13, // 8: netclode.v1.ControlPlaneMessage.execute_prompt:type_name -> netclode.v1.ExecutePromptRequest
+	14, // 9: netclode.v1.ControlPlaneMessage.interrupt:type_name -> netclode.v1.InterruptRequest
+	15, // 10: netclode.v1.ControlPlaneMessage.generate_title:type_name -> netclode.v1.GenerateTitleRequest
+	16, // 11: netclode.v1.ControlPlaneMessage.get_git_status:type_name -> netclode.v1.GetGitStatusRequest
+	17, // 12: netclode.v1.ControlPlaneMessage.get_git_diff:type_name -> netclode.v1.GetGitDiffRequest
+	18, // 13: netclode.v1.ControlPlaneMessage.terminal_input:type_name -> netclode.v1.AgentTerminalInput
+	20, // 14: netclode.v1.ControlPlaneMessage.create_snapshot:type_name -> netclode.v1.CreateSnapshotCommand
+	21, // 15: netclode.v1.ControlPlaneMessage.restore_snapshot:type_name -> netclode.v1.RestoreSnapshotCommand
+	4,  // 16: netclode.v1.AgentStreamResponse.text_delta:type_name -> netclode.v1.AgentTextDelta
+	23, // 17: netclode.v1.AgentStreamResponse.event:type_name -> netclode.v1.AgentEvent
+	5,  // 18: netclode.v1.AgentStreamResponse.system_message:type_name -> netclode.v1.AgentSystemMessage
+	6,  // 19: netclode.v1.AgentStreamResponse.result:type_name -> netclode.v1.AgentResult
+	7,  // 20: netclode.v1.AgentStreamResponse.error:type_name -> netclode.v1.AgentError
+	24, // 21: netclode.v1.AgentGitStatusResponse.files:type_name -> netclode.v1.GitFileChange
+	25, // 22: netclode.v1.AgentRegistered.config:type_name -> netclode.v1.SessionConfig
+	19, // 23: netclode.v1.AgentTerminalInput.resize:type_name -> netclode.v1.AgentTerminalResize
+	0,  // 24: netclode.v1.AgentService.Connect:input_type -> netclode.v1.AgentMessage
+	1,  // 25: netclode.v1.AgentService.Connect:output_type -> netclode.v1.ControlPlaneMessage
+	25, // [25:26] is the sub-list for method output_type
+	24, // [24:25] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_netclode_v1_agent_proto_init() }
@@ -1566,6 +1829,7 @@ func file_netclode_v1_agent_proto_init() {
 		(*AgentMessage_TitleResponse)(nil),
 		(*AgentMessage_GitStatusResponse)(nil),
 		(*AgentMessage_GitDiffResponse)(nil),
+		(*AgentMessage_SnapshotResult)(nil),
 	}
 	file_netclode_v1_agent_proto_msgTypes[1].OneofWrappers = []any{
 		(*ControlPlaneMessage_Registered)(nil),
@@ -1575,6 +1839,8 @@ func file_netclode_v1_agent_proto_init() {
 		(*ControlPlaneMessage_GetGitStatus)(nil),
 		(*ControlPlaneMessage_GetGitDiff)(nil),
 		(*ControlPlaneMessage_TerminalInput)(nil),
+		(*ControlPlaneMessage_CreateSnapshot)(nil),
+		(*ControlPlaneMessage_RestoreSnapshot)(nil),
 	}
 	file_netclode_v1_agent_proto_msgTypes[3].OneofWrappers = []any{
 		(*AgentStreamResponse_TextDelta)(nil),
@@ -1589,13 +1855,14 @@ func file_netclode_v1_agent_proto_init() {
 		(*AgentTerminalInput_Data)(nil),
 		(*AgentTerminalInput_Resize)(nil),
 	}
+	file_netclode_v1_agent_proto_msgTypes[22].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_netclode_v1_agent_proto_rawDesc), len(file_netclode_v1_agent_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   20,
+			NumMessages:   23,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

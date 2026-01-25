@@ -12,6 +12,7 @@ final class MessageRouter {
     private let githubStore: GitHubStore
     private let gitStore: GitStore
     private let copilotStore: CopilotStore
+    private let snapshotStore: SnapshotStore
 
     private var routingTask: Task<Void, Never>?
 
@@ -25,7 +26,8 @@ final class MessageRouter {
         terminalStore: TerminalStore,
         githubStore: GitHubStore,
         gitStore: GitStore,
-        copilotStore: CopilotStore
+        copilotStore: CopilotStore,
+        snapshotStore: SnapshotStore
     ) {
         self.connectService = connectService
         self.sessionStore = sessionStore
@@ -35,6 +37,7 @@ final class MessageRouter {
         self.githubStore = githubStore
         self.gitStore = gitStore
         self.copilotStore = copilotStore
+        self.snapshotStore = snapshotStore
 
         startRouting()
     }
@@ -268,6 +271,21 @@ final class MessageRouter {
         case .copilotStatusResponse(let status):
             print("[MessageRouter] copilot status received: authenticated=\(status.auth.isAuthenticated)")
             copilotStore.updateStatus(status)
+
+        // Snapshot messages
+        case .snapshotCreated(let sessionId, let snapshot):
+            print("[MessageRouter] snapshot.created received: id=\(snapshot.id) for session \(sessionId)")
+            snapshotStore.addSnapshot(snapshot)
+
+        case .snapshotList(let sessionId, let snapshots):
+            print("[MessageRouter] snapshot.list received: \(snapshots.count) snapshots for session \(sessionId)")
+            snapshotStore.setSnapshots(for: sessionId, snapshots: snapshots)
+
+        case .snapshotRestored(let sessionId, let snapshotId, let messageCount):
+            print("[MessageRouter] snapshot.restored received: snapshot=\(snapshotId) for session \(sessionId), messageCount=\(messageCount)")
+            snapshotStore.setRestoreInProgress(for: sessionId, inProgress: false)
+            // Truncate local chat messages to match restored state
+            chatStore.truncateMessages(sessionId: sessionId, keepCount: messageCount)
         }
     }
 
@@ -284,7 +302,8 @@ final class MessageRouter {
             terminalStore: TerminalStore(),
             githubStore: GitHubStore(),
             gitStore: GitStore(),
-            copilotStore: CopilotStore()
+            copilotStore: CopilotStore(),
+            snapshotStore: SnapshotStore()
         )
     }
 }

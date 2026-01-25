@@ -74,6 +74,8 @@
 		A10000000000000000000063 /* client.pb.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000063 /* client.pb.swift */; };
 		A10000000000000000000064 /* common.pb.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000064 /* common.pb.swift */; };
 		A10000000000000000000065 /* events.pb.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000065 /* events.pb.swift */; };
+		A10000000000000000000090 /* SnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000090 /* SnapshotStore.swift */; };
+		A10000000000000000000091 /* SnapshotListSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000091 /* SnapshotListSheet.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -141,6 +143,8 @@
 		B10000000000000000000063 /* client.pb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = client.pb.swift; sourceTree = "<group>"; };
 		B10000000000000000000064 /* common.pb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = common.pb.swift; sourceTree = "<group>"; };
 		B10000000000000000000065 /* events.pb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = events.pb.swift; sourceTree = "<group>"; };
+		B10000000000000000000090 /* SnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotStore.swift; sourceTree = "<group>"; };
+		B10000000000000000000091 /* SnapshotListSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotListSheet.swift; sourceTree = "<group>"; };
 		C10000000000000000000001 /* Netclode.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Netclode.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -260,6 +264,7 @@
 				B10000000000000000000047 /* GitStore.swift */,
 				B10000000000000000000080 /* ModelsStore.swift */,
 				B10000000000000000000081 /* CopilotStore.swift */,
+				B10000000000000000000090 /* SnapshotStore.swift */,
 			);
 			path = Stores;
 			sourceTree = "<group>";
@@ -273,8 +278,17 @@
 				E10000000000000000000011 /* Terminal */,
 				E10000000000000000000012 /* Events */,
 				E10000000000000000000018 /* Settings */,
+				E10000000000000000000092 /* Snapshots */,
 			);
 			path = Features;
+			sourceTree = "<group>";
+		};
+		E10000000000000000000092 /* Snapshots */ = {
+			isa = PBXGroup;
+			children = (
+				B10000000000000000000091 /* SnapshotListSheet.swift */,
+			);
+			path = Snapshots;
 			sourceTree = "<group>";
 		};
 		E10000000000000000000008 /* Sessions */ = {
@@ -588,6 +602,8 @@
 				A10000000000000000000063 /* client.pb.swift in Sources */,
 				A10000000000000000000064 /* common.pb.swift in Sources */,
 				A10000000000000000000065 /* events.pb.swift in Sources */,
+				A10000000000000000000090 /* SnapshotStore.swift in Sources */,
+				A10000000000000000000091 /* SnapshotListSheet.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

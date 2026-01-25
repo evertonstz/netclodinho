@@ -273,6 +273,31 @@ func (m *mockStorage) Close() error {
 	return nil
 }
 
+// Snapshot methods
+func (m *mockStorage) SaveSnapshot(ctx context.Context, s *pb.Snapshot) error {
+	return nil
+}
+
+func (m *mockStorage) GetSnapshot(ctx context.Context, sessionID, snapshotID string) (*pb.Snapshot, error) {
+	return nil, nil
+}
+
+func (m *mockStorage) ListSnapshots(ctx context.Context, sessionID string) ([]*pb.Snapshot, error) {
+	return nil, nil
+}
+
+func (m *mockStorage) DeleteSnapshot(ctx context.Context, sessionID, snapshotID string) error {
+	return nil
+}
+
+func (m *mockStorage) DeleteAllSnapshots(ctx context.Context, sessionID string) error {
+	return nil
+}
+
+func (m *mockStorage) TruncateMessages(ctx context.Context, sessionID string, keepCount int) error {
+	return nil
+}
+
 // Helper to create a test manager with mock dependencies
 func newTestManager(maxActiveSessions int) (*Manager, *mockRuntime, *mockStorage) {
 	runtime := newMockRuntime()

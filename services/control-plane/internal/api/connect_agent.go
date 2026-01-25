@@ -170,6 +170,8 @@ func (c *AgentConnection) handleMessage(ctx context.Context, msg *v1.AgentMessag
 		return c.handleGitStatusResponse(ctx, m.GitStatusResponse)
 	case *v1.AgentMessage_GitDiffResponse:
 		return c.handleGitDiffResponse(ctx, m.GitDiffResponse)
+	case *v1.AgentMessage_SnapshotResult:
+		return c.handleSnapshotResult(ctx, m.SnapshotResult)
 	default:
 		slog.Warn("Unknown agent message type", "sessionID", c.sessionID)
 		return nil
@@ -199,6 +201,11 @@ func (c *AgentConnection) handleGitStatusResponse(ctx context.Context, resp *v1.
 // handleGitDiffResponse handles git diff response.
 func (c *AgentConnection) handleGitDiffResponse(ctx context.Context, resp *v1.AgentGitDiffResponse) error {
 	return c.manager.HandleGitDiffResponse(ctx, c.sessionID, resp.RequestId, resp.Diff)
+}
+
+// handleSnapshotResult handles snapshot operation result.
+func (c *AgentConnection) handleSnapshotResult(ctx context.Context, result *v1.AgentSnapshotResult) error {
+	return c.manager.HandleSnapshotResult(ctx, c.sessionID, result)
 }
 
 // sendLoop sends outbound messages to the agent.
@@ -314,6 +321,31 @@ func (c *AgentConnection) ResizeTerminal(cols, rows int) error {
 						Rows: int32(rows),
 					},
 				},
+			},
+		},
+	})
+}
+
+// CreateSnapshot sends a create snapshot command to the agent.
+func (c *AgentConnection) CreateSnapshot(requestID, snapshotID, name string) error {
+	return c.Send(&v1.ControlPlaneMessage{
+		Message: &v1.ControlPlaneMessage_CreateSnapshot{
+			CreateSnapshot: &v1.CreateSnapshotCommand{
+				RequestId:  requestID,
+				SnapshotId: snapshotID,
+				Name:       name,
+			},
+		},
+	})
+}
+
+// RestoreSnapshot sends a restore snapshot command to the agent.
+func (c *AgentConnection) RestoreSnapshot(requestID, snapshotID string) error {
+	return c.Send(&v1.ControlPlaneMessage{
+		Message: &v1.ControlPlaneMessage_RestoreSnapshot{
+			RestoreSnapshot: &v1.RestoreSnapshotCommand{
+				RequestId:  requestID,
+				SnapshotId: snapshotID,
 			},
 		},
 	})

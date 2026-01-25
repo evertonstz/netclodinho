@@ -34,6 +34,9 @@ message ClientMessage {
     GitDiffRequest git_diff = 16;
     ListModelsRequest list_models = 17;
     GetCopilotStatusRequest get_copilot_status = 18;
+    // Snapshot operations
+    ListSnapshotsRequest list_snapshots = 19;
+    RestoreSnapshotRequest restore_snapshot = 20;
   }
 }
 
@@ -59,6 +62,10 @@ message ServerMessage {
     ErrorResponse error = 17;
     ModelsResponse models = 18;
     CopilotStatusResponse copilot_status = 19;
+    // Snapshot responses
+    SnapshotCreatedResponse snapshot_created = 20;   // Push notification when auto-snapshot is created
+    SnapshotListResponse snapshot_list = 21;
+    SnapshotRestoredResponse snapshot_restored = 22;
   }
 }
 
@@ -164,6 +171,17 @@ message ListModelsRequest {
 
 message GetCopilotStatusRequest {
   optional string request_id = 1;
+}
+
+message ListSnapshotsRequest {
+  optional string request_id = 1;
+  string session_id = 2;
+}
+
+message RestoreSnapshotRequest {
+  optional string request_id = 1;
+  string session_id = 2;
+  string snapshot_id = 3;
 }
 
 // ============================================================================
@@ -275,4 +293,28 @@ message CopilotStatusResponse {
   CopilotAuthStatus auth = 1;                // GitHub Copilot authentication status
   optional CopilotPremiumQuota quota = 2;    // Premium request quota (only if authenticated)
   optional string request_id = 3;
+}
+
+// ============================================================================
+// Snapshot Response Messages
+// ============================================================================
+
+// SnapshotCreatedResponse is pushed to clients when an auto-snapshot is created after a turn.
+message SnapshotCreatedResponse {
+  string session_id = 1;
+  Snapshot snapshot = 2;
+}
+
+message SnapshotListResponse {
+  string session_id = 1;
+  repeated Snapshot snapshots = 2;           // Ordered newest first
+  optional string request_id = 3;
+}
+
+// SnapshotRestoredResponse is sent after workspace and messages are restored.
+message SnapshotRestoredResponse {
+  string session_id = 1;
+  string snapshot_id = 2;
+  int32 messages_restored = 3;               // Number of messages after restore
+  optional string request_id = 4;
 }

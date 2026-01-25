@@ -23,10 +23,13 @@ enum ClientMessage: Encodable, Sendable {
     // Copilot
     case listModels(sdkType: SdkType, copilotBackend: CopilotBackend?)
     case getCopilotStatus
+    // Snapshots
+    case listSnapshots(sessionId: String)
+    case restoreSnapshot(sessionId: String, snapshotId: String)
 
     private enum CodingKeys: String, CodingKey {
         case type
-        case name, repo, repoAccess, id, sessionId, text, data, cols, rows, port, lastMessageId, lastNotificationId, initialPrompt, file, sdkType, model, copilotBackend
+        case name, repo, repoAccess, id, sessionId, text, data, cols, rows, port, lastMessageId, lastNotificationId, initialPrompt, file, sdkType, model, copilotBackend, snapshotId
     }
 
     func encode(to encoder: Encoder) throws {
@@ -114,6 +117,15 @@ enum ClientMessage: Encodable, Sendable {
 
         case .getCopilotStatus:
             try container.encode("copilot.status", forKey: .type)
+
+        case .listSnapshots(let sessionId):
+            try container.encode("snapshots.list", forKey: .type)
+            try container.encode(sessionId, forKey: .sessionId)
+
+        case .restoreSnapshot(let sessionId, let snapshotId):
+            try container.encode("snapshot.restore", forKey: .type)
+            try container.encode(sessionId, forKey: .sessionId)
+            try container.encode(snapshotId, forKey: .snapshotId)
         }
     }
 }

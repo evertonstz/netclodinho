@@ -19,6 +19,7 @@ import {
   AgentGitDiffResponseSchema,
   AgentTerminalOutputSchema,
   AgentRegisterSchema,
+  AgentSnapshotResultSchema,
   type AgentMessage,
   type ControlPlaneMessage,
   type AgentStreamResponse,
@@ -42,6 +43,7 @@ import {
 import { handleTerminalInput, resizeTerminal, setTerminalOutputCallback } from "./services/terminal.js";
 import { generateTitle } from "./services/title.js";
 import { getGitStatus, getGitDiff, type GitFileChange } from "./git.js";
+import { createSnapshot, restoreSnapshot } from "./services/snapshot.js";
 
 // Import SDK abstraction layer
 import {
@@ -479,6 +481,19 @@ async function handleControlPlaneMessage(
       handleTerminalInputMessage(msg.message.value);
       break;
 
+    case "createSnapshot":
+      await handleCreateSnapshot(
+        msg.message.value.requestId,
+        msg.message.value.snapshotId,
+        msg.message.value.name,
+        send
+      );
+      break;
+
+    case "restoreSnapshot":
+      await handleRestoreSnapshot(msg.message.value.requestId, msg.message.value.snapshotId, send);
+      break;
+
     default:
       console.warn("[agent] Unknown control plane message:", msg.message.case);
   }
@@ -661,4 +676,52 @@ function handleTerminalInputMessage(input: {
       resizeTerminal(input.input.value.cols, input.input.value.rows);
       break;
   }
+}
+
+/**
+ * Handle create snapshot command
+ */
+async function handleCreateSnapshot(
+  requestId: string,
+  snapshotId: string,
+  name: string,
+  send: (msg: AgentMessage) => void
+): Promise<void> {
+  const result = await createSnapshot(snapshotId, name);
+  send(
+    create(AgentMessageSchema, {
+      message: {
+        case: "snapshotResult",
+        value: create(AgentSnapshotResultSchema, {
+          requestId,
+          success: result.success,
+          error: result.error,
+          sizeBytes: result.sizeBytes ? BigInt(result.sizeBytes) : undefined,
+        }),
+      },
+    })
+  );
+}
+
+/**
+ * Handle restore snapshot command
+ */
+async function handleRestoreSnapshot(
+  requestId: string,
+  snapshotId: string,
+  send: (msg: AgentMessage) => void
+): Promise<void> {
+  const result = await restoreSnapshot(snapshotId);
+  send(
+    create(AgentMessageSchema, {
+      message: {
+        case: "snapshotResult",
+        value: create(AgentSnapshotResultSchema, {
+          requestId,
+          success: result.success,
+          error: result.error,
+        }),
+      },
+    })
+  );
 }

@@ -40,6 +40,16 @@ type Storage interface {
 	GetNotificationsAfter(ctx context.Context, sessionID string, afterID string, limit int) ([]NotificationWithID, error)
 	GetLastNotificationID(ctx context.Context, sessionID string) (string, error)
 
+	// Snapshots
+	SaveSnapshot(ctx context.Context, snapshot *pb.Snapshot) error
+	GetSnapshot(ctx context.Context, sessionID, snapshotID string) (*pb.Snapshot, error)
+	ListSnapshots(ctx context.Context, sessionID string) ([]*pb.Snapshot, error)
+	DeleteSnapshot(ctx context.Context, sessionID, snapshotID string) error
+	DeleteAllSnapshots(ctx context.Context, sessionID string) error
+
+	// Messages truncation (for snapshot restore)
+	TruncateMessages(ctx context.Context, sessionID string, keepCount int) error
+
 	// Redis client access (for StreamSubscriber)
 	GetRedisClient() *redis.Client
 

@@ -6,11 +6,13 @@ struct WorkspaceView: View {
     @Environment(SessionStore.self) private var sessionStore
     @Environment(ConnectService.self) private var connectService
     @Environment(TerminalStore.self) private var terminalStore
+    @Environment(SnapshotStore.self) private var snapshotStore
     @Environment(\.dismiss) private var dismiss
 
     @State private var selectedTab: WorkspaceTab = .chat
     @State private var hasOpenedSession = false
     @State private var showDeleteConfirmation = false
+    @State private var showSnapshotSheet = false
 
     enum WorkspaceTab: CaseIterable {
         case chat
@@ -76,6 +78,15 @@ struct WorkspaceView: View {
                         
                         Divider()
                         
+                        // History
+                        Button {
+                            showSnapshotSheet = true
+                        } label: {
+                            Label("History", systemImage: "clock.arrow.circlepath")
+                        }
+                        
+                        Divider()
+                        
                         // Actions
                         if session.status == .paused {
                             Button {
@@ -116,6 +127,11 @@ struct WorkspaceView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Are you sure you want to delete this session? This action cannot be undone.")
+        }
+        .sheet(isPresented: $showSnapshotSheet) {
+            SnapshotListSheet(sessionId: sessionId) { snapshotId in
+                connectService.send(.restoreSnapshot(sessionId: sessionId, snapshotId: snapshotId))
+            }
         }
         .onAppear {
             sessionStore.setCurrentSession(id: sessionId)
@@ -181,6 +197,7 @@ struct WorkspaceView: View {
     .environment(TerminalStore())
     .environment(SettingsStore())
     .environment(GitStore())
+    .environment(SnapshotStore())
     .environment(ConnectService())
     .environment(MessageRouter.preview)
 }

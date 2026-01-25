@@ -13,6 +13,7 @@ I wanted a self-hosted Claude Code environment with the UX I actually want:
 - **Tailnet integration** - Preview URLs, port forwarding, access to my infra (like my home k8s cluster) through Tailscale.
 - **JuiceFS for storage** - Storage offloaded to S3. Paused sessions cost nothing but storage.
 - **Live terminal access** - Drop into the sandbox shell from the app. Debug, install tools, run commands.
+- **Session history** - Auto-snapshots after each turn. Roll back workspace and chat to any previous point using JuiceFS copy-on-write clones.
 - **Single-tenant by design** - Optimized for personal use. Architecture scales to multi-node or multi-tenant if needed.
 
 ## How it works
@@ -188,6 +189,7 @@ Quick version:
 - [Deployment](docs/deployment.md) - Full setup
 - [Operations](docs/operations.md) - Day-to-day management
 - [GitHub Integration](docs/github-integration.md) - Clone repos and push commits
+- [Session History](docs/session-history.md) - Snapshots and rollback
 - [iOS App](clients/ios/README.md)
 - [CLI](clients/cli/README.md) - Debug CLI for inspecting sessions
 - [Control Plane](services/control-plane/README.md)

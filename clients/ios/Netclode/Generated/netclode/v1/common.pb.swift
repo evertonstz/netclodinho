@@ -820,6 +820,46 @@ public struct Netclode_V1_CopilotPremiumQuota: Sendable {
   fileprivate var _resetAt: String? = nil
 }
 
+/// Snapshot represents a point-in-time snapshot of session workspace and conversation.
+public struct Netclode_V1_Snapshot: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Unique snapshot ID
+  public var id: String = String()
+
+  /// Parent session
+  public var sessionID: String = String()
+
+  /// Human-readable name (e.g., "Turn 3: Fix login bug")
+  public var name: String = String()
+
+  public var createdAt: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {return _createdAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_createdAt = newValue}
+  }
+  /// Returns true if `createdAt` has been explicitly set.
+  public var hasCreatedAt: Bool {return self._createdAt != nil}
+  /// Clears the value of `createdAt`. Subsequent reads from it will return its default value.
+  public mutating func clearCreatedAt() {self._createdAt = nil}
+
+  /// Logical workspace size at snapshot time
+  public var sizeBytes: Int64 = 0
+
+  /// Which turn this was created after (0 = initial)
+  public var turnNumber: Int32 = 0
+
+  /// Number of messages at snapshot time
+  public var messageCount: Int32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _createdAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+}
+
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate let _protobuf_package = "netclode.v1"
@@ -1423,6 +1463,70 @@ extension Netclode_V1_CopilotPremiumQuota: SwiftProtobuf.Message, SwiftProtobuf.
     if lhs.limit != rhs.limit {return false}
     if lhs.remaining != rhs.remaining {return false}
     if lhs._resetAt != rhs._resetAt {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Netclode_V1_Snapshot: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Snapshot"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}session_id\0\u{1}name\0\u{3}created_at\0\u{3}size_bytes\0\u{3}turn_number\0\u{3}message_count\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.id) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.sessionID) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.name) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._createdAt) }()
+      case 5: try { try decoder.decodeSingularInt64Field(value: &self.sizeBytes) }()
+      case 6: try { try decoder.decodeSingularInt32Field(value: &self.turnNumber) }()
+      case 7: try { try decoder.decodeSingularInt32Field(value: &self.messageCount) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.id.isEmpty {
+      try visitor.visitSingularStringField(value: self.id, fieldNumber: 1)
+    }
+    if !self.sessionID.isEmpty {
+      try visitor.visitSingularStringField(value: self.sessionID, fieldNumber: 2)
+    }
+    if !self.name.isEmpty {
+      try visitor.visitSingularStringField(value: self.name, fieldNumber: 3)
+    }
+    try { if let v = self._createdAt {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
+    if self.sizeBytes != 0 {
+      try visitor.visitSingularInt64Field(value: self.sizeBytes, fieldNumber: 5)
+    }
+    if self.turnNumber != 0 {
+      try visitor.visitSingularInt32Field(value: self.turnNumber, fieldNumber: 6)
+    }
+    if self.messageCount != 0 {
+      try visitor.visitSingularInt32Field(value: self.messageCount, fieldNumber: 7)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Netclode_V1_Snapshot, rhs: Netclode_V1_Snapshot) -> Bool {
+    if lhs.id != rhs.id {return false}
+    if lhs.sessionID != rhs.sessionID {return false}
+    if lhs.name != rhs.name {return false}
+    if lhs._createdAt != rhs._createdAt {return false}
+    if lhs.sizeBytes != rhs.sizeBytes {return false}
+    if lhs.turnNumber != rhs.turnNumber {return false}
+    if lhs.messageCount != rhs.messageCount {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

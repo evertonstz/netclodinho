@@ -6,6 +6,7 @@ Native iOS 26 app for Netclode. Built with SwiftUI and the Liquid Glass API.
 
 - Session management (create, pause, resume, delete)
 - Real-time chat with streaming responses
+- Session history with rollback (restore workspace and chat to any previous turn)
 - Terminal emulator via [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm)
 - Git changes view with inline unified diffs
 - Connects over Tailscale
