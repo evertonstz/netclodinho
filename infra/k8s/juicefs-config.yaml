@@ -48,6 +48,9 @@ data:
       - mountOptions:
           # Writeback cache: async writes to local disk, sync to S3 in background
           - writeback
+          # FUSE writeback cache: kernel consolidates small writes before sending to FUSE
+          # Significantly improves small random write performance (requires kernel 3.15+)
+          - writeback_cache
           # Metadata caching - reduces round-trips to Redis
           - attr-cache=10
           - entry-cache=10
