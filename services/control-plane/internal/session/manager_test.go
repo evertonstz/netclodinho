@@ -184,7 +184,11 @@ func (m *mockRuntime) ListVolumeSnapshots(ctx context.Context, sessionID string)
 	return nil, nil
 }
 
-func (m *mockRuntime) RestoreFromSnapshot(ctx context.Context, sessionID, snapshotID string) error {
+func (m *mockRuntime) RestoreFromSnapshot(ctx context.Context, sessionID, snapshotID string) (string, error) {
+	return "old-pvc-name", nil
+}
+
+func (m *mockRuntime) DeletePVCByName(ctx context.Context, name string) error {
 	return nil
 }
 
@@ -351,6 +355,18 @@ func (m *mockStorage) GetRestoreSnapshotID(ctx context.Context, sessionID string
 }
 
 func (m *mockStorage) ClearRestoreSnapshotID(ctx context.Context, sessionID string) error {
+	return nil
+}
+
+func (m *mockStorage) SetOldPVCName(ctx context.Context, sessionID, pvcName string) error {
+	return nil
+}
+
+func (m *mockStorage) GetOldPVCName(ctx context.Context, sessionID string) (string, error) {
+	return "", nil
+}
+
+func (m *mockStorage) ClearOldPVCName(ctx context.Context, sessionID string) error {
 	return nil
 }
 

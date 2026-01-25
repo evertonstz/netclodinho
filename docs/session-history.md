@@ -95,6 +95,8 @@ When you restore a snapshot:
 
 This ordering is critical because if the pod mounts the volume while the restore job is running, the restore fails with "directory not empty".
 
+After the restore job completes successfully, the old PVC is deleted to avoid resource leaks.
+
 ### Kubernetes VolumeSnapshots
 
 Snapshots use the Kubernetes VolumeSnapshot API with the JuiceFS CSI driver:

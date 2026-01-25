@@ -62,6 +62,11 @@ type Storage interface {
 	GetRestoreSnapshotID(ctx context.Context, sessionID string) (string, error)
 	ClearRestoreSnapshotID(ctx context.Context, sessionID string) error
 
+	// Old PVC name to delete after restore (cleanup orphaned PVCs)
+	SetOldPVCName(ctx context.Context, sessionID, pvcName string) error
+	GetOldPVCName(ctx context.Context, sessionID string) (string, error)
+	ClearOldPVCName(ctx context.Context, sessionID string) error
+
 	// Redis client access (for StreamSubscriber)
 	GetRedisClient() *redis.Client
 

@@ -16,6 +16,7 @@ type Runtime interface {
 	GetStatus(ctx context.Context, sessionID string) (*SandboxStatusInfo, error)
 	DeleteSandbox(ctx context.Context, sessionID string) error
 	DeletePVC(ctx context.Context, sessionID string) error
+	DeletePVCByName(ctx context.Context, pvcName string) error
 	DeleteSecret(ctx context.Context, sessionID string) error
 	ListSandboxes(ctx context.Context) ([]SandboxInfo, error)
 
@@ -38,7 +39,7 @@ type Runtime interface {
 	WaitForSnapshotReady(ctx context.Context, sessionID, snapshotID string, timeout time.Duration) error
 	DeleteVolumeSnapshot(ctx context.Context, sessionID, snapshotID string) error
 	ListVolumeSnapshots(ctx context.Context, sessionID string) ([]VolumeSnapshotInfo, error)
-	RestoreFromSnapshot(ctx context.Context, sessionID, snapshotID string) error
+	RestoreFromSnapshot(ctx context.Context, sessionID, snapshotID string) (oldPVCName string, err error)
 	CreatePVCFromSnapshot(ctx context.Context, sessionID, snapshotID string) (pvcName string, err error)
 	WaitForRestoreJob(ctx context.Context, sessionID, snapshotID string, timeout time.Duration) error
 	GetPVCName(ctx context.Context, sessionID string) (string, error)

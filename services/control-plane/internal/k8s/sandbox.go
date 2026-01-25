@@ -566,6 +566,17 @@ func (r *k8sRuntime) DeletePVC(ctx context.Context, sessionID string) error {
 	return nil
 }
 
+// DeletePVCByName deletes a PVC by its exact name.
+func (r *k8sRuntime) DeletePVCByName(ctx context.Context, name string) error {
+	err := r.clientset.CoreV1().PersistentVolumeClaims(r.namespace).Delete(ctx, name, metav1.DeleteOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
+	slog.Info("PVC deleted by name", "name", name)
+	return nil
+}
+
 // DeleteSecret deletes the environment secret for a session.
 func (r *k8sRuntime) DeleteSecret(ctx context.Context, sessionID string) error {
 	name := secretName(sessionID)
@@ -1258,28 +1269,29 @@ func (r *k8sRuntime) ListVolumeSnapshots(ctx context.Context, sessionID string) 
 }
 
 // RestoreFromSnapshot prepares a session for restore by cleaning up existing resources.
-// The actual PVC restore happens when CreateSandbox is called with RestoreSnapshotEnvKey.
-func (r *k8sRuntime) RestoreFromSnapshot(ctx context.Context, sessionID, snapshotID string) error {
+// Returns the old PVC name so it can be deleted after the restore completes.
+// The actual PVC restore happens when CreateSandbox is called with ExistingPVCEnvKey.
+func (r *k8sRuntime) RestoreFromSnapshot(ctx context.Context, sessionID, snapshotID string) (string, error) {
 	snapName := snapshotName(sessionID, snapshotID)
 
 	// Verify snapshot exists and is ready
 	u, err := r.dynamicClient.Resource(VolumeSnapshotGVR).Namespace(r.namespace).Get(ctx, snapName, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("get snapshot: %w", err)
+		return "", fmt.Errorf("get snapshot: %w", err)
 	}
 
 	data, err := u.MarshalJSON()
 	if err != nil {
-		return fmt.Errorf("marshal snapshot: %w", err)
+		return "", fmt.Errorf("marshal snapshot: %w", err)
 	}
 
 	var snapshot VolumeSnapshot
 	if err := json.Unmarshal(data, &snapshot); err != nil {
-		return fmt.Errorf("unmarshal snapshot: %w", err)
+		return "", fmt.Errorf("unmarshal snapshot: %w", err)
 	}
 
 	if !snapshot.IsReady() {
-		return fmt.Errorf("snapshot %s is not ready", snapName)
+		return "", fmt.Errorf("snapshot %s is not ready", snapName)
 	}
 
 	slog.Info("Preparing restore from snapshot", "sessionID", sessionID, "snapshotID", snapshotID)
@@ -1314,8 +1326,8 @@ func (r *k8sRuntime) RestoreFromSnapshot(ctx context.Context, sessionID, snapsho
 	// Wait for sandbox/pod to terminate
 	time.Sleep(2 * time.Second)
 
-	slog.Info("Ready for restore", "sessionID", sessionID, "snapshotID", snapshotID)
-	return nil
+	slog.Info("Ready for restore", "sessionID", sessionID, "snapshotID", snapshotID, "oldPVC", oldPVCName)
+	return oldPVCName, nil
 }
 
 // CreatePVCFromSnapshot creates a standalone PVC from a VolumeSnapshot.

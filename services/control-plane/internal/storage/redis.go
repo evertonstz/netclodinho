@@ -254,6 +254,21 @@ func (r *RedisStorage) ClearRestoreSnapshotID(ctx context.Context, sessionID str
 	return r.client.HDel(ctx, sessionKey(sessionID), "restoreSnapshotID").Err()
 }
 
+// SetOldPVCName stores the old PVC name to delete after restore completes.
+func (r *RedisStorage) SetOldPVCName(ctx context.Context, sessionID, pvcName string) error {
+	return r.client.HSet(ctx, sessionKey(sessionID), "oldPVCName", pvcName).Err()
+}
+
+// GetOldPVCName retrieves the old PVC name to delete.
+func (r *RedisStorage) GetOldPVCName(ctx context.Context, sessionID string) (string, error) {
+	return r.client.HGet(ctx, sessionKey(sessionID), "oldPVCName").Result()
+}
+
+// ClearOldPVCName removes the old PVC name after cleanup.
+func (r *RedisStorage) ClearOldPVCName(ctx context.Context, sessionID string) error {
+	return r.client.HDel(ctx, sessionKey(sessionID), "oldPVCName").Err()
+}
+
 // DeleteSession removes a session and all related data from Redis.
 func (r *RedisStorage) DeleteSession(ctx context.Context, id string) error {
 	// First delete all snapshots

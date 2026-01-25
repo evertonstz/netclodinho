@@ -272,6 +272,16 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 		}
 		slog.Info("Snapshot restore completed, creating sandbox with existing PVC", "sessionID", sessionID, "pvc", pvcName)
 
+		// Delete the old orphaned PVC now that restore is complete
+		if oldPVCName, err := m.storage.GetOldPVCName(ctx, sessionID); err == nil && oldPVCName != "" {
+			if err := m.k8s.DeletePVCByName(ctx, oldPVCName); err != nil {
+				slog.Warn("Failed to delete old PVC after restore", "sessionID", sessionID, "pvc", oldPVCName, "error", err)
+			} else {
+				slog.Info("Deleted old PVC after restore", "sessionID", sessionID, "pvc", oldPVCName)
+			}
+			_ = m.storage.ClearOldPVCName(ctx, sessionID)
+		}
+
 		// Pass the existing PVC name so sandbox uses it instead of creating a new one
 		env[k8s.ExistingPVCEnvKey] = pvcName
 	}
@@ -1748,8 +1758,9 @@ func (m *Manager) RestoreSnapshot(ctx context.Context, sessionID, snapshotID str
 	}
 	m.mu.Unlock()
 
-	// Clean up K8s resources (sandbox, PVC)
-	if err := m.k8s.RestoreFromSnapshot(ctx, sessionID, snapshotID); err != nil {
+	// Clean up K8s resources (sandbox, PVC) - returns old PVC name for cleanup after restore
+	oldPVCName, err := m.k8s.RestoreFromSnapshot(ctx, sessionID, snapshotID)
+	if err != nil {
 		slog.Error("Restore cleanup failed", "sessionID", sessionID, "snapshotID", snapshotID, "error", err)
 		state.Session.Status = pb.SessionStatus_SESSION_STATUS_READY
 		_ = m.storage.UpdateSessionStatus(ctx, sessionID, pb.SessionStatus_SESSION_STATUS_READY)
@@ -1760,6 +1771,13 @@ func (m *Manager) RestoreSnapshot(ctx context.Context, sessionID, snapshotID str
 	state.RestoreSnapshotID = snapshotID
 	if err := m.storage.SetRestoreSnapshotID(ctx, sessionID, snapshotID); err != nil {
 		slog.Warn("Failed to persist restore snapshot ID", "sessionID", sessionID, "error", err)
+	}
+
+	// Store old PVC name so it can be deleted after restore completes
+	if oldPVCName != "" {
+		if err := m.storage.SetOldPVCName(ctx, sessionID, oldPVCName); err != nil {
+			slog.Warn("Failed to persist old PVC name", "sessionID", sessionID, "pvc", oldPVCName, "error", err)
+		}
 	}
 
 	// Truncate messages to snapshot point
