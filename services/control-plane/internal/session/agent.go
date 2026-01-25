@@ -43,9 +43,13 @@ func (m *Manager) SendPrompt(ctx context.Context, sessionID, text string) error 
 		slog.Info("Queueing prompt until agent connects", "sessionID", sessionID)
 		m.mu.Lock()
 		state.PendingPrompt = text
+		currentStatus := state.Session.Status
 		m.mu.Unlock()
-		// Still set status to running so UI shows activity
-		m.updateSessionStatus(ctx, sessionID, pb.SessionStatus_SESSION_STATUS_RUNNING)
+		// Only set status to RUNNING if we were PAUSED. If RESUMING (restore in progress),
+		// keep that status until createSandboxDirect completes and sets RUNNING.
+		if currentStatus == pb.SessionStatus_SESSION_STATUS_PAUSED {
+			m.updateSessionStatus(ctx, sessionID, pb.SessionStatus_SESSION_STATUS_RUNNING)
+		}
 		return nil
 	}
 
