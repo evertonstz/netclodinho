@@ -1771,8 +1771,9 @@ func (m *Manager) RestoreSnapshot(ctx context.Context, sessionID, snapshotID str
 		return 0, fmt.Errorf("session %s not found", sessionID)
 	}
 
-	// Must be ready (not running) to restore
-	if state.Session.Status != pb.SessionStatus_SESSION_STATUS_READY {
+	// Must be ready or interrupted (not running) to restore
+	if state.Session.Status != pb.SessionStatus_SESSION_STATUS_READY &&
+		state.Session.Status != pb.SessionStatus_SESSION_STATUS_INTERRUPTED {
 		return 0, fmt.Errorf("cannot restore while session is %s", state.Session.Status.String())
 	}
 
