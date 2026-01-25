@@ -81,12 +81,7 @@ struct PromptSheet: View {
                             .foregroundStyle(.secondary)
                     }
 
-                    Picker("SDK", selection: $selectedSdkType) {
-                        ForEach(SdkType.allCases, id: \.self) { sdk in
-                            Text(sdk.displayName).tag(sdk)
-                        }
-                    }
-                    .pickerStyle(.segmented)
+                    SdkPicker(selection: $selectedSdkType)
 
                     // Model picker (shown for all SDK types)
                     HStack(spacing: Theme.Spacing.xs) {
@@ -98,24 +93,34 @@ struct PromptSheet: View {
                     }
                     .padding(.top, Theme.Spacing.xs)
 
-                    if isLoadingModels {
-                        HStack {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                            Text("Loading models...")
-                                .font(.netclodeCaption)
-                                .foregroundStyle(.secondary)
-                            Spacer()
+                    ZStack {
+                        // Loading state
+                        if isLoadingModels && availablePickerModels.isEmpty {
+                            HStack {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                                Text("Loading models...")
+                                    .font(.netclodeCaption)
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                            }
+                            .padding(Theme.Spacing.sm)
+                            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
+                            .transition(.opacity)
                         }
-                        .padding(Theme.Spacing.sm)
-                        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
-                    } else {
-                        InlineModelPicker(
-                            selectedModelId: selectedModelIdBinding,
-                            models: availablePickerModels,
-                            isExpanded: $showModelDropdown
-                        )
+                        
+                        // Model picker (show even while loading if we have cached models)
+                        if !availablePickerModels.isEmpty {
+                            InlineModelPicker(
+                                selectedModelId: selectedModelIdBinding,
+                                models: availablePickerModels,
+                                isExpanded: $showModelDropdown
+                            )
+                            .transition(.opacity)
+                        }
                     }
+                    .animation(.smooth(duration: 0.2), value: isLoadingModels)
+                    .animation(.smooth(duration: 0.2), value: availablePickerModels.count)
                 }
                 .padding(.horizontal, Theme.Spacing.md)
                 .padding(.top, Theme.Spacing.md)
@@ -194,15 +199,13 @@ struct PromptSheet: View {
             }
             .onAppear {
                 isFocused = true
-                // Fetch Copilot models if Copilot SDK is selected
-                if selectedSdkType == .copilot {
-                    fetchCopilotModels()
-                }
+                // Preload all models on sheet open for smooth SDK switching
+                preloadAllModels()
             }
-            .onChange(of: selectedSdkType) { _, newSdkType in
-                // Fetch models when switching to Copilot
-                if newSdkType == .copilot {
-                    fetchCopilotModels()
+            .onChange(of: selectedSdkType) { _, _ in
+                // Close dropdown and animate the transition
+                withAnimation(.smooth(duration: 0.2)) {
+                    showModelDropdown = false
                 }
             }
             .onChange(of: promptText) { _, newValue in
@@ -277,9 +280,19 @@ struct PromptSheet: View {
         dismiss()
     }
 
-    private func fetchCopilotModels() {
-        copilotStore.setLoadingModels(true)
-        connectService.send(.listModels(sdkType: .copilot, copilotBackend: nil))
+    private func preloadAllModels() {
+        // Refresh Anthropic models if stale (for Claude & OpenCode SDKs)
+        if modelsStore.isCacheStale {
+            Task {
+                await modelsStore.fetchModels()
+            }
+        }
+        
+        // Preload Copilot models if not already loaded
+        if copilotStore.models.isEmpty && !copilotStore.isLoadingModels {
+            copilotStore.setLoadingModels(true)
+            connectService.send(.listModels(sdkType: .copilot, copilotBackend: nil))
+        }
     }
 }
 

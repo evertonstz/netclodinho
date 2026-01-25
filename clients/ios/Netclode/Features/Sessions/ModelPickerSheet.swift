@@ -112,23 +112,18 @@ struct ModelRow: View {
                 .font(.system(size: 20))
                 .contentTransition(.symbolEffect(.replace))
 
+            // Provider logo
+            ProviderLogo(provider: model.provider, size: 20)
+                .foregroundStyle(.secondary)
+
             // Model info
             VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: Theme.Spacing.xs) {
-                    Text(model.name)
-                        .font(.netclodeBody)
-                        .foregroundStyle(.primary)
-
-                }
+                Text(model.name)
+                    .font(.netclodeBody)
+                    .foregroundStyle(.primary)
 
                 // Capabilities and cost row
                 HStack(spacing: Theme.Spacing.sm) {
-                    if let provider = model.provider {
-                        Text(provider)
-                            .font(.netclodeCaption)
-                            .foregroundStyle(.secondary)
-                    }
-
                     if model.supportsVision {
                         Label("Vision", systemImage: "eye")
                             .font(.netclodeCaption)
@@ -202,17 +197,20 @@ struct InlineModelPicker: View {
                     isExpanded.toggle()
                 }
             } label: {
-                HStack {
+                HStack(spacing: Theme.Spacing.xs) {
                     if let model = selectedModel {
+                        ProviderLogo(provider: model.provider, size: 16)
+                            .foregroundStyle(.secondary)
                         Text(model.name)
                             .font(.netclodeBody)
-                        if let provider = model.provider {
-                            Text("·")
-                                .foregroundStyle(.tertiary)
-                            Text(provider)
-                                .font(.netclodeCaption)
-                                .foregroundStyle(.secondary)
-                        }
+                            .contentTransition(.numericText())
+                    } else if !models.isEmpty {
+                        // Show first model as fallback
+                        ProviderLogo(provider: models.first?.provider, size: 16)
+                            .foregroundStyle(.secondary)
+                        Text(models.first?.name ?? "Select a model")
+                            .font(.netclodeBody)
+                            .contentTransition(.numericText())
                     } else {
                         Text("Select a model")
                             .font(.netclodeBody)
@@ -226,6 +224,7 @@ struct InlineModelPicker: View {
                 }
                 .padding(Theme.Spacing.sm)
                 .frame(maxWidth: .infinity)
+                .animation(.smooth(duration: 0.2), value: selectedModel?.id)
             }
             .buttonStyle(.plain)
             .glassEffect(
@@ -244,24 +243,20 @@ struct InlineModelPicker: View {
                                     isExpanded = false
                                 }
                             } label: {
-                                HStack {
+                                HStack(spacing: Theme.Spacing.xs) {
                                     Image(systemName: model.id == selectedModelId ? "checkmark.circle.fill" : "circle")
                                         .foregroundStyle(model.id == selectedModelId ? Theme.Colors.brand : .secondary)
                                         .font(.system(size: 16))
+                                        .contentTransition(.symbolEffect(.replace))
 
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(model.name)
-                                            .font(.netclodeBody)
-                                            .foregroundStyle(.primary)
-                                        if let provider = model.provider {
-                                            Text(provider)
-                                                .font(.netclodeCaption)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                    }
+                                    ProviderLogo(provider: model.provider, size: 16)
+                                        .foregroundStyle(.secondary)
+
+                                    Text(model.name)
+                                        .font(.netclodeBody)
+                                        .foregroundStyle(.primary)
 
                                     Spacer()
-
                                 }
                                 .padding(.horizontal, Theme.Spacing.sm)
                                 .padding(.vertical, Theme.Spacing.xs)
@@ -275,10 +270,14 @@ struct InlineModelPicker: View {
                 }
                 .frame(maxHeight: 280)
                 .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
-                .transition(.opacity)
+                .transition(.asymmetric(
+                    insertion: .opacity.combined(with: .scale(scale: 0.95, anchor: .top)),
+                    removal: .opacity
+                ))
                 .padding(.top, Theme.Spacing.xs)
             }
         }
+        .animation(.smooth(duration: 0.25), value: isExpanded)
     }
 
 }
@@ -292,25 +291,17 @@ struct ModelPickerButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack {
+            HStack(spacing: Theme.Spacing.xs) {
                 if isLoading {
                     ProgressView()
                         .scaleEffect(0.8)
                 } else if let model = selectedModel {
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: Theme.Spacing.xs) {
-                            Text(model.name)
-                                .font(.netclodeBody)
-                                .foregroundStyle(.primary)
+                    ProviderLogo(provider: model.provider, size: 18)
+                        .foregroundStyle(.secondary)
 
-                        }
-
-                        if let provider = model.provider {
-                            Text(provider)
-                                .font(.netclodeCaption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+                    Text(model.name)
+                        .font(.netclodeBody)
+                        .foregroundStyle(.primary)
                 } else {
                     Text(placeholder)
                         .font(.netclodeBody)

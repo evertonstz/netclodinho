@@ -45,6 +45,8 @@
 		A10000000000000000000024 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000024 /* SettingsView.swift */; };
 		A10000000000000000000025 /* GlassCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000025 /* GlassCard.swift */; };
 		A10000000000000000000026 /* GlassButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000026 /* GlassButton.swift */; };
+		A10000000000000000000099 /* SdkPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000099 /* SdkPicker.swift */; };
+		A10000000000000000000098 /* ProviderLogo.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000098 /* ProviderLogo.swift */; };
 		A10000000000000000000027 /* GlassTextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000027 /* GlassTextField.swift */; };
 		A10000000000000000000028 /* ConnectionStatusBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000028 /* ConnectionStatusBadge.swift */; };
 		A10000000000000000000029 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000029 /* Theme.swift */; };
@@ -109,6 +111,8 @@
 		B10000000000000000000024 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		B10000000000000000000025 /* GlassCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassCard.swift; sourceTree = "<group>"; };
 		B10000000000000000000026 /* GlassButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassButton.swift; sourceTree = "<group>"; };
+		B10000000000000000000099 /* SdkPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SdkPicker.swift; sourceTree = "<group>"; };
+		B10000000000000000000098 /* ProviderLogo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderLogo.swift; sourceTree = "<group>"; };
 		B10000000000000000000027 /* GlassTextField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassTextField.swift; sourceTree = "<group>"; };
 		B10000000000000000000028 /* ConnectionStatusBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionStatusBadge.swift; sourceTree = "<group>"; };
 		B10000000000000000000029 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
@@ -328,6 +332,8 @@
 			children = (
 				B10000000000000000000025 /* GlassCard.swift */,
 				B10000000000000000000026 /* GlassButton.swift */,
+				B10000000000000000000099 /* SdkPicker.swift */,
+				B10000000000000000000098 /* ProviderLogo.swift */,
 				B10000000000000000000027 /* GlassTextField.swift */,
 				B10000000000000000000028 /* ConnectionStatusBadge.swift */,
 				B10000000000000000000042 /* MarkdownView.swift */,
@@ -555,6 +561,8 @@
 				A10000000000000000000024 /* SettingsView.swift in Sources */,
 				A10000000000000000000025 /* GlassCard.swift in Sources */,
 				A10000000000000000000026 /* GlassButton.swift in Sources */,
+				A10000000000000000000099 /* SdkPicker.swift in Sources */,
+				A10000000000000000000098 /* ProviderLogo.swift in Sources */,
 				A10000000000000000000027 /* GlassTextField.swift in Sources */,
 				A10000000000000000000028 /* ConnectionStatusBadge.swift in Sources */,
 				A10000000000000000000029 /* Theme.swift in Sources */,
