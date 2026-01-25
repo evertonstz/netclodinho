@@ -1641,6 +1641,9 @@ func (m *Manager) CreateSnapshot(ctx context.Context, sessionID string, name str
 		}
 	}
 
+	// Get current event stream ID for snapshot point
+	eventStreamID, _ := m.storage.GetLastEventStreamID(ctx, sessionID)
+
 	// Generate snapshot ID and request ID
 	snapshotID := uuid.NewString()[:12]
 	requestID := uuid.NewString()[:12]
@@ -1671,13 +1674,14 @@ func (m *Manager) CreateSnapshot(ctx context.Context, sessionID string, name str
 
 		// Create snapshot record
 		snapshot := &pb.Snapshot{
-			Id:           snapshotID,
-			SessionId:    sessionID,
-			Name:         name,
-			CreatedAt:    timestamppb.Now(),
-			SizeBytes:    result.sizeBytes,
-			TurnNumber:   int32(turnNumber),
-			MessageCount: int32(msgCount),
+			Id:            snapshotID,
+			SessionId:     sessionID,
+			Name:          name,
+			CreatedAt:     timestamppb.Now(),
+			SizeBytes:     result.sizeBytes,
+			TurnNumber:    int32(turnNumber),
+			MessageCount:  int32(msgCount),
+			EventStreamId: eventStreamID,
 		}
 
 		// Save to storage
@@ -1749,6 +1753,11 @@ func (m *Manager) RestoreSnapshot(ctx context.Context, sessionID, snapshotID str
 		// Truncate messages to snapshot point
 		if err := m.storage.TruncateMessages(ctx, sessionID, int(snapshot.MessageCount)); err != nil {
 			slog.Warn("Failed to truncate messages", "sessionID", sessionID, "error", err)
+		}
+
+		// Truncate events to snapshot point
+		if err := m.storage.TruncateEventsAfter(ctx, sessionID, snapshot.EventStreamId); err != nil {
+			slog.Warn("Failed to truncate events", "sessionID", sessionID, "error", err)
 		}
 
 		slog.Info("Snapshot restored", "sessionID", sessionID, "snapshotID", snapshotID, "messagesRestored", snapshot.MessageCount)

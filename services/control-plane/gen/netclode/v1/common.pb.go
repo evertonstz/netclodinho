@@ -1197,9 +1197,10 @@ type Snapshot struct {
 	SessionId     string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"` // Parent session
 	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`                            // Human-readable name (e.g., "Turn 3: Fix login bug")
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	SizeBytes     int64                  `protobuf:"varint,5,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`          // Logical workspace size at snapshot time
-	TurnNumber    int32                  `protobuf:"varint,6,opt,name=turn_number,json=turnNumber,proto3" json:"turn_number,omitempty"`       // Which turn this was created after (0 = initial)
-	MessageCount  int32                  `protobuf:"varint,7,opt,name=message_count,json=messageCount,proto3" json:"message_count,omitempty"` // Number of messages at snapshot time
+	SizeBytes     int64                  `protobuf:"varint,5,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`              // Logical workspace size at snapshot time
+	TurnNumber    int32                  `protobuf:"varint,6,opt,name=turn_number,json=turnNumber,proto3" json:"turn_number,omitempty"`           // Which turn this was created after (0 = initial)
+	MessageCount  int32                  `protobuf:"varint,7,opt,name=message_count,json=messageCount,proto3" json:"message_count,omitempty"`     // Number of messages at snapshot time
+	EventStreamId string                 `protobuf:"bytes,8,opt,name=event_stream_id,json=eventStreamId,proto3" json:"event_stream_id,omitempty"` // Redis Stream ID of last event at snapshot time
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1281,6 +1282,13 @@ func (x *Snapshot) GetMessageCount() int32 {
 		return x.MessageCount
 	}
 	return 0
+}
+
+func (x *Snapshot) GetEventStreamId() string {
+	if x != nil {
+		return x.EventStreamId
+	}
+	return ""
 }
 
 var File_netclode_v1_common_proto protoreflect.FileDescriptor
@@ -1383,7 +1391,7 @@ const file_netclode_v1_common_proto_rawDesc = "" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x1c\n" +
 	"\tremaining\x18\x03 \x01(\x05R\tremaining\x12\x1e\n" +
 	"\breset_at\x18\x04 \x01(\tH\x00R\aresetAt\x88\x01\x01B\v\n" +
-	"\t_reset_at\"\xed\x01\n" +
+	"\t_reset_at\"\x95\x02\n" +
 	"\bSnapshot\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -1395,7 +1403,8 @@ const file_netclode_v1_common_proto_rawDesc = "" +
 	"size_bytes\x18\x05 \x01(\x03R\tsizeBytes\x12\x1f\n" +
 	"\vturn_number\x18\x06 \x01(\x05R\n" +
 	"turnNumber\x12#\n" +
-	"\rmessage_count\x18\a \x01(\x05R\fmessageCount*V\n" +
+	"\rmessage_count\x18\a \x01(\x05R\fmessageCount\x12&\n" +
+	"\x0fevent_stream_id\x18\b \x01(\tR\reventStreamId*V\n" +
 	"\n" +
 	"RepoAccess\x12\x1b\n" +
 	"\x17REPO_ACCESS_UNSPECIFIED\x10\x00\x12\x14\n" +

@@ -853,6 +853,9 @@ public struct Netclode_V1_Snapshot: Sendable {
   /// Number of messages at snapshot time
   public var messageCount: Int32 = 0
 
+  /// Redis Stream ID of last event at snapshot time
+  public var eventStreamID: String = String()
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1470,7 +1473,7 @@ extension Netclode_V1_CopilotPremiumQuota: SwiftProtobuf.Message, SwiftProtobuf.
 
 extension Netclode_V1_Snapshot: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Snapshot"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}session_id\0\u{1}name\0\u{3}created_at\0\u{3}size_bytes\0\u{3}turn_number\0\u{3}message_count\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}session_id\0\u{1}name\0\u{3}created_at\0\u{3}size_bytes\0\u{3}turn_number\0\u{3}message_count\0\u{3}event_stream_id\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1485,6 +1488,7 @@ extension Netclode_V1_Snapshot: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
       case 5: try { try decoder.decodeSingularInt64Field(value: &self.sizeBytes) }()
       case 6: try { try decoder.decodeSingularInt32Field(value: &self.turnNumber) }()
       case 7: try { try decoder.decodeSingularInt32Field(value: &self.messageCount) }()
+      case 8: try { try decoder.decodeSingularStringField(value: &self.eventStreamID) }()
       default: break
       }
     }
@@ -1516,6 +1520,9 @@ extension Netclode_V1_Snapshot: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
     if self.messageCount != 0 {
       try visitor.visitSingularInt32Field(value: self.messageCount, fieldNumber: 7)
     }
+    if !self.eventStreamID.isEmpty {
+      try visitor.visitSingularStringField(value: self.eventStreamID, fieldNumber: 8)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1527,6 +1534,7 @@ extension Netclode_V1_Snapshot: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
     if lhs.sizeBytes != rhs.sizeBytes {return false}
     if lhs.turnNumber != rhs.turnNumber {return false}
     if lhs.messageCount != rhs.messageCount {return false}
+    if lhs.eventStreamID != rhs.eventStreamID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

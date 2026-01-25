@@ -544,6 +544,56 @@ func (r *RedisStorage) GetRedisClient() *redis.Client {
 	return r.client
 }
 
+// GetLastEventStreamID returns the ID of the most recent event in the stream.
+// Returns empty string if no events exist.
+func (r *RedisStorage) GetLastEventStreamID(ctx context.Context, sessionID string) (string, error) {
+	streamKey := eventsStreamKey(sessionID)
+
+	// Get the last entry in the stream
+	messages, err := r.client.XRevRangeN(ctx, streamKey, "+", "-", 1).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return "", nil
+		}
+		return "", err
+	}
+
+	if len(messages) == 0 {
+		return "", nil
+	}
+
+	return messages[0].ID, nil
+}
+
+// TruncateEventsAfter deletes all events after the given stream ID.
+// If afterID is empty, all events are deleted.
+func (r *RedisStorage) TruncateEventsAfter(ctx context.Context, sessionID string, afterID string) error {
+	streamKey := eventsStreamKey(sessionID)
+
+	if afterID == "" {
+		// Delete entire stream
+		return r.client.Del(ctx, streamKey).Err()
+	}
+
+	// Get all event IDs after the given ID
+	messages, err := r.client.XRange(ctx, streamKey, "("+afterID, "+").Result()
+	if err != nil {
+		return err
+	}
+
+	if len(messages) == 0 {
+		return nil
+	}
+
+	// Delete each event after the snapshot point
+	ids := make([]string, len(messages))
+	for i, msg := range messages {
+		ids[i] = msg.ID
+	}
+
+	return r.client.XDel(ctx, streamKey, ids...).Err()
+}
+
 // ============================================================================
 // Snapshot Storage
 // ============================================================================
@@ -567,6 +617,7 @@ func (r *RedisStorage) SaveSnapshot(ctx context.Context, snapshot *pb.Snapshot) 
 		"sizeBytes", snapshot.SizeBytes,
 		"turnNumber", snapshot.TurnNumber,
 		"messageCount", snapshot.MessageCount,
+		"eventStreamId", snapshot.EventStreamId,
 	)
 
 	_, err := pipe.Exec(ctx)
@@ -609,6 +660,10 @@ func (r *RedisStorage) GetSnapshot(ctx context.Context, sessionID, snapshotID st
 		var count int32
 		fmt.Sscanf(msgCountStr, "%d", &count)
 		snapshot.MessageCount = count
+	}
+
+	if eventStreamId, ok := data["eventStreamId"]; ok {
+		snapshot.EventStreamId = eventStreamId
 	}
 
 	return snapshot, nil
@@ -670,6 +725,10 @@ func (r *RedisStorage) ListSnapshots(ctx context.Context, sessionID string) ([]*
 			var count int32
 			fmt.Sscanf(msgCountStr, "%d", &count)
 			snapshot.MessageCount = count
+		}
+
+		if eventStreamId, ok := data["eventStreamId"]; ok {
+			snapshot.EventStreamId = eventStreamId
 		}
 
 		snapshots = append(snapshots, snapshot)

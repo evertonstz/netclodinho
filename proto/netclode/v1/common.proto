@@ -166,4 +166,5 @@ message Snapshot {
   int64 size_bytes = 5;                  // Logical workspace size at snapshot time
   int32 turn_number = 6;                 // Which turn this was created after (0 = initial)
   int32 message_count = 7;               // Number of messages at snapshot time
+  string event_stream_id = 8;            // Redis Stream ID of last event at snapshot time
 }
