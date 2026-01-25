@@ -1285,8 +1285,12 @@ func (m *Manager) RegisterAgentConnection(sessionID string, conn AgentConnection
 	// Check for pending prompt and session status
 	var pendingPrompt string
 	var wasInterrupted bool
+	var isRunning bool
 	if state, ok := m.sessions[sessionID]; ok {
-		if state.PendingPrompt != "" {
+		isRunning = (state.Session.Status == pb.SessionStatus_SESSION_STATUS_RUNNING)
+		// Only grab pending prompt if session is fully running
+		// During restore, session is RESUMING until restore job completes
+		if isRunning && state.PendingPrompt != "" {
 			pendingPrompt = state.PendingPrompt
 			state.PendingPrompt = "" // Clear it
 		}
