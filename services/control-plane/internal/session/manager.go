@@ -596,11 +596,20 @@ func (m *Manager) waitForSandbox(ctx context.Context, sessionID string) {
 func (m *Manager) Resume(ctx context.Context, id string) (*pb.Session, error) {
 	m.mu.Lock()
 	state, ok := m.sessions[id]
-	m.mu.Unlock()
-
 	if !ok {
+		m.mu.Unlock()
 		return nil, fmt.Errorf("session %s not found", id)
 	}
+
+	// If session is already CREATING or RESUMING, a sandbox creation is already in progress.
+	// Don't start another one - just return and let the caller queue the prompt.
+	if state.Session.Status == pb.SessionStatus_SESSION_STATUS_CREATING ||
+		state.Session.Status == pb.SessionStatus_SESSION_STATUS_RESUMING {
+		slog.Info("Session already creating/resuming, skipping Resume", "sessionID", id, "status", state.Session.Status.String())
+		m.mu.Unlock()
+		return state.Session, nil
+	}
+	m.mu.Unlock()
 
 	// Ensure we have a slot (exclude the session we're resuming from being paused)
 	m.ensureActiveSlot(ctx, id)
@@ -1314,12 +1323,16 @@ func (m *Manager) RegisterAgentConnection(sessionID string, conn AgentConnection
 		if isRunning && state.PendingPrompt != "" {
 			pendingPrompt = state.PendingPrompt
 			state.PendingPrompt = "" // Clear it
+		} else if state.PendingPrompt != "" {
+			slog.Warn("Pending prompt exists but session not running", "sessionID", sessionID, "status", state.Session.Status.String(), "pendingPrompt", state.PendingPrompt[:min(50, len(state.PendingPrompt))])
 		}
 		wasInterrupted = (state.Session.Status == pb.SessionStatus_SESSION_STATUS_INTERRUPTED)
+	} else {
+		slog.Warn("Session not found in RegisterAgentConnection", "sessionID", sessionID)
 	}
 	m.mu.Unlock()
 
-	slog.Info("Agent connection registered", "sessionID", sessionID, "wasInterrupted", wasInterrupted)
+	slog.Info("Agent connection registered", "sessionID", sessionID, "wasInterrupted", wasInterrupted, "isRunning", isRunning, "hasPendingPrompt", pendingPrompt != "")
 
 	ctx := context.Background()
 
