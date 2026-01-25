@@ -43,7 +43,7 @@ export type PromptEvent =
   | { type: "toolStart"; tool: string; toolUseId: string; parentToolUseId?: string; input?: JsonObject }
   | { type: "toolInput"; toolUseId: string; inputDelta: string; parentToolUseId?: string }
   | { type: "toolInputComplete"; toolUseId: string; parentToolUseId?: string; input: JsonObject }
-  | { type: "toolEnd"; tool: string; toolUseId: string; result?: string; error?: string; parentToolUseId?: string }
+  | { type: "toolEnd"; tool: string; toolUseId: string; result?: string; error?: string; parentToolUseId?: string; durationMs?: number }
   | { type: "thinking"; thinkingId: string; content: string; partial: boolean }
   | { type: "repoClone"; stage: "cloning" | "done" | "error"; repo: string; message: string }
   | { type: "result"; inputTokens: number; outputTokens: number; totalTurns: number }

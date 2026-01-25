@@ -49,6 +49,7 @@ message ToolEventPayload {
   optional string input_delta = 5;              // Streaming input delta (for TOOL_INPUT)
   optional string result = 6;                   // Tool output (for TOOL_END, on success)
   optional string error = 7;                    // Error message (for TOOL_END, on failure)
+  optional int64 duration_ms = 8;               // Duration in milliseconds (for TOOL_END)
 }
 
 // FileChangePayload contains data for file modification events.

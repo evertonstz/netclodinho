@@ -90,6 +90,15 @@ func normalizeEventKind(kind string) string {
 	return k
 }
 
+func formatToolDuration(ms int64) string {
+	if ms < 1000 {
+		return fmt.Sprintf("(%dms)", ms)
+	} else if ms < 60000 {
+		return fmt.Sprintf("(%.1fs)", float64(ms)/1000)
+	}
+	return fmt.Sprintf("(%.1fm)", float64(ms)/60000)
+}
+
 func formatEventKind(kind pb.AgentEventKind) string {
 	// Convert "AGENT_EVENT_KIND_TOOL_START" -> "tool_start"
 	s := kind.String()
@@ -140,17 +149,33 @@ func getToolOrPath(e *pb.AgentEvent) string {
 
 func getEventDetails(e *pb.AgentEvent) string {
 	switch e.Kind {
-	case pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_START,
-		pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_END,
-		pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_INPUT,
-		pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_INPUT_COMPLETE:
+	case pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_END:
 		if tool := e.GetTool(); tool != nil {
+			var duration string
+			if durationMs := tool.GetDurationMs(); durationMs > 0 {
+				duration = formatToolDuration(durationMs)
+			}
 			if tool.Result != nil {
+				if duration != "" {
+					return duration + " " + *tool.Result
+				}
 				return *tool.Result
 			}
 			if tool.Error != nil {
+				if duration != "" {
+					return duration + " error: " + *tool.Error
+				}
 				return "error: " + *tool.Error
 			}
+			if duration != "" {
+				return duration
+			}
+		}
+
+	case pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_START,
+		pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_INPUT,
+		pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_INPUT_COMPLETE:
+		if tool := e.GetTool(); tool != nil {
 			// Show input fields
 			if tool.Input != nil {
 				var parts []string

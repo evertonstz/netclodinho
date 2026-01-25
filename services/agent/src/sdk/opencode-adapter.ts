@@ -24,6 +24,9 @@ const openCodeSessionMap = new Map<string, string>();
 // Track assistant message IDs to filter out user message events
 const assistantMessageIds = new Set<string>();
 
+// Track tool start times for duration calculation
+const toolStartTimes = new Map<string, number>();
+
 export class OpenCodeAdapter implements SDKAdapter {
   private config: SDKConfig | null = null;
   private server: OpenCodeServer | null = null;
@@ -412,6 +415,7 @@ export class OpenCodeAdapter implements SDKAdapter {
             if (status === "pending" || status === "running") {
               // Only emit toolStart once when first seen
               if (status === "pending") {
+                toolStartTimes.set(callId, Date.now());
                 return {
                   type: "toolStart",
                   tool: toolName,
@@ -421,18 +425,26 @@ export class OpenCodeAdapter implements SDKAdapter {
               }
               return null;
             } else if (status === "completed") {
+              const startTime = toolStartTimes.get(callId);
+              toolStartTimes.delete(callId);
+              const durationMs = startTime ? Date.now() - startTime : undefined;
               return {
                 type: "toolEnd",
                 tool: toolName,
                 toolUseId: callId,
                 result: state.output as string | undefined,
+                ...(durationMs !== undefined && { durationMs }),
               };
             } else if (status === "error") {
+              const startTime = toolStartTimes.get(callId);
+              toolStartTimes.delete(callId);
+              const durationMs = startTime ? Date.now() - startTime : undefined;
               return {
                 type: "toolEnd",
                 tool: toolName,
                 toolUseId: callId,
                 error: state.error as string | undefined,
+                ...(durationMs !== undefined && { durationMs }),
               };
             }
             return null;
@@ -490,6 +502,7 @@ export class OpenCodeAdapter implements SDKAdapter {
     this.interruptSignal = false;
     // Clear tracked assistant message IDs for new prompt
     assistantMessageIds.clear();
+    toolStartTimes.clear();
   }
 
   isInterrupted(): boolean {
@@ -510,5 +523,6 @@ export class OpenCodeAdapter implements SDKAdapter {
 
     openCodeSessionMap.clear();
     assistantMessageIds.clear();
+    toolStartTimes.clear();
   }
 }

@@ -172,6 +172,7 @@ struct ToolEndEvent: AgentEventProtocol {
     let parentToolUseId: String?  // Set when this tool runs inside a Task/subagent
     let result: String?
     let error: String?
+    let durationMs: Int64?  // Duration in milliseconds
 
     var isSuccess: Bool { error == nil }
 }
@@ -356,7 +357,8 @@ extension AgentEvent {
         toolUseId: "tool_123",
         parentToolUseId: nil,
         result: "File contents...",
-        error: nil
+        error: nil,
+        durationMs: 45
     ))
 
     static let previewFileChange = AgentEvent.fileChange(FileChangeEvent(

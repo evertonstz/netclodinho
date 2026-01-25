@@ -42,6 +42,7 @@ struct PersistedEvent: Codable, Sendable {
         let input: [String: AnyCodableValue]?
         let inputDelta: String?
         let result: String?
+        let durationMs: Int64?  // Duration in milliseconds (for tool_end)
 
         // File change
         let path: String?
@@ -113,7 +114,8 @@ struct PersistedEvent: Codable, Sendable {
                     toolUseId: toolUseId ?? "",
                     parentToolUseId: parentToolUseId,
                     result: result,
-                    error: error
+                    error: error,
+                    durationMs: durationMs
                 ))
 
             case "file_change":

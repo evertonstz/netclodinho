@@ -21,6 +21,7 @@ export class ClaudeSDKAdapter implements SDKAdapter {
 
   // Track tool names by toolUseId
   private toolNameMap = new Map<string, string>();
+  private toolStartTimes = new Map<string, number>(); // Track tool start times for duration calculation
   private blockIndexToToolId = new Map<number, string>();
   private blockIndexToToolInput = new Map<number, string>();
   private blockIndexToThinkingId = new Map<string, string>();
@@ -137,6 +138,7 @@ export class ClaudeSDKAdapter implements SDKAdapter {
                   const alreadyEmitted = this.toolNameMap.has(block.id);
                   this.toolNameMap.set(block.id, block.name);
                   if (!alreadyEmitted) {
+                    this.toolStartTimes.set(block.id, Date.now());
                     const toolInput = block.input as JsonObject | undefined;
                     yield {
                       type: "toolStart",
@@ -157,6 +159,9 @@ export class ClaudeSDKAdapter implements SDKAdapter {
                 if (typeof block === "object" && block.type === "tool_result") {
                   const toolName = this.toolNameMap.get(block.tool_use_id) ?? "unknown";
                   this.toolNameMap.delete(block.tool_use_id);
+                  const startTime = this.toolStartTimes.get(block.tool_use_id);
+                  this.toolStartTimes.delete(block.tool_use_id);
+                  const durationMs = startTime ? Date.now() - startTime : undefined;
                   const isError = block.is_error === true;
                   yield {
                     type: "toolEnd",
@@ -165,6 +170,7 @@ export class ClaudeSDKAdapter implements SDKAdapter {
                     result: isError ? undefined : typeof block.content === "string" ? block.content : undefined,
                     error: isError ? (typeof block.content === "string" ? block.content : "Tool error") : undefined,
                     ...(this.currentParentToolUseId && { parentToolUseId: this.currentParentToolUseId }),
+                    ...(durationMs !== undefined && { durationMs }),
                   };
                 }
               }
@@ -183,6 +189,7 @@ export class ClaudeSDKAdapter implements SDKAdapter {
               if (contentBlock?.type === "tool_use") {
                 this.blockIndexToToolId.set(message.event.index, contentBlock.id);
                 this.toolNameMap.set(contentBlock.id, contentBlock.name);
+                this.toolStartTimes.set(contentBlock.id, Date.now());
                 yield {
                   type: "toolStart",
                   tool: contentBlock.name,

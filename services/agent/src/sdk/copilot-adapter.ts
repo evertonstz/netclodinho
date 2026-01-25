@@ -51,6 +51,7 @@ export class CopilotAdapter implements SDKAdapter {
 
   // Track tool names from execution_start for execution_complete events
   private toolNameMap = new Map<string, string>();
+  private toolStartTimes = new Map<string, number>(); // Track tool start times for duration calculation
 
   // Accumulate usage data for result event
   private lastUsage: { inputTokens: number; outputTokens: number } | null = null;
@@ -452,8 +453,9 @@ export class CopilotAdapter implements SDKAdapter {
         const toolName = data.toolName || "unknown";
         const toolCallId = data.toolCallId || event.id;
 
-        // Track tool name for execution_complete
+        // Track tool name and start time for execution_complete
         this.toolNameMap.set(toolCallId, toolName);
+        this.toolStartTimes.set(toolCallId, Date.now());
 
         return {
           type: "toolStart",
@@ -473,6 +475,9 @@ export class CopilotAdapter implements SDKAdapter {
         const toolCallId = data.toolCallId || event.id;
         const toolName = this.toolNameMap.get(toolCallId) || "unknown";
         this.toolNameMap.delete(toolCallId);
+        const startTime = this.toolStartTimes.get(toolCallId);
+        this.toolStartTimes.delete(toolCallId);
+        const durationMs = startTime ? Date.now() - startTime : undefined;
 
         const isError = data.resultType === "failure" || data.resultType === "rejected" || data.resultType === "denied";
 
@@ -482,6 +487,7 @@ export class CopilotAdapter implements SDKAdapter {
           toolUseId: toolCallId,
           result: isError ? undefined : data.result,
           error: isError ? (data.error || data.result) : undefined,
+          ...(durationMs !== undefined && { durationMs }),
         };
       }
 
@@ -517,6 +523,7 @@ export class CopilotAdapter implements SDKAdapter {
   clearInterruptSignal(): void {
     this.interruptSignal = false;
     this.toolNameMap.clear();
+    this.toolStartTimes.clear();
   }
 
   isInterrupted(): boolean {
@@ -541,5 +548,6 @@ export class CopilotAdapter implements SDKAdapter {
 
     copilotSessionMap.clear();
     this.toolNameMap.clear();
+    this.toolStartTimes.clear();
   }
 }

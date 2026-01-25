@@ -220,6 +220,7 @@ private struct RawAgentEvent: Decodable {
     let input: [String: AnyCodableValue]?
     let inputDelta: String?
     let result: String?
+    let durationMs: Int64?  // Duration in milliseconds (for tool_end)
 
     // File change
     let path: String?
@@ -291,7 +292,8 @@ private struct RawAgentEvent: Decodable {
                 toolUseId: toolUseId ?? "",
                 parentToolUseId: parentToolUseId,
                 result: result,
-                error: error
+                error: error,
+                durationMs: durationMs
             ))
 
         case "file_change":

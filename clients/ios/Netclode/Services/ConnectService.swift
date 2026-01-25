@@ -595,7 +595,8 @@ final class ConnectService {
                 toolUseId: tool.toolUseID,
                 parentToolUseId: tool.hasParentToolUseID ? tool.parentToolUseID : nil,
                 result: tool.hasResult ? tool.result : nil,
-                error: tool.hasError ? tool.error : nil
+                error: tool.hasError ? tool.error : nil,
+                durationMs: tool.hasDurationMs ? tool.durationMs : nil
             ))
             
         case .fileChange:
@@ -793,6 +794,7 @@ final class ConnectService {
         var stage: String? = nil
         var message: String? = nil
         var error: String? = nil
+        var durationMs: Int64? = nil
         
         switch proto.kind {
         case .toolStart:
@@ -822,6 +824,7 @@ final class ConnectService {
             parentToolUseId = t.hasParentToolUseID ? t.parentToolUseID : nil
             result = t.hasResult ? t.result : nil
             error = t.hasError ? t.error : nil
+            durationMs = t.hasDurationMs ? t.durationMs : nil
         case .fileChange:
             kind = "file_change"
             let fc = proto.fileChange
@@ -880,7 +883,7 @@ final class ConnectService {
         return PersistedEvent.RawAgentEventData(
             kind: kind,
             timestamp: proto.timestamp.date,
-            tool: tool, toolUseId: toolUseId, parentToolUseId: parentToolUseId, input: input, inputDelta: inputDelta, result: result,
+            tool: tool, toolUseId: toolUseId, parentToolUseId: parentToolUseId, input: input, inputDelta: inputDelta, result: result, durationMs: durationMs,
             path: path, action: action, linesAdded: linesAdded, linesRemoved: linesRemoved,
             command: command, cwd: cwd, exitCode: exitCode, output: output,
             content: content, thinkingId: thinkingId, partial: partial,

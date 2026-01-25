@@ -217,6 +217,7 @@ function promptEventToAgentMessage(event: PromptEvent): AgentMessage {
               result: event.result,
               error: event.error,
               ...(event.parentToolUseId && { parentToolUseId: event.parentToolUseId }),
+              ...(event.durationMs !== undefined && { durationMs: BigInt(event.durationMs) }),
             }),
           },
         }),

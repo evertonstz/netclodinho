@@ -16,6 +16,17 @@ struct ToolEventCard: View {
         endEvent?.isSuccess ?? true
     }
 
+    private var durationText: String? {
+        guard let ms = endEvent?.durationMs, ms > 0 else { return nil }
+        if ms < 1000 {
+            return "\(ms)ms"
+        } else if ms < 60000 {
+            return String(format: "%.1fs", Double(ms) / 1000)
+        } else {
+            return String(format: "%.1fm", Double(ms) / 60000)
+        }
+    }
+
     private var toolName: String {
         switch event {
         case .toolStart(let e): e.tool
@@ -65,6 +76,13 @@ struct ToolEventCard: View {
                             .padding(.vertical, 2)
                             .background(Color.secondary.opacity(0.15))
                             .clipShape(Capsule())
+                    }
+
+                    // Duration (if completed)
+                    if let duration = durationText {
+                        Text(duration)
+                            .font(.system(size: TypeScale.micro, weight: .medium, design: .monospaced))
+                            .foregroundStyle(.tertiary)
                     }
 
                     // Status indicator
@@ -488,6 +506,18 @@ private struct ChildToolEventRow: View {
     private var isRunning: Bool {
         grouped.endEvent == nil
     }
+
+    private var durationText: String? {
+        guard case .toolEnd(let e) = grouped.endEvent,
+              let ms = e.durationMs, ms > 0 else { return nil }
+        if ms < 1000 {
+            return "\(ms)ms"
+        } else if ms < 60000 {
+            return String(format: "%.1fs", Double(ms) / 1000)
+        } else {
+            return String(format: "%.1fm", Double(ms) / 60000)
+        }
+    }
     
     private var badgeColor: Color {
         if !isSuccess { return Theme.Colors.error }
@@ -545,6 +575,13 @@ private struct ChildToolEventRow: View {
                 .truncationMode(.middle)
             
             Spacer()
+
+            // Duration (if completed)
+            if let duration = durationText {
+                Text(duration)
+                    .font(.system(size: TypeScale.micro, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.tertiary)
+            }
             
             // Status
             if isRunning {
@@ -1114,7 +1151,8 @@ struct SystemEventCard: View {
                 toolUseId: "123",
                 parentToolUseId: nil,
                 result: "import SwiftUI\n\nstruct Button: View {\n    var body: some View {\n        Text(\"Hello\")\n    }\n}",
-                error: nil
+                error: nil,
+                durationMs: 23
             ),
             children: []
         )
@@ -1139,7 +1177,8 @@ struct SystemEventCard: View {
                 toolUseId: "125",
                 parentToolUseId: nil,
                 result: nil,
-                error: "File not found"
+                error: "File not found",
+                durationMs: 156
             ),
             children: []
         )

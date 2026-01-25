@@ -75,7 +75,8 @@ enum PreviewData {
             toolUseId: "tool_1",
             parentToolUseId: nil,
             result: "Found 5 files",
-            error: nil
+            error: nil,
+            durationMs: 127
         )),
         .fileChange(FileChangeEvent(
             id: UUID(),

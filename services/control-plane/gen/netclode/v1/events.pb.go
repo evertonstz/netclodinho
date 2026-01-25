@@ -389,6 +389,7 @@ type ToolEventPayload struct {
 	InputDelta      *string                `protobuf:"bytes,5,opt,name=input_delta,json=inputDelta,proto3,oneof" json:"input_delta,omitempty"`                    // Streaming input delta (for TOOL_INPUT)
 	Result          *string                `protobuf:"bytes,6,opt,name=result,proto3,oneof" json:"result,omitempty"`                                              // Tool output (for TOOL_END, on success)
 	Error           *string                `protobuf:"bytes,7,opt,name=error,proto3,oneof" json:"error,omitempty"`                                                // Error message (for TOOL_END, on failure)
+	DurationMs      *int64                 `protobuf:"varint,8,opt,name=duration_ms,json=durationMs,proto3,oneof" json:"duration_ms,omitempty"`                   // Duration in milliseconds (for TOOL_END)
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -470,6 +471,13 @@ func (x *ToolEventPayload) GetError() string {
 		return *x.Error
 	}
 	return ""
+}
+
+func (x *ToolEventPayload) GetDurationMs() int64 {
+	if x != nil && x.DurationMs != nil {
+		return *x.DurationMs
+	}
+	return 0
 }
 
 // FileChangePayload contains data for file modification events.
@@ -811,7 +819,7 @@ const file_netclode_v1_events_proto_rawDesc = "" +
 	"\fport_exposed\x18\a \x01(\v2\x1f.netclode.v1.PortExposedPayloadH\x00R\vportExposed\x12>\n" +
 	"\n" +
 	"repo_clone\x18\b \x01(\v2\x1d.netclode.v1.RepoClonePayloadH\x00R\trepoCloneB\t\n" +
-	"\apayload\"\xd0\x02\n" +
+	"\apayload\"\x86\x03\n" +
 	"\x10ToolEventPayload\x12\x12\n" +
 	"\x04tool\x18\x01 \x01(\tR\x04tool\x12\x1e\n" +
 	"\vtool_use_id\x18\x02 \x01(\tR\ttoolUseId\x120\n" +
@@ -820,12 +828,15 @@ const file_netclode_v1_events_proto_rawDesc = "" +
 	"\vinput_delta\x18\x05 \x01(\tH\x02R\n" +
 	"inputDelta\x88\x01\x01\x12\x1b\n" +
 	"\x06result\x18\x06 \x01(\tH\x03R\x06result\x88\x01\x01\x12\x19\n" +
-	"\x05error\x18\a \x01(\tH\x04R\x05error\x88\x01\x01B\x15\n" +
+	"\x05error\x18\a \x01(\tH\x04R\x05error\x88\x01\x01\x12$\n" +
+	"\vduration_ms\x18\b \x01(\x03H\x05R\n" +
+	"durationMs\x88\x01\x01B\x15\n" +
 	"\x13_parent_tool_use_idB\b\n" +
 	"\x06_inputB\x0e\n" +
 	"\f_input_deltaB\t\n" +
 	"\a_resultB\b\n" +
-	"\x06_error\"\xca\x01\n" +
+	"\x06_errorB\x0e\n" +
+	"\f_duration_ms\"\xca\x01\n" +
 	"\x11FileChangePayload\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12/\n" +
 	"\x06action\x18\x02 \x01(\x0e2\x17.netclode.v1.FileActionR\x06action\x12$\n" +
