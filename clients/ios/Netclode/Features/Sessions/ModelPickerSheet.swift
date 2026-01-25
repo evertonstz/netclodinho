@@ -224,6 +224,7 @@ struct InlineModelPicker: View {
                 }
                 .padding(Theme.Spacing.sm)
                 .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
                 .animation(.smooth(duration: 0.2), value: selectedModel?.id)
             }
             .buttonStyle(.plain)
