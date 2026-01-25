@@ -284,9 +284,8 @@ final class MessageRouter {
         case .snapshotRestored(let sessionId, let snapshotId, let messageCount):
             print("[MessageRouter] snapshot.restored received: snapshot=\(snapshotId) for session \(sessionId), messageCount=\(messageCount)")
             snapshotStore.setRestoreInProgress(for: sessionId, inProgress: false)
-            // Truncate local chat messages and clear events to match restored state
-            chatStore.truncateMessages(sessionId: sessionId, keepCount: messageCount)
-            eventStore.clearEvents(for: sessionId)
+            // Request session refresh to reload truncated messages and events from server
+            connectService.openSession(id: sessionId, resume: false)
         }
     }
 
