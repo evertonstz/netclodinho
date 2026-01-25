@@ -55,104 +55,109 @@ struct PromptSheet: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                // Text input area
-                TextField(
-                    "What do you want to build?",
-                    text: $promptText,
-                    axis: .vertical
-                )
-                .font(.netclodeBody)
-                .tint(Theme.Colors.brand)
-                .lineLimit(3...12)
-                .padding(Theme.Spacing.md)
-                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Theme.Radius.lg))
-                .padding(.horizontal, Theme.Spacing.md)
-                .padding(.top, Theme.Spacing.md)
-                .focused($isFocused)
+            ScrollView {
+                VStack(spacing: 0) {
+                    // Text input area
+                    TextField(
+                        "What do you want to build?",
+                        text: $promptText,
+                        axis: .vertical
+                    )
+                    .font(.netclodeBody)
+                    .tint(Theme.Colors.brand)
+                    .lineLimit(3...12)
+                    .padding(Theme.Spacing.md)
+                    .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Theme.Radius.lg))
+                    .padding(.horizontal, Theme.Spacing.md)
+                    .padding(.top, Theme.Spacing.md)
+                    .focused($isFocused)
 
-                // SDK and Model section
-                VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                    HStack(spacing: Theme.Spacing.xs) {
-                        Image(systemName: "cpu")
-                            .foregroundStyle(.secondary)
-                        Text("Agent SDK")
-                            .font(.netclodeCaption)
-                            .foregroundStyle(.secondary)
-                    }
+                    // SDK and Model section
+                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                        HStack(spacing: Theme.Spacing.xs) {
+                            Image(systemName: "cpu")
+                                .foregroundStyle(.secondary)
+                            Text("Agent SDK")
+                                .font(.netclodeCaption)
+                                .foregroundStyle(.secondary)
+                        }
 
-                    SdkPicker(selection: $selectedSdkType)
-
-                    // Model picker (shown for all SDK types)
-                    HStack(spacing: Theme.Spacing.xs) {
-                        Image(systemName: "sparkles")
-                            .foregroundStyle(.secondary)
-                        Text("Model")
-                            .font(.netclodeCaption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.top, Theme.Spacing.xs)
-
-                    ZStack {
-                        // Loading state
-                        if isLoadingModels && availablePickerModels.isEmpty {
-                            HStack {
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                                Text("Loading models...")
-                                    .font(.netclodeCaption)
-                                    .foregroundStyle(.secondary)
-                                Spacer()
+                        SdkPicker(selection: $selectedSdkType)
+                            .onTapGesture {
+                                isFocused = false
                             }
-                            .padding(Theme.Spacing.sm)
-                            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
-                            .transition(.opacity)
+
+                        // Model picker (shown for all SDK types)
+                        HStack(spacing: Theme.Spacing.xs) {
+                            Image(systemName: "sparkles")
+                                .foregroundStyle(.secondary)
+                            Text("Model")
+                                .font(.netclodeCaption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.top, Theme.Spacing.xs)
+
+                        ZStack {
+                            // Loading state
+                            if isLoadingModels && availablePickerModels.isEmpty {
+                                HStack {
+                                    ProgressView()
+                                        .scaleEffect(0.8)
+                                    Text("Loading models...")
+                                        .font(.netclodeCaption)
+                                        .foregroundStyle(.secondary)
+                                    Spacer()
+                                }
+                                .padding(Theme.Spacing.sm)
+                                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
+                                .transition(.opacity)
+                            }
+                            
+                            // Model picker (show even while loading if we have cached models)
+                            if !availablePickerModels.isEmpty {
+                                InlineModelPicker(
+                                    selectedModelId: selectedModelIdBinding,
+                                    models: availablePickerModels,
+                                    isExpanded: $showModelDropdown
+                                )
+                                .transition(.opacity)
+                            }
+                        }
+                        .animation(.smooth(duration: 0.2), value: isLoadingModels)
+                        .animation(.smooth(duration: 0.2), value: availablePickerModels.count)
+                    }
+                    .padding(.horizontal, Theme.Spacing.md)
+                    .padding(.top, Theme.Spacing.md)
+
+                    // Repository section
+                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                        HStack(spacing: Theme.Spacing.xs) {
+                            Image("github-mark")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 14, height: 14)
+                                .foregroundStyle(.secondary)
+                            Text("Repository (optional)")
+                                .font(.netclodeCaption)
+                                .foregroundStyle(.secondary)
                         }
                         
-                        // Model picker (show even while loading if we have cached models)
-                        if !availablePickerModels.isEmpty {
-                            InlineModelPicker(
-                                selectedModelId: selectedModelIdBinding,
-                                models: availablePickerModels,
-                                isExpanded: $showModelDropdown
-                            )
-                            .transition(.opacity)
+                        RepoAutocomplete(text: $repoURL)
+                        
+                        if !repoURL.isEmpty {
+                            Picker("Access", selection: $repoAccess) {
+                                Text("Read & Write").tag(RepoAccess.write)
+                                Text("Read Only").tag(RepoAccess.read)
+                            }
+                            .pickerStyle(.segmented)
                         }
                     }
-                    .animation(.smooth(duration: 0.2), value: isLoadingModels)
-                    .animation(.smooth(duration: 0.2), value: availablePickerModels.count)
+                    .padding(.horizontal, Theme.Spacing.md)
+                    .padding(.top, Theme.Spacing.md)
+                    .padding(.bottom, Theme.Spacing.lg)
                 }
-                .padding(.horizontal, Theme.Spacing.md)
-                .padding(.top, Theme.Spacing.md)
-
-                // Repository section
-                VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                    HStack(spacing: Theme.Spacing.xs) {
-                        Image("github-mark")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 14, height: 14)
-                            .foregroundStyle(.secondary)
-                        Text("Repository (optional)")
-                            .font(.netclodeCaption)
-                            .foregroundStyle(.secondary)
-                    }
-                    
-                    RepoAutocomplete(text: $repoURL)
-                    
-                    if !repoURL.isEmpty {
-                        Picker("Access", selection: $repoAccess) {
-                            Text("Read & Write").tag(RepoAccess.write)
-                            Text("Read Only").tag(RepoAccess.read)
-                        }
-                        .pickerStyle(.segmented)
-                    }
-                }
-                .padding(.horizontal, Theme.Spacing.md)
-                .padding(.top, Theme.Spacing.md)
-
-                Spacer()
             }
+            .scrollDismissesKeyboard(.interactively)
             .background(Theme.Colors.background)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -206,6 +211,12 @@ struct PromptSheet: View {
                 // Close dropdown and animate the transition
                 withAnimation(.smooth(duration: 0.2)) {
                     showModelDropdown = false
+                }
+            }
+            .onChange(of: showModelDropdown) { _, isExpanded in
+                // Dismiss keyboard when opening model dropdown
+                if isExpanded {
+                    isFocused = false
                 }
             }
             .onChange(of: promptText) { _, newValue in
