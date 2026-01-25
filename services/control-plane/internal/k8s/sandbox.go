@@ -552,6 +552,26 @@ func (r *k8sRuntime) DeleteSandbox(ctx context.Context, sessionID string) error 
 	return nil
 }
 
+// waitForSandboxDeletion polls until the sandbox is actually deleted.
+// This is faster than a blind sleep since deletion usually completes quickly.
+func (r *k8sRuntime) waitForSandboxDeletion(ctx context.Context, sessionID string, timeout time.Duration) error {
+	name := sandboxName(sessionID)
+	deadline := time.Now().Add(timeout)
+
+	for time.Now().Before(deadline) {
+		_, err := r.dynamicClient.Resource(SandboxGVR).Namespace(r.namespace).Get(ctx, name, metav1.GetOptions{})
+		if errors.IsNotFound(err) {
+			return nil // Sandbox is deleted
+		}
+		if err != nil {
+			return fmt.Errorf("check sandbox deletion: %w", err)
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+
+	return fmt.Errorf("timeout waiting for sandbox %s deletion", name)
+}
+
 // DeletePVC deletes the persistent volume claim for a session.
 func (r *k8sRuntime) DeletePVC(ctx context.Context, sessionID string) error {
 	name := pvcName(sessionID)
@@ -1322,8 +1342,10 @@ func (r *k8sRuntime) RestoreFromSnapshot(ctx context.Context, sessionID, snapsho
 		slog.Warn("Failed to delete sandbox", "sessionID", sessionID, "error", err)
 	}
 
-	// Wait for sandbox/pod to terminate
-	time.Sleep(2 * time.Second)
+	// Wait for sandbox to actually be deleted (poll instead of blind sleep)
+	if err := r.waitForSandboxDeletion(ctx, sessionID, 30*time.Second); err != nil {
+		slog.Warn("Timeout waiting for sandbox deletion, proceeding anyway", "sessionID", sessionID, "error", err)
+	}
 
 	slog.Info("Ready for restore", "sessionID", sessionID, "snapshotID", snapshotID, "oldPVC", oldPVCName)
 	return oldPVCName, nil
@@ -1419,7 +1441,7 @@ func (r *k8sRuntime) WaitForRestoreJob(ctx context.Context, sessionID, snapshotI
 		if err != nil {
 			if errors.IsNotFound(err) {
 				// Job might not exist yet, wait and retry
-				time.Sleep(2 * time.Second)
+				time.Sleep(500 * time.Millisecond)
 				continue
 			}
 			return fmt.Errorf("get restore job %s: %w", jobName, err)
@@ -1436,7 +1458,7 @@ func (r *k8sRuntime) WaitForRestoreJob(ctx context.Context, sessionID, snapshotI
 		}
 
 		slog.Debug("Restore job still running", "sessionID", sessionID, "jobName", jobName, "active", job.Status.Active, "succeeded", job.Status.Succeeded, "failed", job.Status.Failed)
-		time.Sleep(2 * time.Second)
+		time.Sleep(500 * time.Millisecond)
 	}
 
 	return fmt.Errorf("timeout waiting for restore job %s", jobName)

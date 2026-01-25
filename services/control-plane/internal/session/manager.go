@@ -272,15 +272,18 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 		}
 		slog.Info("Snapshot restore completed, creating sandbox with existing PVC", "sessionID", sessionID, "pvc", pvcName)
 
-		// Delete the old orphaned PVC now that restore is complete
-		if oldPVCName, err := m.storage.GetOldPVCName(ctx, sessionID); err == nil && oldPVCName != "" {
-			if err := m.k8s.DeletePVCByName(ctx, oldPVCName); err != nil {
-				slog.Warn("Failed to delete old PVC after restore", "sessionID", sessionID, "pvc", oldPVCName, "error", err)
-			} else {
-				slog.Info("Deleted old PVC after restore", "sessionID", sessionID, "pvc", oldPVCName)
+		// Delete the old orphaned PVC in background (non-blocking)
+		go func(sessionID string) {
+			bgCtx := context.Background()
+			if oldPVCName, err := m.storage.GetOldPVCName(bgCtx, sessionID); err == nil && oldPVCName != "" {
+				if err := m.k8s.DeletePVCByName(bgCtx, oldPVCName); err != nil {
+					slog.Warn("Failed to delete old PVC after restore", "sessionID", sessionID, "pvc", oldPVCName, "error", err)
+				} else {
+					slog.Info("Deleted old PVC after restore", "sessionID", sessionID, "pvc", oldPVCName)
+				}
+				_ = m.storage.ClearOldPVCName(bgCtx, sessionID)
 			}
-			_ = m.storage.ClearOldPVCName(ctx, sessionID)
-		}
+		}(sessionID)
 
 		// Pass the existing PVC name so sandbox uses it instead of creating a new one
 		env[k8s.ExistingPVCEnvKey] = pvcName
@@ -346,13 +349,22 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 	m.mu.Lock()
 	if state, ok := m.sessions[sessionID]; ok {
 		state.ServiceFQDN = fqdn
-		state.Session.Status = pb.SessionStatus_SESSION_STATUS_RUNNING
 		pendingPrompt = state.PendingPrompt
 		state.PendingPrompt = "" // Clear it
+		// Only set RUNNING if there's a pending prompt, otherwise READY
+		if pendingPrompt != "" {
+			state.Session.Status = pb.SessionStatus_SESSION_STATUS_RUNNING
+		} else {
+			state.Session.Status = pb.SessionStatus_SESSION_STATUS_READY
+		}
 	}
 	m.mu.Unlock()
 
-	if err := m.storage.UpdateSessionStatus(ctx, sessionID, pb.SessionStatus_SESSION_STATUS_RUNNING); err != nil {
+	newStatus := pb.SessionStatus_SESSION_STATUS_READY
+	if pendingPrompt != "" {
+		newStatus = pb.SessionStatus_SESSION_STATUS_RUNNING
+	}
+	if err := m.storage.UpdateSessionStatus(ctx, sessionID, newStatus); err != nil {
 		slog.Error("Failed to update session status", "sessionID", sessionID, "error", err)
 	}
 
@@ -369,7 +381,7 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 		}
 	}
 
-	slog.Info("Session created and running", "sessionID", sessionID, "fqdn", fqdn)
+	slog.Info("Session sandbox ready", "sessionID", sessionID, "fqdn", fqdn, "status", newStatus)
 }
 
 // createSandboxViaClaim uses SandboxClaim for warm pool allocation
@@ -472,13 +484,22 @@ func (m *Manager) createSandboxViaClaim(ctx context.Context, sessionID string, r
 	m.mu.Lock()
 	if state, ok := m.sessions[sessionID]; ok {
 		state.ServiceFQDN = fqdn
-		state.Session.Status = pb.SessionStatus_SESSION_STATUS_RUNNING
 		pendingPrompt = state.PendingPrompt
 		state.PendingPrompt = "" // Clear it
+		// Only set RUNNING if there's a pending prompt, otherwise READY
+		if pendingPrompt != "" {
+			state.Session.Status = pb.SessionStatus_SESSION_STATUS_RUNNING
+		} else {
+			state.Session.Status = pb.SessionStatus_SESSION_STATUS_READY
+		}
 	}
 	m.mu.Unlock()
 
-	if err := m.storage.UpdateSessionStatus(ctx, sessionID, pb.SessionStatus_SESSION_STATUS_RUNNING); err != nil {
+	newStatus := pb.SessionStatus_SESSION_STATUS_READY
+	if pendingPrompt != "" {
+		newStatus = pb.SessionStatus_SESSION_STATUS_RUNNING
+	}
+	if err := m.storage.UpdateSessionStatus(ctx, sessionID, newStatus); err != nil {
 		slog.Error("Failed to update session status", "sessionID", sessionID, "error", err)
 	}
 
@@ -495,7 +516,7 @@ func (m *Manager) createSandboxViaClaim(ctx context.Context, sessionID string, r
 		}
 	}
 
-	slog.Info("Session created via warm pool", "sessionID", sessionID, "fqdn", fqdn)
+	slog.Info("Session sandbox ready (warm pool)", "sessionID", sessionID, "fqdn", fqdn, "status", newStatus)
 }
 
 func (m *Manager) updateSessionStatus(ctx context.Context, sessionID string, status pb.SessionStatus) {
@@ -1800,20 +1821,28 @@ func (m *Manager) RestoreSnapshot(ctx context.Context, sessionID, snapshotID str
 		}
 	}
 
-	// Truncate messages to snapshot point
-	if err := m.storage.TruncateMessages(ctx, sessionID, int(snapshot.MessageCount)); err != nil {
-		slog.Warn("Failed to truncate messages", "sessionID", sessionID, "error", err)
-	}
-
-	// Truncate events to snapshot point
-	if err := m.storage.TruncateEventsAfter(ctx, sessionID, snapshot.EventStreamId); err != nil {
-		slog.Warn("Failed to truncate events", "sessionID", sessionID, "error", err)
-	}
-
-	// Truncate notifications after snapshot point
-	if err := m.storage.TruncateNotificationsAfter(ctx, sessionID, snapshot.EventStreamId); err != nil {
-		slog.Warn("Failed to truncate notifications", "sessionID", sessionID, "error", err)
-	}
+	// Truncate messages, events, and notifications in parallel (independent operations)
+	var truncateWg sync.WaitGroup
+	truncateWg.Add(3)
+	go func() {
+		defer truncateWg.Done()
+		if err := m.storage.TruncateMessages(ctx, sessionID, int(snapshot.MessageCount)); err != nil {
+			slog.Warn("Failed to truncate messages", "sessionID", sessionID, "error", err)
+		}
+	}()
+	go func() {
+		defer truncateWg.Done()
+		if err := m.storage.TruncateEventsAfter(ctx, sessionID, snapshot.EventStreamId); err != nil {
+			slog.Warn("Failed to truncate events", "sessionID", sessionID, "error", err)
+		}
+	}()
+	go func() {
+		defer truncateWg.Done()
+		if err := m.storage.TruncateNotificationsAfter(ctx, sessionID, snapshot.EventStreamId); err != nil {
+			slog.Warn("Failed to truncate notifications", "sessionID", sessionID, "error", err)
+		}
+	}()
+	truncateWg.Wait()
 
 	// Delete snapshots newer than the restored one (destructive restore)
 	m.deleteSnapshotsAfter(ctx, sessionID, snapshot)
