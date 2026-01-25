@@ -234,18 +234,27 @@ kubectl -n kube-system logs -l app=juicefs-csi-controller
 
 ### JuiceFS slow performance
 
-JuiceFS uses S3-compatible object storage as backend (DigitalOcean Spaces), which has high latency for small file operations. The CSI driver is configured with writeback caching to improve IOPS.
+JuiceFS uses S3-compatible object storage as backend (DigitalOcean Spaces), which has high latency for small file operations. Multiple layers of caching are configured to improve IOPS.
 
-**Configuration:** `infra/k8s/juicefs-config.yaml`
+**Configurations:**
+- `infra/k8s/juicefs-config.yaml` - JuiceFS CSI mount options
+- `infra/ansible/roles/kata/tasks/main.yaml` - Kata virtiofs settings
 
-Key settings:
-- `--writeback`: Async writes to local disk, synced to S3 in background (10-50x IOPS improvement)
+**JuiceFS settings:**
+- `--writeback`: Async writes to local disk, synced to S3 in background
 - `cacheDirs` with HostPath: Persists cache across pod restarts
 
-Without writeback: ~30 IOPS
-With writeback: ~400+ IOPS
+**Kata virtiofs settings:**
+- `virtio_fs_cache = "always"`: Caches metadata, data, and pathname lookup in guest
 
-To verify caching is enabled, check mount options in a JuiceFS mount pod:
+**Performance:**
+| Configuration | IOPS |
+|---------------|------|
+| No caching | ~30 |
+| + JuiceFS writeback | ~400 |
+| + virtiofs cache="always" | **~650** |
+
+To verify JuiceFS caching:
 ```bash
 kubectl -n kube-system exec $(kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-mount -o name | head -1) -- ps aux | grep juicefs
 # Should show: -o writeback,cache-dir=/var/jfsCache,...

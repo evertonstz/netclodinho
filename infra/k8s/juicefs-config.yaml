@@ -47,8 +47,15 @@ data:
     mountPodPatch:
       - mountOptions:
           # Writeback cache: async writes to local disk, sync to S3 in background
-          # This is the key IOPS improvement (10-50x)
           - writeback
+          # Metadata caching - reduces round-trips to Redis
+          - attr-cache=10
+          - entry-cache=10
+          - dir-entry-cache=10
+          # Cache open file handles (reuse without rechecking)
+          - open-cache=10
+          # Kernel-level readdir caching
+          - readdir-cache
         # Mount host cache directory into JuiceFS mount pods
         # Ensures cache persists across pod restarts
         cacheDirs:
