@@ -205,19 +205,16 @@ struct ChatView: View {
                         proxy.scrollTo("bottom", anchor: .bottom)
                     }
                 }
-                .onAppear {
-                    updateTimelineIfNeeded()
-                    // Scroll immediately then show
-                    proxy.scrollTo("bottom", anchor: .bottom)
-                    isContentVisible = true
-                }
                 .task(id: sessionId) {
+                    // Hide content, update timeline, scroll, then fade in
                     isContentVisible = false
                     updateTimelineIfNeeded()
                     // Give layout a moment then scroll and show
                     try? await Task.sleep(for: .milliseconds(50))
                     proxy.scrollTo("bottom", anchor: .bottom)
-                    isContentVisible = true
+                    withAnimation(.easeOut(duration: 0.15)) {
+                        isContentVisible = true
+                    }
                 }
         }
         .safeAreaInset(edge: .bottom) {

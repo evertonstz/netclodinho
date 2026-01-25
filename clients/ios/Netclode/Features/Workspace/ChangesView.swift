@@ -214,19 +214,23 @@ private struct FileChangeDisclosure: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding(Theme.Spacing.md)
+                        .transition(.opacity)
                     } else if let diff = diffContent, !diff.isEmpty {
                         UnifiedDiffView(diffContent: diff, showFileHeaders: false)
                             .padding(.horizontal, Theme.Spacing.sm)
                             .padding(.bottom, Theme.Spacing.sm)
+                            .transition(.opacity.animation(.easeOut(duration: 0.2)))
                     } else {
                         Text("No diff available")
                             .font(.netclodeCaption)
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity)
                             .padding(Theme.Spacing.md)
+                            .transition(.opacity)
                     }
                 }
                 .background(Theme.Colors.secondaryBackground)
+                .animation(.easeOut(duration: 0.2), value: isLoadingDiff)
             }
             
             Divider()
