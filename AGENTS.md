@@ -118,6 +118,12 @@ go run ./clients/cli events tail <session-id>
 
 # Delete a session
 go run ./clients/cli sessions delete <session-id>
+
+# Pause a session (stops container, preserves workspace)
+go run ./clients/cli sessions pause <session-id>
+
+# Resume a paused session
+go run ./clients/cli sessions resume <session-id>
 ```
 
 ### JSON output
