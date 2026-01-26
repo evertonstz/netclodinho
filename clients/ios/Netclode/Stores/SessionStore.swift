@@ -40,6 +40,12 @@ final class SessionStore {
             sessions[index] = session
         }
     }
+    
+    func updateRepoAccess(sessionId: String, repoAccess: RepoAccess) {
+        if let index = sessions.firstIndex(where: { $0.id == sessionId }) {
+            sessions[index].repoAccess = repoAccess
+        }
+    }
 
     func removeSession(id: String) {
         sessions.removeAll { $0.id == id }

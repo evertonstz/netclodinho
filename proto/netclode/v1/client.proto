@@ -37,6 +37,8 @@ message ClientMessage {
     // Snapshot operations
     ListSnapshotsRequest list_snapshots = 19;
     RestoreSnapshotRequest restore_snapshot = 20;
+    // Repo access update
+    UpdateRepoAccessRequest update_repo_access = 21;
   }
 }
 
@@ -66,6 +68,8 @@ message ServerMessage {
     SnapshotCreatedResponse snapshot_created = 20;   // Push notification when auto-snapshot is created
     SnapshotListResponse snapshot_list = 21;
     SnapshotRestoredResponse snapshot_restored = 22;
+    // Repo access update
+    RepoAccessUpdatedResponse repo_access_updated = 23;
   }
 }
 
@@ -182,6 +186,12 @@ message RestoreSnapshotRequest {
   optional string request_id = 1;
   string session_id = 2;
   string snapshot_id = 3;
+}
+
+message UpdateRepoAccessRequest {
+  optional string request_id = 1;
+  string session_id = 2;
+  RepoAccess repo_access = 3;              // New access level
 }
 
 // ============================================================================
@@ -317,4 +327,11 @@ message SnapshotRestoredResponse {
   string snapshot_id = 2;
   int32 messages_restored = 3;               // Number of messages after restore
   optional string request_id = 4;
+}
+
+// RepoAccessUpdatedResponse is sent after repo access level is updated.
+message RepoAccessUpdatedResponse {
+  string session_id = 1;
+  RepoAccess repo_access = 2;                // New access level that was set
+  optional string request_id = 3;
 }

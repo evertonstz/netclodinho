@@ -80,6 +80,9 @@ enum ServerMessage: Sendable {
     case snapshotCreated(sessionId: String, snapshot: Snapshot)
     case snapshotList(sessionId: String, snapshots: [Snapshot])
     case snapshotRestored(sessionId: String, snapshotId: String, messageCount: Int)
+
+    // Repo access
+    case repoAccessUpdated(sessionId: String, repoAccess: RepoAccess)
 }
 
 extension ServerMessage: Decodable {
@@ -93,6 +96,7 @@ extension ServerMessage: Decodable {
         case deletedIds
         case files, diff
         case snapshot, snapshots, snapshotId, messageCount
+        case repoAccess
     }
 
     init(from decoder: Decoder) throws {
@@ -219,6 +223,12 @@ extension ServerMessage: Decodable {
             let snapshotId = try container.decode(String.self, forKey: .snapshotId)
             let messageCount = try container.decodeIfPresent(Int.self, forKey: .messageCount) ?? 0
             self = .snapshotRestored(sessionId: sessionId, snapshotId: snapshotId, messageCount: messageCount)
+
+        case "repo.access.updated":
+            let sessionId = try container.decode(String.self, forKey: .sessionId)
+            let repoAccessStr = try container.decode(String.self, forKey: .repoAccess)
+            let repoAccess = RepoAccess(rawValue: repoAccessStr) ?? .read
+            self = .repoAccessUpdated(sessionId: sessionId, repoAccess: repoAccess)
 
         default:
             throw DecodingError.dataCorruptedError(

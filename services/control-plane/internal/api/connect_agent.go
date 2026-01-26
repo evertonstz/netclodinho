@@ -98,6 +98,9 @@ func (h *ConnectAgentServiceHandler) Connect(ctx context.Context, stream *connec
 	if config.GitHubToken != "" {
 		sessionConfig.GithubToken = &config.GitHubToken
 	}
+	if config.GitHubCopilotToken != "" {
+		sessionConfig.GithubCopilotToken = &config.GitHubCopilotToken
+	}
 	if config.Model != "" {
 		sessionConfig.Model = &config.Model
 	}
@@ -314,6 +317,18 @@ func (c *AgentConnection) ResizeTerminal(cols, rows int) error {
 						Rows: int32(rows),
 					},
 				},
+			},
+		},
+	})
+}
+
+// UpdateGitCredentials sends updated git credentials to the agent.
+func (c *AgentConnection) UpdateGitCredentials(token string, repoAccess v1.RepoAccess) error {
+	return c.Send(&v1.ControlPlaneMessage{
+		Message: &v1.ControlPlaneMessage_UpdateGitCredentials{
+			UpdateGitCredentials: &v1.UpdateGitCredentials{
+				GithubToken: token,
+				RepoAccess:  repoAccess,
 			},
 		},
 	})

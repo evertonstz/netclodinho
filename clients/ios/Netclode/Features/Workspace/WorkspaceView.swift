@@ -78,6 +78,27 @@ struct WorkspaceView: View {
                         
                         Divider()
                         
+                        // Repo access picker (only show if session has a repo)
+                        if session.repo != nil {
+                            Menu {
+                                ForEach(RepoAccess.allCases, id: \.self) { access in
+                                    Button {
+                                        connectService.send(.updateRepoAccess(sessionId: sessionId, repoAccess: access))
+                                    } label: {
+                                        if session.repoAccess == access {
+                                            Label(access.displayName, systemImage: "checkmark")
+                                        } else {
+                                            Text(access.displayName)
+                                        }
+                                    }
+                                }
+                            } label: {
+                                Label(session.repoAccess?.displayName ?? "No Access", systemImage: "lock.shield")
+                            }
+                            
+                            Divider()
+                        }
+                        
                         // History
                         Button {
                             showSnapshotSheet = true

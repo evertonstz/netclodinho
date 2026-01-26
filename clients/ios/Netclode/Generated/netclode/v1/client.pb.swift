@@ -189,6 +189,15 @@ public struct Netclode_V1_ClientMessage: Sendable {
     set {message = .restoreSnapshot(newValue)}
   }
 
+  /// Repo access update
+  public var updateRepoAccess: Netclode_V1_UpdateRepoAccessRequest {
+    get {
+      if case .updateRepoAccess(let v)? = message {return v}
+      return Netclode_V1_UpdateRepoAccessRequest()
+    }
+    set {message = .updateRepoAccess(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Message: Equatable, Sendable {
@@ -213,6 +222,8 @@ public struct Netclode_V1_ClientMessage: Sendable {
     /// Snapshot operations
     case listSnapshots(Netclode_V1_ListSnapshotsRequest)
     case restoreSnapshot(Netclode_V1_RestoreSnapshotRequest)
+    /// Repo access update
+    case updateRepoAccess(Netclode_V1_UpdateRepoAccessRequest)
 
   }
 
@@ -404,6 +415,15 @@ public struct Netclode_V1_ServerMessage: Sendable {
     set {message = .snapshotRestored(newValue)}
   }
 
+  /// Repo access update
+  public var repoAccessUpdated: Netclode_V1_RepoAccessUpdatedResponse {
+    get {
+      if case .repoAccessUpdated(let v)? = message {return v}
+      return Netclode_V1_RepoAccessUpdatedResponse()
+    }
+    set {message = .repoAccessUpdated(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Message: Equatable, Sendable {
@@ -430,6 +450,8 @@ public struct Netclode_V1_ServerMessage: Sendable {
     case snapshotCreated(Netclode_V1_SnapshotCreatedResponse)
     case snapshotList(Netclode_V1_SnapshotListResponse)
     case snapshotRestored(Netclode_V1_SnapshotRestoredResponse)
+    /// Repo access update
+    case repoAccessUpdated(Netclode_V1_RepoAccessUpdatedResponse)
 
   }
 
@@ -1019,6 +1041,32 @@ public struct Netclode_V1_RestoreSnapshotRequest: Sendable {
   fileprivate var _requestID: String? = nil
 }
 
+public struct Netclode_V1_UpdateRepoAccessRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var requestID: String {
+    get {return _requestID ?? String()}
+    set {_requestID = newValue}
+  }
+  /// Returns true if `requestID` has been explicitly set.
+  public var hasRequestID: Bool {return self._requestID != nil}
+  /// Clears the value of `requestID`. Subsequent reads from it will return its default value.
+  public mutating func clearRequestID() {self._requestID = nil}
+
+  public var sessionID: String = String()
+
+  /// New access level
+  public var repoAccess: Netclode_V1_RepoAccess = .unspecified
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _requestID: String? = nil
+}
+
 public struct Netclode_V1_SessionCreatedResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -1594,13 +1642,40 @@ public struct Netclode_V1_SnapshotRestoredResponse: Sendable {
   fileprivate var _requestID: String? = nil
 }
 
+/// RepoAccessUpdatedResponse is sent after repo access level is updated.
+public struct Netclode_V1_RepoAccessUpdatedResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var sessionID: String = String()
+
+  /// New access level that was set
+  public var repoAccess: Netclode_V1_RepoAccess = .unspecified
+
+  public var requestID: String {
+    get {return _requestID ?? String()}
+    set {_requestID = newValue}
+  }
+  /// Returns true if `requestID` has been explicitly set.
+  public var hasRequestID: Bool {return self._requestID != nil}
+  /// Clears the value of `requestID`. Subsequent reads from it will return its default value.
+  public mutating func clearRequestID() {self._requestID = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _requestID: String? = nil
+}
+
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate let _protobuf_package = "netclode.v1"
 
 extension Netclode_V1_ClientMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ClientMessage"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}create_session\0\u{3}list_sessions\0\u{3}open_session\0\u{3}resume_session\0\u{3}pause_session\0\u{3}delete_session\0\u{3}delete_all_sessions\0\u{3}send_prompt\0\u{3}interrupt_prompt\0\u{3}terminal_input\0\u{3}terminal_resize\0\u{3}expose_port\0\u{1}sync\0\u{3}list_github_repos\0\u{3}git_status\0\u{3}git_diff\0\u{3}list_models\0\u{3}get_copilot_status\0\u{3}list_snapshots\0\u{3}restore_snapshot\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}create_session\0\u{3}list_sessions\0\u{3}open_session\0\u{3}resume_session\0\u{3}pause_session\0\u{3}delete_session\0\u{3}delete_all_sessions\0\u{3}send_prompt\0\u{3}interrupt_prompt\0\u{3}terminal_input\0\u{3}terminal_resize\0\u{3}expose_port\0\u{1}sync\0\u{3}list_github_repos\0\u{3}git_status\0\u{3}git_diff\0\u{3}list_models\0\u{3}get_copilot_status\0\u{3}list_snapshots\0\u{3}restore_snapshot\0\u{3}update_repo_access\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1868,6 +1943,19 @@ extension Netclode_V1_ClientMessage: SwiftProtobuf.Message, SwiftProtobuf._Messa
           self.message = .restoreSnapshot(v)
         }
       }()
+      case 21: try {
+        var v: Netclode_V1_UpdateRepoAccessRequest?
+        var hadOneofValue = false
+        if let current = self.message {
+          hadOneofValue = true
+          if case .updateRepoAccess(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.message = .updateRepoAccess(v)
+        }
+      }()
       default: break
       }
     }
@@ -1959,6 +2047,10 @@ extension Netclode_V1_ClientMessage: SwiftProtobuf.Message, SwiftProtobuf._Messa
       guard case .restoreSnapshot(let v)? = self.message else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 20)
     }()
+    case .updateRepoAccess?: try {
+      guard case .updateRepoAccess(let v)? = self.message else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 21)
+    }()
     case nil: break
     }
     try unknownFields.traverse(visitor: &visitor)
@@ -1973,7 +2065,7 @@ extension Netclode_V1_ClientMessage: SwiftProtobuf.Message, SwiftProtobuf._Messa
 
 extension Netclode_V1_ServerMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ServerMessage"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_created\0\u{3}session_updated\0\u{3}session_deleted\0\u{3}sessions_deleted_all\0\u{3}session_list\0\u{3}session_state\0\u{3}sync_response\0\u{3}agent_event\0\u{3}agent_message\0\u{3}agent_done\0\u{3}user_message\0\u{3}terminal_output\0\u{3}port_exposed\0\u{3}github_repos\0\u{3}git_status\0\u{3}git_diff\0\u{1}error\0\u{1}models\0\u{3}copilot_status\0\u{3}snapshot_created\0\u{3}snapshot_list\0\u{3}snapshot_restored\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_created\0\u{3}session_updated\0\u{3}session_deleted\0\u{3}sessions_deleted_all\0\u{3}session_list\0\u{3}session_state\0\u{3}sync_response\0\u{3}agent_event\0\u{3}agent_message\0\u{3}agent_done\0\u{3}user_message\0\u{3}terminal_output\0\u{3}port_exposed\0\u{3}github_repos\0\u{3}git_status\0\u{3}git_diff\0\u{1}error\0\u{1}models\0\u{3}copilot_status\0\u{3}snapshot_created\0\u{3}snapshot_list\0\u{3}snapshot_restored\0\u{3}repo_access_updated\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2267,6 +2359,19 @@ extension Netclode_V1_ServerMessage: SwiftProtobuf.Message, SwiftProtobuf._Messa
           self.message = .snapshotRestored(v)
         }
       }()
+      case 23: try {
+        var v: Netclode_V1_RepoAccessUpdatedResponse?
+        var hadOneofValue = false
+        if let current = self.message {
+          hadOneofValue = true
+          if case .repoAccessUpdated(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.message = .repoAccessUpdated(v)
+        }
+      }()
       default: break
       }
     }
@@ -2365,6 +2470,10 @@ extension Netclode_V1_ServerMessage: SwiftProtobuf.Message, SwiftProtobuf._Messa
     case .snapshotRestored?: try {
       guard case .snapshotRestored(let v)? = self.message else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 22)
+    }()
+    case .repoAccessUpdated?: try {
+      guard case .repoAccessUpdated(let v)? = self.message else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 23)
     }()
     case nil: break
     }
@@ -3208,6 +3317,50 @@ extension Netclode_V1_RestoreSnapshotRequest: SwiftProtobuf.Message, SwiftProtob
     if lhs._requestID != rhs._requestID {return false}
     if lhs.sessionID != rhs.sessionID {return false}
     if lhs.snapshotID != rhs.snapshotID {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Netclode_V1_UpdateRepoAccessRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UpdateRepoAccessRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0\u{3}session_id\0\u{3}repo_access\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self._requestID) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.sessionID) }()
+      case 3: try { try decoder.decodeSingularEnumField(value: &self.repoAccess) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._requestID {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 1)
+    } }()
+    if !self.sessionID.isEmpty {
+      try visitor.visitSingularStringField(value: self.sessionID, fieldNumber: 2)
+    }
+    if self.repoAccess != .unspecified {
+      try visitor.visitSingularEnumField(value: self.repoAccess, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Netclode_V1_UpdateRepoAccessRequest, rhs: Netclode_V1_UpdateRepoAccessRequest) -> Bool {
+    if lhs._requestID != rhs._requestID {return false}
+    if lhs.sessionID != rhs.sessionID {return false}
+    if lhs.repoAccess != rhs.repoAccess {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -4160,6 +4313,50 @@ extension Netclode_V1_SnapshotRestoredResponse: SwiftProtobuf.Message, SwiftProt
     if lhs.sessionID != rhs.sessionID {return false}
     if lhs.snapshotID != rhs.snapshotID {return false}
     if lhs.messagesRestored != rhs.messagesRestored {return false}
+    if lhs._requestID != rhs._requestID {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Netclode_V1_RepoAccessUpdatedResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RepoAccessUpdatedResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_id\0\u{3}repo_access\0\u{3}request_id\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.sessionID) }()
+      case 2: try { try decoder.decodeSingularEnumField(value: &self.repoAccess) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self._requestID) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.sessionID.isEmpty {
+      try visitor.visitSingularStringField(value: self.sessionID, fieldNumber: 1)
+    }
+    if self.repoAccess != .unspecified {
+      try visitor.visitSingularEnumField(value: self.repoAccess, fieldNumber: 2)
+    }
+    try { if let v = self._requestID {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 3)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Netclode_V1_RepoAccessUpdatedResponse, rhs: Netclode_V1_RepoAccessUpdatedResponse) -> Bool {
+    if lhs.sessionID != rhs.sessionID {return false}
+    if lhs.repoAccess != rhs.repoAccess {return false}
     if lhs._requestID != rhs._requestID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true

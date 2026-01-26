@@ -6,10 +6,11 @@ import "google/protobuf/timestamp.proto";
 import "netclode/v1/events.proto";
 
 // RepoAccess defines the permission level for repository operations.
+// Only applies when a repo is selected. Write access is scoped to the selected repo only.
 enum RepoAccess {
-  REPO_ACCESS_UNSPECIFIED = 0;
-  REPO_ACCESS_READ = 1;   // Read-only access to the repository
-  REPO_ACCESS_WRITE = 2;  // Read and write access to the repository
+  REPO_ACCESS_UNSPECIFIED = 0;   // Defaults to READ
+  REPO_ACCESS_READ = 1;          // Clone only (no push)
+  REPO_ACCESS_WRITE = 2;         // Clone and push (to selected repo only)
 }
 
 // SdkType defines which agent SDK to use for the session.
@@ -64,13 +65,14 @@ message SessionSummary {
 message SessionConfig {
   string session_id = 1;
   string workspace_dir = 2;              // Absolute path to workspace directory
-  optional string github_token = 3;      // GitHub token for repository access
+  optional string github_token = 3;      // GitHub token for git credentials (from GitHub App)
   optional string repo = 4;              // Repository to clone (e.g., "owner/repo")
   optional RepoAccess repo_access = 5;   // Permission level for repository operations
   string control_plane_url = 6;          // URL of control plane for callbacks
   optional SdkType sdk_type = 7;         // SDK type for agent to use
   optional string model = 8;             // Model ID (e.g., "anthropic/claude-sonnet-4-0")
   optional CopilotBackend copilot_backend = 9;  // Backend for Copilot sessions
+  optional string github_copilot_token = 10;    // GitHub PAT with Copilot scope (for Copilot SDK)
 }
 
 // GitHubRepo represents a GitHub repository from the user's account.

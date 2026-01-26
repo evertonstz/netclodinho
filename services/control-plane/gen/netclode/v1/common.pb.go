@@ -23,12 +23,13 @@ const (
 )
 
 // RepoAccess defines the permission level for repository operations.
+// Only applies when a repo is selected. Write access is scoped to the selected repo only.
 type RepoAccess int32
 
 const (
-	RepoAccess_REPO_ACCESS_UNSPECIFIED RepoAccess = 0
-	RepoAccess_REPO_ACCESS_READ        RepoAccess = 1 // Read-only access to the repository
-	RepoAccess_REPO_ACCESS_WRITE       RepoAccess = 2 // Read and write access to the repository
+	RepoAccess_REPO_ACCESS_UNSPECIFIED RepoAccess = 0 // Defaults to READ
+	RepoAccess_REPO_ACCESS_READ        RepoAccess = 1 // Clone only (no push)
+	RepoAccess_REPO_ACCESS_WRITE       RepoAccess = 2 // Clone and push (to selected repo only)
 )
 
 // Enum value maps for RepoAccess.
@@ -538,18 +539,19 @@ func (x *SessionSummary) GetLastMessageId() string {
 
 // SessionConfig contains configuration passed to the agent on registration.
 type SessionConfig struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	SessionId       string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	WorkspaceDir    string                 `protobuf:"bytes,2,opt,name=workspace_dir,json=workspaceDir,proto3" json:"workspace_dir,omitempty"`                                              // Absolute path to workspace directory
-	GithubToken     *string                `protobuf:"bytes,3,opt,name=github_token,json=githubToken,proto3,oneof" json:"github_token,omitempty"`                                           // GitHub token for repository access
-	Repo            *string                `protobuf:"bytes,4,opt,name=repo,proto3,oneof" json:"repo,omitempty"`                                                                            // Repository to clone (e.g., "owner/repo")
-	RepoAccess      *RepoAccess            `protobuf:"varint,5,opt,name=repo_access,json=repoAccess,proto3,enum=netclode.v1.RepoAccess,oneof" json:"repo_access,omitempty"`                 // Permission level for repository operations
-	ControlPlaneUrl string                 `protobuf:"bytes,6,opt,name=control_plane_url,json=controlPlaneUrl,proto3" json:"control_plane_url,omitempty"`                                   // URL of control plane for callbacks
-	SdkType         *SdkType               `protobuf:"varint,7,opt,name=sdk_type,json=sdkType,proto3,enum=netclode.v1.SdkType,oneof" json:"sdk_type,omitempty"`                             // SDK type for agent to use
-	Model           *string                `protobuf:"bytes,8,opt,name=model,proto3,oneof" json:"model,omitempty"`                                                                          // Model ID (e.g., "anthropic/claude-sonnet-4-0")
-	CopilotBackend  *CopilotBackend        `protobuf:"varint,9,opt,name=copilot_backend,json=copilotBackend,proto3,enum=netclode.v1.CopilotBackend,oneof" json:"copilot_backend,omitempty"` // Backend for Copilot sessions
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	SessionId          string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	WorkspaceDir       string                 `protobuf:"bytes,2,opt,name=workspace_dir,json=workspaceDir,proto3" json:"workspace_dir,omitempty"`                                              // Absolute path to workspace directory
+	GithubToken        *string                `protobuf:"bytes,3,opt,name=github_token,json=githubToken,proto3,oneof" json:"github_token,omitempty"`                                           // GitHub token for git credentials (from GitHub App)
+	Repo               *string                `protobuf:"bytes,4,opt,name=repo,proto3,oneof" json:"repo,omitempty"`                                                                            // Repository to clone (e.g., "owner/repo")
+	RepoAccess         *RepoAccess            `protobuf:"varint,5,opt,name=repo_access,json=repoAccess,proto3,enum=netclode.v1.RepoAccess,oneof" json:"repo_access,omitempty"`                 // Permission level for repository operations
+	ControlPlaneUrl    string                 `protobuf:"bytes,6,opt,name=control_plane_url,json=controlPlaneUrl,proto3" json:"control_plane_url,omitempty"`                                   // URL of control plane for callbacks
+	SdkType            *SdkType               `protobuf:"varint,7,opt,name=sdk_type,json=sdkType,proto3,enum=netclode.v1.SdkType,oneof" json:"sdk_type,omitempty"`                             // SDK type for agent to use
+	Model              *string                `protobuf:"bytes,8,opt,name=model,proto3,oneof" json:"model,omitempty"`                                                                          // Model ID (e.g., "anthropic/claude-sonnet-4-0")
+	CopilotBackend     *CopilotBackend        `protobuf:"varint,9,opt,name=copilot_backend,json=copilotBackend,proto3,enum=netclode.v1.CopilotBackend,oneof" json:"copilot_backend,omitempty"` // Backend for Copilot sessions
+	GithubCopilotToken *string                `protobuf:"bytes,10,opt,name=github_copilot_token,json=githubCopilotToken,proto3,oneof" json:"github_copilot_token,omitempty"`                   // GitHub PAT with Copilot scope (for Copilot SDK)
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *SessionConfig) Reset() {
@@ -643,6 +645,13 @@ func (x *SessionConfig) GetCopilotBackend() CopilotBackend {
 		return *x.CopilotBackend
 	}
 	return CopilotBackend_COPILOT_BACKEND_UNSPECIFIED
+}
+
+func (x *SessionConfig) GetGithubCopilotToken() string {
+	if x != nil && x.GithubCopilotToken != nil {
+		return *x.GithubCopilotToken
+	}
+	return ""
 }
 
 // GitHubRepo represents a GitHub repository from the user's account.
@@ -1336,7 +1345,7 @@ const file_netclode_v1_common_proto_rawDesc = "" +
 	"\rmessage_count\x18\x02 \x01(\x05H\x00R\fmessageCount\x88\x01\x01\x12+\n" +
 	"\x0flast_message_id\x18\x03 \x01(\tH\x01R\rlastMessageId\x88\x01\x01B\x10\n" +
 	"\x0e_message_countB\x12\n" +
-	"\x10_last_message_id\"\xf0\x03\n" +
+	"\x10_last_message_id\"\xc0\x04\n" +
 	"\rSessionConfig\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12#\n" +
@@ -1348,13 +1357,16 @@ const file_netclode_v1_common_proto_rawDesc = "" +
 	"\x11control_plane_url\x18\x06 \x01(\tR\x0fcontrolPlaneUrl\x124\n" +
 	"\bsdk_type\x18\a \x01(\x0e2\x14.netclode.v1.SdkTypeH\x03R\asdkType\x88\x01\x01\x12\x19\n" +
 	"\x05model\x18\b \x01(\tH\x04R\x05model\x88\x01\x01\x12I\n" +
-	"\x0fcopilot_backend\x18\t \x01(\x0e2\x1b.netclode.v1.CopilotBackendH\x05R\x0ecopilotBackend\x88\x01\x01B\x0f\n" +
+	"\x0fcopilot_backend\x18\t \x01(\x0e2\x1b.netclode.v1.CopilotBackendH\x05R\x0ecopilotBackend\x88\x01\x01\x125\n" +
+	"\x14github_copilot_token\x18\n" +
+	" \x01(\tH\x06R\x12githubCopilotToken\x88\x01\x01B\x0f\n" +
 	"\r_github_tokenB\a\n" +
 	"\x05_repoB\x0e\n" +
 	"\f_repo_accessB\v\n" +
 	"\t_sdk_typeB\b\n" +
 	"\x06_modelB\x12\n" +
-	"\x10_copilot_backend\"\x8e\x01\n" +
+	"\x10_copilot_backendB\x17\n" +
+	"\x15_github_copilot_token\"\x8e\x01\n" +
 	"\n" +
 	"GitHubRepo\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1b\n" +

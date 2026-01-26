@@ -1,89 +1,76 @@
 # GitHub Integration
 
-Netclode can automatically clone repositories and push commits using GitHub App authentication. This provides secure, scoped access to your repositories with short-lived tokens.
+Netclode provides secure repository access using a GitHub App that generates per-repo scoped tokens on demand. This approach provides the best security by limiting token scope to only the repository being accessed.
 
 ## Overview
 
 When you create a session with a repository:
-1. Control-plane generates a short-lived (1 hour) GitHub installation token
-2. The token is scoped to the specific repository and requested permissions
-3. The sandbox clones the repository on startup
+1. User selects a repository and access level (read or write)
+2. Control-plane generates a token scoped to **only that repository** via GitHub App
+3. The sandbox clones the repository on startup using that token
 4. The agent can push commits back to GitHub (if write access is granted)
+5. Access level can be changed mid-session if needed
+
+## Access Levels
+
+| Repo Selected | Access Level | Token | Capabilities |
+|---------------|--------------|-------|--------------|
+| No | N/A | None | No git operations |
+| Yes | **Read** (default) | GitHub App token (`contents:read`) | Clone only |
+| Yes | **Write** | GitHub App token (`contents:write`) | Clone and push |
+
+**Key point**: Write access is always scoped to the selected repository only. You cannot accidentally push to other repos.
 
 ## Setup
 
 ### 1. Create a GitHub App
 
-1. Go to **GitHub Settings** > **Developer settings** > **GitHub Apps** > **New GitHub App**
-   
-   Direct link: https://github.com/settings/apps/new
-
+1. Go to https://github.com/settings/apps/new
 2. Fill in the app details:
-
-   | Field | Value |
-   |-------|-------|
-   | **GitHub App name** | `Netclode` (or any unique name) |
-   | **Homepage URL** | Your Netclode URL or `https://github.com` |
-   | **Webhook** | Uncheck "Active" (not needed) |
-
-3. Set **Repository permissions**:
-
-   | Permission | Access | Purpose |
-   |------------|--------|---------|
-   | **Actions** | Read-only | View workflow runs and CI status |
-   | **Contents** | Read and write | Clone repos and push commits |
-   | **Metadata** | Read-only (required) | Basic repo info |
-   | **Pull requests** | Read and write | Create and manage PRs |
-   | **Workflows** | Read and write | Modify GitHub Actions workflow files |
-
-   > Note: Even if you only need read access for some sessions, the app needs write permission for Contents, Pull requests, and Workflows. Individual session tokens are scoped down to read-only when requested.
-
-4. Set **Where can this GitHub App be installed?**:
-   - Choose "Only on this account" for personal use
-   - Choose "Any account" if you want to use it across organizations
-
+   - **GitHub App name**: `Netclode` (or your preferred name)
+   - **Homepage URL**: Your deployment URL or `https://github.com/angristan/netclode`
+   - **Webhook**: Uncheck "Active" (not needed)
+3. Set permissions:
+   - **Repository permissions**:
+     - Contents: **Read and write**
+     - Metadata: **Read-only**
+     - Pull requests: **Read and write** (optional, for PR workflows)
+4. Choose where the app can be installed:
+   - **Only on this account** (simpler)
+   - Or **Any account** (if you want to access repos from multiple orgs)
 5. Click **Create GitHub App**
 
-### 2. Generate a Private Key
+### 2. Generate Private Key
 
 1. After creating the app, scroll down to **Private keys**
 2. Click **Generate a private key**
-3. A `.pem` file will be downloaded - keep this safe!
+3. A `.pem` file will be downloaded
+4. Base64 encode the key for your `.env`:
+   ```bash
+   cat your-app-name.2024-01-26.private-key.pem | base64 | tr -d '\n'
+   ```
 
 ### 3. Install the App
 
 1. Go to your app's settings page
-2. Click **Install App** in the left sidebar
-3. Choose the account/organization where you want to install it
-4. Select which repositories the app can access:
-   - **All repositories** - Access to all current and future repos
-   - **Only select repositories** - Choose specific repos
-
+2. Click **Install App** in the sidebar
+3. Choose the account/org to install on
+4. Select repositories:
+   - **All repositories** (recommended for full access)
+   - Or select specific repos
 5. After installation, note the **Installation ID** from the URL:
-   ```
-   https://github.com/settings/installations/12345678
-                                              ^^^^^^^^
-                                              This is the Installation ID
-   ```
+   - URL will be: `https://github.com/settings/installations/12345678`
+   - Installation ID is `12345678`
 
-### 4. Configure Netclode
+### 4. Configure Environment
 
 Add the following to your `.env` file:
 
 ```bash
-# GitHub App ID (from app settings page)
-GITHUB_APP_ID=123456
-
-# Private key (paste the entire PEM content)
-# Note: For multi-line values in .env, different tools handle this differently.
-# If using dotenv, you can use quotes and \n for newlines, or just paste directly.
-GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----
-MIIEpAIBAAKCAQEA...
-...
------END RSA PRIVATE KEY-----"
-
-# Installation ID (from the installation URL)
-GITHUB_INSTALLATION_ID=12345678
+# GitHub App for repository access
+GITHUB_APP_ID=123456          # App ID from app settings page
+GITHUB_APP_PRIVATE_KEY_B64=   # Base64-encoded private key
+GITHUB_INSTALLATION_ID=12345  # From installation URL
 ```
 
 ### 5. Deploy Secrets
@@ -92,10 +79,10 @@ Deploy the secrets to your Kubernetes cluster:
 
 ```bash
 cd infra/ansible
-ENV_FILE=../../.env DEPLOY_HOST=your-server ansible-playbook playbooks/secrets.yaml
+DEPLOY_HOST=your-server ansible-playbook playbooks/secrets.yaml
 ```
 
-Then rollout the control-plane to pick up the new configuration:
+Then rollout the control-plane:
 
 ```bash
 make rollout-control-plane
@@ -105,30 +92,21 @@ make rollout-control-plane
 
 ### Creating a Session with a Repository
 
-When creating a session via Connect protocol, include the `repo` and optionally `repo_access` fields in the `CreateSessionRequest`:
+When creating a session via Connect protocol, include the `repo` and `repo_access` fields:
 
-```protobuf
-message CreateSessionRequest {
-  optional string name = 1;
-  optional string repo = 2;
-  optional string repo_access = 3; // "read" or "write"
-  optional string initial_prompt = 4;
-}
-```
-
-Example (as JSON for clarity):
 ```json
 {
+  "type": "session.create",
   "name": "my-feature",
   "repo": "owner/repo",
-  "repo_access": "write"
+  "repoAccess": "write"
 }
 ```
 
-| Field | Description |
-|-------|-------------|
-| `repo` | Repository in `owner/repo` format or full URL |
-| `repoAccess` | `"read"` (default) or `"write"` |
+| Field | Values | Default |
+|-------|--------|---------|
+| `repo` | Repository in `owner/repo` format or full URL | - |
+| `repoAccess` | `read`, `write` | `read` |
 
 ### Repository URL Formats
 
@@ -138,25 +116,37 @@ The following formats are supported for the `repo` field:
 - `https://github.com/owner/repo` - Full HTTPS URL
 - `https://github.com/owner/repo.git` - With .git suffix
 
-### Access Levels
+### Changing Access Level Mid-Session
 
-| Level | Capabilities |
-|-------|--------------|
-| `read` | Clone, fetch, pull |
-| `write` | Clone, fetch, pull, push, create branches |
+Users can change the repository access level after a session is created:
 
-### Token Lifecycle
+**iOS App**: Open session menu > tap the access level item > select new level
 
-- Tokens are generated when the session is created
-- Tokens expire after 1 hour
-- If a session runs longer than 1 hour, git operations may fail until the session is resumed (which generates a new token)
+**Protocol**: Send `UpdateRepoAccessRequest`:
+
+```json
+{
+  "type": "repo.access.update",
+  "sessionId": "abc123",
+  "repoAccess": "write"
+}
+```
+
+When access is changed:
+1. Control-plane validates the request
+2. Generates a new token via GitHub App with updated permissions
+3. Sends `UpdateGitCredentials` message to the agent
+4. Agent reconfigures git credentials immediately
+5. Session metadata is updated and persisted
+6. `RepoAccessUpdatedResponse` is sent back to the client
+
+This is useful when you start a session with read-only access and later decide you need to push changes.
 
 ### Clone Progress Events
 
 When a session starts with a repository, the agent broadcasts progress events:
 
 ```json
-// Clone starting
 {
   "type": "agent.event",
   "sessionId": "abc123",
@@ -168,38 +158,23 @@ When a session starts with a repository, the agent broadcasts progress events:
     "message": "Cloning repository..."
   }
 }
-
-// Clone completed
-{
-  "type": "agent.event",
-  "sessionId": "abc123",
-  "event": {
-    "kind": "repo_clone",
-    "timestamp": "2026-01-18T22:50:05Z",
-    "repo": "https://github.com/owner/repo.git",
-    "stage": "done",
-    "message": "Repository cloned successfully"
-  }
-}
 ```
 
 Possible stages:
-- `starting` - Clone or pull is beginning
-- `done` - Operation completed (check message for details)
+- `starting` - Clone is beginning
+- `done` - Clone completed successfully
 - `error` - Clone failed (agent continues without repo)
 
-## How It Works
-
-### Architecture
+## Architecture
 
 ```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│     Client      │────▶│  Control Plane   │────▶│   GitHub API    │
-│                 │     │                  │     │                 │
-│ session.create  │     │ 1. Sign JWT      │     │ POST /app/      │
-│ {repo, access}  │     │ 2. Request token │     │ installations/  │
-└─────────────────┘     │ 3. Scope to repo │     │ {id}/access_tokens
-                        └────────┬─────────┘     └─────────────────┘
+┌─────────────────┐     ┌──────────────────┐
+│     Client      │────▶│  Control Plane   │
+│                 │     │                  │
+│ session.create  │     │ 1. Generate repo-│
+│ {repo, access}  │     │    scoped token  │
+└─────────────────┘     │    via GitHub App│
+                        └────────┬─────────┘
                                  │
                                  ▼
                         ┌──────────────────┐
@@ -214,64 +189,74 @@ Possible stages:
                         └──────────────────┘
 ```
 
-### Token Scoping
+### Mid-Session Credential Update Flow
 
-Even though the GitHub App has broad permissions, each session token is scoped:
-
-```json
-// Request to GitHub API
-POST /app/installations/{id}/access_tokens
-{
-  "repositories": ["specific-repo"],
-  "permissions": {
-    "contents": "read",  // or "write"
-    "metadata": "read"
-  }
-}
+```
+┌─────────────────┐     ┌──────────────────┐     ┌──────────────────┐
+│     Client      │────▶│  Control Plane   │────▶│      Agent       │
+│                 │     │                  │     │                  │
+│ repo.access.    │     │ 1. Validate req  │     │ 1. Receive msg   │
+│ update          │     │ 2. Generate new  │     │ 2. Reconfigure   │
+│ {write}         │     │    token via App │     │    git creds     │
+│                 │◀────│ 3. Send response │     │ 3. Ready for     │
+│                 │     │                  │     │    push          │
+└─────────────────┘     └──────────────────┘     └──────────────────┘
 ```
 
-This means:
-- A session with `repoAccess: "read"` cannot push even if the app has write permission
-- The token only works for the specific repository requested
+## Token Lifecycle
+
+GitHub App installation tokens:
+- Expire after **1 hour** by default
+- Are scoped to **only the requested repository**
+- Have **only the requested permissions** (read or write)
+
+If a token expires during a long session, the agent may need to request a new token. The control-plane handles this automatically when credentials are updated.
 
 ## Troubleshooting
 
-### "Failed to create GitHub token"
-
-Check the control-plane logs:
-
-```bash
-kubectl --context netclode -n netclode logs -l app=control-plane -f
-```
-
-Common causes:
-- Invalid private key format
-- App not installed on the repository's owner/org
-- Installation ID doesn't match the app
-
 ### "Repository not found" during clone
 
-- Verify the app is installed on the repository
-- Check that the repository name is correct (case-sensitive)
-- For private repos, ensure the app has access
+- Verify the repository exists and is accessible
+- Check that the GitHub App is installed on the repo's owner account/org
 
 ### "Permission denied" during push
 
-- Session was created with `repoAccess: "read"` (default)
-- Create a new session with `repoAccess: "write"`
+- Session was created with read-only access
+- Change access level to write using the session menu
+- Or create a new session with write access
 
-### Token expired
+### "GitHub App not configured"
 
-Git operations may fail with authentication errors if the session has been running for more than 1 hour. Pause and resume the session to get a fresh token.
+The control-plane logs this warning when GitHub App credentials are missing. Check:
+
+```bash
+# Verify environment variables are set
+kubectl --context netclode -n netclode exec deploy/control-plane -- printenv | grep GITHUB_APP
+```
+
+Ensure `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY_B64`, and `GITHUB_INSTALLATION_ID` are all set.
+
+### "Resource not accessible by integration"
+
+The GitHub App doesn't have access to the repository. Either:
+- The app isn't installed on the repo's owner account/org
+- The app was installed with "Selected repositories" and this repo isn't selected
+
+To fix:
+1. Go to https://github.com/settings/installations
+2. Find your Netclode app installation
+3. Update repository access to include the needed repo
 
 ## Security Considerations
 
-1. **Private Key Security**: The private key should be treated as a secret. It's stored in Kubernetes secrets and never exposed to clients.
+1. **Per-Repo Scoping**: Each token is scoped to only the specific repository being accessed. A token for `owner/repo-a` cannot access `owner/repo-b`.
 
-2. **Token Scoping**: Tokens are scoped to specific repositories and permissions, limiting blast radius if a token is compromised.
+2. **Minimal Permissions**: Tokens request only the permissions needed (read or write), not full access.
 
-3. **Short-lived Tokens**: Tokens expire after 1 hour, reducing the window of opportunity for misuse.
+3. **Short-Lived Tokens**: GitHub App tokens expire after 1 hour, limiting the window of exposure if compromised.
 
-4. **No Token Storage**: Tokens are generated on-demand and passed to sandboxes. They're not persisted in the database.
+4. **No Token Storage**: Tokens are generated on-demand and passed directly to sandboxes. They're not stored in the database.
 
-5. **Audit Trail**: GitHub provides audit logs for all API access via the app, making it easy to track usage.
+5. **Private Key Protection**: The GitHub App private key is stored in Kubernetes secrets and never exposed to clients.
+
+6. **Audit Trail**: GitHub provides audit logs for all API access via GitHub App tokens.

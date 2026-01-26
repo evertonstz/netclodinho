@@ -174,6 +174,15 @@ public struct Netclode_V1_ControlPlaneMessage: Sendable {
     set {message = .terminalInput(newValue)}
   }
 
+  /// Update git credentials (when repo access level changes)
+  public var updateGitCredentials: Netclode_V1_UpdateGitCredentials {
+    get {
+      if case .updateGitCredentials(let v)? = message {return v}
+      return Netclode_V1_UpdateGitCredentials()
+    }
+    set {message = .updateGitCredentials(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Message: Equatable, Sendable {
@@ -191,6 +200,8 @@ public struct Netclode_V1_ControlPlaneMessage: Sendable {
     case getGitDiff(Netclode_V1_GetGitDiffRequest)
     /// Terminal input
     case terminalInput(Netclode_V1_AgentTerminalInput)
+    /// Update git credentials (when repo access level changes)
+    case updateGitCredentials(Netclode_V1_UpdateGitCredentials)
 
   }
 
@@ -597,6 +608,24 @@ public struct Netclode_V1_AgentTerminalResize: Sendable {
   public init() {}
 }
 
+/// UpdateGitCredentials tells the agent to update its git credentials.
+/// Sent when the user changes the repo access level mid-session.
+public struct Netclode_V1_UpdateGitCredentials: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// New GitHub token to use
+  public var githubToken: String = String()
+
+  /// New access level (for logging)
+  public var repoAccess: Netclode_V1_RepoAccess = .unspecified
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate let _protobuf_package = "netclode.v1"
@@ -738,7 +767,7 @@ extension Netclode_V1_AgentMessage: SwiftProtobuf.Message, SwiftProtobuf._Messag
 
 extension Netclode_V1_ControlPlaneMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ControlPlaneMessage"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}registered\0\u{3}execute_prompt\0\u{1}interrupt\0\u{3}generate_title\0\u{3}get_git_status\0\u{3}get_git_diff\0\u{3}terminal_input\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}registered\0\u{3}execute_prompt\0\u{1}interrupt\0\u{3}generate_title\0\u{3}get_git_status\0\u{3}get_git_diff\0\u{3}terminal_input\0\u{3}update_git_credentials\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -837,6 +866,19 @@ extension Netclode_V1_ControlPlaneMessage: SwiftProtobuf.Message, SwiftProtobuf.
           self.message = .terminalInput(v)
         }
       }()
+      case 8: try {
+        var v: Netclode_V1_UpdateGitCredentials?
+        var hadOneofValue = false
+        if let current = self.message {
+          hadOneofValue = true
+          if case .updateGitCredentials(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.message = .updateGitCredentials(v)
+        }
+      }()
       default: break
       }
     }
@@ -875,6 +917,10 @@ extension Netclode_V1_ControlPlaneMessage: SwiftProtobuf.Message, SwiftProtobuf.
     case .terminalInput?: try {
       guard case .terminalInput(let v)? = self.message else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+    }()
+    case .updateGitCredentials?: try {
+      guard case .updateGitCredentials(let v)? = self.message else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
     }()
     case nil: break
     }
@@ -1610,6 +1656,41 @@ extension Netclode_V1_AgentTerminalResize: SwiftProtobuf.Message, SwiftProtobuf.
   public static func ==(lhs: Netclode_V1_AgentTerminalResize, rhs: Netclode_V1_AgentTerminalResize) -> Bool {
     if lhs.cols != rhs.cols {return false}
     if lhs.rows != rhs.rows {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Netclode_V1_UpdateGitCredentials: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UpdateGitCredentials"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}github_token\0\u{3}repo_access\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.githubToken) }()
+      case 2: try { try decoder.decodeSingularEnumField(value: &self.repoAccess) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.githubToken.isEmpty {
+      try visitor.visitSingularStringField(value: self.githubToken, fieldNumber: 1)
+    }
+    if self.repoAccess != .unspecified {
+      try visitor.visitSingularEnumField(value: self.repoAccess, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Netclode_V1_UpdateGitCredentials, rhs: Netclode_V1_UpdateGitCredentials) -> Bool {
+    if lhs.githubToken != rhs.githubToken {return false}
+    if lhs.repoAccess != rhs.repoAccess {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

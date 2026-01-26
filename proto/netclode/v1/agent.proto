@@ -58,6 +58,9 @@ message ControlPlaneMessage {
     
     // Terminal input
     AgentTerminalInput terminal_input = 7;
+    
+    // Update git credentials (when repo access level changes)
+    UpdateGitCredentials update_git_credentials = 8;
   }
 }
 
@@ -178,6 +181,13 @@ message AgentTerminalInput {
 message AgentTerminalResize {
   int32 cols = 1;                            // Number of columns
   int32 rows = 2;                            // Number of rows
+}
+
+// UpdateGitCredentials tells the agent to update its git credentials.
+// Sent when the user changes the repo access level mid-session.
+message UpdateGitCredentials {
+  string github_token = 1;                   // New GitHub token to use
+  RepoAccess repo_access = 2;                // New access level (for logging)
 }
 
 

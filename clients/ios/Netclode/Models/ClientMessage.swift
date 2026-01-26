@@ -26,6 +26,8 @@ enum ClientMessage: Encodable, Sendable {
     // Snapshots
     case listSnapshots(sessionId: String)
     case restoreSnapshot(sessionId: String, snapshotId: String)
+    // Repo access
+    case updateRepoAccess(sessionId: String, repoAccess: RepoAccess)
 
     private enum CodingKeys: String, CodingKey {
         case type
@@ -126,6 +128,11 @@ enum ClientMessage: Encodable, Sendable {
             try container.encode("snapshot.restore", forKey: .type)
             try container.encode(sessionId, forKey: .sessionId)
             try container.encode(snapshotId, forKey: .snapshotId)
+
+        case .updateRepoAccess(let sessionId, let repoAccess):
+            try container.encode("repo.access.update", forKey: .type)
+            try container.encode(sessionId, forKey: .sessionId)
+            try container.encode(repoAccess.rawValue, forKey: .repoAccess)
         }
     }
 }

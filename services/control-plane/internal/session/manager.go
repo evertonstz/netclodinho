@@ -29,14 +29,15 @@ type SessionUpdateCallback func(session *pb.Session)
 
 // AgentSessionConfig contains typed configuration for an agent session.
 type AgentSessionConfig struct {
-	SessionID       string
-	AnthropicAPIKey string
-	GitHubToken     string // For Copilot SDK or repo access
-	Repo            string
-	RepoAccess      *pb.RepoAccess
-	SdkType         *pb.SdkType
-	Model           string
-	CopilotBackend  *pb.CopilotBackend
+	SessionID          string
+	AnthropicAPIKey    string
+	GitHubToken        string // For git credentials (from GitHub App)
+	GitHubCopilotToken string // For Copilot SDK
+	Repo               string
+	RepoAccess         *pb.RepoAccess
+	SdkType            *pb.SdkType
+	Model              string
+	CopilotBackend     *pb.CopilotBackend
 }
 
 // AgentConnection represents a connected agent that can receive commands.
@@ -48,14 +49,15 @@ type AgentConnection interface {
 	GetGitDiff(requestID string, file *string) error
 	SendTerminalInput(data string) error
 	ResizeTerminal(cols, rows int) error
+	UpdateGitCredentials(token string, repoAccess pb.RepoAccess) error
 }
 
 // Manager handles session lifecycle and agent communication.
 type Manager struct {
-	storage storage.Storage
-	k8s     k8s.Runtime
-	config  *config.Config
-	github  *github.Client // nil if GitHub App not configured
+	storage      storage.Storage
+	k8s          k8s.Runtime
+	config       *config.Config
+	githubClient *github.Client
 
 	sessions map[string]*SessionState
 	agents   map[string]AgentConnection // sessionID -> agent connection
@@ -77,15 +79,39 @@ type modelsDevCacheEntry struct {
 }
 
 // NewManager creates a new session manager.
+// githubClient can be nil if GitHub App is not configured.
 func NewManager(store storage.Storage, k8sRuntime k8s.Runtime, cfg *config.Config, githubClient *github.Client) *Manager {
 	return &Manager{
-		storage:  store,
-		k8s:      k8sRuntime,
-		config:   cfg,
-		github:   githubClient,
-		sessions: make(map[string]*SessionState),
-		agents:   make(map[string]AgentConnection),
+		storage:      store,
+		k8s:          k8sRuntime,
+		config:       cfg,
+		githubClient: githubClient,
+		sessions:     make(map[string]*SessionState),
+		agents:       make(map[string]AgentConnection),
 	}
+}
+
+// createRepoToken generates a GitHub token scoped to the specific repo with the given access level.
+// Returns empty string if GitHub App is not configured.
+func (m *Manager) createRepoToken(ctx context.Context, repo string, access *pb.RepoAccess) string {
+	if m.githubClient == nil {
+		slog.Warn("GitHub App not configured, cannot create repo-scoped token")
+		return ""
+	}
+
+	// Determine access level for GitHub API (default to read)
+	ghAccess := github.RepoAccessRead
+	if access != nil && *access == pb.RepoAccess_REPO_ACCESS_WRITE {
+		ghAccess = github.RepoAccessWrite
+	}
+
+	token, err := m.githubClient.CreateRepoToken(ctx, repo, ghAccess)
+	if err != nil {
+		slog.Error("Failed to create repo-scoped token", "repo", repo, "access", access, "error", err)
+		return ""
+	}
+
+	return token.Token
 }
 
 // SetOnSessionUpdated sets a callback that is called when a session is updated internally.
@@ -311,29 +337,18 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 		}
 	}
 
-	// Pass GitHub token for Copilot SDK if configured
-	if m.config.GitHubToken != "" {
-		env["GITHUB_TOKEN"] = m.config.GitHubToken
+	// Pass GitHub Copilot token if configured
+	if m.config.GitHubCopilotToken != "" {
+		env["GITHUB_COPILOT_TOKEN"] = m.config.GitHubCopilotToken
 	}
 
 	// Setup GitHub repo access if configured
 	if repo != nil && *repo != "" {
 		env["GIT_REPO"] = github.NormalizeRepoURL(*repo)
 
-		// Generate scoped GitHub token if GitHub App is configured
-		// This overrides the static token with a repo-scoped token
-		if m.github != nil {
-			access := github.RepoAccessRead
-			if repoAccess != nil && *repoAccess == pb.RepoAccess_REPO_ACCESS_WRITE {
-				access = github.RepoAccessWrite
-			}
-
-			token, err := m.github.CreateInstallationToken(ctx, *repo, access)
-			if err != nil {
-				slog.Warn("Failed to create GitHub token, proceeding without auth", "sessionID", sessionID, "error", err)
-			} else {
-				env["GITHUB_TOKEN"] = token.Token
-			}
+		// Generate repo-scoped token via GitHub App for git credentials
+		if token := m.createRepoToken(ctx, *repo, repoAccess); token != "" {
+			env["GITHUB_TOKEN"] = token
 		}
 	}
 
@@ -1184,15 +1199,37 @@ func (m *Manager) Subscribe(ctx context.Context, id string, lastNotificationID s
 	return sub, nil
 }
 
-// ListGitHubRepos returns the repositories accessible to the GitHub App installation.
-// Returns nil, nil if GitHub App is not configured.
-func (m *Manager) ListGitHubRepos(ctx context.Context) ([]github.Repository, error) {
-	if m.github == nil {
-		slog.Warn("GitHub client is nil, cannot list repos")
+// ListGitHubRepos returns repositories accessible to the GitHub App installation.
+func (m *Manager) ListGitHubRepos(ctx context.Context) ([]GitHubRepo, error) {
+	if m.githubClient == nil {
+		slog.Warn("ListGitHubRepos called but GitHub App is not configured")
 		return nil, nil
 	}
-	slog.Info("Calling GitHub API to list repos")
-	return m.github.ListInstallationRepositories(ctx)
+
+	repos, err := m.githubClient.ListRepos(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("listing repos: %w", err)
+	}
+
+	result := make([]GitHubRepo, len(repos))
+	for i, r := range repos {
+		result[i] = GitHubRepo{
+			Name:        r.Name,
+			FullName:    r.FullName,
+			Private:     r.Private,
+			Description: r.Description,
+		}
+	}
+
+	return result, nil
+}
+
+// GitHubRepo represents a GitHub repository (kept for API compatibility).
+type GitHubRepo struct {
+	Name        string
+	FullName    string
+	Private     bool
+	Description string
 }
 
 // GetSessionIDByPodName finds the session ID for a pod name (used by warm pool agents).
@@ -1212,11 +1249,11 @@ func (m *Manager) GetSessionConfig(ctx context.Context, sessionID string) (*Agen
 	}
 
 	config := &AgentSessionConfig{
-		SessionID:       sessionID,
-		AnthropicAPIKey: m.config.AnthropicAPIKey,
-		GitHubToken:     m.config.GitHubToken,
-		SdkType:         state.Session.SdkType,
-		CopilotBackend:  state.Session.CopilotBackend,
+		SessionID:          sessionID,
+		AnthropicAPIKey:    m.config.AnthropicAPIKey,
+		GitHubCopilotToken: m.config.GitHubCopilotToken,
+		SdkType:            state.Session.SdkType,
+		CopilotBackend:     state.Session.CopilotBackend,
 	}
 
 	if state.Session.Model != nil {
@@ -1228,24 +1265,64 @@ func (m *Manager) GetSessionConfig(ctx context.Context, sessionID string) (*Agen
 		config.Repo = github.NormalizeRepoURL(*state.Session.Repo)
 		config.RepoAccess = state.Session.RepoAccess
 
-		// Generate scoped GitHub token if GitHub App is configured
-		// This overrides the static token with a repo-scoped token
-		if m.github != nil {
-			access := github.RepoAccessRead
-			if state.Session.RepoAccess != nil && *state.Session.RepoAccess == pb.RepoAccess_REPO_ACCESS_WRITE {
-				access = github.RepoAccessWrite
-			}
-
-			token, err := m.github.CreateInstallationToken(ctx, *state.Session.Repo, access)
-			if err != nil {
-				slog.Warn("Failed to create GitHub token for session config", "sessionID", sessionID, "error", err)
-			} else {
-				config.GitHubToken = token.Token
-			}
+		// Generate repo-scoped token via GitHub App for git credentials
+		if token := m.createRepoToken(ctx, *state.Session.Repo, state.Session.RepoAccess); token != "" {
+			config.GitHubToken = token
 		}
 	}
 
 	return config, nil
+}
+
+// UpdateRepoAccess changes the repository access level for a session and sends new credentials to the agent.
+func (m *Manager) UpdateRepoAccess(ctx context.Context, sessionID string, newAccess pb.RepoAccess) error {
+	slog.Info("UpdateRepoAccess called", "sessionID", sessionID, "newAccess", newAccess)
+
+	m.mu.Lock()
+	state, ok := m.sessions[sessionID]
+	if !ok {
+		m.mu.Unlock()
+		return fmt.Errorf("session %s not found", sessionID)
+	}
+
+	// Need repo to generate scoped token
+	repo := ""
+	if state.Session.Repo != nil {
+		repo = *state.Session.Repo
+	}
+
+	// Update the session's repo access
+	state.Session.RepoAccess = &newAccess
+	m.mu.Unlock()
+
+	// Generate new repo-scoped token for this access level
+	newToken := m.createRepoToken(ctx, repo, &newAccess)
+	if newToken == "" && repo != "" {
+		slog.Warn("Failed to create GitHub token (GitHub App not configured?)", "sessionID", sessionID, "access", newAccess)
+	}
+
+	// Persist to Redis
+	if err := m.storage.SaveSession(ctx, state.Session); err != nil {
+		slog.Warn("Failed to persist session after repo access update", "sessionID", sessionID, "error", err)
+	}
+
+	// Send new credentials to the agent if connected
+	m.mu.RLock()
+	agent, agentConnected := m.agents[sessionID]
+	m.mu.RUnlock()
+
+	if agentConnected && newToken != "" {
+		if err := agent.UpdateGitCredentials(newToken, newAccess); err != nil {
+			slog.Warn("Failed to send updated credentials to agent", "sessionID", sessionID, "error", err)
+			return fmt.Errorf("failed to update agent credentials: %w", err)
+		}
+		slog.Info("Sent updated git credentials to agent", "sessionID", sessionID, "access", newAccess)
+	}
+
+	// Emit session update
+	m.emitSessionUpdated(ctx, state.Session)
+
+	return nil
 }
 
 // publishNotification publishes a notification to Redis Streams.
@@ -2069,12 +2146,12 @@ func (m *Manager) emitSnapshotCreated(ctx context.Context, sessionID string, sna
 // Note: This is currently a placeholder - actual implementation would require
 // calling the GitHub Copilot API which needs the agent to be running.
 func (m *Manager) GetCopilotStatus(ctx context.Context) *pb.CopilotStatusResponse {
-	// Check if we have a GitHub token configured
-	hasGitHubToken := m.config.GitHubToken != ""
+	// Check if we have a GitHub Copilot token configured
+	hasGitHubCopilotToken := m.config.GitHubCopilotToken != ""
 
 	return &pb.CopilotStatusResponse{
 		Auth: &pb.CopilotAuthStatus{
-			IsAuthenticated: hasGitHubToken,
+			IsAuthenticated: hasGitHubCopilotToken,
 			AuthType:        strPtr("env"),
 		},
 		// Quota is not available without calling the GitHub API

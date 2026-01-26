@@ -300,6 +300,12 @@ final class MessageRouter {
             snapshotStore.setRestoreInProgress(for: sessionId, inProgress: false)
             // Request session refresh to reload truncated messages and events from server
             connectService.openSession(id: sessionId, resume: false)
+
+        // Repo access
+        case .repoAccessUpdated(let sessionId, let repoAccess):
+            print("[MessageRouter] repo.access.updated received: session=\(sessionId), repoAccess=\(repoAccess)")
+            // Update local state immediately (don't wait for Redis notification)
+            sessionStore.updateRepoAccess(sessionId: sessionId, repoAccess: repoAccess)
         }
     }
 

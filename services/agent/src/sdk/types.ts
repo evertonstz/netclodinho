@@ -21,7 +21,7 @@ export interface SDKConfig {
   sdkType: SdkType;
   workspaceDir: string;
   anthropicApiKey: string;
-  githubToken?: string;
+  githubCopilotToken?: string; // GitHub PAT with Copilot scope (for Copilot SDK auth)
   model?: string; // e.g., "anthropic/claude-sonnet-4-0" for OpenCode
   copilotBackend?: CopilotBackend; // For Copilot SDK: "github" or "anthropic"
 }

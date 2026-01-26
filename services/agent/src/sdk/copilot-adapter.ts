@@ -66,8 +66,8 @@ export class CopilotAdapter implements SDKAdapter {
     // Determine backend: use explicit config, or auto-detect from available credentials
     if (config.copilotBackend) {
       this.backend = config.copilotBackend;
-    } else if (config.githubToken) {
-      // If GitHub token is provided and user didn't specify, prefer GitHub backend
+    } else if (config.githubCopilotToken) {
+      // If GitHub Copilot token is provided and user didn't specify, prefer GitHub backend
       this.backend = "github";
     } else if (config.anthropicApiKey) {
       this.backend = "anthropic";
@@ -75,7 +75,7 @@ export class CopilotAdapter implements SDKAdapter {
 
     console.log("[copilot-adapter] Initializing with backend:", this.backend);
     console.log("[copilot-adapter] Model:", config.model || "default");
-    console.log("[copilot-adapter] GitHub token available:", Boolean(config.githubToken));
+    console.log("[copilot-adapter] GitHub Copilot token available:", Boolean(config.githubCopilotToken));
     console.log("[copilot-adapter] Anthropic API key available:", Boolean(config.anthropicApiKey));
 
     // Build environment for the client
@@ -83,9 +83,9 @@ export class CopilotAdapter implements SDKAdapter {
       ...process.env,
     };
 
-    // For GitHub backend, ensure GITHUB_TOKEN is set
-    if (this.backend === "github" && config.githubToken) {
-      clientEnv.GITHUB_TOKEN = config.githubToken;
+    // For GitHub backend, set GITHUB_TOKEN for Copilot API auth
+    if (this.backend === "github" && config.githubCopilotToken) {
+      clientEnv.GITHUB_TOKEN = config.githubCopilotToken;
     }
 
     // Create CopilotClient with stdio transport

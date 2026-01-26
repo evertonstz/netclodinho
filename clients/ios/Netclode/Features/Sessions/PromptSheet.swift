@@ -11,7 +11,8 @@ struct PromptSheet: View {
 
     @State private var promptText = ""
     @State private var repoURL = ""
-    @State private var repoAccess: RepoAccess = .write
+    @State private var repoAccess: RepoAccess = .read
+    @State private var isPrivateRepo = false
     @State private var selectedSdkType: SdkType = .claude
     @State private var selectedClaudeModelId: String = ModelsStore.defaultModelId
     @State private var selectedOpenCodeModelId: String = ModelsStore.defaultModelId
@@ -19,6 +20,7 @@ struct PromptSheet: View {
     @State private var isSubmitting = false
     @State private var canSubmit = false
     @State private var showModelDropdown = false
+    @State private var showAccessDropdown = false
     @FocusState private var isFocused: Bool
 
     /// Get available models as PickerModels based on current SDK selection
@@ -142,15 +144,28 @@ struct PromptSheet: View {
                                 .foregroundStyle(.secondary)
                         }
                         
-                        RepoAutocomplete(text: $repoURL)
-                        
-                        if !repoURL.isEmpty {
-                            Picker("Access", selection: $repoAccess) {
-                                Text("Read & Write").tag(RepoAccess.write)
-                                Text("Read Only").tag(RepoAccess.read)
-                            }
-                            .pickerStyle(.segmented)
+                        RepoAutocomplete(text: $repoURL) { repo in
+                            isPrivateRepo = repo.isPrivate
                         }
+                    }
+                    .padding(.horizontal, Theme.Spacing.md)
+                    .padding(.top, Theme.Spacing.md)
+                    
+                    // Access level section (always visible)
+                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                        HStack(spacing: Theme.Spacing.xs) {
+                            Image(systemName: "lock.shield")
+                                .foregroundStyle(.secondary)
+                            Text("GitHub Access")
+                                .font(.netclodeCaption)
+                                .foregroundStyle(.secondary)
+                        }
+                        
+                        InlineAccessPicker(
+                            selectedAccess: $repoAccess,
+                            isExpanded: $showAccessDropdown,
+                            hasRepo: !repoURL.isEmpty
+                        )
                     }
                     .padding(.horizontal, Theme.Spacing.md)
                     .padding(.top, Theme.Spacing.md)
@@ -224,6 +239,12 @@ struct PromptSheet: View {
             }
             .onChange(of: isSubmitting) { _, newValue in
                 canSubmit = !promptText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !newValue
+            }
+            .onChange(of: repoURL) { _, newValue in
+                // Reset to read access when repo is cleared
+                if newValue.isEmpty {
+                    repoAccess = .read
+                }
             }
         }
         .presentationDetents([.medium, .large])
@@ -304,6 +325,111 @@ struct PromptSheet: View {
             copilotStore.setLoadingModels(true)
             connectService.send(.listModels(sdkType: .copilot, copilotBackend: nil))
         }
+    }
+}
+
+// MARK: - Inline Access Picker
+
+/// Full-width inline liquid glass picker for repository access levels
+struct InlineAccessPicker: View {
+    @Binding var selectedAccess: RepoAccess
+    @Binding var isExpanded: Bool
+    var hasRepo: Bool = false  // Whether a repo is selected
+
+    private var availableOptions: [RepoAccess] {
+        return RepoAccess.allCases
+    }
+    
+    private func isOptionDisabled(_ access: RepoAccess) -> Bool {
+        // Write is only available when a repo is selected
+        return access == .write && !hasRepo
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Collapsed state - shows selected access level
+            Button {
+                withAnimation(.smooth(duration: 0.25)) {
+                    isExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: Theme.Spacing.xs) {
+                    Image(systemName: selectedAccess.icon)
+                        .foregroundStyle(.secondary)
+                    Text(selectedAccess.displayName)
+                        .font(.netclodeBody)
+                        .contentTransition(.numericText())
+                    Spacer()
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                }
+                .padding(Theme.Spacing.sm)
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
+                .animation(.smooth(duration: 0.2), value: selectedAccess)
+            }
+            .buttonStyle(.plain)
+            .glassEffect(
+                isExpanded ? .regular.tint(Theme.Colors.brand.glassTint).interactive() : .regular.interactive(),
+                in: RoundedRectangle(cornerRadius: Theme.Radius.md)
+            )
+
+            // Expanded state - shows all options
+            if isExpanded {
+                ScrollView {
+                    LazyVStack(spacing: 2) {
+                        ForEach(availableOptions, id: \.self) { access in
+                            let disabled = isOptionDisabled(access)
+                            Button {
+                                withAnimation(.smooth(duration: 0.2)) {
+                                    selectedAccess = access
+                                    isExpanded = false
+                                }
+                            } label: {
+                                HStack(spacing: Theme.Spacing.xs) {
+                                    Image(systemName: access == selectedAccess ? "checkmark.circle.fill" : "circle")
+                                        .foregroundStyle(access == selectedAccess ? Theme.Colors.brand : .secondary)
+                                        .font(.system(size: 16))
+                                        .contentTransition(.symbolEffect(.replace))
+
+                                    Image(systemName: access.icon)
+                                        .foregroundStyle(.secondary)
+
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(access.displayName)
+                                            .font(.netclodeBody)
+                                            .foregroundStyle(disabled ? .tertiary : .primary)
+                                        Text(disabled ? "Select a repo first" : access.description)
+                                            .font(.netclodeCaption)
+                                            .foregroundStyle(disabled ? .tertiary : .secondary)
+                                    }
+
+                                    Spacer()
+                                }
+                                .opacity(disabled ? 0.5 : 1.0)
+                                .padding(.horizontal, Theme.Spacing.sm)
+                                .padding(.vertical, Theme.Spacing.xs)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(disabled)
+                        }
+                    }
+                    .padding(.vertical, Theme.Spacing.xs)
+                }
+                .frame(maxHeight: 280)
+                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
+                .transition(.asymmetric(
+                    insertion: .opacity.combined(with: .scale(scale: 0.95, anchor: .top)),
+                    removal: .opacity
+                ))
+                .padding(.top, Theme.Spacing.xs)
+            }
+        }
+        .animation(.smooth(duration: 0.25), value: isExpanded)
     }
 }
 

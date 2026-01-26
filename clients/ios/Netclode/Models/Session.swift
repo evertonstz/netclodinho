@@ -42,9 +42,31 @@ enum SessionStatus: String, Codable, CaseIterable, Sendable {
 }
 
 /// Repository access level for GitHub integration.
-enum RepoAccess: String, Codable, Sendable {
+/// Only applies when a repo is selected. Write access is scoped to the selected repo only.
+enum RepoAccess: String, Codable, CaseIterable, Sendable {
     case read
     case write
+
+    var displayName: String {
+        switch self {
+        case .read: "Read Only"
+        case .write: "Read & Write"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .read: "Clone only (no push)"
+        case .write: "Clone and push to this repo"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .read: "eye"
+        case .write: "square.and.pencil"
+        }
+    }
 }
 
 /// SDK type for agent sessions.

@@ -96,7 +96,7 @@ export function runGit(args: string[], cwd?: string): Promise<{ code: number; st
 /**
  * Configure git credentials for GitHub token authentication.
  */
-async function configureGitCredentials(token: string): Promise<void> {
+export async function configureGitCredentials(token: string): Promise<void> {
   const credentialsFile = "/agent/.git-credentials";
   const configDir = dirname(credentialsFile);
 

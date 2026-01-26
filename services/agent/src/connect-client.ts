@@ -41,7 +41,7 @@ import {
 // Import modular services
 import { handleTerminalInput, resizeTerminal, setTerminalOutputCallback } from "./services/terminal.js";
 import { generateTitle } from "./services/title.js";
-import { getGitStatus, getGitDiff, type GitFileChange } from "./git.js";
+import { getGitStatus, getGitDiff, configureGitCredentials, type GitFileChange } from "./git.js";
 
 // Import SDK abstraction layer
 import {
@@ -430,7 +430,7 @@ async function handleControlPlaneMessage(
               sdkType,
               workspaceDir: WORKSPACE_DIR,
               anthropicApiKey: process.env.ANTHROPIC_API_KEY || "",
-              githubToken: config.githubToken,
+              githubCopilotToken: config.githubCopilotToken,
               model: config.model,
               copilotBackend,
             });
@@ -484,8 +484,28 @@ async function handleControlPlaneMessage(
       handleTerminalInputMessage(msg.message.value);
       break;
 
+    case "updateGitCredentials":
+      await handleUpdateGitCredentials(msg.message.value);
+      break;
+
     default:
       console.warn("[agent] Unknown control plane message:", msg.message.case);
+  }
+}
+
+/**
+ * Handle update git credentials request
+ */
+async function handleUpdateGitCredentials(credentials: {
+  githubToken: string;
+  repoAccess: number;
+}): Promise<void> {
+  console.log("[agent] Updating git credentials, new access level:", credentials.repoAccess);
+  try {
+    await configureGitCredentials(credentials.githubToken);
+    console.log("[agent] Git credentials updated successfully");
+  } catch (error) {
+    console.error("[agent] Failed to update git credentials:", error);
   }
 }
 

@@ -15,7 +15,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/angristan/netclode/services/control-plane/internal/config"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -37,21 +36,16 @@ type Client struct {
 	httpClient     *http.Client
 }
 
-// NewClient creates a new GitHub client from config.
-// Returns nil if GitHub App is not configured.
-func NewClient(cfg *config.Config) (*Client, error) {
-	if !cfg.HasGitHubApp() {
-		return nil, nil
-	}
-
-	privateKey, err := parsePrivateKey(cfg.GitHubAppPrivateKey)
+// NewClient creates a new GitHub client.
+func NewClient(appID, installationID int64, privateKeyPEM string) (*Client, error) {
+	privateKey, err := parsePrivateKey(privateKeyPEM)
 	if err != nil {
-		return nil, fmt.Errorf("parse GitHub App private key: %w", err)
+		return nil, fmt.Errorf("parse private key: %w", err)
 	}
 
 	return &Client{
-		appID:          cfg.GitHubAppID,
-		installationID: cfg.GitHubInstallationID,
+		appID:          appID,
+		installationID: installationID,
 		privateKey:     privateKey,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
@@ -113,9 +107,9 @@ type tokenRequest struct {
 	Permissions  map[string]string `json:"permissions,omitempty"`
 }
 
-// CreateInstallationToken creates a scoped installation access token.
-// The token can be scoped to specific repositories and permissions.
-func (c *Client) CreateInstallationToken(ctx context.Context, repo string, access RepoAccess) (*InstallationToken, error) {
+// CreateRepoToken creates an installation token scoped to a specific repository.
+// The token is scoped to only the specified repo with the given access level.
+func (c *Client) CreateRepoToken(ctx context.Context, repo string, access RepoAccess) (*InstallationToken, error) {
 	jwt, err := c.createJWT()
 	if err != nil {
 		return nil, fmt.Errorf("create JWT: %w", err)
@@ -124,21 +118,20 @@ func (c *Client) CreateInstallationToken(ctx context.Context, repo string, acces
 	// Build request body with scoped permissions
 	reqBody := tokenRequest{
 		Permissions: map[string]string{
-			"contents":      string(access),
-			"metadata":      "read",
-			"actions":       "read",
-			"pull_requests": string(access),
-			"workflows":     string(access),
+			"contents": string(access),
+			"metadata": "read",
 		},
 	}
 
-	// If repo is specified, scope token to that repository
-	if repo != "" {
-		// Extract repo name from owner/repo or full URL
-		repoName := extractRepoName(repo)
-		if repoName != "" {
-			reqBody.Repositories = []string{repoName}
-		}
+	// Add write permissions if needed
+	if access == RepoAccessWrite {
+		reqBody.Permissions["pull_requests"] = "write"
+	}
+
+	// Scope token to the specific repository
+	repoName := extractRepoName(repo)
+	if repoName != "" {
+		reqBody.Repositories = []string{repoName}
 	}
 
 	bodyBytes, err := json.Marshal(reqBody)
@@ -169,8 +162,8 @@ func (c *Client) CreateInstallationToken(ctx context.Context, repo string, acces
 	}
 
 	if resp.StatusCode != http.StatusCreated {
-		slog.Error("GitHub API error", "status", resp.StatusCode, "body", string(body))
-		return nil, fmt.Errorf("GitHub API error: %s", resp.Status)
+		slog.Error("GitHub API error creating token", "status", resp.StatusCode, "body", string(body))
+		return nil, fmt.Errorf("GitHub API error: %s - %s", resp.Status, string(body))
 	}
 
 	var token InstallationToken
@@ -178,90 +171,44 @@ func (c *Client) CreateInstallationToken(ctx context.Context, repo string, acces
 		return nil, fmt.Errorf("parse response: %w", err)
 	}
 
-	slog.Info("Created GitHub installation token",
+	slog.Info("Created GitHub repo-scoped token",
 		"repo", repo,
 		"access", access,
 		"expiresAt", token.ExpiresAt,
-		"permissions", token.Permissions,
 	)
 
 	return &token, nil
 }
 
-// extractRepoName extracts the repository name from various formats.
-// Supports: "owner/repo", "https://github.com/owner/repo", "https://github.com/owner/repo.git"
-func extractRepoName(input string) string {
-	// Remove .git suffix
-	input = strings.TrimSuffix(input, ".git")
-
-	// Handle full URLs
-	if strings.HasPrefix(input, "https://github.com/") {
-		input = strings.TrimPrefix(input, "https://github.com/")
-	} else if strings.HasPrefix(input, "http://github.com/") {
-		input = strings.TrimPrefix(input, "http://github.com/")
-	}
-
-	// Now we should have "owner/repo"
-	parts := strings.Split(input, "/")
-	if len(parts) >= 2 {
-		// Return just the repo name (not owner/repo)
-		return parts[len(parts)-1]
-	}
-
-	return ""
-}
-
-// NormalizeRepoURL converts various repo formats to a proper HTTPS URL.
-// Supports: "owner/repo", "github.com/owner/repo", "https://github.com/owner/repo"
-func NormalizeRepoURL(input string) string {
-	// Already a full URL with protocol
-	if strings.HasPrefix(input, "https://") || strings.HasPrefix(input, "http://") {
-		return input
-	}
-
-	// Handle github.com/owner/repo (without protocol)
-	if strings.HasPrefix(input, "github.com/") {
-		return "https://" + input + ".git"
-	}
-
-	// Convert owner/repo to HTTPS URL
-	if strings.Contains(input, "/") {
-		return "https://github.com/" + input + ".git"
-	}
-
-	return input
-}
-
-// Repository represents a GitHub repository with minimal metadata.
-type Repository struct {
+// Repo represents a GitHub repository.
+type Repo struct {
 	Name        string `json:"name"`
-	FullName    string `json:"fullName"`
+	FullName    string `json:"full_name"`
 	Private     bool   `json:"private"`
-	Description string `json:"description,omitempty"`
+	Description string `json:"description"`
 }
 
 // listReposResponse is the GitHub API response for listing installation repositories.
 type listReposResponse struct {
-	TotalCount   int             `json:"total_count"`
-	Repositories []apiRepository `json:"repositories"`
+	TotalCount   int       `json:"total_count"`
+	Repositories []apiRepo `json:"repositories"`
 }
 
-// apiRepository represents a repository in the GitHub API response.
-type apiRepository struct {
+type apiRepo struct {
 	Name        string  `json:"name"`
 	FullName    string  `json:"full_name"`
 	Private     bool    `json:"private"`
 	Description *string `json:"description"`
 }
 
-// ListInstallationRepositories returns all repositories accessible to the GitHub App installation.
-func (c *Client) ListInstallationRepositories(ctx context.Context) ([]Repository, error) {
+// ListRepos returns all repositories accessible to the GitHub App installation.
+func (c *Client) ListRepos(ctx context.Context) ([]Repo, error) {
+	// First get an installation token
 	jwt, err := c.createJWT()
 	if err != nil {
 		return nil, fmt.Errorf("create JWT: %w", err)
 	}
 
-	// First, get an installation token (without repo scope to list all)
 	tokenURL := fmt.Sprintf("https://api.github.com/app/installations/%d/access_tokens", c.installationID)
 	tokenReq, err := http.NewRequestWithContext(ctx, "POST", tokenURL, nil)
 	if err != nil {
@@ -288,7 +235,7 @@ func (c *Client) ListInstallationRepositories(ctx context.Context) ([]Repository
 	}
 
 	// Now list repositories using the installation token
-	var allRepos []Repository
+	var allRepos []Repo
 	page := 1
 	perPage := 100
 
@@ -307,20 +254,22 @@ func (c *Client) ListInstallationRepositories(ctx context.Context) ([]Repository
 		if err != nil {
 			return nil, fmt.Errorf("list request failed: %w", err)
 		}
-		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
 			body, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
 			return nil, fmt.Errorf("GitHub API error listing repos: %s - %s", resp.Status, string(body))
 		}
 
 		var listResp listReposResponse
 		if err := json.NewDecoder(resp.Body).Decode(&listResp); err != nil {
+			resp.Body.Close()
 			return nil, fmt.Errorf("parse list response: %w", err)
 		}
+		resp.Body.Close()
 
 		for _, repo := range listResp.Repositories {
-			r := Repository{
+			r := Repo{
 				Name:     repo.Name,
 				FullName: repo.FullName,
 				Private:  repo.Private,
@@ -331,13 +280,55 @@ func (c *Client) ListInstallationRepositories(ctx context.Context) ([]Repository
 			allRepos = append(allRepos, r)
 		}
 
-		// Check if we've fetched all repositories
 		if len(allRepos) >= listResp.TotalCount || len(listResp.Repositories) < perPage {
 			break
 		}
 		page++
+
+		// Safety limit
+		if page > 10 {
+			break
+		}
 	}
 
 	slog.Info("Listed GitHub installation repositories", "count", len(allRepos))
 	return allRepos, nil
+}
+
+// extractRepoName extracts the repository name from various formats.
+// Supports: "owner/repo", "https://github.com/owner/repo", "https://github.com/owner/repo.git"
+func extractRepoName(input string) string {
+	input = strings.TrimSuffix(input, ".git")
+
+	if strings.HasPrefix(input, "https://github.com/") {
+		input = strings.TrimPrefix(input, "https://github.com/")
+	} else if strings.HasPrefix(input, "http://github.com/") {
+		input = strings.TrimPrefix(input, "http://github.com/")
+	}
+
+	// Now we should have "owner/repo" - return just the repo name
+	parts := strings.Split(input, "/")
+	if len(parts) >= 2 {
+		return parts[len(parts)-1]
+	}
+
+	return ""
+}
+
+// NormalizeRepoURL converts various repo formats to a proper HTTPS URL.
+// Supports: "owner/repo", "github.com/owner/repo", "https://github.com/owner/repo"
+func NormalizeRepoURL(input string) string {
+	if strings.HasPrefix(input, "https://") || strings.HasPrefix(input, "http://") {
+		return input
+	}
+
+	if strings.HasPrefix(input, "github.com/") {
+		return "https://" + input + ".git"
+	}
+
+	if strings.Contains(input, "/") {
+		return "https://github.com/" + input + ".git"
+	}
+
+	return input
 }

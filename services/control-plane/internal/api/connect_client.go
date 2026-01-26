@@ -200,6 +200,8 @@ func (c *ConnectConnection) handleMessage(ctx context.Context, msg *pb.ClientMes
 		return c.handleListSnapshots(ctx, m.ListSnapshots)
 	case *pb.ClientMessage_RestoreSnapshot:
 		return c.handleRestoreSnapshot(ctx, m.RestoreSnapshot)
+	case *pb.ClientMessage_UpdateRepoAccess:
+		return c.handleUpdateRepoAccess(ctx, m.UpdateRepoAccess)
 	default:
 		return connect.NewError(connect.CodeInvalidArgument, errUnknownMessage)
 	}
@@ -749,6 +751,27 @@ func (c *ConnectConnection) handleRestoreSnapshot(ctx context.Context, req *pb.R
 				SnapshotId:       req.SnapshotId,
 				MessagesRestored: messagesRestored,
 				RequestId:        req.RequestId,
+			},
+		},
+	})
+}
+
+// handleUpdateRepoAccess changes the repository access level for a session.
+func (c *ConnectConnection) handleUpdateRepoAccess(ctx context.Context, req *pb.UpdateRepoAccessRequest) error {
+	if req.SessionId == "" {
+		return c.send(makeErrorResponse(req.SessionId, "REPO_ACCESS_ERROR", "sessionId is required"))
+	}
+
+	if err := c.manager.UpdateRepoAccess(ctx, req.SessionId, req.RepoAccess); err != nil {
+		return c.send(makeErrorResponse(req.SessionId, "REPO_ACCESS_ERROR", err.Error()))
+	}
+
+	return c.send(&pb.ServerMessage{
+		Message: &pb.ServerMessage_RepoAccessUpdated{
+			RepoAccessUpdated: &pb.RepoAccessUpdatedResponse{
+				SessionId:  req.SessionId,
+				RepoAccess: req.RepoAccess,
+				RequestId:  req.RequestId,
 			},
 		},
 	})

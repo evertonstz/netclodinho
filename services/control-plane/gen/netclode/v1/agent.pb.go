@@ -186,6 +186,7 @@ type ControlPlaneMessage struct {
 	//	*ControlPlaneMessage_GetGitStatus
 	//	*ControlPlaneMessage_GetGitDiff
 	//	*ControlPlaneMessage_TerminalInput
+	//	*ControlPlaneMessage_UpdateGitCredentials
 	Message       isControlPlaneMessage_Message `protobuf_oneof:"message"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -291,6 +292,15 @@ func (x *ControlPlaneMessage) GetTerminalInput() *AgentTerminalInput {
 	return nil
 }
 
+func (x *ControlPlaneMessage) GetUpdateGitCredentials() *UpdateGitCredentials {
+	if x != nil {
+		if x, ok := x.Message.(*ControlPlaneMessage_UpdateGitCredentials); ok {
+			return x.UpdateGitCredentials
+		}
+	}
+	return nil
+}
+
 type isControlPlaneMessage_Message interface {
 	isControlPlaneMessage_Message()
 }
@@ -330,6 +340,11 @@ type ControlPlaneMessage_TerminalInput struct {
 	TerminalInput *AgentTerminalInput `protobuf:"bytes,7,opt,name=terminal_input,json=terminalInput,proto3,oneof"`
 }
 
+type ControlPlaneMessage_UpdateGitCredentials struct {
+	// Update git credentials (when repo access level changes)
+	UpdateGitCredentials *UpdateGitCredentials `protobuf:"bytes,8,opt,name=update_git_credentials,json=updateGitCredentials,proto3,oneof"`
+}
+
 func (*ControlPlaneMessage_Registered) isControlPlaneMessage_Message() {}
 
 func (*ControlPlaneMessage_ExecutePrompt) isControlPlaneMessage_Message() {}
@@ -343,6 +358,8 @@ func (*ControlPlaneMessage_GetGitStatus) isControlPlaneMessage_Message() {}
 func (*ControlPlaneMessage_GetGitDiff) isControlPlaneMessage_Message() {}
 
 func (*ControlPlaneMessage_TerminalInput) isControlPlaneMessage_Message() {}
+
+func (*ControlPlaneMessage_UpdateGitCredentials) isControlPlaneMessage_Message() {}
 
 // AgentRegister is sent first by the agent to identify itself.
 type AgentRegister struct {
@@ -1382,6 +1399,60 @@ func (x *AgentTerminalResize) GetRows() int32 {
 	return 0
 }
 
+// UpdateGitCredentials tells the agent to update its git credentials.
+// Sent when the user changes the repo access level mid-session.
+type UpdateGitCredentials struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GithubToken   string                 `protobuf:"bytes,1,opt,name=github_token,json=githubToken,proto3" json:"github_token,omitempty"`                           // New GitHub token to use
+	RepoAccess    RepoAccess             `protobuf:"varint,2,opt,name=repo_access,json=repoAccess,proto3,enum=netclode.v1.RepoAccess" json:"repo_access,omitempty"` // New access level (for logging)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateGitCredentials) Reset() {
+	*x = UpdateGitCredentials{}
+	mi := &file_netclode_v1_agent_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateGitCredentials) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateGitCredentials) ProtoMessage() {}
+
+func (x *UpdateGitCredentials) ProtoReflect() protoreflect.Message {
+	mi := &file_netclode_v1_agent_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateGitCredentials.ProtoReflect.Descriptor instead.
+func (*UpdateGitCredentials) Descriptor() ([]byte, []int) {
+	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *UpdateGitCredentials) GetGithubToken() string {
+	if x != nil {
+		return x.GithubToken
+	}
+	return ""
+}
+
+func (x *UpdateGitCredentials) GetRepoAccess() RepoAccess {
+	if x != nil {
+		return x.RepoAccess
+	}
+	return RepoAccess_REPO_ACCESS_UNSPECIFIED
+}
+
 var File_netclode_v1_agent_proto protoreflect.FileDescriptor
 
 const file_netclode_v1_agent_proto_rawDesc = "" +
@@ -1394,7 +1465,7 @@ const file_netclode_v1_agent_proto_rawDesc = "" +
 	"\x0etitle_response\x18\x04 \x01(\v2\x1f.netclode.v1.AgentTitleResponseH\x00R\rtitleResponse\x12U\n" +
 	"\x13git_status_response\x18\x05 \x01(\v2#.netclode.v1.AgentGitStatusResponseH\x00R\x11gitStatusResponse\x12O\n" +
 	"\x11git_diff_response\x18\x06 \x01(\v2!.netclode.v1.AgentGitDiffResponseH\x00R\x0fgitDiffResponseB\t\n" +
-	"\amessage\"\x8f\x04\n" +
+	"\amessage\"\xea\x04\n" +
 	"\x13ControlPlaneMessage\x12>\n" +
 	"\n" +
 	"registered\x18\x01 \x01(\v2\x1c.netclode.v1.AgentRegisteredH\x00R\n" +
@@ -1405,7 +1476,8 @@ const file_netclode_v1_agent_proto_rawDesc = "" +
 	"\x0eget_git_status\x18\x05 \x01(\v2 .netclode.v1.GetGitStatusRequestH\x00R\fgetGitStatus\x12B\n" +
 	"\fget_git_diff\x18\x06 \x01(\v2\x1e.netclode.v1.GetGitDiffRequestH\x00R\n" +
 	"getGitDiff\x12H\n" +
-	"\x0eterminal_input\x18\a \x01(\v2\x1f.netclode.v1.AgentTerminalInputH\x00R\rterminalInputB\t\n" +
+	"\x0eterminal_input\x18\a \x01(\v2\x1f.netclode.v1.AgentTerminalInputH\x00R\rterminalInput\x12Y\n" +
+	"\x16update_git_credentials\x18\b \x01(\v2!.netclode.v1.UpdateGitCredentialsH\x00R\x14updateGitCredentialsB\t\n" +
 	"\amessage\"H\n" +
 	"\rAgentRegister\x12\x1d\n" +
 	"\n" +
@@ -1477,7 +1549,11 @@ const file_netclode_v1_agent_proto_rawDesc = "" +
 	"\x05input\"=\n" +
 	"\x13AgentTerminalResize\x12\x12\n" +
 	"\x04cols\x18\x01 \x01(\x05R\x04cols\x12\x12\n" +
-	"\x04rows\x18\x02 \x01(\x05R\x04rows2Z\n" +
+	"\x04rows\x18\x02 \x01(\x05R\x04rows\"s\n" +
+	"\x14UpdateGitCredentials\x12!\n" +
+	"\fgithub_token\x18\x01 \x01(\tR\vgithubToken\x128\n" +
+	"\vrepo_access\x18\x02 \x01(\x0e2\x17.netclode.v1.RepoAccessR\n" +
+	"repoAccess2Z\n" +
 	"\fAgentService\x12J\n" +
 	"\aConnect\x12\x19.netclode.v1.AgentMessage\x1a .netclode.v1.ControlPlaneMessage(\x010\x01B\xbb\x01\n" +
 	"\x0fcom.netclode.v1B\n" +
@@ -1495,7 +1571,7 @@ func file_netclode_v1_agent_proto_rawDescGZIP() []byte {
 	return file_netclode_v1_agent_proto_rawDescData
 }
 
-var file_netclode_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_netclode_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_netclode_v1_agent_proto_goTypes = []any{
 	(*AgentMessage)(nil),           // 0: netclode.v1.AgentMessage
 	(*ControlPlaneMessage)(nil),    // 1: netclode.v1.ControlPlaneMessage
@@ -1517,9 +1593,11 @@ var file_netclode_v1_agent_proto_goTypes = []any{
 	(*GetGitDiffRequest)(nil),      // 17: netclode.v1.GetGitDiffRequest
 	(*AgentTerminalInput)(nil),     // 18: netclode.v1.AgentTerminalInput
 	(*AgentTerminalResize)(nil),    // 19: netclode.v1.AgentTerminalResize
-	(*AgentEvent)(nil),             // 20: netclode.v1.AgentEvent
-	(*GitFileChange)(nil),          // 21: netclode.v1.GitFileChange
-	(*SessionConfig)(nil),          // 22: netclode.v1.SessionConfig
+	(*UpdateGitCredentials)(nil),   // 20: netclode.v1.UpdateGitCredentials
+	(*AgentEvent)(nil),             // 21: netclode.v1.AgentEvent
+	(*GitFileChange)(nil),          // 22: netclode.v1.GitFileChange
+	(*SessionConfig)(nil),          // 23: netclode.v1.SessionConfig
+	(RepoAccess)(0),                // 24: netclode.v1.RepoAccess
 }
 var file_netclode_v1_agent_proto_depIdxs = []int32{
 	2,  // 0: netclode.v1.AgentMessage.register:type_name -> netclode.v1.AgentRegister
@@ -1535,21 +1613,23 @@ var file_netclode_v1_agent_proto_depIdxs = []int32{
 	16, // 10: netclode.v1.ControlPlaneMessage.get_git_status:type_name -> netclode.v1.GetGitStatusRequest
 	17, // 11: netclode.v1.ControlPlaneMessage.get_git_diff:type_name -> netclode.v1.GetGitDiffRequest
 	18, // 12: netclode.v1.ControlPlaneMessage.terminal_input:type_name -> netclode.v1.AgentTerminalInput
-	4,  // 13: netclode.v1.AgentStreamResponse.text_delta:type_name -> netclode.v1.AgentTextDelta
-	20, // 14: netclode.v1.AgentStreamResponse.event:type_name -> netclode.v1.AgentEvent
-	5,  // 15: netclode.v1.AgentStreamResponse.system_message:type_name -> netclode.v1.AgentSystemMessage
-	6,  // 16: netclode.v1.AgentStreamResponse.result:type_name -> netclode.v1.AgentResult
-	7,  // 17: netclode.v1.AgentStreamResponse.error:type_name -> netclode.v1.AgentError
-	21, // 18: netclode.v1.AgentGitStatusResponse.files:type_name -> netclode.v1.GitFileChange
-	22, // 19: netclode.v1.AgentRegistered.config:type_name -> netclode.v1.SessionConfig
-	19, // 20: netclode.v1.AgentTerminalInput.resize:type_name -> netclode.v1.AgentTerminalResize
-	0,  // 21: netclode.v1.AgentService.Connect:input_type -> netclode.v1.AgentMessage
-	1,  // 22: netclode.v1.AgentService.Connect:output_type -> netclode.v1.ControlPlaneMessage
-	22, // [22:23] is the sub-list for method output_type
-	21, // [21:22] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	20, // 13: netclode.v1.ControlPlaneMessage.update_git_credentials:type_name -> netclode.v1.UpdateGitCredentials
+	4,  // 14: netclode.v1.AgentStreamResponse.text_delta:type_name -> netclode.v1.AgentTextDelta
+	21, // 15: netclode.v1.AgentStreamResponse.event:type_name -> netclode.v1.AgentEvent
+	5,  // 16: netclode.v1.AgentStreamResponse.system_message:type_name -> netclode.v1.AgentSystemMessage
+	6,  // 17: netclode.v1.AgentStreamResponse.result:type_name -> netclode.v1.AgentResult
+	7,  // 18: netclode.v1.AgentStreamResponse.error:type_name -> netclode.v1.AgentError
+	22, // 19: netclode.v1.AgentGitStatusResponse.files:type_name -> netclode.v1.GitFileChange
+	23, // 20: netclode.v1.AgentRegistered.config:type_name -> netclode.v1.SessionConfig
+	19, // 21: netclode.v1.AgentTerminalInput.resize:type_name -> netclode.v1.AgentTerminalResize
+	24, // 22: netclode.v1.UpdateGitCredentials.repo_access:type_name -> netclode.v1.RepoAccess
+	0,  // 23: netclode.v1.AgentService.Connect:input_type -> netclode.v1.AgentMessage
+	1,  // 24: netclode.v1.AgentService.Connect:output_type -> netclode.v1.ControlPlaneMessage
+	24, // [24:25] is the sub-list for method output_type
+	23, // [23:24] is the sub-list for method input_type
+	23, // [23:23] is the sub-list for extension type_name
+	23, // [23:23] is the sub-list for extension extendee
+	0,  // [0:23] is the sub-list for field type_name
 }
 
 func init() { file_netclode_v1_agent_proto_init() }
@@ -1575,6 +1655,7 @@ func file_netclode_v1_agent_proto_init() {
 		(*ControlPlaneMessage_GetGitStatus)(nil),
 		(*ControlPlaneMessage_GetGitDiff)(nil),
 		(*ControlPlaneMessage_TerminalInput)(nil),
+		(*ControlPlaneMessage_UpdateGitCredentials)(nil),
 	}
 	file_netclode_v1_agent_proto_msgTypes[3].OneofWrappers = []any{
 		(*AgentStreamResponse_TextDelta)(nil),
@@ -1595,7 +1676,7 @@ func file_netclode_v1_agent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_netclode_v1_agent_proto_rawDesc), len(file_netclode_v1_agent_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   20,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

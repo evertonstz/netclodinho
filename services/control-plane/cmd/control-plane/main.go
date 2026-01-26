@@ -62,13 +62,16 @@ func run() error {
 		k8sRuntime.Close()
 	}()
 
-	// Initialize GitHub client (optional - nil if not configured)
-	githubClient, err := github.NewClient(cfg)
-	if err != nil {
-		return fmt.Errorf("init github: %w", err)
-	}
-	if githubClient != nil {
-		slog.Info("GitHub App integration enabled", "appID", cfg.GitHubAppID, "installationID", cfg.GitHubInstallationID)
+	// Initialize GitHub client (nil if not configured)
+	var githubClient *github.Client
+	if cfg.HasGitHubApp() {
+		var err error
+		githubClient, err = github.NewClient(cfg.GitHubAppID, cfg.GitHubInstallationID, cfg.GitHubAppPrivateKey)
+		if err != nil {
+			slog.Error("Failed to create GitHub client", "error", err)
+		} else {
+			slog.Info("GitHub App client initialized")
+		}
 	}
 
 	// Create session manager

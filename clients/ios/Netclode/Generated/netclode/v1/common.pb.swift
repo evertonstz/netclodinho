@@ -21,14 +21,17 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
 }
 
 /// RepoAccess defines the permission level for repository operations.
+/// Only applies when a repo is selected. Write access is scoped to the selected repo only.
 public enum Netclode_V1_RepoAccess: SwiftProtobuf.Enum, Swift.CaseIterable {
   public typealias RawValue = Int
+
+  /// Defaults to READ
   case unspecified // = 0
 
-  /// Read-only access to the repository
+  /// Clone only (no push)
   case read // = 1
 
-  /// Read and write access to the repository
+  /// Clone and push (to selected repo only)
   case write // = 2
   case UNRECOGNIZED(Int)
 
@@ -482,7 +485,7 @@ public struct Netclode_V1_SessionConfig: Sendable {
   /// Absolute path to workspace directory
   public var workspaceDir: String = String()
 
-  /// GitHub token for repository access
+  /// GitHub token for git credentials (from GitHub App)
   public var githubToken: String {
     get {return _githubToken ?? String()}
     set {_githubToken = newValue}
@@ -545,6 +548,16 @@ public struct Netclode_V1_SessionConfig: Sendable {
   /// Clears the value of `copilotBackend`. Subsequent reads from it will return its default value.
   public mutating func clearCopilotBackend() {self._copilotBackend = nil}
 
+  /// GitHub PAT with Copilot scope (for Copilot SDK)
+  public var githubCopilotToken: String {
+    get {return _githubCopilotToken ?? String()}
+    set {_githubCopilotToken = newValue}
+  }
+  /// Returns true if `githubCopilotToken` has been explicitly set.
+  public var hasGithubCopilotToken: Bool {return self._githubCopilotToken != nil}
+  /// Clears the value of `githubCopilotToken`. Subsequent reads from it will return its default value.
+  public mutating func clearGithubCopilotToken() {self._githubCopilotToken = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -555,6 +568,7 @@ public struct Netclode_V1_SessionConfig: Sendable {
   fileprivate var _sdkType: Netclode_V1_SdkType? = nil
   fileprivate var _model: String? = nil
   fileprivate var _copilotBackend: Netclode_V1_CopilotBackend? = nil
+  fileprivate var _githubCopilotToken: String? = nil
 }
 
 /// GitHubRepo represents a GitHub repository from the user's account.
@@ -1039,7 +1053,7 @@ extension Netclode_V1_SessionSummary: SwiftProtobuf.Message, SwiftProtobuf._Mess
 
 extension Netclode_V1_SessionConfig: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SessionConfig"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_id\0\u{3}workspace_dir\0\u{3}github_token\0\u{1}repo\0\u{3}repo_access\0\u{3}control_plane_url\0\u{3}sdk_type\0\u{1}model\0\u{3}copilot_backend\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_id\0\u{3}workspace_dir\0\u{3}github_token\0\u{1}repo\0\u{3}repo_access\0\u{3}control_plane_url\0\u{3}sdk_type\0\u{1}model\0\u{3}copilot_backend\0\u{3}github_copilot_token\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1056,6 +1070,7 @@ extension Netclode_V1_SessionConfig: SwiftProtobuf.Message, SwiftProtobuf._Messa
       case 7: try { try decoder.decodeSingularEnumField(value: &self._sdkType) }()
       case 8: try { try decoder.decodeSingularStringField(value: &self._model) }()
       case 9: try { try decoder.decodeSingularEnumField(value: &self._copilotBackend) }()
+      case 10: try { try decoder.decodeSingularStringField(value: &self._githubCopilotToken) }()
       default: break
       }
     }
@@ -1093,6 +1108,9 @@ extension Netclode_V1_SessionConfig: SwiftProtobuf.Message, SwiftProtobuf._Messa
     try { if let v = self._copilotBackend {
       try visitor.visitSingularEnumField(value: v, fieldNumber: 9)
     } }()
+    try { if let v = self._githubCopilotToken {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 10)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1106,6 +1124,7 @@ extension Netclode_V1_SessionConfig: SwiftProtobuf.Message, SwiftProtobuf._Messa
     if lhs._sdkType != rhs._sdkType {return false}
     if lhs._model != rhs._model {return false}
     if lhs._copilotBackend != rhs._copilotBackend {return false}
+    if lhs._githubCopilotToken != rhs._githubCopilotToken {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

@@ -3,6 +3,8 @@ import SwiftUI
 /// A text field with autocomplete dropdown for GitHub repository selection.
 struct RepoAutocomplete: View {
     @Binding var text: String
+    var onRepoSelected: ((GitHubRepo) -> Void)?
+    
     @Environment(GitHubStore.self) private var githubStore
     @Environment(ConnectService.self) private var connectService
     @Environment(SettingsStore.self) private var settingsStore
@@ -108,6 +110,7 @@ struct RepoAutocomplete: View {
         }
         text = repo.fullName
         isFocused = false
+        onRepoSelected?(repo)
     }
 }
 

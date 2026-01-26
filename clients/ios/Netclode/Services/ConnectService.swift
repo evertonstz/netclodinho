@@ -461,6 +461,9 @@ final class ConnectService {
         case .snapshotRestored(let msg):
             return .snapshotRestored(sessionId: msg.sessionID, snapshotId: msg.snapshotID, messageCount: Int(msg.messagesRestored))
 
+        case .repoAccessUpdated(let msg):
+            return .repoAccessUpdated(sessionId: msg.sessionID, repoAccess: convertRepoAccess(msg.repoAccess))
+
         case .none:
             return nil
         }
@@ -506,9 +509,8 @@ final class ConnectService {
     
     private func convertRepoAccess(_ proto: Netclode_V1_RepoAccess) -> RepoAccess {
         switch proto {
-        case .read: return .read
         case .write: return .write
-        case .unspecified, .UNRECOGNIZED: return .read
+        case .read, .unspecified, .UNRECOGNIZED: return .read
         }
     }
     
@@ -1230,6 +1232,12 @@ final class ConnectService {
             req.sessionID = sessionId
             req.snapshotID = snapshotId
             proto.message = .restoreSnapshot(req)
+
+        case .updateRepoAccess(let sessionId, let repoAccess):
+            var req = Netclode_V1_UpdateRepoAccessRequest()
+            req.sessionID = sessionId
+            req.repoAccess = convertToProtoRepoAccess(repoAccess)
+            proto.message = .updateRepoAccess(req)
         }
         
         return proto
