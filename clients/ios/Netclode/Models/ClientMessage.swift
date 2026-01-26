@@ -1,7 +1,15 @@
 import Foundation
 
+/// Network configuration for sandbox sessions
+struct NetworkConfig: Sendable {
+    /// Whether internet access is enabled (default: true)
+    var internetAccess: Bool = true
+    /// Whether Tailnet access is enabled (default: false)
+    var tailnetAccess: Bool = false
+}
+
 enum ClientMessage: Encodable, Sendable {
-    case sessionCreate(name: String?, repo: String?, repoAccess: RepoAccess?, initialPrompt: String?, sdkType: SdkType?, model: String?, copilotBackend: CopilotBackend?)
+    case sessionCreate(name: String?, repo: String?, repoAccess: RepoAccess?, initialPrompt: String?, sdkType: SdkType?, model: String?, copilotBackend: CopilotBackend?, networkConfig: NetworkConfig?)
     case sessionList
     case sessionResume(id: String)
     case sessionPause(id: String)
@@ -38,7 +46,8 @@ enum ClientMessage: Encodable, Sendable {
         var container = encoder.container(keyedBy: CodingKeys.self)
 
         switch self {
-        case .sessionCreate(let name, let repo, let repoAccess, let initialPrompt, let sdkType, let model, let copilotBackend):
+        case .sessionCreate(let name, let repo, let repoAccess, let initialPrompt, let sdkType, let model, let copilotBackend, _):
+            // Note: networkConfig is handled via proto in ConnectService, not JSON encoding
             try container.encode("session.create", forKey: .type)
             try container.encodeIfPresent(name, forKey: .name)
             try container.encodeIfPresent(repo, forKey: .repo)

@@ -1108,7 +1108,7 @@ final class ConnectService {
         case .sync:
             proto.message = .sync(Netclode_V1_SyncRequest())
             
-        case .sessionCreate(let name, let repo, let repoAccess, let initialPrompt, let sdkType, let model, let copilotBackend):
+        case .sessionCreate(let name, let repo, let repoAccess, let initialPrompt, let sdkType, let model, let copilotBackend, let networkConfig):
             var req = Netclode_V1_CreateSessionRequest()
             if let name = name {
                 req.name = name
@@ -1130,6 +1130,12 @@ final class ConnectService {
             }
             if let copilotBackend = copilotBackend {
                 req.copilotBackend = convertToProtoCopilotBackend(copilotBackend)
+            }
+            if let networkConfig = networkConfig {
+                var protoNetworkConfig = Netclode_V1_NetworkConfig()
+                protoNetworkConfig.internetAccess = networkConfig.internetAccess
+                protoNetworkConfig.tailnetAccess = networkConfig.tailnetAccess
+                req.networkConfig = protoNetworkConfig
             }
             proto.message = .createSession(req)
             

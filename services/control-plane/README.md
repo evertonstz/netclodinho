@@ -56,7 +56,7 @@ rpc Connect(stream ClientMessage) returns (stream ServerMessage);
 
 | Message Type | Fields | Description |
 |--------------|--------|-------------|
-| `create_session` | `name`, `repo?`, `repo_access?` | Create session |
+| `create_session` | `name`, `repo?`, `repo_access?`, `network_config?` | Create session |
 | `list_sessions` | | List sessions |
 | `open_session` | `session_id`, `last_notification_id?` | Open with history |
 | `resume_session` | `session_id` | Resume paused |
@@ -252,6 +252,23 @@ When `WARM_POOL_ENABLED=true`, the control plane creates `SandboxClaim` resource
 Pre-booted VMs are already running and have their JuiceFS PVC mounted, so session start is nearly instant (~1s vs ~30s cold start).
 
 Since warm pool pods are created before we know which session they'll serve, they can't receive per-session env vars at boot. Instead, the agent calls `GET /internal/session-config?pod=<podName>` to fetch its configuration (session ID, API key, git repo) after startup.
+
+### Network access control
+
+Each session can have its network access configured via `network_config` in `create_session`:
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `internet_access` | `true` | Allow egress to the internet |
+| `tailnet_access` | `false` | Allow egress to Tailscale CGNAT range (100.64.0.0/10) |
+
+When internet access is disabled, a Kubernetes NetworkPolicy is created that blocks all egress except:
+- DNS (UDP/TCP port 53)
+- Control plane service (for Connect RPC)
+
+When tailnet access is enabled, a separate NetworkPolicy allows egress to the 100.64.0.0/10 CIDR block, which covers all Tailscale IP addresses. This enables sandboxes to reach other devices on your tailnet (databases, internal APIs, etc.).
+
+Network policies are applied after the sandbox is ready and cleaned up when the session is paused or deleted.
 
 ## Development
 

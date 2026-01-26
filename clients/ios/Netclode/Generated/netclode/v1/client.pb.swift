@@ -458,6 +458,27 @@ public struct Netclode_V1_ServerMessage: Sendable {
   public init() {}
 }
 
+/// NetworkConfig controls network access for a session's sandbox.
+public struct Netclode_V1_NetworkConfig: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Whether internet access is enabled for this session.
+  /// Default: true. When false, sandbox can only reach control-plane and DNS
+  /// (no external internet access).
+  public var internetAccess: Bool = false
+
+  /// Whether Tailnet access is enabled for this session.
+  /// Default: false. When true, sandbox can reach other devices on the
+  /// Tailscale network (100.64.0.0/10 CGNAT range).
+  public var tailnetAccess: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 public struct Netclode_V1_CreateSessionRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -543,6 +564,16 @@ public struct Netclode_V1_CreateSessionRequest: Sendable {
   /// Clears the value of `copilotBackend`. Subsequent reads from it will return its default value.
   public mutating func clearCopilotBackend() {self._copilotBackend = nil}
 
+  /// Network configuration (defaults to enabled)
+  public var networkConfig: Netclode_V1_NetworkConfig {
+    get {return _networkConfig ?? Netclode_V1_NetworkConfig()}
+    set {_networkConfig = newValue}
+  }
+  /// Returns true if `networkConfig` has been explicitly set.
+  public var hasNetworkConfig: Bool {return self._networkConfig != nil}
+  /// Clears the value of `networkConfig`. Subsequent reads from it will return its default value.
+  public mutating func clearNetworkConfig() {self._networkConfig = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -555,6 +586,7 @@ public struct Netclode_V1_CreateSessionRequest: Sendable {
   fileprivate var _sdkType: Netclode_V1_SdkType? = nil
   fileprivate var _model: String? = nil
   fileprivate var _copilotBackend: Netclode_V1_CopilotBackend? = nil
+  fileprivate var _networkConfig: Netclode_V1_NetworkConfig? = nil
 }
 
 public struct Netclode_V1_ListSessionsRequest: Sendable {
@@ -2487,9 +2519,44 @@ extension Netclode_V1_ServerMessage: SwiftProtobuf.Message, SwiftProtobuf._Messa
   }
 }
 
+extension Netclode_V1_NetworkConfig: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".NetworkConfig"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}internet_access\0\u{3}tailnet_access\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBoolField(value: &self.internetAccess) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.tailnetAccess) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.internetAccess != false {
+      try visitor.visitSingularBoolField(value: self.internetAccess, fieldNumber: 1)
+    }
+    if self.tailnetAccess != false {
+      try visitor.visitSingularBoolField(value: self.tailnetAccess, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Netclode_V1_NetworkConfig, rhs: Netclode_V1_NetworkConfig) -> Bool {
+    if lhs.internetAccess != rhs.internetAccess {return false}
+    if lhs.tailnetAccess != rhs.tailnetAccess {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 extension Netclode_V1_CreateSessionRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CreateSessionRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0\u{1}name\0\u{1}repo\0\u{3}repo_access\0\u{3}initial_prompt\0\u{3}sdk_type\0\u{1}model\0\u{3}copilot_backend\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0\u{1}name\0\u{1}repo\0\u{3}repo_access\0\u{3}initial_prompt\0\u{3}sdk_type\0\u{1}model\0\u{3}copilot_backend\0\u{3}network_config\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2505,6 +2572,7 @@ extension Netclode_V1_CreateSessionRequest: SwiftProtobuf.Message, SwiftProtobuf
       case 6: try { try decoder.decodeSingularEnumField(value: &self._sdkType) }()
       case 7: try { try decoder.decodeSingularStringField(value: &self._model) }()
       case 8: try { try decoder.decodeSingularEnumField(value: &self._copilotBackend) }()
+      case 9: try { try decoder.decodeSingularMessageField(value: &self._networkConfig) }()
       default: break
       }
     }
@@ -2539,6 +2607,9 @@ extension Netclode_V1_CreateSessionRequest: SwiftProtobuf.Message, SwiftProtobuf
     try { if let v = self._copilotBackend {
       try visitor.visitSingularEnumField(value: v, fieldNumber: 8)
     } }()
+    try { if let v = self._networkConfig {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -2551,6 +2622,7 @@ extension Netclode_V1_CreateSessionRequest: SwiftProtobuf.Message, SwiftProtobuf
     if lhs._sdkType != rhs._sdkType {return false}
     if lhs._model != rhs._model {return false}
     if lhs._copilotBackend != rhs._copilotBackend {return false}
+    if lhs._networkConfig != rhs._networkConfig {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

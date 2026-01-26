@@ -16,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file netclode/v1/client.proto.
  */
 export const file_netclode_v1_client: GenFile = /*@__PURE__*/
-  fileDesc("ChhuZXRjbG9kZS92MS9jbGllbnQucHJvdG8SC25ldGNsb2RlLnYxIoAKCg1DbGllbnRNZXNzYWdlEjsKDmNyZWF0ZV9zZXNzaW9uGAEgASgLMiEubmV0Y2xvZGUudjEuQ3JlYXRlU2Vzc2lvblJlcXVlc3RIABI5Cg1saXN0X3Nlc3Npb25zGAIgASgLMiAubmV0Y2xvZGUudjEuTGlzdFNlc3Npb25zUmVxdWVzdEgAEjcKDG9wZW5fc2Vzc2lvbhgDIAEoCzIfLm5ldGNsb2RlLnYxLk9wZW5TZXNzaW9uUmVxdWVzdEgAEjsKDnJlc3VtZV9zZXNzaW9uGAQgASgLMiEubmV0Y2xvZGUudjEuUmVzdW1lU2Vzc2lvblJlcXVlc3RIABI5Cg1wYXVzZV9zZXNzaW9uGAUgASgLMiAubmV0Y2xvZGUudjEuUGF1c2VTZXNzaW9uUmVxdWVzdEgAEjsKDmRlbGV0ZV9zZXNzaW9uGAYgASgLMiEubmV0Y2xvZGUudjEuRGVsZXRlU2Vzc2lvblJlcXVlc3RIABJEChNkZWxldGVfYWxsX3Nlc3Npb25zGAcgASgLMiUubmV0Y2xvZGUudjEuRGVsZXRlQWxsU2Vzc2lvbnNSZXF1ZXN0SAASNQoLc2VuZF9wcm9tcHQYCCABKAsyHi5uZXRjbG9kZS52MS5TZW5kUHJvbXB0UmVxdWVzdEgAEj8KEGludGVycnVwdF9wcm9tcHQYCSABKAsyIy5uZXRjbG9kZS52MS5JbnRlcnJ1cHRQcm9tcHRSZXF1ZXN0SAASOwoOdGVybWluYWxfaW5wdXQYCiABKAsyIS5uZXRjbG9kZS52MS5UZXJtaW5hbElucHV0UmVxdWVzdEgAEj0KD3Rlcm1pbmFsX3Jlc2l6ZRgLIAEoCzIiLm5ldGNsb2RlLnYxLlRlcm1pbmFsUmVzaXplUmVxdWVzdEgAEjUKC2V4cG9zZV9wb3J0GAwgASgLMh4ubmV0Y2xvZGUudjEuRXhwb3NlUG9ydFJlcXVlc3RIABIoCgRzeW5jGA0gASgLMhgubmV0Y2xvZGUudjEuU3luY1JlcXVlc3RIABJAChFsaXN0X2dpdGh1Yl9yZXBvcxgOIAEoCzIjLm5ldGNsb2RlLnYxLkxpc3RHaXRIdWJSZXBvc1JlcXVlc3RIABIzCgpnaXRfc3RhdHVzGA8gASgLMh0ubmV0Y2xvZGUudjEuR2l0U3RhdHVzUmVxdWVzdEgAEi8KCGdpdF9kaWZmGBAgASgLMhsubmV0Y2xvZGUudjEuR2l0RGlmZlJlcXVlc3RIABI1CgtsaXN0X21vZGVscxgRIAEoCzIeLm5ldGNsb2RlLnYxLkxpc3RNb2RlbHNSZXF1ZXN0SAASQgoSZ2V0X2NvcGlsb3Rfc3RhdHVzGBIgASgLMiQubmV0Y2xvZGUudjEuR2V0Q29waWxvdFN0YXR1c1JlcXVlc3RIABI7Cg5saXN0X3NuYXBzaG90cxgTIAEoCzIhLm5ldGNsb2RlLnYxLkxpc3RTbmFwc2hvdHNSZXF1ZXN0SAASPwoQcmVzdG9yZV9zbmFwc2hvdBgUIAEoCzIjLm5ldGNsb2RlLnYxLlJlc3RvcmVTbmFwc2hvdFJlcXVlc3RIABJCChJ1cGRhdGVfcmVwb19hY2Nlc3MYFSABKAsyJC5uZXRjbG9kZS52MS5VcGRhdGVSZXBvQWNjZXNzUmVxdWVzdEgAQgkKB21lc3NhZ2Ui8AoKDVNlcnZlck1lc3NhZ2USPgoPc2Vzc2lvbl9jcmVhdGVkGAEgASgLMiMubmV0Y2xvZGUudjEuU2Vzc2lvbkNyZWF0ZWRSZXNwb25zZUgAEj4KD3Nlc3Npb25fdXBkYXRlZBgCIAEoCzIjLm5ldGNsb2RlLnYxLlNlc3Npb25VcGRhdGVkUmVzcG9uc2VIABI+Cg9zZXNzaW9uX2RlbGV0ZWQYAyABKAsyIy5uZXRjbG9kZS52MS5TZXNzaW9uRGVsZXRlZFJlc3BvbnNlSAASRwoUc2Vzc2lvbnNfZGVsZXRlZF9hbGwYBCABKAsyJy5uZXRjbG9kZS52MS5TZXNzaW9uc0RlbGV0ZWRBbGxSZXNwb25zZUgAEjgKDHNlc3Npb25fbGlzdBgFIAEoCzIgLm5ldGNsb2RlLnYxLlNlc3Npb25MaXN0UmVzcG9uc2VIABI6Cg1zZXNzaW9uX3N0YXRlGAYgASgLMiEubmV0Y2xvZGUudjEuU2Vzc2lvblN0YXRlUmVzcG9uc2VIABIyCg1zeW5jX3Jlc3BvbnNlGAcgASgLMhkubmV0Y2xvZGUudjEuU3luY1Jlc3BvbnNlSAASNgoLYWdlbnRfZXZlbnQYCCABKAsyHy5uZXRjbG9kZS52MS5BZ2VudEV2ZW50UmVzcG9uc2VIABI6Cg1hZ2VudF9tZXNzYWdlGAkgASgLMiEubmV0Y2xvZGUudjEuQWdlbnRNZXNzYWdlUmVzcG9uc2VIABI0CgphZ2VudF9kb25lGAogASgLMh4ubmV0Y2xvZGUudjEuQWdlbnREb25lUmVzcG9uc2VIABI4Cgx1c2VyX21lc3NhZ2UYCyABKAsyIC5uZXRjbG9kZS52MS5Vc2VyTWVzc2FnZVJlc3BvbnNlSAASPgoPdGVybWluYWxfb3V0cHV0GAwgASgLMiMubmV0Y2xvZGUudjEuVGVybWluYWxPdXRwdXRSZXNwb25zZUgAEjgKDHBvcnRfZXhwb3NlZBgNIAEoCzIgLm5ldGNsb2RlLnYxLlBvcnRFeHBvc2VkUmVzcG9uc2VIABI4CgxnaXRodWJfcmVwb3MYDiABKAsyIC5uZXRjbG9kZS52MS5HaXRIdWJSZXBvc1Jlc3BvbnNlSAASNAoKZ2l0X3N0YXR1cxgPIAEoCzIeLm5ldGNsb2RlLnYxLkdpdFN0YXR1c1Jlc3BvbnNlSAASMAoIZ2l0X2RpZmYYECABKAsyHC5uZXRjbG9kZS52MS5HaXREaWZmUmVzcG9uc2VIABIrCgVlcnJvchgRIAEoCzIaLm5ldGNsb2RlLnYxLkVycm9yUmVzcG9uc2VIABItCgZtb2RlbHMYEiABKAsyGy5uZXRjbG9kZS52MS5Nb2RlbHNSZXNwb25zZUgAEjwKDmNvcGlsb3Rfc3RhdHVzGBMgASgLMiIubmV0Y2xvZGUudjEuQ29waWxvdFN0YXR1c1Jlc3BvbnNlSAASQAoQc25hcHNob3RfY3JlYXRlZBgUIAEoCzIkLm5ldGNsb2RlLnYxLlNuYXBzaG90Q3JlYXRlZFJlc3BvbnNlSAASOgoNc25hcHNob3RfbGlzdBgVIAEoCzIhLm5ldGNsb2RlLnYxLlNuYXBzaG90TGlzdFJlc3BvbnNlSAASQgoRc25hcHNob3RfcmVzdG9yZWQYFiABKAsyJS5uZXRjbG9kZS52MS5TbmFwc2hvdFJlc3RvcmVkUmVzcG9uc2VIABJFChNyZXBvX2FjY2Vzc191cGRhdGVkGBcgASgLMiYubmV0Y2xvZGUudjEuUmVwb0FjY2Vzc1VwZGF0ZWRSZXNwb25zZUgAQgkKB21lc3NhZ2UikAMKFENyZWF0ZVNlc3Npb25SZXF1ZXN0EhcKCnJlcXVlc3RfaWQYASABKAlIAIgBARIRCgRuYW1lGAIgASgJSAGIAQESEQoEcmVwbxgDIAEoCUgCiAEBEjEKC3JlcG9fYWNjZXNzGAQgASgOMhcubmV0Y2xvZGUudjEuUmVwb0FjY2Vzc0gDiAEBEhsKDmluaXRpYWxfcHJvbXB0GAUgASgJSASIAQESKwoIc2RrX3R5cGUYBiABKA4yFC5uZXRjbG9kZS52MS5TZGtUeXBlSAWIAQESEgoFbW9kZWwYByABKAlIBogBARI5Cg9jb3BpbG90X2JhY2tlbmQYCCABKA4yGy5uZXRjbG9kZS52MS5Db3BpbG90QmFja2VuZEgHiAEBQg0KC19yZXF1ZXN0X2lkQgcKBV9uYW1lQgcKBV9yZXBvQg4KDF9yZXBvX2FjY2Vzc0IRCg9faW5pdGlhbF9wcm9tcHRCCwoJX3Nka190eXBlQggKBl9tb2RlbEISChBfY29waWxvdF9iYWNrZW5kIj0KE0xpc3RTZXNzaW9uc1JlcXVlc3QSFwoKcmVxdWVzdF9pZBgBIAEoCUgAiAEBQg0KC19yZXF1ZXN0X2lkIr4BChJPcGVuU2Vzc2lvblJlcXVlc3QSFwoKcmVxdWVzdF9pZBgBIAEoCUgAiAEBEhIKCnNlc3Npb25faWQYAiABKAkSHAoPbGFzdF9tZXNzYWdlX2lkGAMgASgJSAGIAQESIQoUbGFzdF9ub3RpZmljYXRpb25faWQYBCABKAlIAogBAUINCgtfcmVxdWVzdF9pZEISChBfbGFzdF9tZXNzYWdlX2lkQhcKFV9sYXN0X25vdGlmaWNhdGlvbl9pZCJSChRSZXN1bWVTZXNzaW9uUmVxdWVzdBIXCgpyZXF1ZXN0X2lkGAEgASgJSACIAQESEgoKc2Vzc2lvbl9pZBgCIAEoCUINCgtfcmVxdWVzdF9pZCJRChNQYXVzZVNlc3Npb25SZXF1ZXN0EhcKCnJlcXVlc3RfaWQYASABKAlIAIgBARISCgpzZXNzaW9uX2lkGAIgASgJQg0KC19yZXF1ZXN0X2lkIlIKFERlbGV0ZVNlc3Npb25SZXF1ZXN0EhcKCnJlcXVlc3RfaWQYASABKAlIAIgBARISCgpzZXNzaW9uX2lkGAIgASgJQg0KC19yZXF1ZXN0X2lkIkIKGERlbGV0ZUFsbFNlc3Npb25zUmVxdWVzdBIXCgpyZXF1ZXN0X2lkGAEgASgJSACIAQFCDQoLX3JlcXVlc3RfaWQiXQoRU2VuZFByb21wdFJlcXVlc3QSFwoKcmVxdWVzdF9pZBgBIAEoCUgAiAEBEhIKCnNlc3Npb25faWQYAiABKAkSDAoEdGV4dBgDIAEoCUINCgtfcmVxdWVzdF9pZCJUChZJbnRlcnJ1cHRQcm9tcHRSZXF1ZXN0EhcKCnJlcXVlc3RfaWQYASABKAlIAIgBARISCgpzZXNzaW9uX2lkGAIgASgJQg0KC19yZXF1ZXN0X2lkImAKFFRlcm1pbmFsSW5wdXRSZXF1ZXN0EhcKCnJlcXVlc3RfaWQYASABKAlIAIgBARISCgpzZXNzaW9uX2lkGAIgASgJEgwKBGRhdGEYAyABKAlCDQoLX3JlcXVlc3RfaWQibwoVVGVybWluYWxSZXNpemVSZXF1ZXN0EhcKCnJlcXVlc3RfaWQYASABKAlIAIgBARISCgpzZXNzaW9uX2lkGAIgASgJEgwKBGNvbHMYAyABKAUSDAoEcm93cxgEIAEoBUINCgtfcmVxdWVzdF9pZCJdChFFeHBvc2VQb3J0UmVxdWVzdBIXCgpyZXF1ZXN0X2lkGAEgASgJSACIAQESEgoKc2Vzc2lvbl9pZBgCIAEoCRIMCgRwb3J0GAMgASgFQg0KC19yZXF1ZXN0X2lkIjUKC1N5bmNSZXF1ZXN0EhcKCnJlcXVlc3RfaWQYASABKAlIAIgBAUINCgtfcmVxdWVzdF9pZCJAChZMaXN0R2l0SHViUmVwb3NSZXF1ZXN0EhcKCnJlcXVlc3RfaWQYASABKAlIAIgBAUINCgtfcmVxdWVzdF9pZCJOChBHaXRTdGF0dXNSZXF1ZXN0EhcKCnJlcXVlc3RfaWQYASABKAlIAIgBARISCgpzZXNzaW9uX2lkGAIgASgJQg0KC19yZXF1ZXN0X2lkImgKDkdpdERpZmZSZXF1ZXN0EhcKCnJlcXVlc3RfaWQYASABKAlIAIgBARISCgpzZXNzaW9uX2lkGAIgASgJEhEKBGZpbGUYAyABKAlIAYgBAUINCgtfcmVxdWVzdF9pZEIHCgVfZmlsZSKyAQoRTGlzdE1vZGVsc1JlcXVlc3QSFwoKcmVxdWVzdF9pZBgBIAEoCUgAiAEBEiYKCHNka190eXBlGAIgASgOMhQubmV0Y2xvZGUudjEuU2RrVHlwZRI5Cg9jb3BpbG90X2JhY2tlbmQYAyABKA4yGy5uZXRjbG9kZS52MS5Db3BpbG90QmFja2VuZEgBiAEBQg0KC19yZXF1ZXN0X2lkQhIKEF9jb3BpbG90X2JhY2tlbmQiQQoXR2V0Q29waWxvdFN0YXR1c1JlcXVlc3QSFwoKcmVxdWVzdF9pZBgBIAEoCUgAiAEBQg0KC19yZXF1ZXN0X2lkIlIKFExpc3RTbmFwc2hvdHNSZXF1ZXN0EhcKCnJlcXVlc3RfaWQYASABKAlIAIgBARISCgpzZXNzaW9uX2lkGAIgASgJQg0KC19yZXF1ZXN0X2lkImkKFlJlc3RvcmVTbmFwc2hvdFJlcXVlc3QSFwoKcmVxdWVzdF9pZBgBIAEoCUgAiAEBEhIKCnNlc3Npb25faWQYAiABKAkSEwoLc25hcHNob3RfaWQYAyABKAlCDQoLX3JlcXVlc3RfaWQigwEKF1VwZGF0ZVJlcG9BY2Nlc3NSZXF1ZXN0EhcKCnJlcXVlc3RfaWQYASABKAlIAIgBARISCgpzZXNzaW9uX2lkGAIgASgJEiwKC3JlcG9fYWNjZXNzGAMgASgOMhcubmV0Y2xvZGUudjEuUmVwb0FjY2Vzc0INCgtfcmVxdWVzdF9pZCJnChZTZXNzaW9uQ3JlYXRlZFJlc3BvbnNlEiUKB3Nlc3Npb24YASABKAsyFC5uZXRjbG9kZS52MS5TZXNzaW9uEhcKCnJlcXVlc3RfaWQYAiABKAlIAIgBAUINCgtfcmVxdWVzdF9pZCI/ChZTZXNzaW9uVXBkYXRlZFJlc3BvbnNlEiUKB3Nlc3Npb24YASABKAsyFC5uZXRjbG9kZS52MS5TZXNzaW9uIlQKFlNlc3Npb25EZWxldGVkUmVzcG9uc2USEgoKc2Vzc2lvbl9pZBgBIAEoCRIXCgpyZXF1ZXN0X2lkGAIgASgJSACIAQFCDQoLX3JlcXVlc3RfaWQiWQoaU2Vzc2lvbnNEZWxldGVkQWxsUmVzcG9uc2USEwoLZGVsZXRlZF9pZHMYASADKAkSFwoKcmVxdWVzdF9pZBgCIAEoCUgAiAEBQg0KC19yZXF1ZXN0X2lkImUKE1Nlc3Npb25MaXN0UmVzcG9uc2USJgoIc2Vzc2lvbnMYASADKAsyFC5uZXRjbG9kZS52MS5TZXNzaW9uEhcKCnJlcXVlc3RfaWQYAiABKAlIAIgBAUINCgtfcmVxdWVzdF9pZCL/AQoUU2Vzc2lvblN0YXRlUmVzcG9uc2USJQoHc2Vzc2lvbhgBIAEoCzIULm5ldGNsb2RlLnYxLlNlc3Npb24SJgoIbWVzc2FnZXMYAiADKAsyFC5uZXRjbG9kZS52MS5NZXNzYWdlEiIKBmV2ZW50cxgDIAMoCzISLm5ldGNsb2RlLnYxLkV2ZW50EhAKCGhhc19tb3JlGAQgASgIEiEKFGxhc3Rfbm90aWZpY2F0aW9uX2lkGAUgASgJSACIAQESFwoKcmVxdWVzdF9pZBgGIAEoCUgBiAEBQhcKFV9sYXN0X25vdGlmaWNhdGlvbl9pZEINCgtfcmVxdWVzdF9pZCKWAQoMU3luY1Jlc3BvbnNlEi0KCHNlc3Npb25zGAEgAygLMhsubmV0Y2xvZGUudjEuU2Vzc2lvblN1bW1hcnkSLwoLc2VydmVyX3RpbWUYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhcKCnJlcXVlc3RfaWQYAyABKAlIAIgBAUINCgtfcmVxdWVzdF9pZCJQChJBZ2VudEV2ZW50UmVzcG9uc2USEgoKc2Vzc2lvbl9pZBgBIAEoCRImCgVldmVudBgCIAEoCzIXLm5ldGNsb2RlLnYxLkFnZW50RXZlbnQiYAoUQWdlbnRNZXNzYWdlUmVzcG9uc2USEgoKc2Vzc2lvbl9pZBgBIAEoCRIPCgdjb250ZW50GAIgASgJEg8KB3BhcnRpYWwYAyABKAgSEgoKbWVzc2FnZV9pZBgEIAEoCSInChFBZ2VudERvbmVSZXNwb25zZRISCgpzZXNzaW9uX2lkGAEgASgJIjoKE1VzZXJNZXNzYWdlUmVzcG9uc2USEgoKc2Vzc2lvbl9pZBgBIAEoCRIPCgdjb250ZW50GAIgASgJIjoKFlRlcm1pbmFsT3V0cHV0UmVzcG9uc2USEgoKc2Vzc2lvbl9pZBgBIAEoCRIMCgRkYXRhGAIgASgJInQKE1BvcnRFeHBvc2VkUmVzcG9uc2USEgoKc2Vzc2lvbl9pZBgBIAEoCRIMCgRwb3J0GAIgASgFEhMKC3ByZXZpZXdfdXJsGAMgASgJEhcKCnJlcXVlc3RfaWQYBCABKAlIAIgBAUINCgtfcmVxdWVzdF9pZCJlChNHaXRIdWJSZXBvc1Jlc3BvbnNlEiYKBXJlcG9zGAEgAygLMhcubmV0Y2xvZGUudjEuR2l0SHViUmVwbxIXCgpyZXF1ZXN0X2lkGAIgASgJSACIAQFCDQoLX3JlcXVlc3RfaWQiegoRR2l0U3RhdHVzUmVzcG9uc2USEgoKc2Vzc2lvbl9pZBgBIAEoCRIpCgVmaWxlcxgCIAMoCzIaLm5ldGNsb2RlLnYxLkdpdEZpbGVDaGFuZ2USFwoKcmVxdWVzdF9pZBgDIAEoCUgAiAEBQg0KC19yZXF1ZXN0X2lkIlsKD0dpdERpZmZSZXNwb25zZRISCgpzZXNzaW9uX2lkGAEgASgJEgwKBGRpZmYYAiABKAkSFwoKcmVxdWVzdF9pZBgDIAEoCUgAiAEBQg0KC19yZXF1ZXN0X2lkIloKDUVycm9yUmVzcG9uc2USIQoFZXJyb3IYASABKAsyEi5uZXRjbG9kZS52MS5FcnJvchIXCgpyZXF1ZXN0X2lkGAIgASgJSACIAQFCDQoLX3JlcXVlc3RfaWQiYAoOTW9kZWxzUmVzcG9uc2USJgoGbW9kZWxzGAEgAygLMhYubmV0Y2xvZGUudjEuTW9kZWxJbmZvEhcKCnJlcXVlc3RfaWQYAiABKAlIAIgBAUINCgtfcmVxdWVzdF9pZCKtAQoVQ29waWxvdFN0YXR1c1Jlc3BvbnNlEiwKBGF1dGgYASABKAsyHi5uZXRjbG9kZS52MS5Db3BpbG90QXV0aFN0YXR1cxI0CgVxdW90YRgCIAEoCzIgLm5ldGNsb2RlLnYxLkNvcGlsb3RQcmVtaXVtUXVvdGFIAIgBARIXCgpyZXF1ZXN0X2lkGAMgASgJSAGIAQFCCAoGX3F1b3RhQg0KC19yZXF1ZXN0X2lkIlYKF1NuYXBzaG90Q3JlYXRlZFJlc3BvbnNlEhIKCnNlc3Npb25faWQYASABKAkSJwoIc25hcHNob3QYAiABKAsyFS5uZXRjbG9kZS52MS5TbmFwc2hvdCJ8ChRTbmFwc2hvdExpc3RSZXNwb25zZRISCgpzZXNzaW9uX2lkGAEgASgJEigKCXNuYXBzaG90cxgCIAMoCzIVLm5ldGNsb2RlLnYxLlNuYXBzaG90EhcKCnJlcXVlc3RfaWQYAyABKAlIAIgBAUINCgtfcmVxdWVzdF9pZCKGAQoYU25hcHNob3RSZXN0b3JlZFJlc3BvbnNlEhIKCnNlc3Npb25faWQYASABKAkSEwoLc25hcHNob3RfaWQYAiABKAkSGQoRbWVzc2FnZXNfcmVzdG9yZWQYAyABKAUSFwoKcmVxdWVzdF9pZBgEIAEoCUgAiAEBQg0KC19yZXF1ZXN0X2lkIoUBChlSZXBvQWNjZXNzVXBkYXRlZFJlc3BvbnNlEhIKCnNlc3Npb25faWQYASABKAkSLAoLcmVwb19hY2Nlc3MYAiABKA4yFy5uZXRjbG9kZS52MS5SZXBvQWNjZXNzEhcKCnJlcXVlc3RfaWQYAyABKAlIAIgBAUINCgtfcmVxdWVzdF9pZDJWCg1DbGllbnRTZXJ2aWNlEkUKB0Nvbm5lY3QSGi5uZXRjbG9kZS52MS5DbGllbnRNZXNzYWdlGhoubmV0Y2xvZGUudjEuU2VydmVyTWVzc2FnZSgBMAFCvAEKD2NvbS5uZXRjbG9kZS52MUILQ2xpZW50UHJvdG9QAVpPZ2l0aHViLmNvbS9hbmdyaXN0YW4vbmV0Y2xvZGUvc2VydmljZXMvY29udHJvbC1wbGFuZS9nZW4vbmV0Y2xvZGUvdjE7bmV0Y2xvZGV2MaICA05YWKoCC05ldGNsb2RlLlYxygILTmV0Y2xvZGVcVjHiAhdOZXRjbG9kZVxWMVxHUEJNZXRhZGF0YeoCDE5ldGNsb2RlOjpWMWIGcHJvdG8z", [file_netclode_v1_common, file_netclode_v1_events, file_google_protobuf_timestamp]);
+  fileDesc("ChhuZXRjbG9kZS92MS9jbGllbnQucHJvdG8SC25ldGNsb2RlLnYxIoAKCg1DbGllbnRNZXNzYWdlEjsKDmNyZWF0ZV9zZXNzaW9uGAEgASgLMiEubmV0Y2xvZGUudjEuQ3JlYXRlU2Vzc2lvblJlcXVlc3RIABI5Cg1saXN0X3Nlc3Npb25zGAIgASgLMiAubmV0Y2xvZGUudjEuTGlzdFNlc3Npb25zUmVxdWVzdEgAEjcKDG9wZW5fc2Vzc2lvbhgDIAEoCzIfLm5ldGNsb2RlLnYxLk9wZW5TZXNzaW9uUmVxdWVzdEgAEjsKDnJlc3VtZV9zZXNzaW9uGAQgASgLMiEubmV0Y2xvZGUudjEuUmVzdW1lU2Vzc2lvblJlcXVlc3RIABI5Cg1wYXVzZV9zZXNzaW9uGAUgASgLMiAubmV0Y2xvZGUudjEuUGF1c2VTZXNzaW9uUmVxdWVzdEgAEjsKDmRlbGV0ZV9zZXNzaW9uGAYgASgLMiEubmV0Y2xvZGUudjEuRGVsZXRlU2Vzc2lvblJlcXVlc3RIABJEChNkZWxldGVfYWxsX3Nlc3Npb25zGAcgASgLMiUubmV0Y2xvZGUudjEuRGVsZXRlQWxsU2Vzc2lvbnNSZXF1ZXN0SAASNQoLc2VuZF9wcm9tcHQYCCABKAsyHi5uZXRjbG9kZS52MS5TZW5kUHJvbXB0UmVxdWVzdEgAEj8KEGludGVycnVwdF9wcm9tcHQYCSABKAsyIy5uZXRjbG9kZS52MS5JbnRlcnJ1cHRQcm9tcHRSZXF1ZXN0SAASOwoOdGVybWluYWxfaW5wdXQYCiABKAsyIS5uZXRjbG9kZS52MS5UZXJtaW5hbElucHV0UmVxdWVzdEgAEj0KD3Rlcm1pbmFsX3Jlc2l6ZRgLIAEoCzIiLm5ldGNsb2RlLnYxLlRlcm1pbmFsUmVzaXplUmVxdWVzdEgAEjUKC2V4cG9zZV9wb3J0GAwgASgLMh4ubmV0Y2xvZGUudjEuRXhwb3NlUG9ydFJlcXVlc3RIABIoCgRzeW5jGA0gASgLMhgubmV0Y2xvZGUudjEuU3luY1JlcXVlc3RIABJAChFsaXN0X2dpdGh1Yl9yZXBvcxgOIAEoCzIjLm5ldGNsb2RlLnYxLkxpc3RHaXRIdWJSZXBvc1JlcXVlc3RIABIzCgpnaXRfc3RhdHVzGA8gASgLMh0ubmV0Y2xvZGUudjEuR2l0U3RhdHVzUmVxdWVzdEgAEi8KCGdpdF9kaWZmGBAgASgLMhsubmV0Y2xvZGUudjEuR2l0RGlmZlJlcXVlc3RIABI1CgtsaXN0X21vZGVscxgRIAEoCzIeLm5ldGNsb2RlLnYxLkxpc3RNb2RlbHNSZXF1ZXN0SAASQgoSZ2V0X2NvcGlsb3Rfc3RhdHVzGBIgASgLMiQubmV0Y2xvZGUudjEuR2V0Q29waWxvdFN0YXR1c1JlcXVlc3RIABI7Cg5saXN0X3NuYXBzaG90cxgTIAEoCzIhLm5ldGNsb2RlLnYxLkxpc3RTbmFwc2hvdHNSZXF1ZXN0SAASPwoQcmVzdG9yZV9zbmFwc2hvdBgUIAEoCzIjLm5ldGNsb2RlLnYxLlJlc3RvcmVTbmFwc2hvdFJlcXVlc3RIABJCChJ1cGRhdGVfcmVwb19hY2Nlc3MYFSABKAsyJC5uZXRjbG9kZS52MS5VcGRhdGVSZXBvQWNjZXNzUmVxdWVzdEgAQgkKB21lc3NhZ2Ui8AoKDVNlcnZlck1lc3NhZ2USPgoPc2Vzc2lvbl9jcmVhdGVkGAEgASgLMiMubmV0Y2xvZGUudjEuU2Vzc2lvbkNyZWF0ZWRSZXNwb25zZUgAEj4KD3Nlc3Npb25fdXBkYXRlZBgCIAEoCzIjLm5ldGNsb2RlLnYxLlNlc3Npb25VcGRhdGVkUmVzcG9uc2VIABI+Cg9zZXNzaW9uX2RlbGV0ZWQYAyABKAsyIy5uZXRjbG9kZS52MS5TZXNzaW9uRGVsZXRlZFJlc3BvbnNlSAASRwoUc2Vzc2lvbnNfZGVsZXRlZF9hbGwYBCABKAsyJy5uZXRjbG9kZS52MS5TZXNzaW9uc0RlbGV0ZWRBbGxSZXNwb25zZUgAEjgKDHNlc3Npb25fbGlzdBgFIAEoCzIgLm5ldGNsb2RlLnYxLlNlc3Npb25MaXN0UmVzcG9uc2VIABI6Cg1zZXNzaW9uX3N0YXRlGAYgASgLMiEubmV0Y2xvZGUudjEuU2Vzc2lvblN0YXRlUmVzcG9uc2VIABIyCg1zeW5jX3Jlc3BvbnNlGAcgASgLMhkubmV0Y2xvZGUudjEuU3luY1Jlc3BvbnNlSAASNgoLYWdlbnRfZXZlbnQYCCABKAsyHy5uZXRjbG9kZS52MS5BZ2VudEV2ZW50UmVzcG9uc2VIABI6Cg1hZ2VudF9tZXNzYWdlGAkgASgLMiEubmV0Y2xvZGUudjEuQWdlbnRNZXNzYWdlUmVzcG9uc2VIABI0CgphZ2VudF9kb25lGAogASgLMh4ubmV0Y2xvZGUudjEuQWdlbnREb25lUmVzcG9uc2VIABI4Cgx1c2VyX21lc3NhZ2UYCyABKAsyIC5uZXRjbG9kZS52MS5Vc2VyTWVzc2FnZVJlc3BvbnNlSAASPgoPdGVybWluYWxfb3V0cHV0GAwgASgLMiMubmV0Y2xvZGUudjEuVGVybWluYWxPdXRwdXRSZXNwb25zZUgAEjgKDHBvcnRfZXhwb3NlZBgNIAEoCzIgLm5ldGNsb2RlLnYxLlBvcnRFeHBvc2VkUmVzcG9uc2VIABI4CgxnaXRodWJfcmVwb3MYDiABKAsyIC5uZXRjbG9kZS52MS5HaXRIdWJSZXBvc1Jlc3BvbnNlSAASNAoKZ2l0X3N0YXR1cxgPIAEoCzIeLm5ldGNsb2RlLnYxLkdpdFN0YXR1c1Jlc3BvbnNlSAASMAoIZ2l0X2RpZmYYECABKAsyHC5uZXRjbG9kZS52MS5HaXREaWZmUmVzcG9uc2VIABIrCgVlcnJvchgRIAEoCzIaLm5ldGNsb2RlLnYxLkVycm9yUmVzcG9uc2VIABItCgZtb2RlbHMYEiABKAsyGy5uZXRjbG9kZS52MS5Nb2RlbHNSZXNwb25zZUgAEjwKDmNvcGlsb3Rfc3RhdHVzGBMgASgLMiIubmV0Y2xvZGUudjEuQ29waWxvdFN0YXR1c1Jlc3BvbnNlSAASQAoQc25hcHNob3RfY3JlYXRlZBgUIAEoCzIkLm5ldGNsb2RlLnYxLlNuYXBzaG90Q3JlYXRlZFJlc3BvbnNlSAASOgoNc25hcHNob3RfbGlzdBgVIAEoCzIhLm5ldGNsb2RlLnYxLlNuYXBzaG90TGlzdFJlc3BvbnNlSAASQgoRc25hcHNob3RfcmVzdG9yZWQYFiABKAsyJS5uZXRjbG9kZS52MS5TbmFwc2hvdFJlc3RvcmVkUmVzcG9uc2VIABJFChNyZXBvX2FjY2Vzc191cGRhdGVkGBcgASgLMiYubmV0Y2xvZGUudjEuUmVwb0FjY2Vzc1VwZGF0ZWRSZXNwb25zZUgAQgkKB21lc3NhZ2UiQAoNTmV0d29ya0NvbmZpZxIXCg9pbnRlcm5ldF9hY2Nlc3MYASABKAgSFgoOdGFpbG5ldF9hY2Nlc3MYAiABKAgi3AMKFENyZWF0ZVNlc3Npb25SZXF1ZXN0EhcKCnJlcXVlc3RfaWQYASABKAlIAIgBARIRCgRuYW1lGAIgASgJSAGIAQESEQoEcmVwbxgDIAEoCUgCiAEBEjEKC3JlcG9fYWNjZXNzGAQgASgOMhcubmV0Y2xvZGUudjEuUmVwb0FjY2Vzc0gDiAEBEhsKDmluaXRpYWxfcHJvbXB0GAUgASgJSASIAQESKwoIc2RrX3R5cGUYBiABKA4yFC5uZXRjbG9kZS52MS5TZGtUeXBlSAWIAQESEgoFbW9kZWwYByABKAlIBogBARI5Cg9jb3BpbG90X2JhY2tlbmQYCCABKA4yGy5uZXRjbG9kZS52MS5Db3BpbG90QmFja2VuZEgHiAEBEjcKDm5ldHdvcmtfY29uZmlnGAkgASgLMhoubmV0Y2xvZGUudjEuTmV0d29ya0NvbmZpZ0gIiAEBQg0KC19yZXF1ZXN0X2lkQgcKBV9uYW1lQgcKBV9yZXBvQg4KDF9yZXBvX2FjY2Vzc0IRCg9faW5pdGlhbF9wcm9tcHRCCwoJX3Nka190eXBlQggKBl9tb2RlbEISChBfY29waWxvdF9iYWNrZW5kQhEKD19uZXR3b3JrX2NvbmZpZyI9ChNMaXN0U2Vzc2lvbnNSZXF1ZXN0EhcKCnJlcXVlc3RfaWQYASABKAlIAIgBAUINCgtfcmVxdWVzdF9pZCK+AQoST3BlblNlc3Npb25SZXF1ZXN0EhcKCnJlcXVlc3RfaWQYASABKAlIAIgBARISCgpzZXNzaW9uX2lkGAIgASgJEhwKD2xhc3RfbWVzc2FnZV9pZBgDIAEoCUgBiAEBEiEKFGxhc3Rfbm90aWZpY2F0aW9uX2lkGAQgASgJSAKIAQFCDQoLX3JlcXVlc3RfaWRCEgoQX2xhc3RfbWVzc2FnZV9pZEIXChVfbGFzdF9ub3RpZmljYXRpb25faWQiUgoUUmVzdW1lU2Vzc2lvblJlcXVlc3QSFwoKcmVxdWVzdF9pZBgBIAEoCUgAiAEBEhIKCnNlc3Npb25faWQYAiABKAlCDQoLX3JlcXVlc3RfaWQiUQoTUGF1c2VTZXNzaW9uUmVxdWVzdBIXCgpyZXF1ZXN0X2lkGAEgASgJSACIAQESEgoKc2Vzc2lvbl9pZBgCIAEoCUINCgtfcmVxdWVzdF9pZCJSChREZWxldGVTZXNzaW9uUmVxdWVzdBIXCgpyZXF1ZXN0X2lkGAEgASgJSACIAQESEgoKc2Vzc2lvbl9pZBgCIAEoCUINCgtfcmVxdWVzdF9pZCJCChhEZWxldGVBbGxTZXNzaW9uc1JlcXVlc3QSFwoKcmVxdWVzdF9pZBgBIAEoCUgAiAEBQg0KC19yZXF1ZXN0X2lkIl0KEVNlbmRQcm9tcHRSZXF1ZXN0EhcKCnJlcXVlc3RfaWQYASABKAlIAIgBARISCgpzZXNzaW9uX2lkGAIgASgJEgwKBHRleHQYAyABKAlCDQoLX3JlcXVlc3RfaWQiVAoWSW50ZXJydXB0UHJvbXB0UmVxdWVzdBIXCgpyZXF1ZXN0X2lkGAEgASgJSACIAQESEgoKc2Vzc2lvbl9pZBgCIAEoCUINCgtfcmVxdWVzdF9pZCJgChRUZXJtaW5hbElucHV0UmVxdWVzdBIXCgpyZXF1ZXN0X2lkGAEgASgJSACIAQESEgoKc2Vzc2lvbl9pZBgCIAEoCRIMCgRkYXRhGAMgASgJQg0KC19yZXF1ZXN0X2lkIm8KFVRlcm1pbmFsUmVzaXplUmVxdWVzdBIXCgpyZXF1ZXN0X2lkGAEgASgJSACIAQESEgoKc2Vzc2lvbl9pZBgCIAEoCRIMCgRjb2xzGAMgASgFEgwKBHJvd3MYBCABKAVCDQoLX3JlcXVlc3RfaWQiXQoRRXhwb3NlUG9ydFJlcXVlc3QSFwoKcmVxdWVzdF9pZBgBIAEoCUgAiAEBEhIKCnNlc3Npb25faWQYAiABKAkSDAoEcG9ydBgDIAEoBUINCgtfcmVxdWVzdF9pZCI1CgtTeW5jUmVxdWVzdBIXCgpyZXF1ZXN0X2lkGAEgASgJSACIAQFCDQoLX3JlcXVlc3RfaWQiQAoWTGlzdEdpdEh1YlJlcG9zUmVxdWVzdBIXCgpyZXF1ZXN0X2lkGAEgASgJSACIAQFCDQoLX3JlcXVlc3RfaWQiTgoQR2l0U3RhdHVzUmVxdWVzdBIXCgpyZXF1ZXN0X2lkGAEgASgJSACIAQESEgoKc2Vzc2lvbl9pZBgCIAEoCUINCgtfcmVxdWVzdF9pZCJoCg5HaXREaWZmUmVxdWVzdBIXCgpyZXF1ZXN0X2lkGAEgASgJSACIAQESEgoKc2Vzc2lvbl9pZBgCIAEoCRIRCgRmaWxlGAMgASgJSAGIAQFCDQoLX3JlcXVlc3RfaWRCBwoFX2ZpbGUisgEKEUxpc3RNb2RlbHNSZXF1ZXN0EhcKCnJlcXVlc3RfaWQYASABKAlIAIgBARImCghzZGtfdHlwZRgCIAEoDjIULm5ldGNsb2RlLnYxLlNka1R5cGUSOQoPY29waWxvdF9iYWNrZW5kGAMgASgOMhsubmV0Y2xvZGUudjEuQ29waWxvdEJhY2tlbmRIAYgBAUINCgtfcmVxdWVzdF9pZEISChBfY29waWxvdF9iYWNrZW5kIkEKF0dldENvcGlsb3RTdGF0dXNSZXF1ZXN0EhcKCnJlcXVlc3RfaWQYASABKAlIAIgBAUINCgtfcmVxdWVzdF9pZCJSChRMaXN0U25hcHNob3RzUmVxdWVzdBIXCgpyZXF1ZXN0X2lkGAEgASgJSACIAQESEgoKc2Vzc2lvbl9pZBgCIAEoCUINCgtfcmVxdWVzdF9pZCJpChZSZXN0b3JlU25hcHNob3RSZXF1ZXN0EhcKCnJlcXVlc3RfaWQYASABKAlIAIgBARISCgpzZXNzaW9uX2lkGAIgASgJEhMKC3NuYXBzaG90X2lkGAMgASgJQg0KC19yZXF1ZXN0X2lkIoMBChdVcGRhdGVSZXBvQWNjZXNzUmVxdWVzdBIXCgpyZXF1ZXN0X2lkGAEgASgJSACIAQESEgoKc2Vzc2lvbl9pZBgCIAEoCRIsCgtyZXBvX2FjY2VzcxgDIAEoDjIXLm5ldGNsb2RlLnYxLlJlcG9BY2Nlc3NCDQoLX3JlcXVlc3RfaWQiZwoWU2Vzc2lvbkNyZWF0ZWRSZXNwb25zZRIlCgdzZXNzaW9uGAEgASgLMhQubmV0Y2xvZGUudjEuU2Vzc2lvbhIXCgpyZXF1ZXN0X2lkGAIgASgJSACIAQFCDQoLX3JlcXVlc3RfaWQiPwoWU2Vzc2lvblVwZGF0ZWRSZXNwb25zZRIlCgdzZXNzaW9uGAEgASgLMhQubmV0Y2xvZGUudjEuU2Vzc2lvbiJUChZTZXNzaW9uRGVsZXRlZFJlc3BvbnNlEhIKCnNlc3Npb25faWQYASABKAkSFwoKcmVxdWVzdF9pZBgCIAEoCUgAiAEBQg0KC19yZXF1ZXN0X2lkIlkKGlNlc3Npb25zRGVsZXRlZEFsbFJlc3BvbnNlEhMKC2RlbGV0ZWRfaWRzGAEgAygJEhcKCnJlcXVlc3RfaWQYAiABKAlIAIgBAUINCgtfcmVxdWVzdF9pZCJlChNTZXNzaW9uTGlzdFJlc3BvbnNlEiYKCHNlc3Npb25zGAEgAygLMhQubmV0Y2xvZGUudjEuU2Vzc2lvbhIXCgpyZXF1ZXN0X2lkGAIgASgJSACIAQFCDQoLX3JlcXVlc3RfaWQi/wEKFFNlc3Npb25TdGF0ZVJlc3BvbnNlEiUKB3Nlc3Npb24YASABKAsyFC5uZXRjbG9kZS52MS5TZXNzaW9uEiYKCG1lc3NhZ2VzGAIgAygLMhQubmV0Y2xvZGUudjEuTWVzc2FnZRIiCgZldmVudHMYAyADKAsyEi5uZXRjbG9kZS52MS5FdmVudBIQCghoYXNfbW9yZRgEIAEoCBIhChRsYXN0X25vdGlmaWNhdGlvbl9pZBgFIAEoCUgAiAEBEhcKCnJlcXVlc3RfaWQYBiABKAlIAYgBAUIXChVfbGFzdF9ub3RpZmljYXRpb25faWRCDQoLX3JlcXVlc3RfaWQilgEKDFN5bmNSZXNwb25zZRItCghzZXNzaW9ucxgBIAMoCzIbLm5ldGNsb2RlLnYxLlNlc3Npb25TdW1tYXJ5Ei8KC3NlcnZlcl90aW1lGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIXCgpyZXF1ZXN0X2lkGAMgASgJSACIAQFCDQoLX3JlcXVlc3RfaWQiUAoSQWdlbnRFdmVudFJlc3BvbnNlEhIKCnNlc3Npb25faWQYASABKAkSJgoFZXZlbnQYAiABKAsyFy5uZXRjbG9kZS52MS5BZ2VudEV2ZW50ImAKFEFnZW50TWVzc2FnZVJlc3BvbnNlEhIKCnNlc3Npb25faWQYASABKAkSDwoHY29udGVudBgCIAEoCRIPCgdwYXJ0aWFsGAMgASgIEhIKCm1lc3NhZ2VfaWQYBCABKAkiJwoRQWdlbnREb25lUmVzcG9uc2USEgoKc2Vzc2lvbl9pZBgBIAEoCSI6ChNVc2VyTWVzc2FnZVJlc3BvbnNlEhIKCnNlc3Npb25faWQYASABKAkSDwoHY29udGVudBgCIAEoCSI6ChZUZXJtaW5hbE91dHB1dFJlc3BvbnNlEhIKCnNlc3Npb25faWQYASABKAkSDAoEZGF0YRgCIAEoCSJ0ChNQb3J0RXhwb3NlZFJlc3BvbnNlEhIKCnNlc3Npb25faWQYASABKAkSDAoEcG9ydBgCIAEoBRITCgtwcmV2aWV3X3VybBgDIAEoCRIXCgpyZXF1ZXN0X2lkGAQgASgJSACIAQFCDQoLX3JlcXVlc3RfaWQiZQoTR2l0SHViUmVwb3NSZXNwb25zZRImCgVyZXBvcxgBIAMoCzIXLm5ldGNsb2RlLnYxLkdpdEh1YlJlcG8SFwoKcmVxdWVzdF9pZBgCIAEoCUgAiAEBQg0KC19yZXF1ZXN0X2lkInoKEUdpdFN0YXR1c1Jlc3BvbnNlEhIKCnNlc3Npb25faWQYASABKAkSKQoFZmlsZXMYAiADKAsyGi5uZXRjbG9kZS52MS5HaXRGaWxlQ2hhbmdlEhcKCnJlcXVlc3RfaWQYAyABKAlIAIgBAUINCgtfcmVxdWVzdF9pZCJbCg9HaXREaWZmUmVzcG9uc2USEgoKc2Vzc2lvbl9pZBgBIAEoCRIMCgRkaWZmGAIgASgJEhcKCnJlcXVlc3RfaWQYAyABKAlIAIgBAUINCgtfcmVxdWVzdF9pZCJaCg1FcnJvclJlc3BvbnNlEiEKBWVycm9yGAEgASgLMhIubmV0Y2xvZGUudjEuRXJyb3ISFwoKcmVxdWVzdF9pZBgCIAEoCUgAiAEBQg0KC19yZXF1ZXN0X2lkImAKDk1vZGVsc1Jlc3BvbnNlEiYKBm1vZGVscxgBIAMoCzIWLm5ldGNsb2RlLnYxLk1vZGVsSW5mbxIXCgpyZXF1ZXN0X2lkGAIgASgJSACIAQFCDQoLX3JlcXVlc3RfaWQirQEKFUNvcGlsb3RTdGF0dXNSZXNwb25zZRIsCgRhdXRoGAEgASgLMh4ubmV0Y2xvZGUudjEuQ29waWxvdEF1dGhTdGF0dXMSNAoFcXVvdGEYAiABKAsyIC5uZXRjbG9kZS52MS5Db3BpbG90UHJlbWl1bVF1b3RhSACIAQESFwoKcmVxdWVzdF9pZBgDIAEoCUgBiAEBQggKBl9xdW90YUINCgtfcmVxdWVzdF9pZCJWChdTbmFwc2hvdENyZWF0ZWRSZXNwb25zZRISCgpzZXNzaW9uX2lkGAEgASgJEicKCHNuYXBzaG90GAIgASgLMhUubmV0Y2xvZGUudjEuU25hcHNob3QifAoUU25hcHNob3RMaXN0UmVzcG9uc2USEgoKc2Vzc2lvbl9pZBgBIAEoCRIoCglzbmFwc2hvdHMYAiADKAsyFS5uZXRjbG9kZS52MS5TbmFwc2hvdBIXCgpyZXF1ZXN0X2lkGAMgASgJSACIAQFCDQoLX3JlcXVlc3RfaWQihgEKGFNuYXBzaG90UmVzdG9yZWRSZXNwb25zZRISCgpzZXNzaW9uX2lkGAEgASgJEhMKC3NuYXBzaG90X2lkGAIgASgJEhkKEW1lc3NhZ2VzX3Jlc3RvcmVkGAMgASgFEhcKCnJlcXVlc3RfaWQYBCABKAlIAIgBAUINCgtfcmVxdWVzdF9pZCKFAQoZUmVwb0FjY2Vzc1VwZGF0ZWRSZXNwb25zZRISCgpzZXNzaW9uX2lkGAEgASgJEiwKC3JlcG9fYWNjZXNzGAIgASgOMhcubmV0Y2xvZGUudjEuUmVwb0FjY2VzcxIXCgpyZXF1ZXN0X2lkGAMgASgJSACIAQFCDQoLX3JlcXVlc3RfaWQyVgoNQ2xpZW50U2VydmljZRJFCgdDb25uZWN0EhoubmV0Y2xvZGUudjEuQ2xpZW50TWVzc2FnZRoaLm5ldGNsb2RlLnYxLlNlcnZlck1lc3NhZ2UoATABQrwBCg9jb20ubmV0Y2xvZGUudjFCC0NsaWVudFByb3RvUAFaT2dpdGh1Yi5jb20vYW5ncmlzdGFuL25ldGNsb2RlL3NlcnZpY2VzL2NvbnRyb2wtcGxhbmUvZ2VuL25ldGNsb2RlL3YxO25ldGNsb2RldjGiAgNOWFiqAgtOZXRjbG9kZS5WMcoCC05ldGNsb2RlXFYx4gIXTmV0Y2xvZGVcVjFcR1BCTWV0YWRhdGHqAgxOZXRjbG9kZTo6VjFiBnByb3RvMw", [file_netclode_v1_common, file_netclode_v1_events, file_google_protobuf_timestamp]);
 
 /**
  * ClientMessage is the union of all client-to-server messages.
@@ -331,6 +331,38 @@ export const ServerMessageSchema: GenMessage<ServerMessage> = /*@__PURE__*/
   messageDesc(file_netclode_v1_client, 1);
 
 /**
+ * NetworkConfig controls network access for a session's sandbox.
+ *
+ * @generated from message netclode.v1.NetworkConfig
+ */
+export type NetworkConfig = Message<"netclode.v1.NetworkConfig"> & {
+  /**
+   * Whether internet access is enabled for this session.
+   * Default: true. When false, sandbox can only reach control-plane and DNS
+   * (no external internet access).
+   *
+   * @generated from field: bool internet_access = 1;
+   */
+  internetAccess: boolean;
+
+  /**
+   * Whether Tailnet access is enabled for this session.
+   * Default: false. When true, sandbox can reach other devices on the
+   * Tailscale network (100.64.0.0/10 CGNAT range).
+   *
+   * @generated from field: bool tailnet_access = 2;
+   */
+  tailnetAccess: boolean;
+};
+
+/**
+ * Describes the message netclode.v1.NetworkConfig.
+ * Use `create(NetworkConfigSchema)` to create a new message.
+ */
+export const NetworkConfigSchema: GenMessage<NetworkConfig> = /*@__PURE__*/
+  messageDesc(file_netclode_v1_client, 2);
+
+/**
  * @generated from message netclode.v1.CreateSessionRequest
  */
 export type CreateSessionRequest = Message<"netclode.v1.CreateSessionRequest"> & {
@@ -389,6 +421,13 @@ export type CreateSessionRequest = Message<"netclode.v1.CreateSessionRequest"> &
    * @generated from field: optional netclode.v1.CopilotBackend copilot_backend = 8;
    */
   copilotBackend?: CopilotBackend;
+
+  /**
+   * Network configuration (defaults to enabled)
+   *
+   * @generated from field: optional netclode.v1.NetworkConfig network_config = 9;
+   */
+  networkConfig?: NetworkConfig;
 };
 
 /**
@@ -396,7 +435,7 @@ export type CreateSessionRequest = Message<"netclode.v1.CreateSessionRequest"> &
  * Use `create(CreateSessionRequestSchema)` to create a new message.
  */
 export const CreateSessionRequestSchema: GenMessage<CreateSessionRequest> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 2);
+  messageDesc(file_netclode_v1_client, 3);
 
 /**
  * @generated from message netclode.v1.ListSessionsRequest
@@ -413,7 +452,7 @@ export type ListSessionsRequest = Message<"netclode.v1.ListSessionsRequest"> & {
  * Use `create(ListSessionsRequestSchema)` to create a new message.
  */
 export const ListSessionsRequestSchema: GenMessage<ListSessionsRequest> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 3);
+  messageDesc(file_netclode_v1_client, 4);
 
 /**
  * @generated from message netclode.v1.OpenSessionRequest
@@ -449,7 +488,7 @@ export type OpenSessionRequest = Message<"netclode.v1.OpenSessionRequest"> & {
  * Use `create(OpenSessionRequestSchema)` to create a new message.
  */
 export const OpenSessionRequestSchema: GenMessage<OpenSessionRequest> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 4);
+  messageDesc(file_netclode_v1_client, 5);
 
 /**
  * @generated from message netclode.v1.ResumeSessionRequest
@@ -471,7 +510,7 @@ export type ResumeSessionRequest = Message<"netclode.v1.ResumeSessionRequest"> &
  * Use `create(ResumeSessionRequestSchema)` to create a new message.
  */
 export const ResumeSessionRequestSchema: GenMessage<ResumeSessionRequest> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 5);
+  messageDesc(file_netclode_v1_client, 6);
 
 /**
  * @generated from message netclode.v1.PauseSessionRequest
@@ -493,7 +532,7 @@ export type PauseSessionRequest = Message<"netclode.v1.PauseSessionRequest"> & {
  * Use `create(PauseSessionRequestSchema)` to create a new message.
  */
 export const PauseSessionRequestSchema: GenMessage<PauseSessionRequest> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 6);
+  messageDesc(file_netclode_v1_client, 7);
 
 /**
  * @generated from message netclode.v1.DeleteSessionRequest
@@ -515,7 +554,7 @@ export type DeleteSessionRequest = Message<"netclode.v1.DeleteSessionRequest"> &
  * Use `create(DeleteSessionRequestSchema)` to create a new message.
  */
 export const DeleteSessionRequestSchema: GenMessage<DeleteSessionRequest> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 7);
+  messageDesc(file_netclode_v1_client, 8);
 
 /**
  * @generated from message netclode.v1.DeleteAllSessionsRequest
@@ -532,7 +571,7 @@ export type DeleteAllSessionsRequest = Message<"netclode.v1.DeleteAllSessionsReq
  * Use `create(DeleteAllSessionsRequestSchema)` to create a new message.
  */
 export const DeleteAllSessionsRequestSchema: GenMessage<DeleteAllSessionsRequest> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 8);
+  messageDesc(file_netclode_v1_client, 9);
 
 /**
  * @generated from message netclode.v1.SendPromptRequest
@@ -559,7 +598,7 @@ export type SendPromptRequest = Message<"netclode.v1.SendPromptRequest"> & {
  * Use `create(SendPromptRequestSchema)` to create a new message.
  */
 export const SendPromptRequestSchema: GenMessage<SendPromptRequest> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 9);
+  messageDesc(file_netclode_v1_client, 10);
 
 /**
  * @generated from message netclode.v1.InterruptPromptRequest
@@ -581,7 +620,7 @@ export type InterruptPromptRequest = Message<"netclode.v1.InterruptPromptRequest
  * Use `create(InterruptPromptRequestSchema)` to create a new message.
  */
 export const InterruptPromptRequestSchema: GenMessage<InterruptPromptRequest> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 10);
+  messageDesc(file_netclode_v1_client, 11);
 
 /**
  * @generated from message netclode.v1.TerminalInputRequest
@@ -608,7 +647,7 @@ export type TerminalInputRequest = Message<"netclode.v1.TerminalInputRequest"> &
  * Use `create(TerminalInputRequestSchema)` to create a new message.
  */
 export const TerminalInputRequestSchema: GenMessage<TerminalInputRequest> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 11);
+  messageDesc(file_netclode_v1_client, 12);
 
 /**
  * @generated from message netclode.v1.TerminalResizeRequest
@@ -640,7 +679,7 @@ export type TerminalResizeRequest = Message<"netclode.v1.TerminalResizeRequest">
  * Use `create(TerminalResizeRequestSchema)` to create a new message.
  */
 export const TerminalResizeRequestSchema: GenMessage<TerminalResizeRequest> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 12);
+  messageDesc(file_netclode_v1_client, 13);
 
 /**
  * @generated from message netclode.v1.ExposePortRequest
@@ -667,7 +706,7 @@ export type ExposePortRequest = Message<"netclode.v1.ExposePortRequest"> & {
  * Use `create(ExposePortRequestSchema)` to create a new message.
  */
 export const ExposePortRequestSchema: GenMessage<ExposePortRequest> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 13);
+  messageDesc(file_netclode_v1_client, 14);
 
 /**
  * @generated from message netclode.v1.SyncRequest
@@ -684,7 +723,7 @@ export type SyncRequest = Message<"netclode.v1.SyncRequest"> & {
  * Use `create(SyncRequestSchema)` to create a new message.
  */
 export const SyncRequestSchema: GenMessage<SyncRequest> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 14);
+  messageDesc(file_netclode_v1_client, 15);
 
 /**
  * @generated from message netclode.v1.ListGitHubReposRequest
@@ -701,7 +740,7 @@ export type ListGitHubReposRequest = Message<"netclode.v1.ListGitHubReposRequest
  * Use `create(ListGitHubReposRequestSchema)` to create a new message.
  */
 export const ListGitHubReposRequestSchema: GenMessage<ListGitHubReposRequest> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 15);
+  messageDesc(file_netclode_v1_client, 16);
 
 /**
  * @generated from message netclode.v1.GitStatusRequest
@@ -723,7 +762,7 @@ export type GitStatusRequest = Message<"netclode.v1.GitStatusRequest"> & {
  * Use `create(GitStatusRequestSchema)` to create a new message.
  */
 export const GitStatusRequestSchema: GenMessage<GitStatusRequest> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 16);
+  messageDesc(file_netclode_v1_client, 17);
 
 /**
  * @generated from message netclode.v1.GitDiffRequest
@@ -752,7 +791,7 @@ export type GitDiffRequest = Message<"netclode.v1.GitDiffRequest"> & {
  * Use `create(GitDiffRequestSchema)` to create a new message.
  */
 export const GitDiffRequestSchema: GenMessage<GitDiffRequest> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 17);
+  messageDesc(file_netclode_v1_client, 18);
 
 /**
  * @generated from message netclode.v1.ListModelsRequest
@@ -783,7 +822,7 @@ export type ListModelsRequest = Message<"netclode.v1.ListModelsRequest"> & {
  * Use `create(ListModelsRequestSchema)` to create a new message.
  */
 export const ListModelsRequestSchema: GenMessage<ListModelsRequest> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 18);
+  messageDesc(file_netclode_v1_client, 19);
 
 /**
  * @generated from message netclode.v1.GetCopilotStatusRequest
@@ -800,7 +839,7 @@ export type GetCopilotStatusRequest = Message<"netclode.v1.GetCopilotStatusReque
  * Use `create(GetCopilotStatusRequestSchema)` to create a new message.
  */
 export const GetCopilotStatusRequestSchema: GenMessage<GetCopilotStatusRequest> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 19);
+  messageDesc(file_netclode_v1_client, 20);
 
 /**
  * @generated from message netclode.v1.ListSnapshotsRequest
@@ -822,7 +861,7 @@ export type ListSnapshotsRequest = Message<"netclode.v1.ListSnapshotsRequest"> &
  * Use `create(ListSnapshotsRequestSchema)` to create a new message.
  */
 export const ListSnapshotsRequestSchema: GenMessage<ListSnapshotsRequest> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 20);
+  messageDesc(file_netclode_v1_client, 21);
 
 /**
  * @generated from message netclode.v1.RestoreSnapshotRequest
@@ -849,7 +888,7 @@ export type RestoreSnapshotRequest = Message<"netclode.v1.RestoreSnapshotRequest
  * Use `create(RestoreSnapshotRequestSchema)` to create a new message.
  */
 export const RestoreSnapshotRequestSchema: GenMessage<RestoreSnapshotRequest> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 21);
+  messageDesc(file_netclode_v1_client, 22);
 
 /**
  * @generated from message netclode.v1.UpdateRepoAccessRequest
@@ -878,7 +917,7 @@ export type UpdateRepoAccessRequest = Message<"netclode.v1.UpdateRepoAccessReque
  * Use `create(UpdateRepoAccessRequestSchema)` to create a new message.
  */
 export const UpdateRepoAccessRequestSchema: GenMessage<UpdateRepoAccessRequest> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 22);
+  messageDesc(file_netclode_v1_client, 23);
 
 /**
  * @generated from message netclode.v1.SessionCreatedResponse
@@ -902,7 +941,7 @@ export type SessionCreatedResponse = Message<"netclode.v1.SessionCreatedResponse
  * Use `create(SessionCreatedResponseSchema)` to create a new message.
  */
 export const SessionCreatedResponseSchema: GenMessage<SessionCreatedResponse> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 23);
+  messageDesc(file_netclode_v1_client, 24);
 
 /**
  * @generated from message netclode.v1.SessionUpdatedResponse
@@ -919,7 +958,7 @@ export type SessionUpdatedResponse = Message<"netclode.v1.SessionUpdatedResponse
  * Use `create(SessionUpdatedResponseSchema)` to create a new message.
  */
 export const SessionUpdatedResponseSchema: GenMessage<SessionUpdatedResponse> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 24);
+  messageDesc(file_netclode_v1_client, 25);
 
 /**
  * @generated from message netclode.v1.SessionDeletedResponse
@@ -941,7 +980,7 @@ export type SessionDeletedResponse = Message<"netclode.v1.SessionDeletedResponse
  * Use `create(SessionDeletedResponseSchema)` to create a new message.
  */
 export const SessionDeletedResponseSchema: GenMessage<SessionDeletedResponse> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 25);
+  messageDesc(file_netclode_v1_client, 26);
 
 /**
  * @generated from message netclode.v1.SessionsDeletedAllResponse
@@ -963,7 +1002,7 @@ export type SessionsDeletedAllResponse = Message<"netclode.v1.SessionsDeletedAll
  * Use `create(SessionsDeletedAllResponseSchema)` to create a new message.
  */
 export const SessionsDeletedAllResponseSchema: GenMessage<SessionsDeletedAllResponse> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 26);
+  messageDesc(file_netclode_v1_client, 27);
 
 /**
  * @generated from message netclode.v1.SessionListResponse
@@ -985,7 +1024,7 @@ export type SessionListResponse = Message<"netclode.v1.SessionListResponse"> & {
  * Use `create(SessionListResponseSchema)` to create a new message.
  */
 export const SessionListResponseSchema: GenMessage<SessionListResponse> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 27);
+  messageDesc(file_netclode_v1_client, 28);
 
 /**
  * @generated from message netclode.v1.SessionStateResponse
@@ -1031,7 +1070,7 @@ export type SessionStateResponse = Message<"netclode.v1.SessionStateResponse"> &
  * Use `create(SessionStateResponseSchema)` to create a new message.
  */
 export const SessionStateResponseSchema: GenMessage<SessionStateResponse> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 28);
+  messageDesc(file_netclode_v1_client, 29);
 
 /**
  * @generated from message netclode.v1.SyncResponse
@@ -1058,7 +1097,7 @@ export type SyncResponse = Message<"netclode.v1.SyncResponse"> & {
  * Use `create(SyncResponseSchema)` to create a new message.
  */
 export const SyncResponseSchema: GenMessage<SyncResponse> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 29);
+  messageDesc(file_netclode_v1_client, 30);
 
 /**
  * @generated from message netclode.v1.AgentEventResponse
@@ -1080,7 +1119,7 @@ export type AgentEventResponse = Message<"netclode.v1.AgentEventResponse"> & {
  * Use `create(AgentEventResponseSchema)` to create a new message.
  */
 export const AgentEventResponseSchema: GenMessage<AgentEventResponse> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 30);
+  messageDesc(file_netclode_v1_client, 31);
 
 /**
  * @generated from message netclode.v1.AgentMessageResponse
@@ -1116,7 +1155,7 @@ export type AgentMessageResponse = Message<"netclode.v1.AgentMessageResponse"> &
  * Use `create(AgentMessageResponseSchema)` to create a new message.
  */
 export const AgentMessageResponseSchema: GenMessage<AgentMessageResponse> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 31);
+  messageDesc(file_netclode_v1_client, 32);
 
 /**
  * @generated from message netclode.v1.AgentDoneResponse
@@ -1133,7 +1172,7 @@ export type AgentDoneResponse = Message<"netclode.v1.AgentDoneResponse"> & {
  * Use `create(AgentDoneResponseSchema)` to create a new message.
  */
 export const AgentDoneResponseSchema: GenMessage<AgentDoneResponse> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 32);
+  messageDesc(file_netclode_v1_client, 33);
 
 /**
  * @generated from message netclode.v1.UserMessageResponse
@@ -1155,7 +1194,7 @@ export type UserMessageResponse = Message<"netclode.v1.UserMessageResponse"> & {
  * Use `create(UserMessageResponseSchema)` to create a new message.
  */
 export const UserMessageResponseSchema: GenMessage<UserMessageResponse> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 33);
+  messageDesc(file_netclode_v1_client, 34);
 
 /**
  * @generated from message netclode.v1.TerminalOutputResponse
@@ -1177,7 +1216,7 @@ export type TerminalOutputResponse = Message<"netclode.v1.TerminalOutputResponse
  * Use `create(TerminalOutputResponseSchema)` to create a new message.
  */
 export const TerminalOutputResponseSchema: GenMessage<TerminalOutputResponse> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 34);
+  messageDesc(file_netclode_v1_client, 35);
 
 /**
  * @generated from message netclode.v1.PortExposedResponse
@@ -1209,7 +1248,7 @@ export type PortExposedResponse = Message<"netclode.v1.PortExposedResponse"> & {
  * Use `create(PortExposedResponseSchema)` to create a new message.
  */
 export const PortExposedResponseSchema: GenMessage<PortExposedResponse> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 35);
+  messageDesc(file_netclode_v1_client, 36);
 
 /**
  * @generated from message netclode.v1.GitHubReposResponse
@@ -1231,7 +1270,7 @@ export type GitHubReposResponse = Message<"netclode.v1.GitHubReposResponse"> & {
  * Use `create(GitHubReposResponseSchema)` to create a new message.
  */
 export const GitHubReposResponseSchema: GenMessage<GitHubReposResponse> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 36);
+  messageDesc(file_netclode_v1_client, 37);
 
 /**
  * @generated from message netclode.v1.GitStatusResponse
@@ -1258,7 +1297,7 @@ export type GitStatusResponse = Message<"netclode.v1.GitStatusResponse"> & {
  * Use `create(GitStatusResponseSchema)` to create a new message.
  */
 export const GitStatusResponseSchema: GenMessage<GitStatusResponse> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 37);
+  messageDesc(file_netclode_v1_client, 38);
 
 /**
  * @generated from message netclode.v1.GitDiffResponse
@@ -1285,7 +1324,7 @@ export type GitDiffResponse = Message<"netclode.v1.GitDiffResponse"> & {
  * Use `create(GitDiffResponseSchema)` to create a new message.
  */
 export const GitDiffResponseSchema: GenMessage<GitDiffResponse> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 38);
+  messageDesc(file_netclode_v1_client, 39);
 
 /**
  * ErrorResponse is the unified error type for all error conditions.
@@ -1314,7 +1353,7 @@ export type ErrorResponse = Message<"netclode.v1.ErrorResponse"> & {
  * Use `create(ErrorResponseSchema)` to create a new message.
  */
 export const ErrorResponseSchema: GenMessage<ErrorResponse> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 39);
+  messageDesc(file_netclode_v1_client, 40);
 
 /**
  * @generated from message netclode.v1.ModelsResponse
@@ -1338,7 +1377,7 @@ export type ModelsResponse = Message<"netclode.v1.ModelsResponse"> & {
  * Use `create(ModelsResponseSchema)` to create a new message.
  */
 export const ModelsResponseSchema: GenMessage<ModelsResponse> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 40);
+  messageDesc(file_netclode_v1_client, 41);
 
 /**
  * @generated from message netclode.v1.CopilotStatusResponse
@@ -1369,7 +1408,7 @@ export type CopilotStatusResponse = Message<"netclode.v1.CopilotStatusResponse">
  * Use `create(CopilotStatusResponseSchema)` to create a new message.
  */
 export const CopilotStatusResponseSchema: GenMessage<CopilotStatusResponse> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 41);
+  messageDesc(file_netclode_v1_client, 42);
 
 /**
  * SnapshotCreatedResponse is pushed to clients when an auto-snapshot is created after a turn.
@@ -1393,7 +1432,7 @@ export type SnapshotCreatedResponse = Message<"netclode.v1.SnapshotCreatedRespon
  * Use `create(SnapshotCreatedResponseSchema)` to create a new message.
  */
 export const SnapshotCreatedResponseSchema: GenMessage<SnapshotCreatedResponse> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 42);
+  messageDesc(file_netclode_v1_client, 43);
 
 /**
  * @generated from message netclode.v1.SnapshotListResponse
@@ -1422,7 +1461,7 @@ export type SnapshotListResponse = Message<"netclode.v1.SnapshotListResponse"> &
  * Use `create(SnapshotListResponseSchema)` to create a new message.
  */
 export const SnapshotListResponseSchema: GenMessage<SnapshotListResponse> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 43);
+  messageDesc(file_netclode_v1_client, 44);
 
 /**
  * SnapshotRestoredResponse is sent after workspace and messages are restored.
@@ -1458,7 +1497,7 @@ export type SnapshotRestoredResponse = Message<"netclode.v1.SnapshotRestoredResp
  * Use `create(SnapshotRestoredResponseSchema)` to create a new message.
  */
 export const SnapshotRestoredResponseSchema: GenMessage<SnapshotRestoredResponse> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 44);
+  messageDesc(file_netclode_v1_client, 45);
 
 /**
  * RepoAccessUpdatedResponse is sent after repo access level is updated.
@@ -1489,7 +1528,7 @@ export type RepoAccessUpdatedResponse = Message<"netclode.v1.RepoAccessUpdatedRe
  * Use `create(RepoAccessUpdatedResponseSchema)` to create a new message.
  */
 export const RepoAccessUpdatedResponseSchema: GenMessage<RepoAccessUpdatedResponse> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_client, 45);
+  messageDesc(file_netclode_v1_client, 46);
 
 /**
  * ClientService handles communication between clients and the control plane.

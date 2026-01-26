@@ -212,7 +212,7 @@ func generateID() string {
 }
 
 // Create creates a new session.
-func (m *Manager) Create(ctx context.Context, name string, repo *string, repoAccess *pb.RepoAccess, sdkType *pb.SdkType, model *string, copilotBackend *pb.CopilotBackend) (*pb.Session, error) {
+func (m *Manager) Create(ctx context.Context, name string, repo *string, repoAccess *pb.RepoAccess, sdkType *pb.SdkType, model *string, copilotBackend *pb.CopilotBackend, networkEnabled *bool, tailnetAccess *bool) (*pb.Session, error) {
 	// Ensure we have a slot for a new active session
 	m.ensureActiveSlot(ctx, "")
 
@@ -247,24 +247,34 @@ func (m *Manager) Create(ctx context.Context, name string, repo *string, repoAcc
 	m.sessions[id] = state
 	m.mu.Unlock()
 
+	// Determine network settings (defaults: network enabled, tailnet disabled)
+	netEnabled := true
+	if networkEnabled != nil {
+		netEnabled = *networkEnabled
+	}
+	tailnetEnabled := false
+	if tailnetAccess != nil {
+		tailnetEnabled = *tailnetAccess
+	}
+
 	// Start sandbox creation in background
-	go m.createSandbox(context.Background(), id, repo, repoAccess)
+	go m.createSandbox(context.Background(), id, repo, repoAccess, netEnabled, tailnetEnabled)
 
 	return session, nil
 }
 
-func (m *Manager) createSandbox(ctx context.Context, sessionID string, repo *string, repoAccess *pb.RepoAccess) {
+func (m *Manager) createSandbox(ctx context.Context, sessionID string, repo *string, repoAccess *pb.RepoAccess, networkEnabled bool, tailnetEnabled bool) {
 	if m.config.UseWarmPool {
-		m.createSandboxViaClaim(ctx, sessionID, repo, repoAccess)
+		m.createSandboxViaClaim(ctx, sessionID, repo, repoAccess, networkEnabled, tailnetEnabled)
 	} else {
-		m.createSandboxDirect(ctx, sessionID, repo, repoAccess)
+		m.createSandboxDirect(ctx, sessionID, repo, repoAccess, networkEnabled, tailnetEnabled)
 	}
 }
 
 // createSandboxDirect creates a sandbox directly (legacy mode).
 // If restoreSnapshotID is provided, the PVC is restored from that snapshot BEFORE creating the sandbox.
 // If resuming from a paused session, uses the stored PVC name.
-func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, repo *string, repoAccess *pb.RepoAccess, restoreSnapshotID ...string) {
+func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, repo *string, repoAccess *pb.RepoAccess, networkEnabled bool, tailnetEnabled bool, restoreSnapshotID ...string) {
 	env := map[string]string{
 		"SESSION_ID":        sessionID,
 		"ANTHROPIC_API_KEY": m.config.AnthropicAPIKey,
@@ -375,6 +385,24 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 		return
 	}
 
+	// Apply network policies based on configuration
+	if !networkEnabled {
+		if err := m.k8s.ConfigureNetwork(ctx, sessionID, false); err != nil {
+			slog.Error("Failed to apply network restriction", "sessionID", sessionID, "error", err)
+			// Non-fatal: continue with sandbox creation, but log the error
+		} else {
+			slog.Info("Applied network restriction policy", "sessionID", sessionID)
+		}
+	}
+	if tailnetEnabled {
+		if err := m.k8s.ConfigureTailnetAccess(ctx, sessionID, true); err != nil {
+			slog.Error("Failed to apply tailnet access policy", "sessionID", sessionID, "error", err)
+			// Non-fatal: continue with sandbox creation, but log the error
+		} else {
+			slog.Info("Applied tailnet access policy", "sessionID", sessionID)
+		}
+	}
+
 	// Create Tailscale-exposed service for preview URLs
 	if err := m.k8s.CreateSandboxService(ctx, sessionID); err != nil {
 		slog.Warn("Failed to create sandbox service", "sessionID", sessionID, "error", err)
@@ -439,7 +467,7 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 }
 
 // createSandboxViaClaim uses SandboxClaim for warm pool allocation
-func (m *Manager) createSandboxViaClaim(ctx context.Context, sessionID string, repo *string, repoAccess *pb.RepoAccess) {
+func (m *Manager) createSandboxViaClaim(ctx context.Context, sessionID string, repo *string, repoAccess *pb.RepoAccess, networkEnabled bool, tailnetEnabled bool) {
 	// Create SandboxClaim to request from warm pool
 	if err := m.k8s.CreateSandboxClaim(ctx, sessionID); err != nil {
 		slog.Error("Failed to create sandbox claim", "sessionID", sessionID, "error", err)
@@ -478,6 +506,24 @@ func (m *Manager) createSandboxViaClaim(ctx context.Context, sessionID string, r
 		m.updateSessionStatus(ctx, sessionID, pb.SessionStatus_SESSION_STATUS_ERROR)
 		m.emitSessionError(ctx, sessionID, "failed to label sandbox")
 		return
+	}
+
+	// Apply network policies based on configuration
+	if !networkEnabled {
+		if err := m.k8s.ConfigureNetwork(ctx, sessionID, false); err != nil {
+			slog.Error("Failed to apply network restriction", "sessionID", sessionID, "error", err)
+			// Non-fatal: continue with sandbox creation, but log the error
+		} else {
+			slog.Info("Applied network restriction policy", "sessionID", sessionID)
+		}
+	}
+	if tailnetEnabled {
+		if err := m.k8s.ConfigureTailnetAccess(ctx, sessionID, true); err != nil {
+			slog.Error("Failed to apply tailnet access policy", "sessionID", sessionID, "error", err)
+			// Non-fatal: continue with sandbox creation, but log the error
+		} else {
+			slog.Info("Applied tailnet access policy", "sessionID", sessionID)
+		}
 	}
 
 	// Get sandbox to retrieve serviceFQDN
@@ -759,13 +805,14 @@ func (m *Manager) Resume(ctx context.Context, id string) (*pb.Session, error) {
 	// Always use direct sandbox creation for resume (bypasses warm pool).
 	// This ensures we use the session's existing PVC instead of getting a fresh warm pool PVC.
 	// createSandboxDirect will automatically use the stored PVC name if available.
+	// Note: Resume always uses defaults (networkEnabled=true, tailnetEnabled=false) since we don't store network config
 	if restoreSnapshotID != "" {
 		slog.Info("Resuming with snapshot restore", "sessionID", id, "snapshotID", restoreSnapshotID)
 		_ = m.storage.ClearRestoreSnapshotID(ctx, id) // Clear from storage
-		go m.createSandboxDirect(context.Background(), id, state.Session.Repo, state.Session.RepoAccess, restoreSnapshotID)
+		go m.createSandboxDirect(context.Background(), id, state.Session.Repo, state.Session.RepoAccess, true, false, restoreSnapshotID)
 	} else {
 		slog.Info("Resuming session", "sessionID", id)
-		go m.createSandboxDirect(context.Background(), id, state.Session.Repo, state.Session.RepoAccess)
+		go m.createSandboxDirect(context.Background(), id, state.Session.Repo, state.Session.RepoAccess, true, false)
 	}
 
 	return state.Session, nil
@@ -791,6 +838,11 @@ func (m *Manager) Pause(ctx context.Context, id string) (*pb.Session, error) {
 	// Delete Tailscale service
 	if err := m.k8s.DeleteSandboxService(ctx, id); err != nil {
 		slog.Warn("Failed to delete sandbox service", "sessionID", id, "error", err)
+	}
+
+	// Delete network restriction policy if any
+	if err := m.k8s.DeleteNetworkRestriction(ctx, id); err != nil {
+		slog.Warn("Failed to delete network restriction policy", "sessionID", id, "error", err)
 	}
 
 	// Delete sandbox - PVC survives because it has the session anchor ConfigMap as a second owner
@@ -841,6 +893,7 @@ func (m *Manager) Delete(ctx context.Context, id string) error {
 	// Delete K8s resources
 	_ = m.k8s.DeleteSandboxClaim(ctx, id)
 	_ = m.k8s.DeleteSandboxService(ctx, id)
+	_ = m.k8s.DeleteNetworkRestriction(ctx, id)
 	_ = m.k8s.DeleteSandbox(ctx, id)
 	_ = m.k8s.DeleteSecret(ctx, id)
 	_ = m.k8s.DeleteSessionAnchor(ctx, id)

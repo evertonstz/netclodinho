@@ -40,6 +40,11 @@ type Runtime interface {
 	DeleteSandboxService(ctx context.Context, sessionID string) error
 	ExposePort(ctx context.Context, sessionID string, port int) error
 
+	// Network policy operations
+	ConfigureNetwork(ctx context.Context, sessionID string, networkEnabled bool) error
+	ConfigureTailnetAccess(ctx context.Context, sessionID string, tailnetEnabled bool) error
+	DeleteNetworkRestriction(ctx context.Context, sessionID string) error
+
 	// VolumeSnapshot operations (for session snapshots)
 	CreateVolumeSnapshot(ctx context.Context, sessionID, snapshotID string) error
 	WaitForSnapshotReady(ctx context.Context, sessionID, snapshotID string, timeout time.Duration) error

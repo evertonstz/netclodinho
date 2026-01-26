@@ -882,6 +882,186 @@ func (r *k8sRuntime) ExposePort(ctx context.Context, sessionID string, port int)
 	return nil
 }
 
+// ConfigureNetwork applies or removes network restrictions for a sandbox.
+// When networkEnabled is false, a restrictive NetworkPolicy is created that blocks
+// all egress except DNS and control-plane communication.
+// When networkEnabled is true, any restrictive policy is removed (sandbox uses default policy).
+func (r *k8sRuntime) ConfigureNetwork(ctx context.Context, sessionID string, networkEnabled bool) error {
+	restrictPolicyName := fmt.Sprintf("sess-%s-network-restrict", sessionID)
+
+	if networkEnabled {
+		// Network enabled: remove any restrictive policy
+		err := r.clientset.NetworkingV1().NetworkPolicies(r.namespace).Delete(ctx, restrictPolicyName, metav1.DeleteOptions{})
+		if err != nil && !errors.IsNotFound(err) {
+			return fmt.Errorf("delete network restriction policy: %w", err)
+		}
+		if err == nil {
+			slog.Info("Removed network restriction policy", "sessionID", sessionID)
+		}
+		return nil
+	}
+
+	// Network disabled: create restrictive policy
+	// This policy blocks all egress except DNS and control-plane
+	udpProtocol := corev1.ProtocolUDP
+	tcpProtocol := corev1.ProtocolTCP
+	dnsPort := intstr.FromInt(53)
+	cpPort80 := intstr.FromInt(80)
+	cpPort3000 := intstr.FromInt(3000)
+
+	policy := &networkingv1.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      restrictPolicyName,
+			Namespace: r.namespace,
+			Labels: map[string]string{
+				"netclode.io/session":     sessionID,
+				"netclode.io/policy-type": "network-restrict",
+			},
+		},
+		Spec: networkingv1.NetworkPolicySpec{
+			// Select pods for this session
+			PodSelector: metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"netclode.io/session": sessionID,
+				},
+			},
+			PolicyTypes: []networkingv1.PolicyType{
+				networkingv1.PolicyTypeEgress,
+			},
+			Egress: []networkingv1.NetworkPolicyEgressRule{
+				// Allow DNS (required for K8s probes and control-plane resolution)
+				{
+					To: []networkingv1.NetworkPolicyPeer{
+						{
+							NamespaceSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"kubernetes.io/metadata.name": "kube-system",
+								},
+							},
+						},
+					},
+					Ports: []networkingv1.NetworkPolicyPort{
+						{Protocol: &udpProtocol, Port: &dnsPort},
+						{Protocol: &tcpProtocol, Port: &dnsPort},
+					},
+				},
+				// Allow control-plane communication
+				{
+					To: []networkingv1.NetworkPolicyPeer{
+						{
+							PodSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"app": "control-plane",
+								},
+							},
+						},
+					},
+					Ports: []networkingv1.NetworkPolicyPort{
+						{Protocol: &tcpProtocol, Port: &cpPort80},
+						{Protocol: &tcpProtocol, Port: &cpPort3000},
+					},
+				},
+			},
+		},
+	}
+
+	_, err := r.clientset.NetworkingV1().NetworkPolicies(r.namespace).Create(ctx, policy, metav1.CreateOptions{})
+	if errors.IsAlreadyExists(err) {
+		_, err = r.clientset.NetworkingV1().NetworkPolicies(r.namespace).Update(ctx, policy, metav1.UpdateOptions{})
+	}
+	if err != nil {
+		return fmt.Errorf("apply network restriction policy: %w", err)
+	}
+
+	slog.Info("Applied network restriction policy", "sessionID", sessionID)
+	return nil
+}
+
+// ConfigureTailnetAccess enables or disables Tailnet access for a sandbox.
+// When enabled, creates a NetworkPolicy allowing egress to the Tailscale CGNAT range (100.64.0.0/10).
+// This overrides the default template policy that blocks private networks.
+func (r *k8sRuntime) ConfigureTailnetAccess(ctx context.Context, sessionID string, tailnetEnabled bool) error {
+	tailnetPolicyName := fmt.Sprintf("sess-%s-tailnet-access", sessionID)
+
+	if !tailnetEnabled {
+		// Tailnet disabled: remove the allow policy
+		err := r.clientset.NetworkingV1().NetworkPolicies(r.namespace).Delete(ctx, tailnetPolicyName, metav1.DeleteOptions{})
+		if err != nil && !errors.IsNotFound(err) {
+			return fmt.Errorf("delete tailnet access policy: %w", err)
+		}
+		if err == nil {
+			slog.Info("Removed tailnet access policy", "sessionID", sessionID)
+		}
+		return nil
+	}
+
+	// Tailnet enabled: create policy allowing 100.64.0.0/10
+	// This policy adds to the template policy, allowing Tailscale CGNAT range
+	policy := &networkingv1.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      tailnetPolicyName,
+			Namespace: r.namespace,
+			Labels: map[string]string{
+				"netclode.io/session":     sessionID,
+				"netclode.io/policy-type": "tailnet-access",
+			},
+		},
+		Spec: networkingv1.NetworkPolicySpec{
+			PodSelector: metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"netclode.io/session": sessionID,
+				},
+			},
+			PolicyTypes: []networkingv1.PolicyType{
+				networkingv1.PolicyTypeEgress,
+			},
+			Egress: []networkingv1.NetworkPolicyEgressRule{
+				// Allow Tailscale CGNAT range (100.64.0.0/10)
+				{
+					To: []networkingv1.NetworkPolicyPeer{
+						{
+							IPBlock: &networkingv1.IPBlock{
+								CIDR: "100.64.0.0/10",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	_, err := r.clientset.NetworkingV1().NetworkPolicies(r.namespace).Create(ctx, policy, metav1.CreateOptions{})
+	if errors.IsAlreadyExists(err) {
+		_, err = r.clientset.NetworkingV1().NetworkPolicies(r.namespace).Update(ctx, policy, metav1.UpdateOptions{})
+	}
+	if err != nil {
+		return fmt.Errorf("apply tailnet access policy: %w", err)
+	}
+
+	slog.Info("Applied tailnet access policy", "sessionID", sessionID)
+	return nil
+}
+
+// DeleteNetworkRestriction removes any network restriction and tailnet access policies for a session.
+// This is called during sandbox cleanup.
+func (r *k8sRuntime) DeleteNetworkRestriction(ctx context.Context, sessionID string) error {
+	// Delete network restriction policy
+	restrictPolicyName := fmt.Sprintf("sess-%s-network-restrict", sessionID)
+	err := r.clientset.NetworkingV1().NetworkPolicies(r.namespace).Delete(ctx, restrictPolicyName, metav1.DeleteOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		return fmt.Errorf("delete network restriction policy: %w", err)
+	}
+
+	// Delete tailnet access policy
+	tailnetPolicyName := fmt.Sprintf("sess-%s-tailnet-access", sessionID)
+	err = r.clientset.NetworkingV1().NetworkPolicies(r.namespace).Delete(ctx, tailnetPolicyName, metav1.DeleteOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		return fmt.Errorf("delete tailnet access policy: %w", err)
+	}
+
+	return nil
+}
+
 // ListSandboxes lists all sandboxes from cache.
 func (r *k8sRuntime) ListSandboxes(ctx context.Context) ([]SandboxInfo, error) {
 	r.cacheMu.RLock()

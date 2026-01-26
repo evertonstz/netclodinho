@@ -77,6 +77,19 @@ message ServerMessage {
 // Client Request Messages
 // ============================================================================
 
+// NetworkConfig controls network access for a session's sandbox.
+message NetworkConfig {
+  // Whether internet access is enabled for this session.
+  // Default: true. When false, sandbox can only reach control-plane and DNS
+  // (no external internet access).
+  bool internet_access = 1;
+  
+  // Whether Tailnet access is enabled for this session.
+  // Default: false. When true, sandbox can reach other devices on the
+  // Tailscale network (100.64.0.0/10 CGNAT range).
+  bool tailnet_access = 2;
+}
+
 message CreateSessionRequest {
   optional string request_id = 1;            // Client-generated ID for request correlation
   optional string name = 2;                  // Initial session name
@@ -86,6 +99,7 @@ message CreateSessionRequest {
   optional SdkType sdk_type = 6;             // SDK to use (defaults to CLAUDE)
   optional string model = 7;                 // Model ID (e.g., "claude-sonnet-4-0", "gpt-4o")
   optional CopilotBackend copilot_backend = 8;  // Backend for Copilot SDK (GitHub or Anthropic)
+  optional NetworkConfig network_config = 9;   // Network configuration (defaults to enabled)
 }
 
 message ListSessionsRequest {

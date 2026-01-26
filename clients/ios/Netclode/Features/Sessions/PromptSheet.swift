@@ -21,6 +21,8 @@ struct PromptSheet: View {
     @State private var canSubmit = false
     @State private var showModelDropdown = false
     @State private var showAccessDropdown = false
+    @State private var internetAccess = true
+    @State private var tailnetAccess = false
     @FocusState private var isFocused: Bool
 
     /// Get available models as PickerModels based on current SDK selection
@@ -169,6 +171,59 @@ struct PromptSheet: View {
                     }
                     .padding(.horizontal, Theme.Spacing.md)
                     .padding(.top, Theme.Spacing.md)
+                    
+                    // Network section
+                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                        HStack(spacing: Theme.Spacing.xs) {
+                            Image(systemName: "network")
+                                .foregroundStyle(.secondary)
+                            Text("Network")
+                                .font(.netclodeCaption)
+                                .foregroundStyle(.secondary)
+                        }
+                        
+                        VStack(spacing: 0) {
+                            Toggle(isOn: $internetAccess) {
+                                HStack(spacing: Theme.Spacing.sm) {
+                                    Image(systemName: "globe")
+                                        .foregroundStyle(Theme.Colors.brand)
+                                        .frame(width: 20)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Internet Access")
+                                            .font(.netclodeBody)
+                                        Text("Allow connections to external services")
+                                            .font(.netclodeCaption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                            .tint(Theme.Colors.brand)
+                            .padding(Theme.Spacing.sm)
+                            
+                            Divider()
+                                .padding(.leading, 40)
+                            
+                            Toggle(isOn: $tailnetAccess) {
+                                HStack(spacing: Theme.Spacing.sm) {
+                                    Image(systemName: "point.3.connected.trianglepath.dotted")
+                                        .foregroundStyle(Theme.Colors.brand)
+                                        .frame(width: 20)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Tailnet Access")
+                                            .font(.netclodeBody)
+                                        Text("Allow connections to Tailscale network")
+                                            .font(.netclodeCaption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                            .tint(Theme.Colors.brand)
+                            .padding(Theme.Spacing.sm)
+                        }
+                        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
+                    }
+                    .padding(.horizontal, Theme.Spacing.md)
+                    .padding(.top, Theme.Spacing.md)
                     .padding(.bottom, Theme.Spacing.lg)
                 }
             }
@@ -298,6 +353,15 @@ struct PromptSheet: View {
             modelParam = selectedCopilotModelId
         }
         
+        // Build network config (only if non-default values)
+        var networkConfig: NetworkConfig? = nil
+        if !internetAccess || tailnetAccess {
+            networkConfig = NetworkConfig(
+                internetAccess: internetAccess,
+                tailnetAccess: tailnetAccess
+            )
+        }
+        
         // Create session
         connectService.send(.sessionCreate(
             name: nil,
@@ -306,7 +370,8 @@ struct PromptSheet: View {
             initialPrompt: text,
             sdkType: sdkParam,
             model: modelParam,
-            copilotBackend: nil
+            copilotBackend: nil,
+            networkConfig: networkConfig
         ))
 
         dismiss()

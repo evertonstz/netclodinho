@@ -216,6 +216,18 @@ func (m *mockRuntime) AddSessionAnchorToPVC(ctx context.Context, sessionID, pvcN
 	return nil
 }
 
+func (m *mockRuntime) ConfigureNetwork(ctx context.Context, sessionID string, networkEnabled bool) error {
+	return nil
+}
+
+func (m *mockRuntime) ConfigureTailnetAccess(ctx context.Context, sessionID string, tailnetEnabled bool) error {
+	return nil
+}
+
+func (m *mockRuntime) DeleteNetworkRestriction(ctx context.Context, sessionID string) error {
+	return nil
+}
+
 func (m *mockRuntime) Close() {
 }
 
