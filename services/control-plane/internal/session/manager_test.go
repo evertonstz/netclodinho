@@ -370,6 +370,14 @@ func (m *mockStorage) ClearOldPVCName(ctx context.Context, sessionID string) err
 	return nil
 }
 
+func (m *mockStorage) SetPVCName(ctx context.Context, sessionID, pvcName string) error {
+	return nil
+}
+
+func (m *mockStorage) GetPVCName(ctx context.Context, sessionID string) (string, error) {
+	return "", nil
+}
+
 // Helper to create a test manager with mock dependencies
 func newTestManager(maxActiveSessions int) (*Manager, *mockRuntime, *mockStorage) {
 	runtime := newMockRuntime()

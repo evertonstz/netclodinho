@@ -237,6 +237,7 @@ func (m *Manager) createSandbox(ctx context.Context, sessionID string, repo *str
 
 // createSandboxDirect creates a sandbox directly (legacy mode).
 // If restoreSnapshotID is provided, the PVC is restored from that snapshot BEFORE creating the sandbox.
+// If resuming from a paused session, uses the stored PVC name.
 func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, repo *string, repoAccess *pb.RepoAccess, restoreSnapshotID ...string) {
 	env := map[string]string{
 		"SESSION_ID":        sessionID,
@@ -294,6 +295,12 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 
 		// Pass the existing PVC name so sandbox uses it instead of creating a new one
 		env[k8s.ExistingPVCEnvKey] = pvcName
+	} else {
+		// Not restoring from snapshot - check if we have an existing PVC (resume after pause)
+		if existingPVC, err := m.storage.GetPVCName(ctx, sessionID); err == nil && existingPVC != "" {
+			slog.Info("Resuming with existing PVC", "sessionID", sessionID, "pvc", existingPVC)
+			env[k8s.ExistingPVCEnvKey] = existingPVC
+		}
 	}
 
 	// Pass GitHub token for Copilot SDK if configured
@@ -349,6 +356,15 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 	if err := m.k8s.CreateSandboxService(ctx, sessionID); err != nil {
 		slog.Warn("Failed to create sandbox service", "sessionID", sessionID, "error", err)
 		// Non-fatal: sandbox still works, just no preview URLs
+	}
+
+	// Store PVC name for resume after pause
+	if pvcName, err := m.k8s.GetPVCName(ctx, sessionID); err == nil {
+		if err := m.storage.SetPVCName(ctx, sessionID, pvcName); err != nil {
+			slog.Warn("Failed to store PVC name", "sessionID", sessionID, "pvc", pvcName, "error", err)
+		} else {
+			slog.Info("Stored PVC name", "sessionID", sessionID, "pvc", pvcName)
+		}
 	}
 
 	// Update state and check for pending prompt
@@ -484,6 +500,15 @@ func (m *Manager) createSandboxViaClaim(ctx context.Context, sessionID string, r
 	if err := m.k8s.CreateSandboxService(ctx, sessionID); err != nil {
 		slog.Warn("Failed to create sandbox service", "sessionID", sessionID, "error", err)
 		// Non-fatal: sandbox still works, just no preview URLs
+	}
+
+	// Store PVC name for resume after pause
+	// For warm pool, use sandboxName directly to get the PVC name (agent-home-{sandboxName})
+	warmPoolPVCName := fmt.Sprintf("agent-home-%s", sandboxName)
+	if err := m.storage.SetPVCName(ctx, sessionID, warmPoolPVCName); err != nil {
+		slog.Warn("Failed to store PVC name", "sessionID", sessionID, "pvc", warmPoolPVCName, "error", err)
+	} else {
+		slog.Info("Stored PVC name", "sessionID", sessionID, "pvc", warmPoolPVCName)
 	}
 
 	// Update state and check for pending prompt
@@ -691,13 +716,16 @@ func (m *Manager) Resume(ctx context.Context, id string) (*pb.Session, error) {
 
 	_ = m.storage.UpdateSessionStatus(ctx, id, pb.SessionStatus_SESSION_STATUS_RESUMING)
 
-	// If restoring from snapshot, use direct sandbox creation (bypasses warm pool)
+	// Always use direct sandbox creation for resume (bypasses warm pool).
+	// This ensures we use the session's existing PVC instead of getting a fresh warm pool PVC.
+	// createSandboxDirect will automatically use the stored PVC name if available.
 	if restoreSnapshotID != "" {
 		slog.Info("Resuming with snapshot restore", "sessionID", id, "snapshotID", restoreSnapshotID)
 		_ = m.storage.ClearRestoreSnapshotID(ctx, id) // Clear from storage
 		go m.createSandboxDirect(context.Background(), id, state.Session.Repo, state.Session.RepoAccess, restoreSnapshotID)
 	} else {
-		go m.createSandbox(context.Background(), id, state.Session.Repo, state.Session.RepoAccess)
+		slog.Info("Resuming session", "sessionID", id)
+		go m.createSandboxDirect(context.Background(), id, state.Session.Repo, state.Session.RepoAccess)
 	}
 
 	return state.Session, nil

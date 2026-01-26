@@ -67,6 +67,10 @@ type Storage interface {
 	GetOldPVCName(ctx context.Context, sessionID string) (string, error)
 	ClearOldPVCName(ctx context.Context, sessionID string) error
 
+	// Current PVC name (for resume after pause)
+	SetPVCName(ctx context.Context, sessionID, pvcName string) error
+	GetPVCName(ctx context.Context, sessionID string) (string, error)
+
 	// Redis client access (for StreamSubscriber)
 	GetRedisClient() *redis.Client
 

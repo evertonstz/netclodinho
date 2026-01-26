@@ -269,6 +269,16 @@ func (r *RedisStorage) ClearOldPVCName(ctx context.Context, sessionID string) er
 	return r.client.HDel(ctx, sessionKey(sessionID), "oldPVCName").Err()
 }
 
+// SetPVCName stores the current PVC name for the session (used for resume after pause).
+func (r *RedisStorage) SetPVCName(ctx context.Context, sessionID, pvcName string) error {
+	return r.client.HSet(ctx, sessionKey(sessionID), "pvcName", pvcName).Err()
+}
+
+// GetPVCName retrieves the current PVC name for the session.
+func (r *RedisStorage) GetPVCName(ctx context.Context, sessionID string) (string, error) {
+	return r.client.HGet(ctx, sessionKey(sessionID), "pvcName").Result()
+}
+
 // DeleteSession removes a session and all related data from Redis.
 func (r *RedisStorage) DeleteSession(ctx context.Context, id string) error {
 	// First delete all snapshots
