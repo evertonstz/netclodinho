@@ -247,6 +247,18 @@ func notificationToServerMessage(sessionID string, n *storage.Notification) *pb.
 			},
 		}
 
+	case "snapshot_created":
+		var msg pb.SnapshotCreatedResponse
+		if err := protojson.Unmarshal(n.Payload, &msg); err != nil {
+			slog.Warn("failed to unmarshal snapshot created payload", "session", sessionID, "error", err)
+			return nil
+		}
+		return &pb.ServerMessage{
+			Message: &pb.ServerMessage_SnapshotCreated{
+				SnapshotCreated: &msg,
+			},
+		}
+
 	default:
 		slog.Warn("unknown notification type", "session", sessionID, "type", n.Type)
 		return nil

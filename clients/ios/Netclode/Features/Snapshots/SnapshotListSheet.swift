@@ -12,21 +12,17 @@ struct SnapshotListSheet: View {
     
     @State private var confirmingSnapshot: Snapshot?
     
-    private var snapshots: [Snapshot] {
-        snapshotStore.snapshots(for: sessionId)
-    }
-    
-    private var isRestoring: Bool {
-        snapshotStore.isRestoreInProgress(for: sessionId)
-    }
-    
     var body: some View {
+        // Access store properties directly in body for proper observation tracking
+        let snapshots = snapshotStore.snapshotsBySession[sessionId] ?? []
+        let isRestoring = snapshotStore.restoreInProgress[sessionId] ?? false
+        
         NavigationStack {
             Group {
                 if snapshots.isEmpty {
                     emptyState
                 } else {
-                    snapshotList
+                    snapshotList(snapshots: snapshots, isRestoring: isRestoring)
                 }
             }
             .navigationTitle("History")
@@ -74,7 +70,7 @@ struct SnapshotListSheet: View {
         }
     }
     
-    private var snapshotList: some View {
+    private func snapshotList(snapshots: [Snapshot], isRestoring: Bool) -> some View {
         let currentSnapshotId = snapshots.first?.id
         return List {
             ForEach(snapshots) { snapshot in
@@ -84,9 +80,14 @@ struct SnapshotListSheet: View {
                     }
                     confirmingSnapshot = snapshot
                 }
+                .transition(.asymmetric(
+                    insertion: .move(edge: .top).combined(with: .opacity),
+                    removal: .opacity
+                ))
             }
         }
         .listStyle(.insetGrouped)
+        .animation(.smooth, value: snapshots)
     }
     
     private func performRestore(_ snapshot: Snapshot) {
@@ -156,10 +157,8 @@ struct SnapshotRow: View {
 // MARK: - Preview
 
 #Preview {
-    let store = SnapshotStore()
-    
-    return SnapshotListSheet(sessionId: "test") { _ in }
-        .environment(store)
+    SnapshotListSheet(sessionId: "test") { _ in }
+        .environment(SnapshotStore())
         .environment(ConnectService())
         .environment(SettingsStore())
 }

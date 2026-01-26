@@ -275,7 +275,9 @@ final class MessageRouter {
         // Snapshot messages
         case .snapshotCreated(let sessionId, let snapshot):
             print("[MessageRouter] snapshot.created received: id=\(snapshot.id) for session \(sessionId)")
-            snapshotStore.addSnapshot(snapshot)
+            withAnimation(.smooth) {
+                snapshotStore.addSnapshot(snapshot)
+            }
 
         case .snapshotList(let sessionId, let snapshots):
             print("[MessageRouter] snapshot.list received: \(snapshots.count) snapshots for session \(sessionId)")
