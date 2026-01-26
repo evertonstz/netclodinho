@@ -6,7 +6,23 @@ struct ToolEventCard: View {
     let endEvent: ToolEndEvent?
     let children: [GroupedEvent]  // Nested tool events for Task/subagent
 
-    @State private var isExpanded = false
+    @State private var isExpanded: Bool
+    
+    init(event: AgentEvent, endEvent: ToolEndEvent?, children: [GroupedEvent]) {
+        self.event = event
+        self.endEvent = endEvent
+        self.children = children
+        
+        // Default expanded for Edit, Write, and Bash tools
+        let toolName: String
+        switch event {
+        case .toolStart(let e): toolName = e.tool
+        case .toolEnd(let e): toolName = e.tool
+        default: toolName = ""
+        }
+        let expandByDefault = ["edit", "write", "bash"].contains(toolName.lowercased())
+        _isExpanded = State(initialValue: expandByDefault)
+    }
 
     private var isRunning: Bool {
         endEvent == nil
@@ -344,12 +360,9 @@ struct ToolEventCard: View {
             // Output/Result section
             if let end = endEvent {
                 if let result = end.result, !result.isEmpty {
-                    ExpandableSection(title: "OUTPUT", defaultExpanded: false) {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            Text(result)
-                                .font(.netclodeMonospacedSmall)
-                                .foregroundStyle(.secondary)
-                        }
+                    let showOutputByDefault = ["write", "edit", "bash"].contains(toolName.lowercased())
+                    ExpandableSection(title: "OUTPUT", defaultExpanded: showOutputByDefault) {
+                        TruncatedOutputView(text: result, maxLines: 20)
                     }
                 }
 
@@ -502,8 +515,10 @@ private struct EditToolDiffSection: View {
 /// Specialized view for Write tool that shows file content with syntax highlighting
 private struct WriteToolContentSection: View {
     let input: [String: AnyCodableValue]
+    let maxLines: Int = 20
 
     @Environment(\.colorScheme) private var colorScheme
+    @State private var isFullyExpanded = false
 
     private var filePath: String? {
         input["file_path"]?.stringValue
@@ -515,6 +530,21 @@ private struct WriteToolContentSection: View {
 
     private var detectedLanguage: String? {
         filePath.flatMap { LanguageDetector.language(for: $0) }
+    }
+    
+    private var allLines: [String] {
+        content?.components(separatedBy: "\n") ?? []
+    }
+    
+    private var isTruncated: Bool {
+        allLines.count > maxLines
+    }
+    
+    private var displayedLines: ArraySlice<String> {
+        if isFullyExpanded || !isTruncated {
+            return allLines[...]
+        }
+        return allLines.prefix(maxLines)
     }
 
     var body: some View {
@@ -534,10 +564,10 @@ private struct WriteToolContentSection: View {
             }
 
             // File content with syntax highlighting
-            if let content = content {
+            if content != nil {
                 ScrollView(.horizontal, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
-                        ForEach(Array(content.components(separatedBy: "\n").enumerated()), id: \.offset) { index, line in
+                        ForEach(Array(displayedLines.enumerated()), id: \.offset) { index, line in
                             HStack(spacing: 0) {
                                 // Line number
                                 Text("\(index + 1)")
@@ -571,6 +601,24 @@ private struct WriteToolContentSection: View {
                 .font(.system(size: 11, design: .monospaced))
                 .background(DiffColors.background)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
+                
+                // Show more button
+                if isTruncated {
+                    Button {
+                        withAnimation(.snappy(duration: 0.2)) {
+                            isFullyExpanded.toggle()
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(isFullyExpanded ? "Show less" : "Show all \(allLines.count) lines")
+                                .font(.system(size: TypeScale.caption, weight: .medium))
+                            Image(systemName: isFullyExpanded ? "chevron.up" : "chevron.down")
+                                .font(.system(size: TypeScale.tiny))
+                        }
+                        .foregroundStyle(Theme.Colors.brand)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
     }
@@ -888,6 +936,56 @@ private struct ExpandableSection<Content: View>: View {
             if isExpanded {
                 content()
                     .padding(.leading, Theme.Spacing.sm)
+            }
+        }
+    }
+}
+
+/// Shows text output with truncation and "Show more" option
+private struct TruncatedOutputView: View {
+    let text: String
+    let maxLines: Int
+    
+    @State private var isFullyExpanded = false
+    
+    private var lines: [String] {
+        text.components(separatedBy: "\n")
+    }
+    
+    private var isTruncated: Bool {
+        lines.count > maxLines
+    }
+    
+    private var displayedText: String {
+        if isFullyExpanded || !isTruncated {
+            return text
+        }
+        return lines.prefix(maxLines).joined(separator: "\n")
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                Text(displayedText)
+                    .font(.netclodeMonospacedSmall)
+                    .foregroundStyle(.secondary)
+            }
+            
+            if isTruncated {
+                Button {
+                    withAnimation(.snappy(duration: 0.2)) {
+                        isFullyExpanded.toggle()
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(isFullyExpanded ? "Show less" : "Show all \(lines.count) lines")
+                            .font(.system(size: TypeScale.caption, weight: .medium))
+                        Image(systemName: isFullyExpanded ? "chevron.up" : "chevron.down")
+                            .font(.system(size: TypeScale.tiny))
+                    }
+                    .foregroundStyle(Theme.Colors.brand)
+                }
+                .buttonStyle(.plain)
             }
         }
     }

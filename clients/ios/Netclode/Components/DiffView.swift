@@ -7,35 +7,70 @@ struct DiffView: View {
     let oldString: String
     let newString: String
     let language: String?
-
+    let maxLines: Int
+    
     @Environment(\.colorScheme) private var colorScheme
+    @State private var isFullyExpanded = false
 
-    init(oldString: String, newString: String, language: String? = nil) {
+    init(oldString: String, newString: String, language: String? = nil, maxLines: Int = 20) {
         self.oldString = oldString
         self.newString = newString
         self.language = language
+        self.maxLines = maxLines
     }
 
     /// Initialize with a file path for automatic language detection
-    init(oldString: String, newString: String, filePath: String?) {
+    init(oldString: String, newString: String, filePath: String?, maxLines: Int = 20) {
         self.oldString = oldString
         self.newString = newString
         self.language = filePath.flatMap { LanguageDetector.language(for: $0) }
+        self.maxLines = maxLines
     }
 
     private var diffResult: DiffResult {
         DiffEngine.computeDiff(old: oldString, new: newString)
     }
+    
+    private var isTruncated: Bool {
+        diffResult.lines.count > maxLines
+    }
+    
+    private var displayedLines: ArraySlice<DiffLine> {
+        if isFullyExpanded || !isTruncated {
+            return diffResult.lines[...]
+        }
+        return diffResult.lines.prefix(maxLines)
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ForEach(diffResult.lines) { line in
-                DiffLineView(line: line, language: language, colorScheme: colorScheme)
+        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(displayedLines) { line in
+                    DiffLineView(line: line, language: language, colorScheme: colorScheme)
+                }
+            }
+            .font(.system(size: 12, design: .monospaced))
+            .background(DiffColors.background)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            
+            // Show more button
+            if isTruncated {
+                Button {
+                    withAnimation(.snappy(duration: 0.2)) {
+                        isFullyExpanded.toggle()
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(isFullyExpanded ? "Show less" : "Show all \(diffResult.lines.count) lines")
+                            .font(.system(size: TypeScale.caption, weight: .medium))
+                        Image(systemName: isFullyExpanded ? "chevron.up" : "chevron.down")
+                            .font(.system(size: TypeScale.tiny))
+                    }
+                    .foregroundStyle(Theme.Colors.brand)
+                }
+                .buttonStyle(.plain)
             }
         }
-        .font(.system(size: 12, design: .monospaced))
-        .background(DiffColors.background)
-        .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 }
 
