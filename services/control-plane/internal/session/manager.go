@@ -811,6 +811,18 @@ func (m *Manager) Delete(ctx context.Context, id string) error {
 	delete(m.sessions, id)
 	m.mu.Unlock()
 
+	// Delete K8s VolumeSnapshots first (before PVC deletion)
+	if snapshots, err := m.k8s.ListVolumeSnapshots(ctx, id); err != nil {
+		slog.Warn("Failed to list VolumeSnapshots during session delete", "sessionID", id, "error", err)
+	} else {
+		for _, snap := range snapshots {
+			if err := m.k8s.DeleteVolumeSnapshot(ctx, id, snap.SnapshotID); err != nil {
+				slog.Warn("Failed to delete VolumeSnapshot during session delete",
+					"sessionID", id, "snapshotID", snap.SnapshotID, "error", err)
+			}
+		}
+	}
+
 	// Delete K8s resources
 	_ = m.k8s.DeleteSandboxClaim(ctx, id)
 	_ = m.k8s.DeleteSandboxService(ctx, id)
