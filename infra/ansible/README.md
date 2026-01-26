@@ -8,6 +8,7 @@ Ansible playbooks for deploying Netclode infrastructure on Ubuntu/Debian.
 
 The host runs:
 - **k3s** - Single-node Kubernetes with Kata Containers support
+- **Cilium** - CNI with NetworkPolicy enforcement
 - **Tailscale** - Secure network access
 - **nftables** - Firewall
 
@@ -166,11 +167,13 @@ kubectl config use-context netclode
 | `tailscale` | Tailscale daemon |
 | `kata` | Kata Containers runtime (use with `secrets` tag to read .env) |
 | `k3s` | k3s Kubernetes server |
+| `cilium` | Cilium CNI (NetworkPolicy support) |
 | `juicefs-csi` | JuiceFS CSI driver |
 | `tailscale-operator` | Tailscale K8s Operator |
 | `k8s-manifests` | Deploy k8s workloads |
 | `base` | common + nftables + secrets |
 | `k8s` | kata + k3s |
+| `cni` | cilium |
 | `addons` | juicefs-csi + tailscale-operator |
 | `workloads` | k8s-manifests |
 | `k8s-secrets` | Deploy only k8s secrets |
@@ -185,6 +188,7 @@ kubectl config use-context netclode
 | `tailscale` | Tailscale daemon + auto-connect |
 | `kata` | Kata Containers static release |
 | `k3s` | k3s single-node server with Kata support |
+| `cilium` | Cilium CNI for NetworkPolicy enforcement |
 | `juicefs-csi` | JuiceFS CSI driver with VolumeSnapshot support |
 | `tailscale-operator` | Tailscale K8s Operator via Helm |
 | `k8s-manifests` | Deploy all k8s manifests from infra/k8s/ |
@@ -222,6 +226,19 @@ ssh root@your-host /opt/kata/bin/kata-runtime kata-env
 Check containerd config:
 ```bash
 ssh root@your-host cat /var/lib/rancher/k3s/agent/etc/containerd/config.toml.tmpl
+```
+
+### Cilium not working / NetworkPolicy not enforced
+
+Check Cilium status:
+```bash
+kubectl -n kube-system get pods -l app.kubernetes.io/part-of=cilium
+kubectl -n kube-system exec ds/cilium -- cilium status
+```
+
+Check if NetworkPolicies are being enforced:
+```bash
+kubectl -n kube-system exec ds/cilium -- cilium policy get
 ```
 
 ### JuiceFS CSI not working

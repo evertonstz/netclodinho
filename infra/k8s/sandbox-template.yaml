@@ -21,6 +21,22 @@ spec:
   podTemplate:
     spec:
       runtimeClassName: kata-clh
+      # Fix MTU for Cilium + Kata compatibility
+      # Kata VMs don't inherit route MTU from outer namespace, causing fragmentation
+      # See: https://docs.cilium.io/en/stable/network/kubernetes/kata.html#limitations
+      initContainers:
+        - name: fix-mtu
+          image: busybox:latest
+          command:
+            - sh
+            - -c
+            - |
+              DEFAULT="$(ip route show default)"
+              ip route replace $DEFAULT mtu 1450
+          securityContext:
+            capabilities:
+              add:
+                - NET_ADMIN
       containers:
         - name: agent
           image: ghcr.io/angristan/netclode-agent:latest

@@ -52,6 +52,10 @@
     - role: k3s
       tags: [k3s, k8s]
 
+    # CNI (must be installed before other k8s workloads)
+    - role: cilium
+      tags: [cilium, cni, k8s]
+
     # k8s addons (require k3s)
     - role: juicefs-csi
       tags: [juicefs-csi, k8s, addons]

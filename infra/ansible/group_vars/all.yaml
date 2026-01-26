@@ -64,8 +64,12 @@ k3s_kubeconfig: /etc/rancher/k3s/k3s.yaml
 k3s_extra_flags:
   - "--disable=traefik"
   - "--disable=servicelb"
-  - "--flannel-backend=host-gw"
+  - "--flannel-backend=none"
+  - "--disable-network-policy"
   - "--tls-san={{ netclode_hostname }}"
+
+# Cilium CNI
+cilium_version: "1.17.0"
 
 # Kata Containers
 kata_version: "3.24.0"
