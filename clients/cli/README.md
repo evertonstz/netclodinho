@@ -77,6 +77,32 @@ Messages:       2
 Events:         107
 ```
 
+### Create a session
+
+```bash
+# Basic creation
+netclode sessions create --repo owner/repo --name "My Session"
+
+# With SDK type (claude, opencode, copilot)
+netclode sessions create --repo owner/repo --sdk opencode --model anthropic/claude-sonnet-4-0
+```
+
+### Pause a session
+
+Pauses a session, stopping the agent container but preserving the workspace data.
+
+```bash
+netclode sessions pause <session-id>
+```
+
+### Resume a session
+
+Resumes a paused session, restoring the agent with the preserved workspace.
+
+```bash
+netclode sessions resume <session-id>
+```
+
 ### Delete a session
 
 ```bash
@@ -220,8 +246,11 @@ clients/cli/
 The CLI uses the [Connect protocol](https://connectrpc.com/) to communicate with the Netclode control-plane. It establishes a bidirectional stream and sends/receives protobuf messages.
 
 The client wrapper (`internal/client/`) provides a simple Go API:
+- `CreateSession(opts)` - Create a new session
 - `ListSessions()` - List all sessions
 - `SyncSessions()` - List sessions with metadata
 - `GetSession(id)` - Get session with messages and events
+- `PauseSession(id)` - Pause a session (preserves workspace)
+- `ResumeSession(id)` - Resume a paused session
 - `DeleteSession(id)` - Delete a session
 - `TailEvents(id, handler)` - Stream events in real-time
