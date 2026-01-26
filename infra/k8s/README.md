@@ -204,6 +204,40 @@ kubectl $CTX get pv --no-headers | grep Released | awk '{print $1}' | xargs kube
 
 ## Known Issues and Learnings
 
+### PVC Preservation During Pause (Session Anchors)
+
+**Problem:** When a session is paused, the Sandbox CR is deleted. PVCs created via `volumeClaimTemplates` have an `ownerReference` to the Sandbox, so Kubernetes garbage-collects them, causing **data loss**.
+
+**Solution:** The control-plane creates a "session anchor" ConfigMap that acts as a second owner of the PVC. With two owners (Sandbox + ConfigMap), the PVC survives when the Sandbox is deleted during pause. The PVC only gets GC'd when both owners are deleted.
+
+**How it works:**
+1. When a session is created, control-plane creates `ConfigMap/session-anchor-<sessionID>`
+2. The ConfigMap is added as a non-controller `ownerReference` on the PVC
+3. When paused: Sandbox deleted → PVC survives (anchor still owns it)
+4. When resumed: New Sandbox created with same PVC
+5. When deleted: Anchor deleted → PVC explicitly deleted
+
+**RBAC Requirements:**
+The control-plane service account needs permissions for ConfigMaps and PVC updates:
+```yaml
+# In namespace.yaml Role sandbox-manager
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list", "watch", "create", "update", "delete"]
+- apiGroups: [""]
+  resources: ["persistentvolumeclaims"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+```
+
+**Verifying anchors:**
+```bash
+# List session anchors
+kubectl --context netclode -n netclode get configmap -l netclode.dev/component=session-anchor
+
+# Check PVC ownership (should show both Sandbox and ConfigMap)
+kubectl --context netclode -n netclode get pvc <pvc-name> -o jsonpath='{.metadata.ownerReferences}' | jq
+```
+
 ### PVC Explosion Bug (Fixed in volumeclaim-v6)
 
 **Problem:** The warm pool controller was creating thousands of PVCs in a loop.
