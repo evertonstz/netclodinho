@@ -336,8 +336,9 @@ struct ToolEventCard: View {
                 // Special handling for TodoWrite tool - show task list with status
                 TodoToolSection(input: input)
             } else if let input = toolInput, !input.isEmpty {
-                // Generic input section for other tools
-                ExpandableSection(title: "INPUT") {
+                // Generic input section - collapsed by default for Bash (already shown in header)
+                let inputCollapsed = toolName.lowercased() == "bash"
+                ExpandableSection(title: "INPUT", defaultExpanded: !inputCollapsed) {
                     ForEach(Array(input.keys.sorted()), id: \.self) { key in
                         if let value = input[key] {
                             InputRow(key: key, value: formatValue(value))
@@ -408,7 +409,7 @@ private struct InputRow: View {
             Text(key)
                 .font(.system(size: TypeScale.tiny, weight: .medium, design: .monospaced))
                 .foregroundStyle(.tertiary)
-                .frame(minWidth: 60, alignment: .trailing)
+                .frame(width: 90, alignment: .leading)
 
             Text(value)
                 .font(.netclodeMonospacedSmall)
@@ -910,7 +911,7 @@ private struct ExpandableSection<Content: View>: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+        VStack(alignment: .leading, spacing: 2) {
             Button {
                 withAnimation(.snappy(duration: 0.15)) {
                     isExpanded.toggle()
@@ -928,14 +929,14 @@ private struct ExpandableSection<Content: View>: View {
                     Spacer()
                 }
                 .foregroundStyle(.tertiary)
-                .frame(minHeight: 32)
+                .frame(minHeight: 24)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
 
             if isExpanded {
                 content()
-                    .padding(.leading, Theme.Spacing.sm)
+                    .padding(.leading, Theme.Spacing.xs)
             }
         }
     }
