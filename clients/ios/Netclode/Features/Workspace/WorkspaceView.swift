@@ -93,7 +93,7 @@ struct WorkspaceView: View {
                                     }
                                 }
                             } label: {
-                                Label(session.repoAccess?.displayName ?? "No Access", systemImage: "lock.shield")
+                                Label("GitHub Access", systemImage: "lock.shield")
                             }
                             
                             Divider()
