@@ -61,6 +61,18 @@ spec:
                   name: netclode-secrets
                   key: github-installation-id
                   optional: true
+            - name: CODEX_ACCESS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: netclode-secrets
+                  key: codex-access-token
+                  optional: true
+            - name: CODEX_ID_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: netclode-secrets
+                  key: codex-id-token
+                  optional: true
             - name: REDIS_URL
               value: "redis://redis-sessions.netclode.svc.cluster.local:6379"
             - name: WARM_POOL_ENABLED

@@ -20,6 +20,10 @@ type Config struct {
 	UseWarmPool        bool
 	MaxActiveSessions  int
 
+	// Codex OAuth tokens (for ChatGPT auth mode)
+	CodexAccessToken string
+	CodexIdToken     string
+
 	// GitHub App integration (for repo-scoped tokens)
 	GitHubAppID          int64
 	GitHubAppPrivateKey  string // PEM-encoded private key
@@ -40,6 +44,10 @@ func Load() *Config {
 		RedisURL:           getEnv("REDIS_URL", "redis://redis-sessions.netclode.svc.cluster.local:6379"),
 		UseWarmPool:        getEnvBool("WARM_POOL_ENABLED", true),
 		MaxActiveSessions:  getEnvInt("MAX_ACTIVE_SESSIONS", 5),
+
+		// Codex OAuth tokens
+		CodexAccessToken: getEnv("CODEX_ACCESS_TOKEN", ""),
+		CodexIdToken:     getEnv("CODEX_ID_TOKEN", ""),
 
 		// GitHub App integration
 		GitHubAppID:          getEnvInt64("GITHUB_APP_ID", 0),

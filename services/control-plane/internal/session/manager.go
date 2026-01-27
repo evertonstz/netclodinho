@@ -38,6 +38,8 @@ type AgentSessionConfig struct {
 	SdkType            *pb.SdkType
 	Model              string
 	CopilotBackend     *pb.CopilotBackend
+	CodexAccessToken   string // For Codex OAuth
+	CodexIdToken       string // For Codex OAuth
 }
 
 // AgentConnection represents a connected agent that can receive commands.
@@ -1303,6 +1305,8 @@ func (m *Manager) GetSessionConfig(ctx context.Context, sessionID string) (*Agen
 		SessionID:          sessionID,
 		AnthropicAPIKey:    m.config.AnthropicAPIKey,
 		GitHubCopilotToken: m.config.GitHubCopilotToken,
+		CodexAccessToken:   m.config.CodexAccessToken,
+		CodexIdToken:       m.config.CodexIdToken,
 		SdkType:            state.Session.SdkType,
 		CopilotBackend:     state.Session.CopilotBackend,
 	}
