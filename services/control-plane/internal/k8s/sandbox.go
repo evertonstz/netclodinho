@@ -916,35 +916,16 @@ func (r *k8sRuntime) ConfigureNetwork(ctx context.Context, sessionID string, net
 		return fmt.Errorf("sandbox claim UID is empty for session %s", sessionID)
 	}
 
-	// Network disabled: update the default template policy to remove internet access
-	// The sandbox controller creates it with internet access, we need to modify it
-	// We can't delete it because the controller will recreate it
+	// Network disabled: delete the default template policy that has internet access
+	// The sandbox controller creates it from the template, but doesn't continuously reconcile
+	// so we can safely delete it and replace with our restrictive policy
 	defaultPolicyName := fmt.Sprintf("sess-%s-network-policy", sessionID)
-	defaultPolicy, err := r.clientset.NetworkingV1().NetworkPolicies(r.namespace).Get(ctx, defaultPolicyName, metav1.GetOptions{})
-	if err == nil {
-		// Filter out the internet egress rule (0.0.0.0/0) from the policy
-		var filteredEgress []networkingv1.NetworkPolicyEgressRule
-		for _, rule := range defaultPolicy.Spec.Egress {
-			isInternetRule := false
-			for _, to := range rule.To {
-				if to.IPBlock != nil && to.IPBlock.CIDR == "0.0.0.0/0" {
-					isInternetRule = true
-					break
-				}
-			}
-			if !isInternetRule {
-				filteredEgress = append(filteredEgress, rule)
-			}
+	if err := r.clientset.NetworkingV1().NetworkPolicies(r.namespace).Delete(ctx, defaultPolicyName, metav1.DeleteOptions{}); err != nil {
+		if !errors.IsNotFound(err) {
+			slog.Warn("Failed to delete default network policy", "sessionID", sessionID, "error", err)
 		}
-		defaultPolicy.Spec.Egress = filteredEgress
-
-		if _, err := r.clientset.NetworkingV1().NetworkPolicies(r.namespace).Update(ctx, defaultPolicy, metav1.UpdateOptions{}); err != nil {
-			slog.Warn("Failed to update default network policy", "sessionID", sessionID, "error", err)
-		} else {
-			slog.Info("Removed internet access from default network policy", "sessionID", sessionID)
-		}
-	} else if !errors.IsNotFound(err) {
-		slog.Warn("Failed to get default network policy", "sessionID", sessionID, "error", err)
+	} else {
+		slog.Info("Deleted default network policy (has internet access)", "sessionID", sessionID)
 	}
 
 	// Also create our restrictive policy as a backup (in case the default policy doesn't exist yet)
