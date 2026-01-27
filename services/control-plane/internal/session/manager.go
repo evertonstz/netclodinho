@@ -1317,6 +1317,12 @@ func (m *Manager) GetSessionConfig(ctx context.Context, sessionID string) (*Agen
 		model := *state.Session.Model
 		config.Model = model
 
+		// For Anthropic direct models (ID ends with :anthropic), force Anthropic backend
+		if strings.HasSuffix(model, ":anthropic") {
+			anthropicBackend := pb.CopilotBackend_COPILOT_BACKEND_ANTHROPIC
+			config.CopilotBackend = &anthropicBackend
+		}
+
 		// For Codex SDK, parse model format: base:auth:effort (e.g., gpt-5-codex:oauth:high)
 		// Also supports legacy format: base:auth (e.g., gpt-5-codex:oauth)
 		parts := strings.Split(model, ":")
@@ -1873,22 +1879,10 @@ func (m *Manager) fetchCopilotModels() []*pb.ModelInfo {
 				capabilities = append(capabilities, "reasoning")
 			}
 
-			// Determine provider from model family
-			provider := "GitHub Copilot"
-			if contains(model.Family, "claude") {
-				provider = "Anthropic"
-			} else if contains(model.Family, "gpt") || contains(model.Family, "o1") || contains(model.Family, "o3") || contains(model.Family, "o4") {
-				provider = "OpenAI"
-			} else if contains(model.Family, "gemini") {
-				provider = "Google"
-			} else if contains(model.Family, "grok") {
-				provider = "xAI"
-			}
-
 			models = append(models, &pb.ModelInfo{
 				Id:           model.ID,
 				Name:         model.Name,
-				Provider:     strPtr(provider),
+				Provider:     strPtr("Copilot"),
 				Capabilities: capabilities,
 			})
 		}
@@ -1909,9 +1903,9 @@ func (m *Manager) fetchCopilotModels() []*pb.ModelInfo {
 			}
 
 			models = append(models, &pb.ModelInfo{
-				Id:           model.ID,
-				Name:         model.Name + " (BYOK)",
-				Provider:     strPtr("Anthropic (BYOK)"),
+				Id:           model.ID + ":anthropic",
+				Name:         model.Name,
+				Provider:     strPtr("Anthropic"),
 				Capabilities: capabilities,
 			})
 		}
@@ -1938,37 +1932,19 @@ func (m *Manager) filterCopilotModelsByCredentials(models []*pb.ModelInfo, hasGi
 
 	var filtered []*pb.ModelInfo
 	for _, model := range models {
-		provider := ""
-		if model.Provider != nil {
-			provider = *model.Provider
-		}
-
-		// BYOK models require Anthropic API key
-		isBYOK := provider == "Anthropic (BYOK)"
-		if isBYOK && hasAnthropicKey {
+		// Anthropic direct models (ID ends with :anthropic) require Anthropic API key
+		isAnthropicDirect := strings.HasSuffix(model.Id, ":anthropic")
+		if isAnthropicDirect && hasAnthropicKey {
 			filtered = append(filtered, model)
 		}
 
-		// Non-BYOK models require GitHub Copilot token
-		if !isBYOK && hasGitHubCopilot {
+		// Copilot models require GitHub Copilot token
+		if !isAnthropicDirect && hasGitHubCopilot {
 			filtered = append(filtered, model)
 		}
 	}
 
 	return filtered
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsLower(s, substr))
-}
-
-func containsLower(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }
 
 // getModelsFallback returns fallback models for a provider when models.dev is unavailable
@@ -1999,17 +1975,17 @@ func (m *Manager) getCopilotModelsFallback() []*pb.ModelInfo {
 	// GitHub Copilot models (require GITHUB_COPILOT_TOKEN)
 	if hasGitHubCopilot {
 		models = append(models,
-			&pb.ModelInfo{Id: "gpt-4o", Name: "GPT-4o", Provider: strPtr("OpenAI"), Capabilities: []string{"chat", "vision", "code"}},
-			&pb.ModelInfo{Id: "claude-sonnet-4", Name: "Claude Sonnet 4", Provider: strPtr("Anthropic"), Capabilities: []string{"chat", "vision", "code"}},
-			&pb.ModelInfo{Id: "gemini-2.5-pro", Name: "Gemini 2.5 Pro", Provider: strPtr("Google"), Capabilities: []string{"chat", "vision", "code"}},
+			&pb.ModelInfo{Id: "gpt-4o", Name: "GPT-4o", Provider: strPtr("Copilot"), Capabilities: []string{"chat", "vision", "code"}},
+			&pb.ModelInfo{Id: "claude-sonnet-4", Name: "Claude Sonnet 4", Provider: strPtr("Copilot"), Capabilities: []string{"chat", "vision", "code"}},
+			&pb.ModelInfo{Id: "gemini-2.5-pro", Name: "Gemini 2.5 Pro", Provider: strPtr("Copilot"), Capabilities: []string{"chat", "vision", "code"}},
 		)
 	}
 
-	// Anthropic BYOK models (require ANTHROPIC_API_KEY)
+	// Anthropic direct models (require ANTHROPIC_API_KEY)
 	if hasAnthropicKey {
 		models = append(models,
-			&pb.ModelInfo{Id: "claude-sonnet-4-20250514", Name: "Claude Sonnet 4 (BYOK)", Provider: strPtr("Anthropic (BYOK)"), Capabilities: []string{"chat", "vision", "code"}},
-			&pb.ModelInfo{Id: "claude-3-5-sonnet-20241022", Name: "Claude 3.5 Sonnet (BYOK)", Provider: strPtr("Anthropic (BYOK)"), Capabilities: []string{"chat", "vision", "code"}},
+			&pb.ModelInfo{Id: "claude-sonnet-4-20250514:anthropic", Name: "Claude Sonnet 4", Provider: strPtr("Anthropic"), Capabilities: []string{"chat", "vision", "code"}},
+			&pb.ModelInfo{Id: "claude-3-5-sonnet-20241022:anthropic", Name: "Claude 3.5 Sonnet", Provider: strPtr("Anthropic"), Capabilities: []string{"chat", "vision", "code"}},
 		)
 	}
 
@@ -2129,8 +2105,8 @@ func (m *Manager) doFetchCodexModels() []*pb.ModelInfo {
 
 	var models []*pb.ModelInfo
 	for _, model := range openaiData.Models {
-		// Filter to only include Codex models (family starts with "gpt-codex")
-		if !containsLower(model.Family, "gpt-codex") {
+		// Filter to only include Codex models (family contains "gpt-codex")
+		if !strings.Contains(model.Family, "gpt-codex") {
 			continue
 		}
 

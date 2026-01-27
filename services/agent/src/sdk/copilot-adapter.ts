@@ -274,12 +274,16 @@ export class CopilotAdapter implements SDKAdapter {
           ? "claude-sonnet-4-20250514" 
           : "gpt-4o"; // GitHub Copilot default
 
+        // Strip :anthropic suffix from model ID (used for routing, not the actual model name)
+        const rawModel = this.config?.model || defaultModel;
+        const model = rawModel.replace(/:anthropic$/, "");
+
         console.log(`[copilot-adapter] Creating new Copilot session`);
         console.log(`[copilot-adapter] Backend: ${this.backend}`);
-        console.log(`[copilot-adapter] Model: ${this.config?.model || defaultModel}`);
+        console.log(`[copilot-adapter] Model: ${model}`);
 
         session = await this.client.createSession({
-          model: this.config?.model || defaultModel,
+          model,
           streaming: true,
           // Auto-approve all permissions - we're in an isolated sandbox
           onPermissionRequest: async () => ({ kind: "approved" }),
