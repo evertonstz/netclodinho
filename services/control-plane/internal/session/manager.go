@@ -2032,6 +2032,7 @@ func (m *Manager) fetchCodexModels() []*pb.ModelInfo {
 		{"low", "Low"},
 		{"medium", "Med"},
 		{"high", "High"},
+		{"xhigh", "xHigh"},
 	}
 
 	// Create models with auth mode and reasoning effort suffixes

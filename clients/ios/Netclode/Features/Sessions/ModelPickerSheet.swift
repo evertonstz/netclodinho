@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// Renders model name with purple effort level and dimmed provider suffix
-/// e.g., "Codex Mini High (ChatGPT)" -> "Codex Mini " + purple "High" + dimmed " (ChatGPT)"
+/// Renders model name with semibold purple effort level and dimmed provider suffix
+/// e.g., "Codex Mini High (ChatGPT)" -> "Codex Mini " + bold purple "High" + dimmed " (ChatGPT)"
 struct ModelNameText: View {
     let name: String
     let font: Font
 
-    private static let effortLevels = ["High", "Med", "Low"]
+    private static let effortLevels = ["xHigh", "High", "Med", "Low"]
 
     init(_ name: String, font: Font = .netclodeBody) {
         self.name = name
@@ -21,7 +21,7 @@ struct ModelNameText: View {
                 .font(font)
                 .foregroundStyle(.primary)
             + Text(effort)
-                .font(font)
+                .font(font.weight(.semibold))
                 .foregroundStyle(Theme.Colors.brand)
             + Text(provider ?? "")
                 .font(font)
