@@ -468,11 +468,9 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 
 // createSandboxViaClaim uses SandboxClaim for warm pool allocation
 func (m *Manager) createSandboxViaClaim(ctx context.Context, sessionID string, repo *string, repoAccess *pb.RepoAccess, networkEnabled bool, tailnetEnabled bool) {
-	// Select template based on network configuration
+	// Always use the same template to leverage the warm pool
+	// Network restrictions are applied via ConfigureNetwork() after claiming
 	templateName := m.config.SandboxTemplate
-	if !networkEnabled {
-		templateName = m.config.SandboxTemplate + "-no-internet"
-	}
 
 	// Create SandboxClaim to request from warm pool
 	if err := m.k8s.CreateSandboxClaim(ctx, sessionID, templateName); err != nil {

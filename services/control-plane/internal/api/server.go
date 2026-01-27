@@ -214,14 +214,13 @@ func (s *Server) handleSessionConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 // extractSessionIDFromPodName extracts session ID from pod name format.
-// Pod names follow patterns like: sess-<sessionID>-<suffix> or <sandboxName>-<suffix>
+// Pod names follow pattern: sess-<sessionID> where sessionID is <uuid>-<suffix> (e.g. sess-56375225-4de)
 func extractSessionIDFromPodName(podName string) string {
-	// Handle direct session format: sess-<sessionID> or sess-<sessionID>-<suffix>
+	// Handle direct session format: sess-<sessionID>
+	// Session IDs are formatted as <uuid>-<suffix>, so full pod name is sess-<uuid>-<suffix>
 	if strings.HasPrefix(podName, "sess-") {
-		parts := strings.SplitN(podName, "-", 3)
-		if len(parts) >= 2 {
-			return parts[1]
-		}
+		// Remove "sess-" prefix to get the session ID
+		return strings.TrimPrefix(podName, "sess-")
 	}
 	return ""
 }
