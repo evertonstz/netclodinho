@@ -1962,9 +1962,8 @@ func (m *Manager) getCopilotModelsFallback() []*pb.ModelInfo {
 
 // fetchCodexModels fetches OpenAI Codex models (family: gpt-codex or gpt-codex-mini)
 func (m *Manager) fetchCodexModels() []*pb.ModelInfo {
-	// Check if OpenAI API key is available
+	// When no API key, just use fallback models (OAuth tokens may still be configured)
 	if m.config.OpenAIAPIKey == "" {
-		slog.Warn("No OpenAI API key configured (need OPENAI_API_KEY for Codex SDK)")
 		return m.getCodexModelsFallback()
 	}
 
@@ -2056,10 +2055,6 @@ func (m *Manager) doFetchCodexModels() []*pb.ModelInfo {
 
 // getCodexModelsFallback returns fallback Codex models when models.dev is unavailable
 func (m *Manager) getCodexModelsFallback() []*pb.ModelInfo {
-	if m.config.OpenAIAPIKey == "" {
-		return nil
-	}
-
 	return []*pb.ModelInfo{
 		{Id: "codex-mini-latest", Name: "Codex Mini", Provider: strPtr("OpenAI"), Capabilities: []string{"chat", "code"}},
 		{Id: "gpt-5-codex", Name: "GPT-5 Codex", Provider: strPtr("OpenAI"), Capabilities: []string{"chat", "code"}},

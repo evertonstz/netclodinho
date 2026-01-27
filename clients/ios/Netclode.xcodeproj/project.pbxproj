@@ -67,6 +67,7 @@
 		A10000000000000000000070 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000070 /* SidebarView.swift */; };
 		A10000000000000000000080 /* ModelsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000080 /* ModelsStore.swift */; };
 		A10000000000000000000081 /* CopilotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000081 /* CopilotStore.swift */; };
+		A10000000000000000000083 /* CodexStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000083 /* CodexStore.swift */; };
 		A10000000000000000000082 /* ModelPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000082 /* ModelPickerSheet.swift */; };
 		A10000000000000000000090 /* SnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000090 /* SnapshotStore.swift */; };
 		A10000000000000000000091 /* SnapshotListSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000091 /* SnapshotListSheet.swift */; };
@@ -159,6 +160,7 @@
 		B10000000000000000000070 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		B10000000000000000000080 /* ModelsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelsStore.swift; sourceTree = "<group>"; };
 		B10000000000000000000081 /* CopilotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopilotStore.swift; sourceTree = "<group>"; };
+		B10000000000000000000083 /* CodexStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexStore.swift; sourceTree = "<group>"; };
 		B10000000000000000000082 /* ModelPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelPickerSheet.swift; sourceTree = "<group>"; };
 		B10000000000000000000090 /* SnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotStore.swift; sourceTree = "<group>"; };
 		B10000000000000000000091 /* SnapshotListSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotListSheet.swift; sourceTree = "<group>"; };
@@ -286,6 +288,7 @@
 				B10000000000000000000047 /* GitStore.swift */,
 				B10000000000000000000080 /* ModelsStore.swift */,
 				B10000000000000000000081 /* CopilotStore.swift */,
+				B10000000000000000000083 /* CodexStore.swift */,
 				B10000000000000000000090 /* SnapshotStore.swift */,
 			);
 			path = Stores;
@@ -623,6 +626,7 @@
 				A10000000000000000000044 /* GitHubStore.swift in Sources */,
 				A10000000000000000000080 /* ModelsStore.swift in Sources */,
 				A10000000000000000000081 /* CopilotStore.swift in Sources */,
+				A10000000000000000000083 /* CodexStore.swift in Sources */,
 				A10000000000000000000045 /* RepoAutocomplete.swift in Sources */,
 				A10000000000000000000046 /* GitFileChange.swift in Sources */,
 				A10000000000000000000047 /* GitStore.swift in Sources */,
