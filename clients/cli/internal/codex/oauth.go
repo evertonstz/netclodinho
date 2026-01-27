@@ -46,7 +46,7 @@ func RequestDeviceCode() (*DeviceCode, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("failed to request device code: %d", resp.StatusCode)
@@ -90,18 +90,18 @@ func PollForAuthorization(dc *DeviceCode, timeout time.Duration) (*CodeExchange,
 
 		// 403/404 = still waiting
 		if resp.StatusCode == 403 || resp.StatusCode == 404 {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			continue
 		}
 
 		if resp.StatusCode != 200 {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			return nil, fmt.Errorf("poll failed: %d", resp.StatusCode)
 		}
 
 		var ce CodeExchange
 		err = json.NewDecoder(resp.Body).Decode(&ce)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		return &ce, err
 	}
 
@@ -126,7 +126,7 @@ func ExchangeCodeForTokens(ce *CodeExchange) (*Tokens, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("token exchange failed: %d", resp.StatusCode)
@@ -152,7 +152,7 @@ func RefreshTokens(refreshToken string) (*Tokens, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("token refresh failed: %d", resp.StatusCode)
