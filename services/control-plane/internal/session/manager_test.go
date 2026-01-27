@@ -97,7 +97,7 @@ func (m *mockRuntime) ListSandboxes(ctx context.Context) ([]k8s.SandboxInfo, err
 	return result, nil
 }
 
-func (m *mockRuntime) CreateSandboxClaim(ctx context.Context, sessionID string) error {
+func (m *mockRuntime) CreateSandboxClaim(ctx context.Context, sessionID string, templateName string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.createdClaims = append(m.createdClaims, sessionID)

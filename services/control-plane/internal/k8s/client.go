@@ -27,7 +27,7 @@ type Runtime interface {
 	AddSessionAnchorToPVC(ctx context.Context, sessionID, pvcName string) error
 
 	// SandboxClaim operations (warm pool mode)
-	CreateSandboxClaim(ctx context.Context, sessionID string) error
+	CreateSandboxClaim(ctx context.Context, sessionID string, templateName string) error
 	WaitForClaimBound(ctx context.Context, sessionID string, timeout time.Duration) (sandboxName string, err error)
 	GetSandboxByName(ctx context.Context, name string) (*Sandbox, error)
 	GetSessionIDByPodName(ctx context.Context, podName string) (string, error)

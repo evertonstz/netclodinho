@@ -133,3 +133,113 @@ spec:
             port: 53
           - protocol: UDP
             port: 53
+---
+# SandboxTemplate without internet access
+# Used when sessions are created with internetAccess=false
+apiVersion: extensions.agents.x-k8s.io/v1alpha1
+kind: SandboxTemplate
+metadata:
+  name: netclode-agent-no-internet
+  namespace: netclode
+spec:
+  podTemplate:
+    spec:
+      runtimeClassName: kata-clh
+      initContainers:
+        - name: fix-mtu
+          image: busybox:latest
+          command:
+            - sh
+            - -c
+            - |
+              GW=$(ip route | grep "^default" | awk '{print $3}')
+              DEV=$(ip route | grep "^default" | awk '{print $5}')
+              if [ -n "$GW" ] && [ -n "$DEV" ]; then
+                ip route change default via "$GW" dev "$DEV" mtu 1450 || true
+              fi
+          securityContext:
+            capabilities:
+              add:
+                - NET_ADMIN
+      containers:
+        - name: agent
+          image: ghcr.io/angristan/netclode-agent:latest
+          imagePullPolicy: Always
+          securityContext:
+            privileged: true
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: netclode-secrets
+                  key: anthropic-api-key
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: netclode-secrets
+                  key: github-token
+                  optional: true
+            - name: CONTROL_PLANE_URL
+              value: "http://control-plane.netclode.svc.cluster.local"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          volumeMounts:
+            - name: agent-home
+              mountPath: /agent
+          readinessProbe:
+            exec:
+              command: ["test", "-f", "/tmp/agent-ready"]
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["test", "-f", "/tmp/agent-ready"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+  volumeClaimTemplates:
+    - metadata:
+        name: agent-home
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: juicefs-sc
+        resources:
+          requests:
+            storage: 10Gi
+  networkPolicy:
+    # Ingress: Allow Tailscale proxy for preview URLs
+    ingress:
+      - from:
+          - namespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: tailscale
+        ports:
+          - protocol: TCP
+            port: 3002
+          - protocol: TCP
+            port: 8080
+    egress:
+      # Allow connection to control-plane ONLY
+      - to:
+          - podSelector:
+              matchLabels:
+                app: control-plane
+        ports:
+          - protocol: TCP
+            port: 80
+          - protocol: TCP
+            port: 3000
+      # Allow DNS
+      - to:
+          - namespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: kube-system
+        ports:
+          - protocol: TCP
+            port: 53
+          - protocol: UDP
+            port: 53
+      # NO internet access - 0.0.0.0/0 rule is intentionally omitted

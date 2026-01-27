@@ -1294,7 +1294,8 @@ func (r *k8sRuntime) checkAndNotifyClaim(sessionID string, claim *SandboxClaim) 
 }
 
 // CreateSandboxClaim creates a claim to request a sandbox from the warm pool.
-func (r *k8sRuntime) CreateSandboxClaim(ctx context.Context, sessionID string) error {
+// templateName specifies which SandboxTemplate to use (e.g., "netclode-agent" or "netclode-agent-no-internet").
+func (r *k8sRuntime) CreateSandboxClaim(ctx context.Context, sessionID string, templateName string) error {
 	claim := &SandboxClaim{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "extensions.agents.x-k8s.io/v1alpha1",
@@ -1309,7 +1310,7 @@ func (r *k8sRuntime) CreateSandboxClaim(ctx context.Context, sessionID string) e
 		},
 		Spec: SandboxClaimSpec{
 			SandboxTemplateRef: SandboxTemplateRef{
-				Name: r.config.SandboxTemplate,
+				Name: templateName,
 			},
 		},
 	}
@@ -1329,7 +1330,7 @@ func (r *k8sRuntime) CreateSandboxClaim(ctx context.Context, sessionID string) e
 		return fmt.Errorf("create claim: %w", err)
 	}
 
-	slog.Info("SandboxClaim created", "sessionID", sessionID, "template", r.config.SandboxTemplate)
+	slog.Info("SandboxClaim created", "sessionID", sessionID, "template", templateName)
 	return nil
 }
 
