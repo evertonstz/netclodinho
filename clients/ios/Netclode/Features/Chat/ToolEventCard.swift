@@ -316,10 +316,12 @@ struct ToolEventCard: View {
             } else if toolName.lowercased() == "todowrite", let input = toolInput {
                 // Special handling for TodoWrite tool - show task list with status
                 TodoToolSection(input: input)
+            } else if toolName.lowercased() == "bash", let input = toolInput {
+                // Special handling for Bash tool - show command directly
+                BashToolSection(input: input, result: endEvent?.result)
             } else if let input = toolInput, !input.isEmpty {
-                // Generic input section - collapsed by default for Bash (already shown in header)
-                let inputCollapsed = toolName.lowercased() == "bash"
-                ExpandableSection(title: "INPUT", defaultExpanded: !inputCollapsed) {
+                // Generic input section
+                ExpandableSection(title: "INPUT", defaultExpanded: true) {
                     ForEach(Array(input.keys.sorted()), id: \.self) { key in
                         if let value = input[key] {
                             InputRow(key: key, value: formatValue(value))
@@ -339,12 +341,11 @@ struct ToolEventCard: View {
                 }
             }
 
-            // Output/Result section (skip for Edit/Write/Read - content already shown above)
+            // Output/Result section (skip for Edit/Write/Read/Bash - content already shown above)
             if let end = endEvent {
-                let skipOutput = ["write", "edit", "read"].contains(toolName.lowercased())
+                let skipOutput = ["write", "edit", "read", "bash"].contains(toolName.lowercased())
                 if let result = end.result, !result.isEmpty, !skipOutput {
-                    let showOutputByDefault = toolName.lowercased() == "bash"
-                    ExpandableSection(title: "OUTPUT", defaultExpanded: showOutputByDefault) {
+                    ExpandableSection(title: "OUTPUT", defaultExpanded: true) {
                         TruncatedOutputView(text: result, maxLines: 20)
                     }
                 }
@@ -794,6 +795,124 @@ private struct TodoToolSection: View {
             case "high": return Theme.Colors.error
             case "low": return .secondary
             default: return .primary
+            }
+        }
+    }
+}
+
+/// Specialized view for Bash tool that shows command and result in a terminal-like style
+private struct BashToolSection: View {
+    let input: [String: AnyCodableValue]
+    var result: String?
+    let maxLines: Int = 20
+    
+    @State private var isResultExpanded = true
+    @State private var isFullyExpanded = false
+    
+    private var command: String? {
+        input["command"]?.stringValue
+    }
+    
+    private var workdir: String? {
+        input["workdir"]?.stringValue
+    }
+    
+    private var resultLines: [String] {
+        result?.components(separatedBy: "\n") ?? []
+    }
+    
+    private var isTruncated: Bool {
+        resultLines.count > maxLines
+    }
+    
+    private var displayedLines: ArraySlice<String> {
+        if isFullyExpanded || !isTruncated {
+            return resultLines[...]
+        }
+        return resultLines.prefix(maxLines)
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+            // Command display
+            if let cmd = command {
+                HStack(alignment: .top, spacing: 4) {
+                    Text("$")
+                        .foregroundStyle(.green)
+                    Text(cmd)
+                        .foregroundStyle(.secondary)
+                }
+                .font(.system(size: 12, design: .monospaced))
+            }
+            
+            // Working directory (if not default)
+            if let dir = workdir {
+                HStack(spacing: 4) {
+                    Image(systemName: "folder")
+                        .font(.system(size: 9))
+                    Text(dir)
+                        .font(.system(size: 10, design: .monospaced))
+                }
+                .foregroundStyle(.tertiary)
+            }
+            
+            // Result section
+            if let output = result, !output.isEmpty {
+                VStack(alignment: .leading, spacing: 2) {
+                    Button {
+                        withAnimation(.snappy(duration: 0.15)) {
+                            isResultExpanded.toggle()
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 8, weight: .bold))
+                                .rotationEffect(.degrees(isResultExpanded ? 90 : 0))
+                            
+                            Text("Result")
+                                .font(.system(size: TypeScale.micro, weight: .semibold))
+                                .tracking(0.5)
+                            
+                            Spacer()
+                        }
+                        .foregroundStyle(.tertiary)
+                        .frame(minHeight: 24)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    
+                    if isResultExpanded {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            VStack(alignment: .leading, spacing: 0) {
+                                ForEach(Array(displayedLines.enumerated()), id: \.offset) { _, line in
+                                    Text(line)
+                                        .font(.system(size: 11, design: .monospaced))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                        .padding(.leading, Theme.Spacing.xs)
+                        
+                        // Show more button
+                        if isTruncated {
+                            Button {
+                                withAnimation(.snappy(duration: 0.2)) {
+                                    isFullyExpanded.toggle()
+                                }
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Text(isFullyExpanded ? "Show less" : "Show all \(resultLines.count) lines")
+                                        .font(.system(size: TypeScale.caption, weight: .medium))
+                                    Image(systemName: isFullyExpanded ? "chevron.up" : "chevron.down")
+                                        .font(.system(size: TypeScale.tiny))
+                                }
+                                .foregroundStyle(Theme.Colors.brand)
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.leading, Theme.Spacing.xs)
+                        }
+                    }
+                }
             }
         }
     }
