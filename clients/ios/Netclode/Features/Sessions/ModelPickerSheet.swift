@@ -267,15 +267,15 @@ struct InlineModelPicker: View {
                 in: RoundedRectangle(cornerRadius: Theme.Radius.md)
             )
             .onAppear {
-                // Auto-select first model if current selection doesn't match any available model
-                if selectedModel == nil, let first = models.first {
-                    selectedModelId = first.id
+                // Auto-select if current selection doesn't match any available model
+                if selectedModel == nil {
+                    selectedModelId = findBestModel(in: models, preferring: selectedModelId)?.id ?? selectedModelId
                 }
             }
             .onChange(of: models) { _, newModels in
                 // Re-validate selection when models change
-                if !newModels.contains(where: { $0.id == selectedModelId }), let first = newModels.first {
-                    selectedModelId = first.id
+                if !newModels.contains(where: { $0.id == selectedModelId }) {
+                    selectedModelId = findBestModel(in: newModels, preferring: selectedModelId)?.id ?? selectedModelId
                 }
             }
 
@@ -337,6 +337,34 @@ struct InlineModelPicker: View {
             }
         }
         .animation(.smooth(duration: 0.25), value: isExpanded)
+    }
+    
+    /// Find the best matching model when exact ID match isn't found
+    private func findBestModel(in models: [PickerModel], preferring preferredId: String) -> PickerModel? {
+        // First try exact match
+        if let exact = models.first(where: { $0.id == preferredId }) {
+            return exact
+        }
+        
+        // Try to find a model matching the preferred pattern (e.g., "sonnet-4.5" or "sonnet 4.5")
+        let preferredLower = preferredId.lowercased()
+        
+        // Extract key parts from preferred ID (e.g., "claude-sonnet-4.5" -> ["sonnet", "4.5"])
+        let keyParts = preferredLower.components(separatedBy: CharacterSet(charactersIn: "-. "))
+            .filter { $0.count > 1 && $0 != "claude" && $0 != "gpt" && $0 != "anthropic" }
+        
+        // Find model whose name contains all key parts
+        if !keyParts.isEmpty {
+            if let match = models.first(where: { model in
+                let nameLower = model.name.lowercased()
+                return keyParts.allSatisfy { nameLower.contains($0) }
+            }) {
+                return match
+            }
+        }
+        
+        // Fall back to first model
+        return models.first
     }
 
 }
