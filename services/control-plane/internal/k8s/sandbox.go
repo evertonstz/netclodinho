@@ -901,6 +901,21 @@ func (r *k8sRuntime) ConfigureNetwork(ctx context.Context, sessionID string, net
 		return nil
 	}
 
+	// Get the claim UID to use as pod selector
+	// The sandbox controller labels pods with agents.x-k8s.io/claim-uid=<claim-uid>
+	r.cacheMu.RLock()
+	claim, exists := r.claimCache[sessionID]
+	r.cacheMu.RUnlock()
+
+	if !exists || claim == nil {
+		return fmt.Errorf("sandbox claim not found for session %s", sessionID)
+	}
+
+	claimUID := string(claim.UID)
+	if claimUID == "" {
+		return fmt.Errorf("sandbox claim UID is empty for session %s", sessionID)
+	}
+
 	// Network disabled: create restrictive policy
 	// This policy blocks all egress except DNS and control-plane
 	udpProtocol := corev1.ProtocolUDP
@@ -919,10 +934,11 @@ func (r *k8sRuntime) ConfigureNetwork(ctx context.Context, sessionID string, net
 			},
 		},
 		Spec: networkingv1.NetworkPolicySpec{
-			// Select pods for this session
+			// Select pods for this session using the claim UID
+			// The sandbox controller labels pods with agents.x-k8s.io/claim-uid
 			PodSelector: metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"netclode.io/session": sessionID,
+					"agents.x-k8s.io/claim-uid": claimUID,
 				},
 			},
 			PolicyTypes: []networkingv1.PolicyType{
@@ -995,6 +1011,20 @@ func (r *k8sRuntime) ConfigureTailnetAccess(ctx context.Context, sessionID strin
 		return nil
 	}
 
+	// Get the claim UID to use as pod selector
+	r.cacheMu.RLock()
+	claim, exists := r.claimCache[sessionID]
+	r.cacheMu.RUnlock()
+
+	if !exists || claim == nil {
+		return fmt.Errorf("sandbox claim not found for session %s", sessionID)
+	}
+
+	claimUID := string(claim.UID)
+	if claimUID == "" {
+		return fmt.Errorf("sandbox claim UID is empty for session %s", sessionID)
+	}
+
 	// Tailnet enabled: create policy allowing 100.64.0.0/10
 	// This policy adds to the template policy, allowing Tailscale CGNAT range
 	policy := &networkingv1.NetworkPolicy{
@@ -1009,7 +1039,7 @@ func (r *k8sRuntime) ConfigureTailnetAccess(ctx context.Context, sessionID strin
 		Spec: networkingv1.NetworkPolicySpec{
 			PodSelector: metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"netclode.io/session": sessionID,
+					"agents.x-k8s.io/claim-uid": claimUID,
 				},
 			},
 			PolicyTypes: []networkingv1.PolicyType{
