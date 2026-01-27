@@ -318,7 +318,7 @@ struct ToolEventCard: View {
                 TodoToolSection(input: input)
             } else if toolName.lowercased() == "bash", let input = toolInput {
                 // Special handling for Bash tool - show command directly
-                BashToolSection(input: input, result: endEvent?.result)
+                BashToolSection(input: input, result: endEvent?.result, isError: endEvent?.error != nil)
             } else if let input = toolInput, !input.isEmpty {
                 // Generic input section
                 ExpandableSection(title: "INPUT", defaultExpanded: true) {
@@ -354,7 +354,7 @@ struct ToolEventCard: View {
                     ExpandableSection(title: "ERROR", defaultExpanded: true) {
                         Text(error)
                             .font(.netclodeMonospacedSmall)
-                            .foregroundStyle(Theme.Colors.error)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -804,6 +804,7 @@ private struct TodoToolSection: View {
 private struct BashToolSection: View {
     let input: [String: AnyCodableValue]
     var result: String?
+    var isError: Bool = false
     let maxLines: Int = 20
     
     @State private var isResultExpanded = true
@@ -838,7 +839,7 @@ private struct BashToolSection: View {
             if let cmd = command {
                 HStack(alignment: .top, spacing: 4) {
                     Text("$")
-                        .foregroundStyle(.green)
+                        .foregroundStyle(isError ? Theme.Colors.error : .green)
                     Text(cmd)
                         .foregroundStyle(.secondary)
                 }
