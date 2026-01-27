@@ -916,17 +916,38 @@ func (r *k8sRuntime) ConfigureNetwork(ctx context.Context, sessionID string, net
 		return fmt.Errorf("sandbox claim UID is empty for session %s", sessionID)
 	}
 
-	// Network disabled: delete the default template policy first (policies are additive)
-	// The sandbox controller creates a default policy that allows internet, we need to remove it
+	// Network disabled: update the default template policy to remove internet access
+	// The sandbox controller creates it with internet access, we need to modify it
+	// We can't delete it because the controller will recreate it
 	defaultPolicyName := fmt.Sprintf("sess-%s-network-policy", sessionID)
-	if err := r.clientset.NetworkingV1().NetworkPolicies(r.namespace).Delete(ctx, defaultPolicyName, metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
-		slog.Warn("Failed to delete default network policy", "sessionID", sessionID, "error", err)
-		// Continue anyway, the restrictive policy might still work
-	} else if err == nil {
-		slog.Info("Deleted default network policy for restriction", "sessionID", sessionID)
+	defaultPolicy, err := r.clientset.NetworkingV1().NetworkPolicies(r.namespace).Get(ctx, defaultPolicyName, metav1.GetOptions{})
+	if err == nil {
+		// Filter out the internet egress rule (0.0.0.0/0) from the policy
+		var filteredEgress []networkingv1.NetworkPolicyEgressRule
+		for _, rule := range defaultPolicy.Spec.Egress {
+			isInternetRule := false
+			for _, to := range rule.To {
+				if to.IPBlock != nil && to.IPBlock.CIDR == "0.0.0.0/0" {
+					isInternetRule = true
+					break
+				}
+			}
+			if !isInternetRule {
+				filteredEgress = append(filteredEgress, rule)
+			}
+		}
+		defaultPolicy.Spec.Egress = filteredEgress
+
+		if _, err := r.clientset.NetworkingV1().NetworkPolicies(r.namespace).Update(ctx, defaultPolicy, metav1.UpdateOptions{}); err != nil {
+			slog.Warn("Failed to update default network policy", "sessionID", sessionID, "error", err)
+		} else {
+			slog.Info("Removed internet access from default network policy", "sessionID", sessionID)
+		}
+	} else if !errors.IsNotFound(err) {
+		slog.Warn("Failed to get default network policy", "sessionID", sessionID, "error", err)
 	}
 
-	// Create restrictive policy that blocks all egress except DNS and control-plane
+	// Also create our restrictive policy as a backup (in case the default policy doesn't exist yet)
 	udpProtocol := corev1.ProtocolUDP
 	tcpProtocol := corev1.ProtocolTCP
 	dnsPort := intstr.FromInt(53)
@@ -990,12 +1011,12 @@ func (r *k8sRuntime) ConfigureNetwork(ctx context.Context, sessionID string, net
 		},
 	}
 
-	_, err := r.clientset.NetworkingV1().NetworkPolicies(r.namespace).Create(ctx, policy, metav1.CreateOptions{})
-	if errors.IsAlreadyExists(err) {
-		_, err = r.clientset.NetworkingV1().NetworkPolicies(r.namespace).Update(ctx, policy, metav1.UpdateOptions{})
+	_, createErr := r.clientset.NetworkingV1().NetworkPolicies(r.namespace).Create(ctx, policy, metav1.CreateOptions{})
+	if errors.IsAlreadyExists(createErr) {
+		_, createErr = r.clientset.NetworkingV1().NetworkPolicies(r.namespace).Update(ctx, policy, metav1.UpdateOptions{})
 	}
-	if err != nil {
-		return fmt.Errorf("apply network restriction policy: %w", err)
+	if createErr != nil {
+		return fmt.Errorf("apply network restriction policy: %w", createErr)
 	}
 
 	slog.Info("Applied network restriction policy", "sessionID", sessionID)
