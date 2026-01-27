@@ -818,7 +818,7 @@ public struct Netclode_V1_ModelInfo: Sendable {
   /// Human-readable name (e.g., "Claude Sonnet 4")
   public var name: String = String()
 
-  /// Provider name (e.g., "anthropic", "openai")
+  /// Provider/auth mode (e.g., "Anthropic", "ChatGPT", "API")
   public var provider: String {
     get {return _provider ?? String()}
     set {_provider = newValue}
@@ -841,12 +841,23 @@ public struct Netclode_V1_ModelInfo: Sendable {
   /// Model capabilities (e.g., "chat", "vision", "code")
   public var capabilities: [String] = []
 
+  /// Reasoning effort level for Codex (e.g., "High", "Med", "Low")
+  public var reasoningEffort: String {
+    get {return _reasoningEffort ?? String()}
+    set {_reasoningEffort = newValue}
+  }
+  /// Returns true if `reasoningEffort` has been explicitly set.
+  public var hasReasoningEffort: Bool {return self._reasoningEffort != nil}
+  /// Clears the value of `reasoningEffort`. Subsequent reads from it will return its default value.
+  public mutating func clearReasoningEffort() {self._reasoningEffort = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _provider: String? = nil
   fileprivate var _billingMultiplier: Double? = nil
+  fileprivate var _reasoningEffort: String? = nil
 }
 
 /// CopilotAuthStatus represents GitHub Copilot authentication state.
@@ -1468,7 +1479,7 @@ extension Netclode_V1_Error: SwiftProtobuf.Message, SwiftProtobuf._MessageImplem
 
 extension Netclode_V1_ModelInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ModelInfo"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}name\0\u{1}provider\0\u{3}billing_multiplier\0\u{1}capabilities\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}name\0\u{1}provider\0\u{3}billing_multiplier\0\u{1}capabilities\0\u{3}reasoning_effort\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1481,6 +1492,7 @@ extension Netclode_V1_ModelInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
       case 3: try { try decoder.decodeSingularStringField(value: &self._provider) }()
       case 4: try { try decoder.decodeSingularDoubleField(value: &self._billingMultiplier) }()
       case 5: try { try decoder.decodeRepeatedStringField(value: &self.capabilities) }()
+      case 6: try { try decoder.decodeSingularStringField(value: &self._reasoningEffort) }()
       default: break
       }
     }
@@ -1506,6 +1518,9 @@ extension Netclode_V1_ModelInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
     if !self.capabilities.isEmpty {
       try visitor.visitRepeatedStringField(value: self.capabilities, fieldNumber: 5)
     }
+    try { if let v = self._reasoningEffort {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 6)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1515,6 +1530,7 @@ extension Netclode_V1_ModelInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
     if lhs._provider != rhs._provider {return false}
     if lhs._billingMultiplier != rhs._billingMultiplier {return false}
     if lhs.capabilities != rhs.capabilities {return false}
+    if lhs._reasoningEffort != rhs._reasoningEffort {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

@@ -1056,9 +1056,10 @@ type ModelInfo struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	Id                string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`                                                                // Model identifier (e.g., "claude-sonnet-4-0", "gpt-4o")
 	Name              string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`                                                            // Human-readable name (e.g., "Claude Sonnet 4")
-	Provider          *string                `protobuf:"bytes,3,opt,name=provider,proto3,oneof" json:"provider,omitempty"`                                              // Provider name (e.g., "anthropic", "openai")
+	Provider          *string                `protobuf:"bytes,3,opt,name=provider,proto3,oneof" json:"provider,omitempty"`                                              // Provider/auth mode (e.g., "Anthropic", "ChatGPT", "API")
 	BillingMultiplier *float64               `protobuf:"fixed64,4,opt,name=billing_multiplier,json=billingMultiplier,proto3,oneof" json:"billing_multiplier,omitempty"` // Cost multiplier for GitHub Copilot (e.g., 0.33, 1.0, 3.0)
 	Capabilities      []string               `protobuf:"bytes,5,rep,name=capabilities,proto3" json:"capabilities,omitempty"`                                            // Model capabilities (e.g., "chat", "vision", "code")
+	ReasoningEffort   *string                `protobuf:"bytes,6,opt,name=reasoning_effort,json=reasoningEffort,proto3,oneof" json:"reasoning_effort,omitempty"`         // Reasoning effort level for Codex (e.g., "High", "Med", "Low")
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -1126,6 +1127,13 @@ func (x *ModelInfo) GetCapabilities() []string {
 		return x.Capabilities
 	}
 	return nil
+}
+
+func (x *ModelInfo) GetReasoningEffort() string {
+	if x != nil && x.ReasoningEffort != nil {
+		return *x.ReasoningEffort
+	}
+	return ""
 }
 
 // CopilotAuthStatus represents GitHub Copilot authentication state.
@@ -1457,15 +1465,17 @@ const file_netclode_v1_common_proto_rawDesc = "" +
 	"\fDetailsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\r\n" +
-	"\v_session_id\"\xcc\x01\n" +
+	"\v_session_id\"\x91\x02\n" +
 	"\tModelInfo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1f\n" +
 	"\bprovider\x18\x03 \x01(\tH\x00R\bprovider\x88\x01\x01\x122\n" +
 	"\x12billing_multiplier\x18\x04 \x01(\x01H\x01R\x11billingMultiplier\x88\x01\x01\x12\"\n" +
-	"\fcapabilities\x18\x05 \x03(\tR\fcapabilitiesB\v\n" +
+	"\fcapabilities\x18\x05 \x03(\tR\fcapabilities\x12.\n" +
+	"\x10reasoning_effort\x18\x06 \x01(\tH\x02R\x0freasoningEffort\x88\x01\x01B\v\n" +
 	"\t_providerB\x15\n" +
-	"\x13_billing_multiplier\"\x93\x01\n" +
+	"\x13_billing_multiplierB\x13\n" +
+	"\x11_reasoning_effort\"\x93\x01\n" +
 	"\x11CopilotAuthStatus\x12)\n" +
 	"\x10is_authenticated\x18\x01 \x01(\bR\x0fisAuthenticated\x12 \n" +
 	"\tauth_type\x18\x02 \x01(\tH\x00R\bauthType\x88\x01\x01\x12\x19\n" +

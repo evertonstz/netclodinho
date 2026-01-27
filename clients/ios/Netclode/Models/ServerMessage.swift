@@ -6,7 +6,7 @@ struct CopilotModel: Identifiable, Hashable, Sendable {
     let name: String
     let provider: String?
     let capabilities: [String]
-
+    let reasoningEffort: String?
 }
 
 /// Copilot authentication status

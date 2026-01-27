@@ -147,9 +147,10 @@ message Error {
 message ModelInfo {
   string id = 1;                         // Model identifier (e.g., "claude-sonnet-4-0", "gpt-4o")
   string name = 2;                       // Human-readable name (e.g., "Claude Sonnet 4")
-  optional string provider = 3;          // Provider name (e.g., "anthropic", "openai")
+  optional string provider = 3;          // Provider/auth mode (e.g., "Anthropic", "ChatGPT", "API")
   optional double billing_multiplier = 4;  // Cost multiplier for GitHub Copilot (e.g., 0.33, 1.0, 3.0)
   repeated string capabilities = 5;      // Model capabilities (e.g., "chat", "vision", "code")
+  optional string reasoning_effort = 6;  // Reasoning effort level for Codex (e.g., "High", "Med", "Low")
 }
 
 // CopilotAuthStatus represents GitHub Copilot authentication state.

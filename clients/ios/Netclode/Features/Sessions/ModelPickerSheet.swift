@@ -1,68 +1,5 @@
 import SwiftUI
 
-/// Renders model name with semibold purple effort level and dimmed provider suffix
-/// e.g., "Codex Mini High (ChatGPT)" -> "Codex Mini " + bold purple "High" + dimmed " (ChatGPT)"
-struct ModelNameText: View {
-    let name: String
-    let font: Font
-
-    private static let effortLevels = ["xHigh", "High", "Med", "Low"]
-
-    init(_ name: String, font: Font = .netclodeBody) {
-        self.name = name
-        self.font = font
-    }
-
-    var body: some View {
-        let (baseName, effort, provider) = parseName(name)
-
-        if let effort = effort {
-            Text(baseName)
-                .font(font)
-                .foregroundStyle(.primary)
-            + Text(effort)
-                .font(font.weight(.semibold))
-                .foregroundStyle(Theme.Colors.brand)
-            + Text(provider ?? "")
-                .font(font)
-                .foregroundStyle(.tertiary)
-        } else if let provider = provider {
-            Text(baseName)
-                .font(font)
-                .foregroundStyle(.primary)
-            + Text(provider)
-                .font(font)
-                .foregroundStyle(.tertiary)
-        } else {
-            Text(name)
-                .font(font)
-                .foregroundStyle(.primary)
-        }
-    }
-
-    /// Parse "Codex Mini High (ChatGPT)" into ("Codex Mini ", "High", " (ChatGPT)")
-    private func parseName(_ name: String) -> (String, String?, String?) {
-        // Extract provider suffix like " (ChatGPT)"
-        var baseName = name
-        var provider: String? = nil
-
-        if let providerRange = name.range(of: #"\s*\([^)]+\)$"#, options: .regularExpression) {
-            provider = String(name[providerRange])
-            baseName = String(name[..<providerRange.lowerBound])
-        }
-
-        // Check if baseName ends with an effort level
-        for effort in Self.effortLevels {
-            if baseName.hasSuffix(" \(effort)") {
-                let effortStart = baseName.index(baseName.endIndex, offsetBy: -effort.count)
-                return (String(baseName[..<effortStart]), effort, provider)
-            }
-        }
-
-        return (baseName, nil, provider)
-    }
-}
-
 /// Unified model for the picker (works across all providers)
 struct PickerModel: Identifiable, Hashable {
     let id: String
@@ -72,6 +9,7 @@ struct PickerModel: Identifiable, Hashable {
     let supportsReasoning: Bool
     let inputCost: Double?
     let outputCost: Double?
+    let reasoningEffort: String?  // For Codex: "High", "Med", "Low", "xHigh"
 
     /// Create from CopilotModel
     static func from(_ model: CopilotModel) -> PickerModel {
@@ -82,7 +20,8 @@ struct PickerModel: Identifiable, Hashable {
             supportsVision: model.capabilities.contains("vision"),
             supportsReasoning: model.capabilities.contains("reasoning"),
             inputCost: nil,
-            outputCost: nil
+            outputCost: nil,
+            reasoningEffort: model.reasoningEffort
         )
     }
 
@@ -95,7 +34,8 @@ struct PickerModel: Identifiable, Hashable {
             supportsVision: false,
             supportsReasoning: model.supportsReasoning,
             inputCost: model.inputCost,
-            outputCost: model.outputCost
+            outputCost: model.outputCost,
+            reasoningEffort: nil
         )
     }
 }
@@ -181,7 +121,18 @@ struct ModelRow: View {
 
             // Model info
             VStack(alignment: .leading, spacing: 2) {
-                ModelNameText(model.name)
+                // Model name + reasoning effort (purple)
+                HStack(spacing: 4) {
+                    Text(model.name)
+                        .font(.netclodeBody)
+                        .foregroundStyle(.primary)
+                    
+                    if let effort = model.reasoningEffort {
+                        Text(effort)
+                            .font(.netclodeBody.weight(.semibold))
+                            .foregroundStyle(Theme.Colors.brand)
+                    }
+                }
 
                 // Capabilities and cost row
                 HStack(spacing: Theme.Spacing.sm) {
@@ -206,6 +157,13 @@ struct ModelRow: View {
             }
 
             Spacer()
+            
+            // Right-aligned provider
+            if let provider = model.provider {
+                Text(provider)
+                    .font(.netclodeCaption)
+                    .foregroundStyle(.tertiary)
+            }
         }
         .padding(Theme.Spacing.sm)
         .contentShape(Rectangle())
@@ -263,21 +221,41 @@ struct InlineModelPicker: View {
                         ProviderLogo(provider: model.provider, size: 16)
                             .frame(width: 20)
                             .foregroundStyle(.secondary)
-                        ModelNameText(model.name)
-                            .contentTransition(.numericText())
-                    } else if !models.isEmpty {
-                        // Show first model as fallback
-                        ProviderLogo(provider: models.first?.provider, size: 16)
+                        
+                        Text(model.name)
+                            .font(.netclodeBody)
+                            .foregroundStyle(.primary)
+                        
+                        if let effort = model.reasoningEffort {
+                            Text(effort)
+                                .font(.netclodeBody.weight(.semibold))
+                                .foregroundStyle(Theme.Colors.brand)
+                        }
+                        
+                        Spacer()
+                        
+                        if let provider = model.provider {
+                            Text(provider)
+                                .font(.netclodeCaption)
+                                .foregroundStyle(.tertiary)
+                        }
+                    } else if let model = models.first {
+                        ProviderLogo(provider: model.provider, size: 16)
                             .frame(width: 20)
                             .foregroundStyle(.secondary)
-                        ModelNameText(models.first?.name ?? "Select a model")
-                            .contentTransition(.numericText())
+                        
+                        Text(model.name)
+                            .font(.netclodeBody)
+                            .foregroundStyle(.primary)
+                        
+                        Spacer()
                     } else {
                         Text("Select a model")
                             .font(.netclodeBody)
                             .foregroundStyle(.secondary)
+                        Spacer()
                     }
-                    Spacer()
+                    
                     Image(systemName: "chevron.up.chevron.down")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(.secondary)
@@ -314,9 +292,23 @@ struct InlineModelPicker: View {
                                     ProviderLogo(provider: model.provider, size: 16)
                                         .foregroundStyle(.secondary)
 
-                                    ModelNameText(model.name)
+                                    Text(model.name)
+                                        .font(.netclodeBody)
+                                        .foregroundStyle(.primary)
+                                    
+                                    if let effort = model.reasoningEffort {
+                                        Text(effort)
+                                            .font(.netclodeBody.weight(.semibold))
+                                            .foregroundStyle(Theme.Colors.brand)
+                                    }
 
                                     Spacer()
+                                    
+                                    if let provider = model.provider {
+                                        Text(provider)
+                                            .font(.netclodeCaption)
+                                            .foregroundStyle(.tertiary)
+                                    }
                                 }
                                 .padding(.horizontal, Theme.Spacing.sm)
                                 .padding(.vertical, Theme.Spacing.xs)
@@ -355,18 +347,34 @@ struct ModelPickerButton: View {
                 if isLoading {
                     ProgressView()
                         .scaleEffect(0.8)
+                    Spacer()
                 } else if let model = selectedModel {
                     ProviderLogo(provider: model.provider, size: 18)
                         .foregroundStyle(.secondary)
 
-                    ModelNameText(model.name)
+                    Text(model.name)
+                        .font(.netclodeBody)
+                        .foregroundStyle(.primary)
+                    
+                    if let effort = model.reasoningEffort {
+                        Text(effort)
+                            .font(.netclodeBody.weight(.semibold))
+                            .foregroundStyle(Theme.Colors.brand)
+                    }
+                    
+                    Spacer()
+                    
+                    if let provider = model.provider {
+                        Text(provider)
+                            .font(.netclodeCaption)
+                            .foregroundStyle(.tertiary)
+                    }
                 } else {
                     Text(placeholder)
                         .font(.netclodeBody)
                         .foregroundStyle(.secondary)
+                    Spacer()
                 }
-
-                Spacer()
 
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.system(size: 12, weight: .medium))
@@ -385,10 +393,10 @@ struct ModelPickerButton: View {
     ModelPickerSheet(
         selectedModelId: .constant("claude-sonnet-4-20250514"),
         models: [
-            PickerModel(id: "claude-sonnet-4-20250514", name: "Claude Sonnet 4", provider: "Anthropic", supportsVision: true, supportsReasoning: true, inputCost: 3.0, outputCost: 15.0),
-            PickerModel(id: "gpt-4o", name: "GPT-4o", provider: "OpenAI", supportsVision: true, supportsReasoning: false, inputCost: nil, outputCost: nil),
-            PickerModel(id: "gpt-4o-mini", name: "GPT-4o Mini", provider: "OpenAI", supportsVision: true, supportsReasoning: false, inputCost: nil, outputCost: nil),
-            PickerModel(id: "o3-mini", name: "o3-mini", provider: "OpenAI", supportsVision: false, supportsReasoning: true, inputCost: nil, outputCost: nil),
+            PickerModel(id: "claude-sonnet-4-20250514", name: "Claude Sonnet 4", provider: "Anthropic", supportsVision: true, supportsReasoning: true, inputCost: 3.0, outputCost: 15.0, reasoningEffort: nil),
+            PickerModel(id: "codex-mini:oauth:high", name: "Codex Mini", provider: "ChatGPT", supportsVision: false, supportsReasoning: false, inputCost: nil, outputCost: nil, reasoningEffort: "High"),
+            PickerModel(id: "codex-mini:oauth:med", name: "Codex Mini", provider: "ChatGPT", supportsVision: false, supportsReasoning: false, inputCost: nil, outputCost: nil, reasoningEffort: "Med"),
+            PickerModel(id: "codex-mini:api:low", name: "Codex Mini", provider: "OpenAI", supportsVision: false, supportsReasoning: false, inputCost: nil, outputCost: nil, reasoningEffort: "Low"),
         ],
         title: "Select Model",
         isLoading: false
@@ -398,14 +406,14 @@ struct ModelPickerButton: View {
 #Preview("Model Picker Button") {
     VStack(spacing: 20) {
         ModelPickerButton(
-            selectedModel: PickerModel(id: "claude-sonnet-4", name: "Claude Sonnet 4", provider: "Anthropic", supportsVision: true, supportsReasoning: true, inputCost: nil, outputCost: nil),
+            selectedModel: PickerModel(id: "claude-sonnet-4", name: "Claude Sonnet 4", provider: "Anthropic", supportsVision: true, supportsReasoning: true, inputCost: nil, outputCost: nil, reasoningEffort: nil),
             placeholder: "Select a model",
             isLoading: false,
             action: {}
         )
 
         ModelPickerButton(
-            selectedModel: PickerModel(id: "gpt-4o-mini", name: "GPT-4o Mini", provider: "OpenAI", supportsVision: true, supportsReasoning: false, inputCost: nil, outputCost: nil),
+            selectedModel: PickerModel(id: "codex-mini:oauth:high", name: "Codex Mini", provider: "ChatGPT", supportsVision: false, supportsReasoning: false, inputCost: nil, outputCost: nil, reasoningEffort: "High"),
             placeholder: "Select a model",
             isLoading: false,
             action: {}

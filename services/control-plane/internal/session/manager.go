@@ -2065,20 +2065,22 @@ func (m *Manager) fetchCodexModels() []*pb.ModelInfo {
 		if hasAPIKey {
 			for _, effort := range effortLevels {
 				models = append(models, &pb.ModelInfo{
-					Id:           fmt.Sprintf("%s:api:%s", base.Id, effort.suffix),
-					Name:         fmt.Sprintf("%s %s (API)", base.Name, effort.label),
-					Provider:     strPtr("OpenAI"),
-					Capabilities: base.Capabilities,
+					Id:              fmt.Sprintf("%s:api:%s", base.Id, effort.suffix),
+					Name:            base.Name,
+					Provider:        strPtr("OpenAI"),
+					Capabilities:    base.Capabilities,
+					ReasoningEffort: strPtr(effort.label),
 				})
 			}
 		}
 		if hasOAuth {
 			for _, effort := range effortLevels {
 				models = append(models, &pb.ModelInfo{
-					Id:           fmt.Sprintf("%s:oauth:%s", base.Id, effort.suffix),
-					Name:         fmt.Sprintf("%s %s (ChatGPT)", base.Name, effort.label),
-					Provider:     strPtr("OpenAI"),
-					Capabilities: base.Capabilities,
+					Id:              fmt.Sprintf("%s:oauth:%s", base.Id, effort.suffix),
+					Name:            base.Name,
+					Provider:        strPtr("ChatGPT"),
+					Capabilities:    base.Capabilities,
+					ReasoningEffort: strPtr(effort.label),
 				})
 			}
 		}

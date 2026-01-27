@@ -504,7 +504,8 @@ final class ConnectService {
                     id: proto.id,
                     name: proto.name,
                     provider: proto.hasProvider ? proto.provider : nil,
-                    capabilities: proto.capabilities
+                    capabilities: proto.capabilities,
+                    reasoningEffort: proto.hasReasoningEffort ? proto.reasoningEffort : nil
                 )
             }
             let sdkType: SdkType? = msg.hasSdkType ? convertSdkType(msg.sdkType) : nil
