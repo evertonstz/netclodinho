@@ -29,14 +29,16 @@ struct PromptSheet: View {
 
     /// Get available models as PickerModels based on current SDK selection
     private var availablePickerModels: [PickerModel] {
+        let models: [PickerModel]
         switch selectedSdkType {
         case .claude, .opencode:
-            return modelsStore.anthropicModels.map { PickerModel.from($0) }
+            models = modelsStore.anthropicModels.map { PickerModel.from($0) }
         case .copilot:
-            return copilotStore.models.map { PickerModel.from($0) }
+            models = copilotStore.models.map { PickerModel.from($0) }
         case .codex:
-            return codexStore.models.map { PickerModel.from($0) }
+            models = codexStore.models.map { PickerModel.from($0) }
         }
+        return models.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
     /// Binding to the appropriate model ID based on SDK type
