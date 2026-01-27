@@ -31,6 +31,8 @@ struct ProviderLogo: View {
                 return Image("google-logo")
             } else if modelName.contains("grok") {
                 return Image("xai-logo")
+            } else if modelName.contains("mistral") || modelName.contains("codestral") || modelName.contains("devstral") || modelName.contains("ministral") || modelName.contains("magistral") || modelName.contains("mixtral") || modelName.contains("pixtral") {
+                return Image("mistral-logo")
             }
         }
         
@@ -45,6 +47,8 @@ struct ProviderLogo: View {
             return Image("google-logo")
         case "xai":
             return Image("xai-logo")
+        case "mistral":
+            return Image("mistral-logo")
         case "github", "github copilot", "copilot":
             return Image("github-mark")
         default:
@@ -57,6 +61,8 @@ struct ProviderLogo: View {
                 return Image("google-logo")
             } else if provider.contains("xai") || provider.contains("grok") {
                 return Image("xai-logo")
+            } else if provider.contains("mistral") {
+                return Image("mistral-logo")
             } else if provider.contains("github") || provider.contains("copilot") {
                 return Image("github-mark")
             }
@@ -90,6 +96,10 @@ struct ProviderLogo: View {
                 ProviderLogo(provider: "GitHub", size: 24)
                 Text("GitHub").font(.caption)
             }
+            VStack {
+                ProviderLogo(provider: "Mistral", size: 24)
+                Text("Mistral").font(.caption)
+            }
         }
 
         HStack(spacing: 16) {
@@ -98,6 +108,7 @@ struct ProviderLogo: View {
             ProviderLogo(provider: "Google", size: 16)
             ProviderLogo(provider: "xAI", size: 16)
             ProviderLogo(provider: "GitHub", size: 16)
+            ProviderLogo(provider: "Mistral", size: 16)
         }
         .foregroundStyle(.secondary)
     }

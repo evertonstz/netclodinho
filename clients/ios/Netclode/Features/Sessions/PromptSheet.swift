@@ -31,8 +31,12 @@ struct PromptSheet: View {
     private var availablePickerModels: [PickerModel] {
         let models: [PickerModel]
         switch selectedSdkType {
-        case .claude, .opencode:
+        case .claude:
+            // Claude SDK only supports Anthropic models
             models = modelsStore.anthropicModels.map { PickerModel.from($0) }
+        case .opencode:
+            // OpenCode SDK supports multiple providers (Anthropic, Mistral, etc.)
+            models = modelsStore.allModels.map { PickerModel.from($0) }
         case .copilot:
             models = copilotStore.models.map { PickerModel.from($0) }
         case .codex:

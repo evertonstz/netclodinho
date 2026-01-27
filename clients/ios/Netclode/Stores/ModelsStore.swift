@@ -143,9 +143,8 @@ final class ModelsStore {
             let response = try JSONDecoder().decode(ModelsDevResponse.self, from: data)
             var newModels: [String: [AIModel]] = [:]
 
-            // For Phase 1, only include Anthropic
-            // Later we can expand to other providers
-            let targetProviders = ["anthropic"]
+            // Include providers available for OpenCode SDK
+            let targetProviders = ["anthropic", "mistral"]
 
             for providerId in targetProviders {
                 guard let provider = response.providers[providerId] else { continue }
