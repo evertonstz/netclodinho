@@ -318,7 +318,7 @@ struct ToolEventCard: View {
                 TodoToolSection(input: input)
             } else if toolName.lowercased() == "bash", let input = toolInput {
                 // Special handling for Bash tool - show command directly
-                BashToolSection(input: input, result: endEvent?.result, isError: endEvent?.error != nil)
+                BashToolSection(input: input, result: endEvent?.result, error: endEvent?.error, isError: endEvent?.error != nil)
             } else if let input = toolInput, !input.isEmpty {
                 // Generic input section
                 ExpandableSection(title: "INPUT", defaultExpanded: true) {
@@ -351,10 +351,17 @@ struct ToolEventCard: View {
                 }
 
                 if let error = end.error, !error.isEmpty {
-                    ExpandableSection(title: "ERROR", defaultExpanded: true) {
-                        Text(error)
-                            .font(.netclodeMonospacedSmall)
-                            .foregroundStyle(.secondary)
+                    // Skip error section for Bash tool - error is already shown in BashToolSection
+                    if toolName.lowercased() != "bash" {
+                        ExpandableSection(title: "ERROR", defaultExpanded: true) {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                Text(error)
+                                    .font(.system(size: 11, design: .monospaced))
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(nil)
+                                    .fixedSize(horizontal: true, vertical: false)
+                            }
+                        }
                     }
                 }
             }
@@ -804,11 +811,13 @@ private struct TodoToolSection: View {
 private struct BashToolSection: View {
     let input: [String: AnyCodableValue]
     var result: String?
+    var error: String?
     var isError: Bool = false
     let maxLines: Int = 20
     
     @State private var isResultExpanded = true
     @State private var isFullyExpanded = false
+    @State private var isErrorExpanded = false
     
     private var command: String? {
         input["command"]?.stringValue
@@ -822,15 +831,30 @@ private struct BashToolSection: View {
         result?.components(separatedBy: "\n") ?? []
     }
     
-    private var isTruncated: Bool {
+    private var errorLines: [String] {
+        error?.components(separatedBy: "\n") ?? []
+    }
+    
+    private var isResultTruncated: Bool {
         resultLines.count > maxLines
     }
     
-    private var displayedLines: ArraySlice<String> {
-        if isFullyExpanded || !isTruncated {
+    private var isErrorTruncated: Bool {
+        errorLines.count > maxLines
+    }
+    
+    private var displayedResultLines: ArraySlice<String> {
+        if isFullyExpanded || !isResultTruncated {
             return resultLines[...]
         }
         return resultLines.prefix(maxLines)
+    }
+    
+    private var displayedErrorLines: ArraySlice<String> {
+        if isErrorExpanded || !isErrorTruncated {
+            return errorLines[...]
+        }
+        return errorLines.prefix(maxLines)
     }
     
     var body: some View {
@@ -885,17 +909,19 @@ private struct BashToolSection: View {
                     if isResultExpanded {
                         ScrollView(.horizontal, showsIndicators: false) {
                             VStack(alignment: .leading, spacing: 0) {
-                                ForEach(Array(displayedLines.enumerated()), id: \.offset) { _, line in
+                                ForEach(Array(displayedResultLines.enumerated()), id: \.offset) { _, line in
                                     Text(line)
                                         .font(.system(size: 11, design: .monospaced))
                                         .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                        .fixedSize(horizontal: true, vertical: false)
                                 }
                             }
                         }
                         .padding(.leading, Theme.Spacing.xs)
                         
                         // Show more button
-                        if isTruncated {
+                        if isResultTruncated {
                             Button {
                                 withAnimation(.snappy(duration: 0.2)) {
                                     isFullyExpanded.toggle()
@@ -912,6 +938,53 @@ private struct BashToolSection: View {
                             .buttonStyle(.plain)
                             .padding(.leading, Theme.Spacing.xs)
                         }
+                    }
+                }
+            }
+            
+            // Error section
+            if error != nil, !errorLines.isEmpty {
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 10))
+                            .foregroundStyle(Theme.Colors.error)
+                        Text("Error")
+                            .font(.system(size: TypeScale.micro, weight: .semibold))
+                            .tracking(0.5)
+                            .foregroundStyle(Theme.Colors.error)
+                    }
+                    
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        VStack(alignment: .leading, spacing: 0) {
+                            ForEach(Array(displayedErrorLines.enumerated()), id: \.offset) { _, line in
+                                Text(line)
+                                    .font(.system(size: 11, design: .monospaced))
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                                    .fixedSize(horizontal: true, vertical: false)
+                            }
+                        }
+                    }
+                    .padding(.leading, Theme.Spacing.xs)
+                    
+                    // Show more button for error
+                    if isErrorTruncated {
+                        Button {
+                            withAnimation(.snappy(duration: 0.2)) {
+                                isErrorExpanded.toggle()
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(isErrorExpanded ? "Show less" : "Show all \(errorLines.count) lines")
+                                    .font(.system(size: TypeScale.caption, weight: .medium))
+                                Image(systemName: isErrorExpanded ? "chevron.up" : "chevron.down")
+                                    .font(.system(size: TypeScale.tiny))
+                            }
+                            .foregroundStyle(Theme.Colors.brand)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.leading, Theme.Spacing.xs)
                     }
                 }
             }
