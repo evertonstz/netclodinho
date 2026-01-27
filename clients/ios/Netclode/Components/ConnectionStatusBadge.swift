@@ -27,7 +27,7 @@ struct ConnectionStatusBadge: View {
             .green
         case .connecting, .reconnecting:
             .orange
-        case .disconnected:
+        case .disconnected, .suspended:
             .red
         }
     }
@@ -42,6 +42,8 @@ struct ConnectionStatusBadge: View {
             "connected"
         case .reconnecting:
             "reconnecting"
+        case .suspended:
+            "suspended"
         }
     }
 
@@ -51,7 +53,7 @@ struct ConnectionStatusBadge: View {
             HapticFeedback.success()
         case .disconnected where oldState == .connected:
             HapticFeedback.error()
-        case .reconnecting(let attempt) where attempt == 1:
+        case .reconnecting(let attempt, _) where attempt == 1:
             HapticFeedback.warning()
         default:
             break
@@ -120,8 +122,9 @@ struct ProcessingIndicator: View {
 
         ConnectionStatusBadge(state: .connected)
         ConnectionStatusBadge(state: .connecting)
-        ConnectionStatusBadge(state: .reconnecting(attempt: 2))
-        ConnectionStatusBadge(state: .disconnected)
+        ConnectionStatusBadge(state: .reconnecting(attempt: 2, maxAttempts: 10))
+        ConnectionStatusBadge(state: .disconnected(reason: .networkLost))
+        ConnectionStatusBadge(state: .suspended)
 
         Divider()
             .padding(.vertical)

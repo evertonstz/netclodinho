@@ -127,7 +127,7 @@ struct SessionsView: View {
         switch connectService.connectionState {
         case .connected: .green
         case .connecting, .reconnecting: .orange
-        case .disconnected: .red
+        case .disconnected, .suspended: .red
         }
     }
 
@@ -137,7 +137,7 @@ struct SessionsView: View {
             HapticFeedback.success()
         case .disconnected where oldState == .connected:
             HapticFeedback.error()
-        case .reconnecting(let attempt) where attempt == 1:
+        case .reconnecting(let attempt, _) where attempt == 1:
             HapticFeedback.warning()
         default:
             break

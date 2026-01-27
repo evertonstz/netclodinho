@@ -238,7 +238,8 @@ struct SessionWithMeta: Codable, Sendable {
             lastActiveAt: lastActiveAt,
             sdkType: sdkType,
             model: model,
-            copilotBackend: copilotBackend
+            copilotBackend: copilotBackend,
+            messageCount: messageCount
         )
     }
 }

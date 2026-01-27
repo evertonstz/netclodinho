@@ -123,6 +123,9 @@ struct Session: Identifiable, Codable, Hashable, Sendable {
     var sdkType: SdkType?
     var model: String?
     var copilotBackend: CopilotBackend?
+    
+    /// Message count from server (for display before session is opened)
+    var messageCount: Int?
 
     var isActive: Bool {
         status == .ready || status == .running

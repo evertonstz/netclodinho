@@ -123,7 +123,7 @@ struct SidebarHeader: View {
         switch connectService.connectionState {
         case .connected: .green
         case .connecting, .reconnecting: .orange
-        case .disconnected: .red
+        case .disconnected, .suspended: .red
         }
     }
 
@@ -133,6 +133,7 @@ struct SidebarHeader: View {
         case .connecting: "Connecting..."
         case .reconnecting: "Reconnecting..."
         case .disconnected: "Disconnected"
+        case .suspended: "Suspended"
         }
     }
 

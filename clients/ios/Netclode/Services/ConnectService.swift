@@ -30,33 +30,96 @@ enum ConnectError: Error, LocalizedError {
     }
 }
 
+/// Reason for disconnection
+enum DisconnectReason: Equatable, Sendable {
+    case initial
+    case networkLost
+    case serverError(String)
+    case authFailure
+    case userInitiated
+    case backgrounded
+    
+    var description: String {
+        switch self {
+        case .initial: "Not connected"
+        case .networkLost: "Network unavailable"
+        case .serverError(let msg): msg
+        case .authFailure: "Authentication failed"
+        case .userInitiated: "Disconnected by user"
+        case .backgrounded: "App was backgrounded"
+        }
+    }
+}
+
 /// Connection state for the service
 enum ConnectionState: Equatable, Sendable {
-    case disconnected
+    case disconnected(reason: DisconnectReason)
     case connecting
     case connected
-    case reconnecting(attempt: Int)
+    case reconnecting(attempt: Int, maxAttempts: Int)
+    case suspended  // App backgrounded, connection intentionally closed
 
     var isConnected: Bool {
         if case .connected = self { return true }
         return false
     }
+    
+    /// Whether the connection is usable for sending messages
+    var isUsable: Bool {
+        if case .connected = self { return true }
+        return false
+    }
+    
+    /// Whether we should attempt automatic reconnection
+    var shouldAttemptReconnect: Bool {
+        switch self {
+        case .disconnected(let reason):
+            switch reason {
+            case .authFailure, .userInitiated:
+                return false
+            default:
+                return true
+            }
+        case .suspended:
+            return false
+        default:
+            return false
+        }
+    }
 
     var displayName: String {
         switch self {
-        case .disconnected: "Disconnected"
+        case .disconnected(let reason): "Disconnected: \(reason.description)"
         case .connecting: "Connecting..."
         case .connected: "Connected"
-        case .reconnecting(let attempt): "Reconnecting (\(attempt))..."
+        case .reconnecting(let attempt, let max): "Reconnecting (\(attempt)/\(max))..."
+        case .suspended: "Suspended"
         }
     }
 
     var systemImage: String {
         switch self {
-        case .disconnected: "wifi.slash"
+        case .disconnected, .suspended: "wifi.slash"
         case .connecting, .reconnecting: "wifi.exclamationmark"
         case .connected: "wifi"
         }
+    }
+}
+
+/// Strategy for reconnection attempts with exponential backoff
+struct ReconnectionStrategy {
+    var baseDelay: TimeInterval = 1.0
+    var maxDelay: TimeInterval = 32.0
+    var maxAttempts: Int = 10
+    var jitterFactor: Double = 0.3
+    var foregroundMultiplier: Double = 0.5 // Faster reconnection in foreground
+    
+    func delay(for attempt: Int, isForeground: Bool) -> TimeInterval {
+        let exponentialDelay = min(baseDelay * pow(2, Double(attempt - 1)), maxDelay)
+        let jitter = exponentialDelay * jitterFactor * Double.random(in: -1...1)
+        let delay = exponentialDelay + jitter
+        
+        return isForeground ? delay * foregroundMultiplier : delay
     }
 }
 
@@ -64,7 +127,7 @@ enum ConnectionState: Equatable, Sendable {
 @MainActor
 @Observable
 final class ConnectService {
-    private(set) var connectionState: ConnectionState = .disconnected
+    private(set) var connectionState: ConnectionState = .disconnected(reason: .initial)
     
     private var client: ProtocolClient?
     private var serviceClient: Netclode_V1_ClientServiceClient?
@@ -80,7 +143,15 @@ final class ConnectService {
     private var _messagesContinuation: AsyncStream<ServerMessage>.Continuation?
     private var _messagesStream: AsyncStream<ServerMessage>?
     
-    static let maxReconnectAttempts = 5
+    // Network monitoring (injected by AppStateCoordinator)
+    var networkMonitor: NetworkMonitor?
+    
+    // Reconnection strategy
+    private let strategy = ReconnectionStrategy()
+    private var isForeground: Bool = true
+    private var isNetworkReconnecting: Bool = false
+    
+    static let maxReconnectAttempts = 10
     static let connectionTimeoutSeconds: UInt64 = 15
     private let keepAliveInterval: UInt64 = 30_000_000_000
     private let keepAliveIdleThreshold: TimeInterval = 30
@@ -101,7 +172,14 @@ final class ConnectService {
     ///   - serverURL: The base server URL (e.g., "netclode-control-plane" or "http://localhost:3000")
     ///   - connectPort: Optional port override for the Connect protocol. If empty, uses default logic.
     func connect(to serverURL: String, connectPort: String = "") {
-        guard connectionState == .disconnected else { return }
+        // Allow connecting from disconnected or suspended states
+        switch connectionState {
+        case .disconnected, .suspended:
+            break
+        default:
+            return
+        }
+        
         self.serverURL = serverURL
         self.connectPortOverride = connectPort
         
@@ -117,7 +195,7 @@ final class ConnectService {
         stream = nil
         
         if attempt > 0 {
-            connectionState = .reconnecting(attempt: attempt)
+            connectionState = .reconnecting(attempt: attempt, maxAttempts: strategy.maxAttempts)
         } else {
             connectionState = .connecting
         }
@@ -143,17 +221,17 @@ final class ConnectService {
             }
         } catch ConnectError.connectionTimeout {
             print("[Connect] Connection timed out after \(Self.connectionTimeoutSeconds)s")
-            connectionState = .disconnected
+            connectionState = .disconnected(reason: .serverError("Connection timed out"))
             return
         } catch {
             print("[Connect] Connection failed: \(error)")
-            connectionState = .disconnected
+            connectionState = .disconnected(reason: .serverError(error.localizedDescription))
             return
         }
         
         guard let currentStream = stream else {
             print("[Connect] Failed to create stream")
-            connectionState = .disconnected
+            connectionState = .disconnected(reason: .serverError("Failed to create stream"))
             return
         }
         
@@ -182,7 +260,7 @@ final class ConnectService {
         
         guard isValid else {
             print("[Connect] Connection validation failed or timed out")
-            connectionState = .disconnected
+            connectionState = .disconnected(reason: .serverError("Connection validation failed"))
             receiveTask?.cancel()
             stream = nil
             return
@@ -954,13 +1032,29 @@ final class ConnectService {
     
     // MARK: - Handle Disconnection
     
-    private func handleDisconnection() async {
-        connectionState = .disconnected
+    private func handleDisconnection(reason: DisconnectReason = .serverError("Connection lost")) async {
+        // If network-initiated reconnection is in progress, don't interfere
+        if isNetworkReconnecting {
+            logger.info("Network reconnection in progress, skipping handleDisconnection")
+            return
+        }
+        
+        connectionState = .disconnected(reason: reason)
         receiveTask?.cancel()
         keepAliveTask?.cancel()
         stream = nil
         
         guard !serverURL.isEmpty else { return }
+        
+        // Don't auto-reconnect if reason doesn't support it
+        guard connectionState.shouldAttemptReconnect else { return }
+        
+        // Check network availability before attempting reconnection
+        if let networkMonitor = networkMonitor, !networkMonitor.currentState.isConnected {
+            logger.info("Network unavailable, skipping reconnection")
+            connectionState = .disconnected(reason: .networkLost)
+            return
+        }
         
         // Cancel any existing reconnect task
         reconnectTask?.cancel()
@@ -971,22 +1065,37 @@ final class ConnectService {
         }
     }
     
-    /// Perform reconnection attempts. Runs in a detached task to avoid blocking the main actor.
+    /// Perform reconnection attempts with network-aware exponential backoff.
     private func performReconnection() async {
-        for attempt in 1...Self.maxReconnectAttempts {
+        for attempt in 1...strategy.maxAttempts {
             guard !Task.isCancelled else {
                 logger.info("Reconnection cancelled")
                 return
             }
             
-            await MainActor.run {
-                self.connectionState = .reconnecting(attempt: attempt)
+            // Check network before attempting (on main actor for networkMonitor access)
+            let hasNetwork = await MainActor.run {
+                self.networkMonitor?.currentState.isConnected ?? true
             }
-            logger.info("Reconnect attempt \(attempt)/\(Self.maxReconnectAttempts)")
             
-            // Exponential backoff: 2s, 4s, 8s, 16s, 32s
-            let delaySeconds = UInt64(pow(2.0, Double(attempt)))
-            try? await Task.sleep(nanoseconds: delaySeconds * 1_000_000_000)
+            guard hasNetwork else {
+                logger.info("No network, pausing reconnection attempts")
+                await MainActor.run {
+                    self.connectionState = .disconnected(reason: .networkLost)
+                }
+                return
+            }
+            
+            await MainActor.run {
+                self.connectionState = .reconnecting(attempt: attempt, maxAttempts: self.strategy.maxAttempts)
+            }
+            logger.info("Reconnect attempt \(attempt)/\(self.strategy.maxAttempts)")
+            
+            // Use strategy for delay calculation
+            let delay = await MainActor.run {
+                self.strategy.delay(for: attempt, isForeground: self.isForeground)
+            }
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             
             guard !Task.isCancelled else { return }
             
@@ -999,20 +1108,20 @@ final class ConnectService {
             }
         }
         
-        logger.warning("Max reconnect attempts (\(Self.maxReconnectAttempts)) reached")
+        logger.warning("Max reconnect attempts (\(self.strategy.maxAttempts)) reached")
         await MainActor.run {
-            self.connectionState = .disconnected
+            self.connectionState = .disconnected(reason: .serverError("Max reconnection attempts exceeded"))
         }
     }
     
-    func disconnect() {
+    func disconnect(reason: DisconnectReason = .userInitiated) {
         reconnectTask?.cancel()
         receiveTask?.cancel()
         keepAliveTask?.cancel()
         stream = nil
         client = nil
         serviceClient = nil
-        connectionState = .disconnected
+        connectionState = .disconnected(reason: reason)
     }
     
     func ensureConnected(to serverURL: String, connectPort: String = "") {
@@ -1023,7 +1132,7 @@ final class ConnectService {
         case .connected:
             // Verify connection is alive with a lightweight sync
             send(.sync)
-        case .disconnected:
+        case .disconnected, .suspended:
             connect(to: serverURL, connectPort: connectPort)
         case .connecting, .reconnecting:
             // Already trying
@@ -1046,7 +1155,10 @@ final class ConnectService {
                 return true
             }
             // Give up if we've stopped trying (disconnected without reconnecting)
-            if connectionState == .disconnected {
+            if case .disconnected = connectionState {
+                return false
+            }
+            if case .suspended = connectionState {
                 return false
             }
             // Short poll interval
@@ -1255,6 +1367,157 @@ final class ConnectService {
         send(.sessionOpen(id: id, lastMessageId: lastMessageId, lastNotificationId: lastNotificationId))
         if resume {
             send(.sessionResume(id: id))
+        }
+    }
+    
+    // MARK: - Lifecycle Management
+    
+    /// Prepare for app backgrounding - close streams gracefully
+    func prepareForBackground() {
+        logger.info("Preparing for background")
+        isForeground = false
+        
+        // Cancel tasks
+        reconnectTask?.cancel()
+        keepAliveTask?.cancel()
+        
+        // Close stream gracefully (server will keep session alive)
+        receiveTask?.cancel()
+        stream = nil
+        
+        connectionState = .suspended
+    }
+    
+    /// Restore connection when app foregrounds
+    func restoreFromBackground() {
+        logger.info("Restoring from background")
+        isForeground = true
+        
+        guard case .suspended = connectionState else {
+            // May have been disconnected for other reasons
+            if case .disconnected = connectionState {
+                Task { await reconnectImmediately() }
+            }
+            return
+        }
+        
+        connectionState = .disconnected(reason: .backgrounded)
+        
+        Task {
+            await reconnectImmediately()
+        }
+    }
+    
+    // MARK: - Network-Aware Reconnection
+    
+    /// Handle network state changes from NetworkMonitor
+    func handleNetworkTransition(_ transition: NetworkMonitor.NetworkTransition) {
+        logger.info("Handling network transition: \(transition.from.description) → \(transition.to.description)")
+        
+        if transition.isDisconnection {
+            // Network lost - disconnect cleanly, don't retry
+            isNetworkReconnecting = false
+            disconnect(reason: .networkLost)
+        } else if transition.isReconnection {
+            // Network restored - attempt immediate reconnection
+            guard !isNetworkReconnecting else {
+                logger.info("Already reconnecting, skipping duplicate attempt")
+                return
+            }
+            isNetworkReconnecting = true
+            Task {
+                defer { isNetworkReconnecting = false }
+                await reconnectImmediately()
+            }
+        } else if transition.isInterfaceChange {
+            // WiFi ↔ Cellular - proactive reconnection
+            // The old connection may still work briefly, but will likely fail
+            guard !isNetworkReconnecting else {
+                logger.info("Already reconnecting, skipping interface change reconnection")
+                return
+            }
+            isNetworkReconnecting = true
+            logger.info("Network interface changed, initiating proactive reconnection")
+            Task {
+                defer { isNetworkReconnecting = false }
+                await reconnectWithNewInterface()
+            }
+        }
+    }
+    
+    /// Immediate reconnection for network restoration or foregrounding
+    func reconnectImmediately() async {
+        // Only reconnect if disconnected and network is available
+        switch connectionState {
+        case .disconnected, .suspended:
+            break
+        default:
+            return
+        }
+        
+        guard networkMonitor?.currentState.isConnected ?? true else {
+            logger.info("No network available for immediate reconnection")
+            return
+        }
+        
+        guard !serverURL.isEmpty else { return }
+        
+        connectionState = .connecting
+        
+        await performConnect()
+        
+        if connectionState.isConnected {
+            logger.info("Immediate reconnection successful")
+        } else {
+            // Start regular reconnection loop if immediate fails
+            startReconnectionLoop()
+        }
+    }
+    
+    /// Reconnect when network interface changes (WiFi ↔ Cellular)
+    private func reconnectWithNewInterface() async {
+        logger.info("Reconnecting due to network interface change")
+        
+        // Cancel any existing reconnection attempts
+        reconnectTask?.cancel()
+        
+        // Close existing connection gracefully
+        receiveTask?.cancel()
+        keepAliveTask?.cancel()
+        stream = nil
+        client = nil
+        serviceClient = nil
+        
+        // Update state to allow reconnection
+        connectionState = .disconnected(reason: .networkLost)
+        
+        // Brief delay for new interface to stabilize
+        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
+        
+        // Check if network is still available after delay
+        guard networkMonitor?.currentState.isConnected ?? true else {
+            logger.info("Network no longer available after interface change")
+            return
+        }
+        
+        // Attempt immediate reconnection
+        await performConnect()
+        
+        if connectionState.isConnected {
+            logger.info("Successfully reconnected after interface change")
+        } else {
+            // Start reconnection loop if immediate attempt fails
+            logger.info("Immediate reconnection failed, starting retry loop")
+            startReconnectionLoop()
+        }
+    }
+    
+    /// Start the reconnection loop
+    private func startReconnectionLoop() {
+        reconnectTask?.cancel()
+        
+        reconnectTask = Task.detached { [weak self] in
+            await self?.performReconnection()
         }
     }
 }

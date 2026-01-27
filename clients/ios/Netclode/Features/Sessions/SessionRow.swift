@@ -9,7 +9,12 @@ struct SessionRow: View {
     @Environment(SettingsStore.self) private var settingsStore
 
     private var messageCount: Int {
-        chatStore.messages(for: session.id).count
+        // Prefer actual loaded messages, fall back to server-provided count
+        let loadedCount = chatStore.messages(for: session.id).count
+        if loadedCount > 0 {
+            return loadedCount
+        }
+        return session.messageCount ?? 0
     }
 
     private var isDimmed: Bool {

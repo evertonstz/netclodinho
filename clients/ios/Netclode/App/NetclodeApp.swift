@@ -16,6 +16,7 @@ struct NetclodeApp: App {
     @State private var snapshotStore = SnapshotStore()
     @State private var connectService: ConnectService
     @State private var messageRouter: MessageRouter
+    @State private var coordinator: AppStateCoordinator
 
     init() {
         let settings = SettingsStore()
@@ -29,6 +30,7 @@ struct NetclodeApp: App {
         let copilot = CopilotStore()
         let snapshots = SnapshotStore()
         let connect = ConnectService()
+        let appCoordinator = AppStateCoordinator()
         
         // Wire up terminal store to Connect service for input handling
         terminal.connectService = connect
@@ -57,6 +59,7 @@ struct NetclodeApp: App {
         _snapshotStore = State(initialValue: snapshots)
         _connectService = State(initialValue: connect)
         _messageRouter = State(initialValue: router)
+        _coordinator = State(initialValue: appCoordinator)
     }
 
     var body: some Scene {
@@ -74,34 +77,28 @@ struct NetclodeApp: App {
                 .environment(snapshotStore)
                 .environment(connectService)
                 .environment(messageRouter)
+                .environment(coordinator)
                 .preferredColorScheme(settingsStore.preferredColorScheme)
                 .onAppear {
-                    if !settingsStore.serverURL.isEmpty {
-                        connectService.connect(to: settingsStore.serverURL, connectPort: settingsStore.connectPort)
-                    }
+                    setupApp()
                 }
         }
         .onChange(of: scenePhase) { _, newPhase in
-            handleScenePhaseChange(newPhase)
+            coordinator.handleScenePhase(newPhase)
         }
     }
 
-    private func handleScenePhaseChange(_ phase: ScenePhase) {
-        switch phase {
-        case .active:
-            // App came to foreground - ensure connection is alive
-            print("[App] Scene became active, checking connection")
-            if !settingsStore.serverURL.isEmpty {
-                connectService.ensureConnected(to: settingsStore.serverURL, connectPort: settingsStore.connectPort)
-            }
-        case .inactive:
-            // Transitioning (e.g., control center opened)
-            print("[App] Scene became inactive")
-        case .background:
-            // App went to background - iOS may suspend network
-            print("[App] Scene went to background")
-        @unknown default:
-            break
+    private func setupApp() {
+        // Configure the coordinator with services
+        coordinator.configure(
+            connectService: connectService,
+            sessionStore: sessionStore,
+            settingsStore: settingsStore
+        )
+        
+        // Connect if we have a server URL configured
+        if !settingsStore.serverURL.isEmpty {
+            connectService.connect(to: settingsStore.serverURL, connectPort: settingsStore.connectPort)
         }
     }
 }

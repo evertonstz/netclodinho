@@ -104,4 +104,20 @@ final class SessionStore {
     func lastNotificationId(for sessionId: String) -> String? {
         lastNotificationIds[sessionId]
     }
+    
+    // MARK: - Cache/Persistence Support
+    
+    /// Load sessions from local cache (for fast startup)
+    func loadFromCache(_ cachedSessions: [Session]) {
+        // Only load if we don't have sessions yet
+        guard sessions.isEmpty else { return }
+        sessions = cachedSessions
+    }
+    
+    /// Load persisted cursors from storage
+    func loadCursors(from cursors: [String: String]) {
+        for (sessionId, cursor) in cursors {
+            lastNotificationIds[sessionId] = cursor
+        }
+    }
 }

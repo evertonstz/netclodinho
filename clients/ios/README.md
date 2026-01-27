@@ -11,6 +11,7 @@ Native iOS 26 app for Netclode. Built with SwiftUI and the Liquid Glass API.
 - Git changes view with inline unified diffs
 - Connects over Tailscale
 - Platform-adaptive navigation (sidebar on iPad/Mac, stack on iPhone)
+- Connection resilience (WiFi/cellular transitions, background/foreground, offline queueing)
 
 ## Requirements
 
@@ -65,7 +66,14 @@ For local development with HTTP (no streaming), use: `http://localhost:3001`
 Netclode/
 ├── App/                    # Entry point
 ├── Models/                 # Session, Messages, Events, ChatMessage
-├── Services/               # ConnectService, MessageRouter
+├── Services/
+│   ├── ConnectService      # gRPC/Connect bidirectional stream
+│   ├── MessageRouter       # Routes server messages to stores
+│   ├── NetworkMonitor      # NWPathMonitor wrapper
+│   ├── AppStateCoordinator # Lifecycle + network orchestration
+│   ├── MessageQueue        # Offline message persistence
+│   ├── SessionCache        # Fast startup cache
+│   └── ConnectionStateManager # Cursor persistence
 ├── Stores/                 # @Observable state (Session, Chat, Event, Terminal, Settings)
 ├── Features/
 │   ├── Sessions/           # Session list, sidebar, creation
@@ -73,7 +81,9 @@ Netclode/
 │   ├── Chat/               # Chat UI
 │   ├── Terminal/           # SwiftTerm wrapper
 │   └── Settings/           # Server config
-├── Components/             # GlassCard, GlassButton, GlassTextField
+├── Components/
+│   ├── Connection/         # ConnectionBanner (status + pending messages)
+│   └── ...                 # GlassCard, GlassButton, GlassTextField
 ├── Design/                 # Theme, colors
 ├── Generated/              # Protobuf generated code
 └── Extensions/
@@ -115,6 +125,34 @@ terminalOutput(sessionId: "xxx", data: "...")
 ```
 
 On reconnect, the app sends `lastNotificationId` to resume from where it left off.
+
+## Connection Resilience
+
+The app handles network transitions and app lifecycle gracefully:
+
+| Scenario | Behavior |
+|----------|----------|
+| WiFi ↔ Cellular | Proactive reconnection with 0.5s stabilization delay |
+| Network lost | Clean disconnect, automatic reconnect when restored |
+| App backgrounded | Stream suspended, cursors persisted |
+| App foregrounded | Immediate reconnection, pending messages replayed |
+| Offline message | Queued locally, replayed on reconnect (max 3 retries) |
+
+### Services
+
+- **`NetworkMonitor`** - Wraps `NWPathMonitor`, publishes `AsyncStream<NetworkTransition>` for WiFi/cellular/disconnected state changes
+- **`AppStateCoordinator`** - Orchestrates lifecycle, network, and connection state; manages background tasks via `BGTaskScheduler`
+- **`MessageQueue`** - Persistent offline queue with file-based storage in Documents directory
+- **`SessionCache`** - UserDefaults-based cache for fast startup (5-minute staleness threshold)
+- **`ConnectionStateManager`** - Persists Redis Stream cursors across app launches
+
+### Reconnection Strategy
+
+Exponential backoff with jitter:
+- Base delay: 1s, max: 32s
+- Jitter: ±30%
+- Foreground multiplier: 0.5x (faster reconnection when app is active)
+- Max attempts: 10
 
 ## State management
 
