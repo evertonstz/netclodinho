@@ -689,7 +689,9 @@ func (c *ConnectConnection) handleGitDiff(ctx context.Context, req *pb.GitDiffRe
 
 // handleListModels returns available models for the specified SDK type.
 func (c *ConnectConnection) handleListModels(ctx context.Context, req *pb.ListModelsRequest) error {
+	slog.Info("ListModels request", "sdkType", req.SdkType, "copilotBackend", req.CopilotBackend)
 	models := c.manager.ListModels(req.SdkType, req.CopilotBackend)
+	slog.Info("ListModels response", "sdkType", req.SdkType, "count", len(models))
 
 	return c.send(&pb.ServerMessage{
 		Message: &pb.ServerMessage_Models{

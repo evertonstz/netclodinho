@@ -614,6 +614,16 @@ public struct Netclode_V1_SessionConfig: Sendable {
   /// Clears the value of `reasoningEffort`. Subsequent reads from it will return its default value.
   public mutating func clearReasoningEffort() {self._reasoningEffort = nil}
 
+  /// Mistral API key (for OpenCode SDK)
+  public var mistralApiKey: String {
+    get {return _mistralApiKey ?? String()}
+    set {_mistralApiKey = newValue}
+  }
+  /// Returns true if `mistralApiKey` has been explicitly set.
+  public var hasMistralApiKey: Bool {return self._mistralApiKey != nil}
+  /// Clears the value of `mistralApiKey`. Subsequent reads from it will return its default value.
+  public mutating func clearMistralApiKey() {self._mistralApiKey = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -630,6 +640,7 @@ public struct Netclode_V1_SessionConfig: Sendable {
   fileprivate var _openaiApiKey: String? = nil
   fileprivate var _codexRefreshToken: String? = nil
   fileprivate var _reasoningEffort: String? = nil
+  fileprivate var _mistralApiKey: String? = nil
 }
 
 /// GitHubRepo represents a GitHub repository from the user's account.
@@ -1125,7 +1136,7 @@ extension Netclode_V1_SessionSummary: SwiftProtobuf.Message, SwiftProtobuf._Mess
 
 extension Netclode_V1_SessionConfig: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SessionConfig"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_id\0\u{3}workspace_dir\0\u{3}github_token\0\u{1}repo\0\u{3}repo_access\0\u{3}control_plane_url\0\u{3}sdk_type\0\u{1}model\0\u{3}copilot_backend\0\u{3}github_copilot_token\0\u{3}codex_access_token\0\u{3}codex_id_token\0\u{3}openai_api_key\0\u{3}codex_refresh_token\0\u{3}reasoning_effort\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_id\0\u{3}workspace_dir\0\u{3}github_token\0\u{1}repo\0\u{3}repo_access\0\u{3}control_plane_url\0\u{3}sdk_type\0\u{1}model\0\u{3}copilot_backend\0\u{3}github_copilot_token\0\u{3}codex_access_token\0\u{3}codex_id_token\0\u{3}openai_api_key\0\u{3}codex_refresh_token\0\u{3}reasoning_effort\0\u{3}mistral_api_key\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1148,6 +1159,7 @@ extension Netclode_V1_SessionConfig: SwiftProtobuf.Message, SwiftProtobuf._Messa
       case 13: try { try decoder.decodeSingularStringField(value: &self._openaiApiKey) }()
       case 14: try { try decoder.decodeSingularStringField(value: &self._codexRefreshToken) }()
       case 15: try { try decoder.decodeSingularStringField(value: &self._reasoningEffort) }()
+      case 16: try { try decoder.decodeSingularStringField(value: &self._mistralApiKey) }()
       default: break
       }
     }
@@ -1203,6 +1215,9 @@ extension Netclode_V1_SessionConfig: SwiftProtobuf.Message, SwiftProtobuf._Messa
     try { if let v = self._reasoningEffort {
       try visitor.visitSingularStringField(value: v, fieldNumber: 15)
     } }()
+    try { if let v = self._mistralApiKey {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 16)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1222,6 +1237,7 @@ extension Netclode_V1_SessionConfig: SwiftProtobuf.Message, SwiftProtobuf._Messa
     if lhs._openaiApiKey != rhs._openaiApiKey {return false}
     if lhs._codexRefreshToken != rhs._codexRefreshToken {return false}
     if lhs._reasoningEffort != rhs._reasoningEffort {return false}
+    if lhs._mistralApiKey != rhs._mistralApiKey {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
