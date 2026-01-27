@@ -38,22 +38,7 @@ struct PromptSheet: View {
         case .codex:
             models = codexStore.models.map { PickerModel.from($0) }
         }
-        // Sort with preferred models first, then alphabetically
-        return models.sorted { m1, m2 in
-            let m1Preferred = isPreferredModel(m1)
-            let m2Preferred = isPreferredModel(m2)
-            if m1Preferred != m2Preferred {
-                return m1Preferred
-            }
-            return m1.name.localizedCaseInsensitiveCompare(m2.name) == .orderedAscending
-        }
-    }
-    
-    /// Check if a model is preferred (should appear at top of list)
-    private func isPreferredModel(_ model: PickerModel) -> Bool {
-        let name = model.name.lowercased()
-        // Prefer Sonnet 4.5, GPT-5.2, then other Sonnet/GPT-5 models
-        return name.contains("sonnet 4.5") || name.contains("gpt-5.2") || name.contains("gpt 5.2")
+        return models.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
     /// Binding to the appropriate model ID based on SDK type
