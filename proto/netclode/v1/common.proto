@@ -79,6 +79,7 @@ message SessionConfig {
   optional string openai_api_key = 13;          // OpenAI API key (for Codex API auth)
   optional string codex_refresh_token = 14;     // Codex OAuth refresh token (for ChatGPT auth)
   optional string reasoning_effort = 15;        // Reasoning effort level (low, medium, high, minimal, xhigh)
+  optional string mistral_api_key = 16;         // Mistral API key (for OpenCode SDK)
 }
 
 // GitHubRepo represents a GitHub repository from the user's account.

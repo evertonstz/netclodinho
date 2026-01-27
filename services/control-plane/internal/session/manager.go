@@ -33,6 +33,7 @@ type AgentSessionConfig struct {
 	SessionID          string
 	AnthropicAPIKey    string
 	OpenAIAPIKey       string // For Codex API mode
+	MistralAPIKey      string // For OpenCode Mistral models
 	GitHubToken        string // For git credentials (from GitHub App)
 	GitHubCopilotToken string // For Copilot SDK
 	Repo               string
@@ -1308,6 +1309,8 @@ func (m *Manager) GetSessionConfig(ctx context.Context, sessionID string) (*Agen
 	config := &AgentSessionConfig{
 		SessionID:          sessionID,
 		AnthropicAPIKey:    m.config.AnthropicAPIKey,
+		OpenAIAPIKey:       m.config.OpenAIAPIKey,
+		MistralAPIKey:      m.config.MistralAPIKey,
 		GitHubCopilotToken: m.config.GitHubCopilotToken,
 		SdkType:            state.Session.SdkType,
 		CopilotBackend:     state.Session.CopilotBackend,
@@ -1814,8 +1817,14 @@ func (m *Manager) fetchOpenCodeModels() []*pb.ModelInfo {
 		models = append(models, openaiModels...)
 	}
 
+	// Add Mistral models if MISTRAL_API_KEY is set
+	if m.config.MistralAPIKey != "" {
+		mistralModels := m.fetchModelsFromModelsDev("mistral")
+		models = append(models, mistralModels...)
+	}
+
 	if len(models) == 0 {
-		slog.Warn("No OpenCode credentials configured (need ANTHROPIC_API_KEY or OPENAI_API_KEY)")
+		slog.Warn("No OpenCode credentials configured (need ANTHROPIC_API_KEY, OPENAI_API_KEY, or MISTRAL_API_KEY)")
 	}
 
 	return models

@@ -441,6 +441,8 @@ async function handleControlPlaneMessage(
               codexIdToken: config.codexIdToken,
               codexRefreshToken: config.codexRefreshToken,
               reasoningEffort: config.reasoningEffort,
+              // Mistral API key for OpenCode SDK
+              mistralApiKey: config.mistralApiKey,
             });
           } catch (err) {
             console.error("[agent] Failed to initialize SDK adapter:", err);

@@ -22,6 +22,7 @@ export interface SDKConfig {
   workspaceDir: string;
   anthropicApiKey: string;
   openaiApiKey?: string; // OpenAI API key (for Codex API mode)
+  mistralApiKey?: string; // Mistral API key (for OpenCode SDK)
   githubCopilotToken?: string; // GitHub PAT with Copilot scope (for Copilot SDK auth)
   model?: string; // e.g., "anthropic/claude-sonnet-4-0" for OpenCode, "codex-mini-latest:api" for Codex
   copilotBackend?: CopilotBackend; // For Copilot SDK: "github" or "anthropic"

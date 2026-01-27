@@ -116,6 +116,9 @@ func (h *ConnectAgentServiceHandler) Connect(ctx context.Context, stream *connec
 	if config.OpenAIAPIKey != "" {
 		sessionConfig.OpenaiApiKey = &config.OpenAIAPIKey
 	}
+	if config.MistralAPIKey != "" {
+		sessionConfig.MistralApiKey = &config.MistralAPIKey
+	}
 	if config.ReasoningEffort != "" {
 		sessionConfig.ReasoningEffort = &config.ReasoningEffort
 	}
