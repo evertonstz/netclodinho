@@ -95,6 +95,7 @@ export function runGit(args: string[], cwd?: string): Promise<{ code: number; st
 
 /**
  * Configure git credentials for GitHub token authentication.
+ * Also sets GITHUB_TOKEN env var for gh CLI.
  */
 export async function configureGitCredentials(token: string): Promise<void> {
   const credentialsFile = "/agent/.git-credentials";
@@ -105,6 +106,9 @@ export async function configureGitCredentials(token: string): Promise<void> {
   }
 
   writeFileSync(credentialsFile, `https://x-access-token:${token}@github.com\n`, { mode: 0o600 });
+
+  // Set GITHUB_TOKEN for gh CLI and other tools
+  process.env.GITHUB_TOKEN = token;
 
   await runGit(["config", "--global", "credential.helper", `store --file=${credentialsFile}`]);
   await runGit(["config", "--global", "user.name", "Netclode Agent"]);
