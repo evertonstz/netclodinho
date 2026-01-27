@@ -1976,7 +1976,7 @@ func (m *Manager) getCopilotModelsFallback() []*pb.ModelInfo {
 	// GitHub Copilot models (require GITHUB_COPILOT_TOKEN)
 	if hasGitHubCopilot {
 		models = append(models,
-			&pb.ModelInfo{Id: "claude-sonnet-4-5", Name: "Claude Sonnet 4.5", Provider: strPtr("Copilot"), Capabilities: []string{"chat", "vision", "code", "reasoning"}},
+			&pb.ModelInfo{Id: "claude-sonnet-4.5", Name: "Claude Sonnet 4.5", Provider: strPtr("Copilot"), Capabilities: []string{"chat", "vision", "code", "reasoning"}},
 			&pb.ModelInfo{Id: "claude-sonnet-4", Name: "Claude Sonnet 4", Provider: strPtr("Copilot"), Capabilities: []string{"chat", "vision", "code"}},
 			&pb.ModelInfo{Id: "gpt-4o", Name: "GPT-4o", Provider: strPtr("Copilot"), Capabilities: []string{"chat", "vision", "code"}},
 			&pb.ModelInfo{Id: "gemini-2.5-pro", Name: "Gemini 2.5 Pro", Provider: strPtr("Copilot"), Capabilities: []string{"chat", "vision", "code"}},

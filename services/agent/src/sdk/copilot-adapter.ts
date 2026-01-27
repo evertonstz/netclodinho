@@ -269,10 +269,10 @@ export class CopilotAdapter implements SDKAdapter {
         }
         // For GitHub backend, no provider config needed - uses GITHUB_TOKEN from env
 
-        // Default model depends on backend
+        // Default model depends on backend (Anthropic uses dashes, Copilot uses dots)
         const defaultModel = this.backend === "anthropic" 
           ? "claude-sonnet-4-5" 
-          : "claude-sonnet-4-5"; // GitHub Copilot default (Sonnet 4.5)
+          : "claude-sonnet-4.5"; // GitHub Copilot default (Sonnet 4.5)
 
         // Strip :anthropic suffix from model ID (used for routing, not the actual model name)
         const rawModel = this.config?.model || defaultModel;
