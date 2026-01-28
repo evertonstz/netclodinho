@@ -280,6 +280,13 @@ struct ChatView: View {
                 }
             }
         }
+        .onChange(of: isInputFocused) { _, focused in
+            // Speculatively resume when user focuses input field
+            // This gives a head start while they type their message
+            if focused && session?.status == .paused {
+                connectService.send(.sessionResume(id: sessionId))
+            }
+        }
     }
     
     private var scrollContent: some View {
