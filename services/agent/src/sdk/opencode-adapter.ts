@@ -96,8 +96,16 @@ export class OpenCodeAdapter implements SDKAdapter {
     const args = ["serve", `--hostname=${OPENCODE_HOST}`, `--port=${OPENCODE_PORT}`];
 
     // Build OpenCode config as JSON
+    const model = this.config?.model || "anthropic/claude-sonnet-4-0";
+    
+    // Enable extended thinking for Claude models that support it
+    const isClaudeWithThinking = model.includes("claude-sonnet-4") || 
+                                  model.includes("claude-opus-4") ||
+                                  model.includes("claude-3-7") ||
+                                  model.includes("claude-3.7");
+    
     const opencodeConfig = {
-      model: this.config?.model || "anthropic/claude-sonnet-4-0",
+      model,
       logLevel: "INFO",
       // Bypass all permissions for sandboxed environment
       permission: {
@@ -106,6 +114,13 @@ export class OpenCodeAdapter implements SDKAdapter {
         webfetch: "allow",
         mcp: "allow",
       },
+      // Enable extended thinking for supported Claude models
+      ...(isClaudeWithThinking && {
+        thinking: {
+          type: "enabled",
+          budget_tokens: 10000,
+        },
+      }),
     };
 
     const proc = spawn("opencode", args, {
@@ -342,8 +357,6 @@ export class OpenCodeAdapter implements SDKAdapter {
               }
               try {
                 const event = JSON.parse(data);
-                // Debug: log all raw events from OpenCode
-                console.log(`[opencode-adapter] SSE event: type=${event.type}`);
                 const promptEvent = this.translateEvent(event);
                 if (promptEvent) {
                   if (resolveNextEvent) {
@@ -453,9 +466,6 @@ export class OpenCodeAdapter implements SDKAdapter {
         const delta = props.delta as string | undefined;
 
         if (!part) return null;
-
-        // Debug: log all part types
-        console.log(`[opencode-adapter] message.part.updated: type=${part.type}, delta=${delta?.slice(0, 50) || "none"}`);
 
         // Only process parts that belong to assistant messages
         const messageId = part.messageID as string | undefined;
