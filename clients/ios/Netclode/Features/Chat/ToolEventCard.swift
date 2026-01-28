@@ -140,7 +140,7 @@ struct ToolEventCard: View {
                     .padding(.bottom, Theme.Spacing.sm)
             }
         }
-        .background(Theme.Colors.codeBackground.opacity(0.5))
+        .codeCardBackground()
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
     }
 
@@ -1392,7 +1392,7 @@ struct CommandEventCard: View {
                 .padding(.bottom, Theme.Spacing.sm)
             }
         }
-        .background(Theme.Colors.codeBackground.opacity(0.5))
+        .codeCardBackground()
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
     }
 }
@@ -1439,7 +1439,7 @@ struct FileChangeCard: View {
         }
         .padding(.horizontal, Theme.Spacing.sm)
         .padding(.vertical, Theme.Spacing.xs)
-        .background(Theme.Colors.codeBackground.opacity(0.5))
+        .codeCardBackground()
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
     }
 
@@ -1546,7 +1546,7 @@ struct PortExposedCard: View {
         }
         .padding(.horizontal, Theme.Spacing.sm)
         .padding(.vertical, Theme.Spacing.xs)
-        .background(Theme.Colors.codeBackground.opacity(0.5))
+        .codeCardBackground()
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
     }
 }
@@ -1635,7 +1635,7 @@ struct RepoCloneCard: View {
         }
         .padding(.horizontal, Theme.Spacing.sm)
         .padding(.vertical, Theme.Spacing.sm)
-        .background(Theme.Colors.codeBackground.opacity(0.5))
+        .codeCardBackground()
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
     }
 }

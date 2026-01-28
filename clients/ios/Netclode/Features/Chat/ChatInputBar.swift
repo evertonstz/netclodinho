@@ -51,7 +51,7 @@ struct ChatInputBar: View {
                 .font(.netclodeBody)
                 .padding(.horizontal, Theme.Spacing.md)
                 .frame(minHeight: inputHeight)
-                .glassEffect(.regular.interactive(), in: Capsule())
+                .adaptiveGlassInteractive(in: Capsule())
 
                 // Send/Stop button
                 Group {
@@ -64,10 +64,7 @@ struct ChatInputBar: View {
                                 .font(.system(size: TypeScale.body, weight: .semibold))
                                 .foregroundStyle(.white)
                                 .frame(width: inputHeight, height: inputHeight)
-                                .glassEffect(
-                                    .regular.interactive().tint(Theme.Colors.error.glassTint),
-                                    in: Circle()
-                                )
+                                .adaptiveGlassInteractive(tint: Theme.Colors.error, in: Circle())
                         }
                         .transition(.scale.combined(with: .opacity))
                     } else {
@@ -79,10 +76,8 @@ struct ChatInputBar: View {
                                 .font(.system(size: TypeScale.body, weight: .semibold))
                                 .foregroundStyle(canSend ? .white : .secondary)
                                 .frame(width: inputHeight, height: inputHeight)
-                                .glassEffect(
-                                    canSend
-                                        ? .regular.interactive().tint(willQueue ? Color.orange.glassTint : Theme.Colors.brand.glassTint)
-                                        : .regular.interactive(),
+                                .adaptiveGlassInteractive(
+                                    tint: canSend ? (willQueue ? Color.orange : Theme.Colors.brand) : nil,
                                     in: Circle()
                                 )
                         }
@@ -136,10 +131,7 @@ struct StreamingIndicator: View {
                 .font(.system(size: TypeScale.body, weight: .medium))
                 .foregroundStyle(.white)
                 .frame(width: 28, height: 28)
-                .glassEffect(
-                    .regular.tint(Theme.Colors.brand.glassTint),
-                    in: Circle()
-                )
+                .adaptiveGlass(tint: Theme.Colors.brand, in: Circle())
 
             // Typing indicator
             HStack(spacing: 4) {
@@ -152,7 +144,7 @@ struct StreamingIndicator: View {
             }
             .padding(.horizontal, Theme.Spacing.md)
             .padding(.vertical, Theme.Spacing.sm)
-            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Theme.Radius.lg))
+            .adaptiveGlass(in: RoundedRectangle(cornerRadius: Theme.Radius.lg))
 
             Spacer()
         }

@@ -44,8 +44,7 @@ struct GlassButton: View {
             .foregroundStyle(.white)
             .padding(.horizontal, Theme.Spacing.lg)
             .padding(.vertical, Theme.Spacing.sm)
-            .background(.ultraThinMaterial, in: Capsule())
-            .glassEffect(.regular.interactive(), in: Capsule())
+            .adaptiveGlassInteractive(in: Capsule())
         }
         .disabled(isLoading)
     }
@@ -117,7 +116,7 @@ struct FloatingActionButton: View {
                 .font(.system(size: 24, weight: .semibold))
                 .foregroundStyle(.primary)
                 .frame(width: 60, height: 60)
-                .glassEffect(.regular.interactive(), in: Circle())
+                .adaptiveGlassInteractive(in: Circle())
         }
     }
 }

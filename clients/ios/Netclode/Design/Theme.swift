@@ -1,3 +1,8 @@
+#if canImport(UIKit)
+import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 import SwiftUI
 
 enum Theme {
@@ -5,13 +10,24 @@ enum Theme {
 
     enum Colors {
         // Primary backgrounds
+        #if canImport(UIKit)
         static let background = Color(.systemBackground)
         static let secondaryBackground = Color(.secondarySystemBackground)
         static let tertiaryBackground = Color(.tertiarySystemBackground)
+        #elseif canImport(AppKit)
+        static let background = Color(.windowBackgroundColor)
+        static let secondaryBackground = Color(.controlBackgroundColor)
+        static let tertiaryBackground = Color(.underPageBackgroundColor)
+        #endif
 
         // Primary text
+        #if canImport(UIKit)
         static let primaryText = Color(.label)
         static let secondaryText = Color(.secondaryLabel)
+        #elseif canImport(AppKit)
+        static let primaryText = Color(.labelColor)
+        static let secondaryText = Color(.secondaryLabelColor)
+        #endif
 
         // Brand colors (consistent across themes)
         static let brand = Color(red: 0.6, green: 0.5, blue: 0.7) // Cozy purple
@@ -132,6 +148,7 @@ enum Theme {
 extension Color {
     /// Creates an adaptive color that changes based on light/dark mode
     static func adaptive(light: Color, dark: Color) -> Color {
+        #if canImport(UIKit)
         Color(uiColor: UIColor { traitCollection in
             switch traitCollection.userInterfaceStyle {
             case .dark:
@@ -140,6 +157,15 @@ extension Color {
                 return UIColor(light)
             }
         })
+        #elseif canImport(AppKit)
+        Color(nsColor: NSColor(name: nil) { appearance in
+            if appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua {
+                return NSColor(dark)
+            } else {
+                return NSColor(light)
+            }
+        })
+        #endif
     }
 
     /// Returns a glass-compatible tint version of this color

@@ -21,10 +21,7 @@ struct GlassCard<Content: View>: View {
     var body: some View {
         content()
             .padding(padding)
-            .glassEffect(
-                tint != nil ? .regular.tint(tint!.glassTint) : .regular,
-                in: RoundedRectangle(cornerRadius: cornerRadius)
-            )
+            .adaptiveGlass(tint: tint, in: RoundedRectangle(cornerRadius: cornerRadius))
     }
 }
 
@@ -51,10 +48,7 @@ struct GlassCardInteractive<Content: View>: View {
     var body: some View {
         content()
             .padding(padding)
-            .glassEffect(
-                tint != nil ? .regular.interactive().tint(tint!.glassTint) : .regular.interactive(),
-                in: RoundedRectangle(cornerRadius: cornerRadius)
-            )
+            .adaptiveGlassInteractive(tint: tint, in: RoundedRectangle(cornerRadius: cornerRadius))
     }
 }
 
@@ -66,10 +60,7 @@ struct UserMessageCard<Content: View>: View {
     var body: some View {
         content()
             .padding(Theme.Spacing.md)
-            .glassEffect(
-                .regular.tint(Theme.Colors.userBubble.glassTint),
-                in: RoundedRectangle(cornerRadius: Theme.Radius.lg)
-            )
+            .adaptiveGlass(tint: Theme.Colors.userBubble, in: RoundedRectangle(cornerRadius: Theme.Radius.lg))
     }
 }
 
@@ -79,10 +70,7 @@ struct AssistantMessageCard<Content: View>: View {
     var body: some View {
         content()
             .padding(Theme.Spacing.md)
-            .glassEffect(
-                .regular,
-                in: RoundedRectangle(cornerRadius: Theme.Radius.lg)
-            )
+            .adaptiveGlass(in: RoundedRectangle(cornerRadius: Theme.Radius.lg))
     }
 }
 
