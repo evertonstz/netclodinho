@@ -79,6 +79,9 @@ GITHUB_APP_ID=123456
 GITHUB_APP_PRIVATE_KEY_B64=base64-encoded-pem-private-key
 GITHUB_INSTALLATION_ID=12345678
 
+# Mistral (optional - for Mistral models via OpenCode)
+MISTRAL_API_KEY=your-mistral-api-key
+
 # Kata VM Resources (optional - defaults shown)
 KATA_VM_CPUS=4
 KATA_VM_MEMORY_MB=4096

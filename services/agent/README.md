@@ -281,7 +281,7 @@ npm run build
 docker build -t ghcr.io/angristan/netclode-agent:latest -f services/agent/Dockerfile .
 ```
 
-Includes Debian trixie-slim, Node.js via mise, Docker, Git, curl, build-essential, sudo, Claude CLI, Copilot CLI, Codex CLI.
+Includes Debian trixie-slim, Node.js via mise, Docker, Git, gh (GitHub CLI), curl, build-essential, sudo, Claude CLI, Copilot CLI, Codex CLI.
 
 ## Agent Events
 

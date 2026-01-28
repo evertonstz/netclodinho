@@ -34,7 +34,7 @@ flowchart LR
         JFS[("JuiceFS")]
 
         subgraph SANDBOX["Sandbox · Kata VM<br/><sub>Cloud Hypervisor</sub>"]
-            AGENT["Agent<br/><sub>Claude / OpenCode SDK</sub>"]
+            AGENT["Agent<br/><sub>Claude / OpenCode / Copilot / Codex SDK</sub>"]
             DOCKER["Docker"]
         end
     end
@@ -149,7 +149,7 @@ The [agent-sandbox-controller](https://github.com/angristan/agent-sandbox) recon
 | **Network**       | Tailscale Operator                 | Zero-config VPN, ingress, DNS             |
 | **API**           | Connect Protocol                   | gRPC-compatible, works over HTTP/1.1      |
 | **Control Plane** | Go                                 | Session orchestration, API server         |
-| **Agent**         | Node.js + Claude/OpenCode SDK      | AI agent runtime inside sandbox           |
+| **Agent**         | Node.js + Claude/OpenCode/Copilot/Codex SDK | AI agent runtime inside sandbox           |
 | **Client**        | SwiftUI (iOS 26 Liquid Glass)      | Native iOS/macOS app                      |
 
 ## Client
