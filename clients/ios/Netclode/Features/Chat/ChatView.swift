@@ -484,6 +484,11 @@ struct ChatView: View {
         // Mark as processing before sending
         sessionStore.setProcessing(for: sessionId, processing: true)
 
+        // Resume session if paused (lazy resume on first message)
+        if session?.status == .paused {
+            connectService.send(.sessionResume(id: sessionId))
+        }
+
         // Send to server
         connectService.send(.prompt(sessionId: sessionId, text: text))
 

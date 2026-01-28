@@ -198,10 +198,8 @@ struct WorkspaceView: View {
                 try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
             }
             // Initial open - no cursor needed
-            // Only resume if actually paused (to avoid brief status flash)
-            let session = sessionStore.sessions.first { $0.id == sessionId }
-            let needsResume = session?.status == .paused
-            connectService.openSession(id: sessionId, resume: needsResume)
+            // Don't auto-resume: only resume when user sends a new message
+            connectService.openSession(id: sessionId, resume: false)
             hasOpenedSession = true
         }
         .onChange(of: connectService.connectionState) { oldState, newState in
@@ -211,11 +209,10 @@ struct WorkspaceView: View {
 
             if wasDisconnected && isNowConnected && hasOpenedSession {
                 // Reconnected - re-open session with cursor to resume from where we left off
+                // Don't auto-resume: only resume when user sends a new message
                 let cursor = sessionStore.lastNotificationId(for: sessionId)
-                let session = sessionStore.sessions.first { $0.id == sessionId }
-                let needsResume = session?.status == .paused
-                print("[WorkspaceView] Reconnected, reopening session with cursor: \(cursor ?? "nil"), resume: \(needsResume)")
-                connectService.openSession(id: sessionId, lastNotificationId: cursor, resume: needsResume)
+                print("[WorkspaceView] Reconnected, reopening session with cursor: \(cursor ?? "nil")")
+                connectService.openSession(id: sessionId, lastNotificationId: cursor, resume: false)
             }
         }
         .onDisappear {
