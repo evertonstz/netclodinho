@@ -16,6 +16,7 @@ struct TerminalView: View {
     
     var body: some View {
         SwiftTerminalView(bridge: terminalStore.bridge(for: sessionId))
+            .id(sessionId)  // Force recreation when session changes
             #if targetEnvironment(macCatalyst)
             .padding(.leading, 8)
             #endif
