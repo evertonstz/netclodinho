@@ -467,15 +467,28 @@ export class OpenCodeAdapter implements SDKAdapter {
             const toolName = normalizeToolName(part.tool as string);
             const callId = part.callID as string;
 
+            // Debug: log the full part structure to understand where input is
+            console.log(`[opencode-adapter] Tool event: tool=${toolName}, status=${status}, part keys=${Object.keys(part).join(",")}, state keys=${Object.keys(state).join(",")}`);
+            if (state.input) console.log(`[opencode-adapter] state.input=${JSON.stringify(state.input).slice(0, 200)}`);
+
             if (status === "pending" || status === "running") {
               // Only emit toolStart once when first seen
               if (status === "pending") {
                 toolStartTimes.set(callId, Date.now());
+                // Try to get input from state.input or parse from state.raw (JSON string)
+                let input = state.input as Record<string, unknown> | undefined;
+                if (!input && state.raw) {
+                  try {
+                    input = JSON.parse(state.raw as string);
+                  } catch {
+                    // raw might be incomplete during streaming
+                  }
+                }
                 return {
                   type: "toolStart",
                   tool: toolName,
                   toolUseId: callId,
-                  input: state.input as Record<string, unknown> as import("@bufbuild/protobuf").JsonObject | undefined,
+                  input: input as import("@bufbuild/protobuf").JsonObject | undefined,
                 };
               }
               return null;
