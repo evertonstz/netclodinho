@@ -342,6 +342,8 @@ export class OpenCodeAdapter implements SDKAdapter {
               }
               try {
                 const event = JSON.parse(data);
+                // Debug: log all raw events from OpenCode
+                console.log(`[opencode-adapter] SSE event: type=${event.type}`);
                 const promptEvent = this.translateEvent(event);
                 if (promptEvent) {
                   if (resolveNextEvent) {
