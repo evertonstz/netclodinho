@@ -126,6 +126,9 @@ export class OpenCodeAdapter implements SDKAdapter {
       }),
     };
 
+    // Debug: log the OpenCode config being used
+    console.log("[opencode-adapter] Config:", JSON.stringify(opencodeConfig, null, 2));
+
     const proc = spawn("opencode", args, {
       env: {
         ...process.env,
@@ -469,6 +472,9 @@ export class OpenCodeAdapter implements SDKAdapter {
         const delta = props.delta as string | undefined;
 
         if (!part) return null;
+
+        // Debug: log all part types to see what OpenCode is sending
+        console.log("[opencode-adapter] Part type:", part.type, "delta:", delta?.slice(0, 50));
 
         // Only process parts that belong to assistant messages
         const messageId = part.messageID as string | undefined;
