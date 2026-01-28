@@ -105,6 +105,26 @@ export class OpenCodeAdapter implements SDKAdapter {
                                   model.includes("claude-3-7") ||
                                   model.includes("claude-3.7");
     
+    // Extract provider and model name from model ID (e.g., "anthropic/claude-sonnet-4-5-20250514")
+    const [providerId, modelName] = model.includes("/") ? model.split("/", 2) : ["anthropic", model];
+    
+    // Build provider config with thinking enabled for supported models
+    // OpenCode expects thinking config at: provider.<provider>.models.<model>.options.thinking
+    const providerConfig = isClaudeWithThinking ? {
+      [providerId]: {
+        models: {
+          [modelName]: {
+            options: {
+              thinking: {
+                type: "enabled",
+                budgetTokens: 16000,
+              },
+            },
+          },
+        },
+      },
+    } : {};
+    
     const opencodeConfig = {
       model,
       logLevel: "INFO",
@@ -115,19 +135,9 @@ export class OpenCodeAdapter implements SDKAdapter {
         webfetch: "allow",
         mcp: "allow",
       },
-      // Enable extended thinking for supported Claude models (high = 16k tokens)
-      // Note: budget_tokens must be < max_tokens
-      ...(isClaudeWithThinking && {
-        thinking: {
-          type: "enabled",
-          budget_tokens: 16000,
-        },
-        max_tokens: 32000,
-      }),
+      // Configure provider-specific options (including thinking for Claude)
+      ...(Object.keys(providerConfig).length > 0 && { provider: providerConfig }),
     };
-
-    // Debug: log the OpenCode config being used
-    console.log("[opencode-adapter] Config:", JSON.stringify(opencodeConfig, null, 2));
 
     const proc = spawn("opencode", args, {
       env: {
@@ -472,9 +482,6 @@ export class OpenCodeAdapter implements SDKAdapter {
         const delta = props.delta as string | undefined;
 
         if (!part) return null;
-
-        // Debug: log all part types to see what OpenCode is sending
-        console.log("[opencode-adapter] Part type:", part.type, "delta:", delta?.slice(0, 50));
 
         // Only process parts that belong to assistant messages
         const messageId = part.messageID as string | undefined;
