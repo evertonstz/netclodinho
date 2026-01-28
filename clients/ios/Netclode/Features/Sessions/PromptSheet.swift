@@ -118,7 +118,8 @@ struct PromptSheet: View {
                                 InlineModelPicker(
                                     selectedModelId: selectedModelIdBinding,
                                     models: availablePickerModels,
-                                    isExpanded: $showModelDropdown
+                                    isExpanded: $showModelDropdown,
+                                    copilotQuota: selectedSdkType == .copilot ? modelsStore.copilotStatus?.quota : nil
                                 )
                                 .transition(.opacity)
                             }
@@ -377,6 +378,11 @@ struct PromptSheet: View {
                 modelsStore.setLoading(true, for: sdkType)
                 connectService.send(.listModels(sdkType: sdkType, copilotBackend: nil))
             }
+        }
+        // Request Copilot quota status
+        if modelsStore.copilotStatus == nil && !modelsStore.isLoadingCopilotStatus {
+            modelsStore.setLoadingCopilotStatus(true)
+            connectService.send(.getCopilotStatus)
         }
     }
 }

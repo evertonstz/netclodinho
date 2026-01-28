@@ -2448,22 +2448,90 @@ func (m *Manager) emitSnapshotCreated(ctx context.Context, sessionID string, sna
 	})
 }
 
+// copilotUserResponse represents the GitHub Copilot internal API response.
+type copilotUserResponse struct {
+	QuotaResetDateUTC string                      `json:"quota_reset_date_utc"`
+	QuotaSnapshots    map[string]copilotQuotaSnap `json:"quota_snapshots"`
+}
+
+type copilotQuotaSnap struct {
+	Entitlement int32 `json:"entitlement"`
+	Remaining   int32 `json:"remaining"`
+	Unlimited   bool  `json:"unlimited"`
+}
+
 // GetCopilotStatus returns GitHub Copilot authentication status and quota.
-// Note: This is currently a placeholder - actual implementation would require
-// calling the GitHub Copilot API which needs the agent to be running.
 func (m *Manager) GetCopilotStatus(ctx context.Context) *pb.CopilotStatusResponse {
-	// Check if we have a GitHub Copilot token configured
 	hasGitHubCopilotToken := m.config.GitHubCopilotToken != ""
 
-	return &pb.CopilotStatusResponse{
+	resp := &pb.CopilotStatusResponse{
 		Auth: &pb.CopilotAuthStatus{
 			IsAuthenticated: hasGitHubCopilotToken,
 			AuthType:        strPtr("env"),
 		},
-		// Quota is not available without calling the GitHub API
-		// which would require an active agent session
-		Quota: nil,
 	}
+
+	if !hasGitHubCopilotToken {
+		return resp
+	}
+
+	// Fetch quota from GitHub's internal API
+	quota, err := m.fetchCopilotQuota(ctx)
+	if err != nil {
+		slog.Warn("failed to fetch Copilot quota", "error", err)
+		return resp
+	}
+	resp.Quota = quota
+
+	return resp
+}
+
+// fetchCopilotQuota calls the GitHub Copilot internal API to get quota info.
+func (m *Manager) fetchCopilotQuota(ctx context.Context) (*pb.CopilotPremiumQuota, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/copilot_internal/user", nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+m.config.GitHubCopilotToken)
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	httpResp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("http request: %w", err)
+	}
+	defer httpResp.Body.Close()
+
+	if httpResp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status: %d", httpResp.StatusCode)
+	}
+
+	var data copilotUserResponse
+	if err := json.NewDecoder(httpResp.Body).Decode(&data); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+
+	premium, ok := data.QuotaSnapshots["premium_interactions"]
+	if !ok {
+		return nil, fmt.Errorf("premium_interactions not found in response")
+	}
+
+	// If unlimited, don't return quota (it's not meaningful)
+	if premium.Unlimited {
+		return nil, nil
+	}
+
+	used := premium.Entitlement - premium.Remaining
+	quota := &pb.CopilotPremiumQuota{
+		Used:      used,
+		Limit:     premium.Entitlement,
+		Remaining: premium.Remaining,
+	}
+	if data.QuotaResetDateUTC != "" {
+		quota.ResetAt = &data.QuotaResetDateUTC
+	}
+
+	return quota, nil
 }
 
 // Helper for optional string pointers

@@ -184,19 +184,34 @@ struct ModelRowGlass: View {
     }
 }
 
-/// Full-width inline liquid glass picker
+/// A provider section with its models
+private struct ProviderSection: Identifiable {
+    let id: String  // provider name
+    let provider: String
+    let models: [PickerModel]
+}
+
+/// Full-width inline liquid glass picker with provider sections
 struct InlineModelPicker: View {
     @Binding var selectedModelId: String
     let models: [PickerModel]
     @Binding var isExpanded: Bool
+    var copilotQuota: CopilotPremiumQuota? = nil
 
     private var selectedModel: PickerModel? {
         models.first { $0.id == selectedModelId }
     }
-    
+
     /// Effective model to display (auto-selects first if default doesn't match)
     private var effectiveModel: PickerModel? {
         selectedModel ?? models.first
+    }
+
+    /// Models grouped by provider
+    private var providerSections: [ProviderSection] {
+        let grouped = Dictionary(grouping: models) { $0.provider ?? "Other" }
+        return grouped.map { ProviderSection(id: $0.key, provider: $0.key, models: $0.value) }
+            .sorted { $0.provider.localizedCaseInsensitiveCompare($1.provider) == .orderedAscending }
     }
 
     var body: some View {
@@ -212,21 +227,21 @@ struct InlineModelPicker: View {
                         ProviderLogo(provider: model.provider, modelName: model.name, size: 16)
                             .frame(width: 20)
                             .foregroundStyle(.secondary)
-                        
+
                         Text(model.name)
                             .font(.netclodeBody)
                             .foregroundStyle(.primary)
                             .contentTransition(.numericText())
-                        
+
                         if let effort = model.reasoningEffort {
                             Text(effort)
                                 .font(.netclodeBody.weight(.semibold))
                                 .foregroundStyle(Theme.Colors.brand)
                                 .contentTransition(.numericText())
                         }
-                        
+
                         Spacer()
-                        
+
                         if let provider = model.provider {
                             Text(provider)
                                 .font(.netclodeCaption)
@@ -239,7 +254,7 @@ struct InlineModelPicker: View {
                             .foregroundStyle(.secondary)
                         Spacer()
                     }
-                    
+
                     Image(systemName: "chevron.up.chevron.down")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(.secondary)
@@ -272,55 +287,25 @@ struct InlineModelPicker: View {
                 }
             }
 
-            // Expanded state - shows all options
+            // Expanded state - shows all options grouped by provider
             if isExpanded {
                 ScrollView {
-                    LazyVStack(spacing: 2) {
-                        ForEach(models) { model in
-                            Button {
-                                withAnimation(.smooth(duration: 0.2)) {
-                                    selectedModelId = model.id
-                                    isExpanded = false
+                    LazyVStack(spacing: Theme.Spacing.sm) {
+                        ForEach(providerSections) { section in
+                            VStack(alignment: .leading, spacing: 2) {
+                                // Section header
+                                sectionHeader(for: section)
+
+                                // Models in this section
+                                ForEach(section.models) { model in
+                                    modelRow(for: model)
                                 }
-                            } label: {
-                                HStack(spacing: Theme.Spacing.xs) {
-                                    Image(systemName: model.id == selectedModelId ? "checkmark.circle.fill" : "circle")
-                                        .foregroundStyle(model.id == selectedModelId ? Theme.Colors.brand : .secondary)
-                                        .font(.system(size: 16))
-                                        .contentTransition(.symbolEffect(.replace))
-
-                                    ProviderLogo(provider: model.provider, modelName: model.name, size: 16)
-                                        .foregroundStyle(.secondary)
-
-                                    Text(model.name)
-                                        .font(.netclodeBody)
-                                        .foregroundStyle(.primary)
-                                    
-                                    if let effort = model.reasoningEffort {
-                                        Text(effort)
-                                            .font(.netclodeBody.weight(.semibold))
-                                            .foregroundStyle(Theme.Colors.brand)
-                                    }
-
-                                    Spacer()
-                                    
-                                    if let provider = model.provider {
-                                        Text(provider)
-                                            .font(.netclodeCaption)
-                                            .foregroundStyle(.tertiary)
-                                    }
-                                }
-                                .padding(.horizontal, Theme.Spacing.sm)
-                                .padding(.vertical, Theme.Spacing.xs)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .contentShape(Rectangle())
                             }
-                            .buttonStyle(.plain)
                         }
                     }
                     .padding(.vertical, Theme.Spacing.xs)
                 }
-                .frame(maxHeight: 280)
+                .frame(maxHeight: 320)
                 .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
                 .transition(.asymmetric(
                     insertion: .opacity.combined(with: .scale(scale: 0.95, anchor: .top)),
@@ -331,21 +316,77 @@ struct InlineModelPicker: View {
         }
         .animation(.smooth(duration: 0.25), value: isExpanded)
     }
-    
+
+    @ViewBuilder
+    private func sectionHeader(for section: ProviderSection) -> some View {
+        HStack(spacing: Theme.Spacing.xs) {
+            ProviderLogo(provider: section.provider, modelName: nil, size: 14)
+                .foregroundStyle(.secondary)
+
+            Text(section.provider)
+                .font(.netclodeCaption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            // Show quota for Copilot section (premium requests)
+            if section.provider == "Copilot", let quota = copilotQuota {
+                Spacer()
+                Text("\(quota.remaining)/\(quota.limit)")
+                    .font(.netclodeCaption)
+                    .foregroundStyle(quota.remaining < 50 ? .orange : .secondary)
+            }
+        }
+        .padding(.horizontal, Theme.Spacing.sm)
+        .padding(.top, Theme.Spacing.xs)
+    }
+
+    @ViewBuilder
+    private func modelRow(for model: PickerModel) -> some View {
+        Button {
+            withAnimation(.smooth(duration: 0.2)) {
+                selectedModelId = model.id
+                isExpanded = false
+            }
+        } label: {
+            HStack(spacing: Theme.Spacing.xs) {
+                Image(systemName: model.id == selectedModelId ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(model.id == selectedModelId ? Theme.Colors.brand : .secondary)
+                    .font(.system(size: 16))
+                    .contentTransition(.symbolEffect(.replace))
+
+                Text(model.name)
+                    .font(.netclodeBody)
+                    .foregroundStyle(.primary)
+
+                if let effort = model.reasoningEffort {
+                    Text(effort)
+                        .font(.netclodeBody.weight(.semibold))
+                        .foregroundStyle(Theme.Colors.brand)
+                }
+
+                Spacer()
+            }
+            .padding(.horizontal, Theme.Spacing.sm)
+            .padding(.vertical, Theme.Spacing.xs)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
     /// Find the best matching model when exact ID match isn't found
     private func findBestModel(in models: [PickerModel], preferring preferredId: String) -> PickerModel? {
         // First try exact match
         if let exact = models.first(where: { $0.id == preferredId }) {
             return exact
         }
-        
+
         // Try to find a model matching the preferred pattern (e.g., "sonnet-4.5" or "sonnet 4.5")
         let preferredLower = preferredId.lowercased()
-        
+
         // Extract key parts from preferred ID (e.g., "claude-sonnet-4.5" -> ["sonnet", "4.5"])
         let keyParts = preferredLower.components(separatedBy: CharacterSet(charactersIn: "-. "))
             .filter { $0.count > 1 && $0 != "claude" && $0 != "gpt" && $0 != "anthropic" }
-        
+
         // Find model whose name contains all key parts
         if !keyParts.isEmpty {
             if let match = models.first(where: { model in
@@ -355,7 +396,7 @@ struct InlineModelPicker: View {
                 return match
             }
         }
-        
+
         // Fall back to first model
         return models.first
     }
