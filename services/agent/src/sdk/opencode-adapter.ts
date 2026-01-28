@@ -30,6 +30,11 @@ const toolStartTimes = new Map<string, number>();
 // Track which tools have emitted toolStart (to avoid duplicates)
 const toolStartEmitted = new Set<string>();
 
+// Track text blocks - each text part becomes a separate message with its own ID
+let currentTextPartId: string | null = null;
+let currentTextMessageId: string | null = null;
+let textMessageIdCounter = 0;
+
 // Map OpenCode tool names to Claude Code style (capitalized)
 const TOOL_NAME_MAP: Record<string, string> = {
   read: "Read",
@@ -488,15 +493,26 @@ export class OpenCodeAdapter implements SDKAdapter {
         }
 
         switch (part.type) {
-          case "text":
+          case "text": {
             // Only use delta content, not part.text (which is accumulated text)
             // The control-plane accumulates deltas, so we should only send new content
             if (!delta) return null;
+
+            // Each text part gets its own message ID
+            // Generate a new ID when the part ID changes
+            const partId = part.id as string;
+            if (partId !== currentTextPartId) {
+              currentTextPartId = partId;
+              currentTextMessageId = `msg_${Date.now()}_${++textMessageIdCounter}`;
+            }
+
             return {
               type: "textDelta",
               content: delta,
               partial: true,
+              messageId: currentTextMessageId || undefined,
             };
+          }
 
           case "reasoning":
             return {
@@ -673,6 +689,9 @@ export class OpenCodeAdapter implements SDKAdapter {
     assistantMessageIds.clear();
     toolStartTimes.clear();
     toolStartEmitted.clear();
+    // Reset text message tracking for new prompt
+    currentTextPartId = null;
+    currentTextMessageId = null;
     this.lastUsage = null;
   }
 
@@ -696,6 +715,8 @@ export class OpenCodeAdapter implements SDKAdapter {
     assistantMessageIds.clear();
     toolStartTimes.clear();
     toolStartEmitted.clear();
+    currentTextPartId = null;
+    currentTextMessageId = null;
     this.lastUsage = null;
   }
 }

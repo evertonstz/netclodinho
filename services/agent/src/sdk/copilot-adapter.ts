@@ -60,6 +60,10 @@ export class CopilotAdapter implements SDKAdapter {
   private currentThinkingId: string | null = null;
   private thinkingIdCounter = 0;
 
+  // Track text blocks - each text block becomes a separate message with its own ID
+  private currentTextMessageId: string | null = null;
+  private textMessageIdCounter = 0;
+
   async initialize(config: SDKConfig): Promise<void> {
     this.config = config;
 
@@ -195,8 +199,9 @@ export class CopilotAdapter implements SDKAdapter {
       throw new Error("Copilot client not initialized");
     }
 
-    // Reset thinking tracking for new prompt
+    // Reset thinking and text message tracking for new prompt
     this.currentThinkingId = null;
+    this.currentTextMessageId = null;
 
     console.log(
       `[copilot-adapter] ExecutePrompt (session=${sessionId}): "${text.slice(0, 100)}${text.length > 100 ? "..." : ""}"`
@@ -403,10 +408,15 @@ export class CopilotAdapter implements SDKAdapter {
         const data = event.data as { deltaContent?: string; content?: string };
         const textContent = data.deltaContent || data.content;
         if (textContent) {
+          // Generate a new message ID if we don't have one for this text block
+          if (!this.currentTextMessageId) {
+            this.currentTextMessageId = `msg_${Date.now()}_${++this.textMessageIdCounter}`;
+          }
           return {
             type: "textDelta",
             content: textContent,
             partial: true,
+            messageId: this.currentTextMessageId,
           };
         }
         return null;
@@ -415,11 +425,15 @@ export class CopilotAdapter implements SDKAdapter {
       case "assistant.message": {
         const data = event.data as { content?: string };
         // Final message - emit the content with partial: false to signal completion
-        // The content may be the full response if streaming wasn't used for deltas
+        // Use current message ID if available, otherwise generate one
+        const messageId = this.currentTextMessageId || `msg_${Date.now()}_${++this.textMessageIdCounter}`;
+        // Reset for next text block
+        this.currentTextMessageId = null;
         return {
           type: "textDelta",
           content: data.content || "",
           partial: false,
+          messageId,
         };
       }
 
@@ -444,6 +458,8 @@ export class CopilotAdapter implements SDKAdapter {
         // End of reasoning block - emit final event and reset tracking
         const thinkingId = this.currentThinkingId || `thinking_${Date.now()}_${++this.thinkingIdCounter}`;
         this.currentThinkingId = null; // Reset for next reasoning block
+        // Reset text message ID so next text block after reasoning gets a new ID
+        this.currentTextMessageId = null;
         return {
           type: "thinking",
           thinkingId,
@@ -484,6 +500,9 @@ export class CopilotAdapter implements SDKAdapter {
         const durationMs = startTime ? Date.now() - startTime : undefined;
 
         const isError = data.resultType === "failure" || data.resultType === "rejected" || data.resultType === "denied";
+
+        // Reset text message ID so next text block after tool gets a new ID
+        this.currentTextMessageId = null;
 
         return {
           type: "toolEnd",
