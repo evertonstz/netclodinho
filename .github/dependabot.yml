@@ -1,7 +1,7 @@
 version: 2
 updates:
   - package-ecosystem: npm
-    directory: /
+    directory: /services/agent
     schedule:
       interval: weekly
 
@@ -10,8 +10,8 @@ updates:
     schedule:
       interval: weekly
 
-  - package-ecosystem: swift
-    directory: /clients/ios
+  - package-ecosystem: gomod
+    directory: /clients/cli
     schedule:
       interval: weekly
 
