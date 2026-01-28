@@ -116,11 +116,13 @@ export class OpenCodeAdapter implements SDKAdapter {
         mcp: "allow",
       },
       // Enable extended thinking for supported Claude models (high = 16k tokens)
+      // Note: budget_tokens must be < max_tokens
       ...(isClaudeWithThinking && {
         thinking: {
           type: "enabled",
-          budgetTokens: 16000,
+          budget_tokens: 16000,
         },
+        max_tokens: 32000,
       }),
     };
 
