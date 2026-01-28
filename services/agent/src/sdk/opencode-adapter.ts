@@ -50,6 +50,22 @@ function normalizeToolName(name: string): string {
   return TOOL_NAME_MAP[name.toLowerCase()] || name;
 }
 
+// Convert camelCase keys to snake_case for consistency with Claude SDK
+function toSnakeCase(str: string): string {
+  return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+}
+
+// Normalize tool input keys from camelCase (OpenCode) to snake_case (Claude)
+function normalizeToolInput(input: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+  if (!input) return undefined;
+  
+  const normalized: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(input)) {
+    normalized[toSnakeCase(key)] = value;
+  }
+  return normalized;
+}
+
 export class OpenCodeAdapter implements SDKAdapter {
   private config: SDKConfig | null = null;
   private server: OpenCodeServer | null = null;
@@ -480,6 +496,9 @@ export class OpenCodeAdapter implements SDKAdapter {
               }
             }
 
+            // Normalize input keys from camelCase to snake_case
+            const normalizedInput = normalizeToolInput(input);
+
             if (status === "pending") {
               // Just track the start time, don't emit yet (input might not be complete)
               if (!toolStartTimes.has(callId)) {
@@ -497,7 +516,7 @@ export class OpenCodeAdapter implements SDKAdapter {
                   type: "toolStart",
                   tool: toolName,
                   toolUseId: callId,
-                  input: input as import("@bufbuild/protobuf").JsonObject | undefined,
+                  input: normalizedInput as import("@bufbuild/protobuf").JsonObject | undefined,
                 };
               }
               return null;
@@ -515,7 +534,7 @@ export class OpenCodeAdapter implements SDKAdapter {
                   type: "toolStart",
                   tool: toolName,
                   toolUseId: callId,
-                  input: input as import("@bufbuild/protobuf").JsonObject | undefined,
+                  input: normalizedInput as import("@bufbuild/protobuf").JsonObject | undefined,
                 };
               }
               
@@ -541,7 +560,7 @@ export class OpenCodeAdapter implements SDKAdapter {
                   type: "toolStart",
                   tool: toolName,
                   toolUseId: callId,
-                  input: input as import("@bufbuild/protobuf").JsonObject | undefined,
+                  input: normalizedInput as import("@bufbuild/protobuf").JsonObject | undefined,
                 };
               }
               
