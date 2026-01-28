@@ -93,7 +93,14 @@ RUN GH_VERSION=$(curl -fsSL https://api.github.com/repos/cli/cli/releases/latest
     rm -rf /tmp/gh.tar.gz /tmp/gh_${GH_VERSION}_linux_amd64
 
 # Remove C headers from Node (only needed for compiling native modules)
-RUN rm -rf /root/.local/share/mise/installs/node/24/include
+# Also remove unused platform binaries from global @github/copilot CLI (~84MB savings)
+RUN rm -rf /root/.local/share/mise/installs/node/24/include \
+           /root/.local/share/mise/installs/node/24/lib/node_modules/@github/copilot/prebuilds/darwin-* \
+           /root/.local/share/mise/installs/node/24/lib/node_modules/@github/copilot/prebuilds/win32-* \
+           /root/.local/share/mise/installs/node/24/lib/node_modules/@github/copilot/prebuilds/linux-arm64 \
+           /root/.local/share/mise/installs/node/24/lib/node_modules/@github/copilot/ripgrep/bin/darwin-* \
+           /root/.local/share/mise/installs/node/24/lib/node_modules/@github/copilot/ripgrep/bin/win32-* \
+           /root/.local/share/mise/installs/node/24/lib/node_modules/@github/copilot/ripgrep/bin/linux-arm64
 
 # =============================================================================
 # Runtime
