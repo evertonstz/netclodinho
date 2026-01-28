@@ -20,6 +20,7 @@ struct ContentView: View {
             } detail: {
                 if let sessionId = selectedSessionId {
                     WorkspaceView(sessionId: sessionId)
+                        .id(sessionId)  // Force recreation when session changes
                 } else {
                     NoSessionSelectedView()
                 }
