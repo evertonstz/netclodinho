@@ -97,7 +97,7 @@ spec:
               value: "true"
             - name: MAX_ACTIVE_SESSIONS
               value: "10"
-            # Host resource limits for per-session resource validation (50% max)
+            # Host resources (used to derive per-session limits: CPU 50%, Memory 25%)
             - name: HOST_CPUS
               value: "{{ ansible_processor_vcpus }}"
             - name: HOST_MEMORY_MB

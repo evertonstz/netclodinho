@@ -46,8 +46,8 @@ func Load() *Config {
 		K8sNamespace:       getEnv("K8S_NAMESPACE", "netclode"),
 		AgentImage:         getEnv("AGENT_IMAGE", "ghcr.io/angristan/netclode-agent:latest"),
 		SandboxTemplate:    getEnv("SANDBOX_TEMPLATE", "netclode-agent"),
-		DefaultCPUs:        getEnvInt("DEFAULT_CPUS", 2),
-		DefaultMemoryMB:    getEnvInt("DEFAULT_MEMORY_MB", 2048),
+		DefaultCPUs:        getEnvInt("DEFAULT_CPUS", 4),
+		DefaultMemoryMB:    getEnvInt("DEFAULT_MEMORY_MB", 4096),
 		RedisURL:           getEnv("REDIS_URL", "redis://redis-sessions.netclode.svc.cluster.local:6379"),
 		UseWarmPool:        getEnvBool("WARM_POOL_ENABLED", true),
 		MaxActiveSessions:  getEnvInt("MAX_ACTIVE_SESSIONS", 5),
@@ -91,9 +91,9 @@ func (c *Config) MaxSessionCPUs() int {
 	return c.HostCPUs / 2
 }
 
-// MaxSessionMemoryMB returns the maximum allowed memory per session in MB (50% of host).
+// MaxSessionMemoryMB returns the maximum allowed memory per session in MB (25% of host).
 func (c *Config) MaxSessionMemoryMB() int {
-	return c.HostMemoryMB / 2
+	return c.HostMemoryMB / 4
 }
 
 func getEnv(key, defaultValue string) string {

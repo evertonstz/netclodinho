@@ -53,49 +53,18 @@ struct PromptSheet: View {
         modelsStore.isLoading(for: selectedSdkType)
     }
 
-    /// Available vCPU options based on server limits
+    /// Available vCPU options: 4 power-of-2 options up to max
     private var vcpusOptions: [Int32] {
-        guard let limits = modelsStore.resourceLimits else {
-            return [1, 2, 4] // Fallback defaults
-        }
-        // Generate options: 1, 2, 4, 6, 8... up to max
-        var options: [Int32] = []
-        let step: Int32 = 2
-        var current: Int32 = 1
-        options.append(current)
-        current = 2
-        while current <= limits.maxVcpus {
-            options.append(current)
-            current += step
-        }
-        // Ensure max is included if it's not already
-        if let last = options.last, last < limits.maxVcpus {
-            options.append(limits.maxVcpus)
-        }
-        return options
+        let max = modelsStore.resourceLimits?.maxVcpus ?? 8
+        // Powers of 2: 1, 2, 4, 8 (up to max)
+        return [1, 2, 4, 8].filter { $0 <= max }
     }
 
-    /// Available memory options based on server limits (in MB)
+    /// Available memory options: 4 power-of-2 options from 2GB to max (in MB)
     private var memoryOptions: [Int32] {
-        guard let limits = modelsStore.resourceLimits else {
-            return [1024, 2048, 4096] // Fallback defaults
-        }
-        // Generate options: 1GB, 2GB, 4GB, 6GB, 8GB... up to max
-        var options: [Int32] = []
-        let gbOptions: [Int32] = [1024, 2048, 4096, 6144, 8192, 12288, 16384]
-        for mb in gbOptions {
-            if mb <= limits.maxMemoryMB {
-                options.append(mb)
-            }
-        }
-        // Ensure max is included if it's not already (rounded to nearest GB)
-        if let last = options.last, last < limits.maxMemoryMB {
-            let maxRoundedGB = (limits.maxMemoryMB / 1024) * 1024
-            if maxRoundedGB > last {
-                options.append(maxRoundedGB)
-            }
-        }
-        return options.isEmpty ? [1024, 2048] : options
+        let max = modelsStore.resourceLimits?.maxMemoryMB ?? 16384
+        // Powers of 2 in GB: 2, 4, 8, 16 (up to max)
+        return [2048, 4096, 8192, 16384].filter { $0 <= max }
     }
 
     var body: some View {
