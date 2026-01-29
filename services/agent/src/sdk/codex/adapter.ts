@@ -17,10 +17,19 @@
  *    - Allows using ChatGPT subscription for Codex
  */
 
-import { Codex, type Thread, type ThreadEvent, type ThreadItem, type ModelReasoningEffort } from "@openai/codex-sdk";
-import type { SDKAdapter, SDKConfig, PromptConfig, PromptEvent } from "./types.js";
-import { isSessionInitialized, markSessionInitialized } from "../services/session.js";
-import { setupRepository } from "../git.js";
+import { Codex, type Thread, type ThreadEvent, type ModelReasoningEffort } from "@openai/codex-sdk";
+import type { SDKAdapter, SDKConfig, PromptConfig, PromptEvent } from "../types.js";
+import { isSessionInitialized, markSessionInitialized } from "../../services/session.js";
+import { setupRepository } from "../../git.js";
+import {
+  createTranslatorState,
+  resetTranslatorState,
+  translateEvent,
+  storeUsage,
+  createResultEvent,
+  type TranslatorState,
+  type CodexEvent,
+} from "./translator.js";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
@@ -37,22 +46,13 @@ export class CodexAdapter implements SDKAdapter {
   private interruptSignal = false;
   private currentGitRepo: string | null = null;
   private currentGithubToken: string | null = null;
+  private translatorState: TranslatorState = createTranslatorState();
 
   // Cleaned model name (without :api/:oauth/:effort suffixes)
   private cleanedModel: string | undefined = undefined;
 
   // Reasoning effort level (low, medium, high, minimal, xhigh)
   private reasoningEffort: string | undefined = undefined;
-
-  // Track tool start times for duration calculation
-  private toolStartTimes = new Map<string, number>();
-
-  // Accumulate usage data for result event
-  private lastUsage: { inputTokens: number; outputTokens: number } | null = null;
-
-  // Track current thinking block for correlating reasoning
-  private currentThinkingId: string | null = null;
-  private thinkingIdCounter = 0;
 
   async initialize(config: SDKConfig): Promise<void> {
     this.config = config;
@@ -150,8 +150,8 @@ export class CodexAdapter implements SDKAdapter {
       throw new Error("Codex client not initialized");
     }
 
-    // Reset tracking for new prompt
-    this.currentThinkingId = null;
+    // Reset translator state for new prompt
+    resetTranslatorState(this.translatorState);
 
     console.log(
       `[codex-adapter] ExecutePrompt (session=${sessionId}): "${text.slice(0, 100)}${text.length > 100 ? "..." : ""}"`
@@ -195,9 +195,8 @@ export class CodexAdapter implements SDKAdapter {
       }
     }
 
-    // Clear interrupt signal and reset state
+    // Clear interrupt signal
     this.clearInterruptSignal();
-    this.lastUsage = null;
 
     // Get or create Codex thread
     const existingThreadId = codexThreadMap.get(sessionId);
@@ -250,26 +249,25 @@ export class CodexAdapter implements SDKAdapter {
 
         // Track usage from turn.completed
         if (event.type === "turn.completed") {
-          this.lastUsage = {
-            inputTokens: event.usage.input_tokens,
-            outputTokens: event.usage.output_tokens,
-          };
+          storeUsage(event.usage, this.translatorState);
         }
 
-        // Translate and yield events
-        const promptEvents = this.translateEvent(event);
+        // Translate and yield events using the translator
+        const codexEvent: CodexEvent = {
+          type: event.type,
+          item: "item" in event ? event.item : undefined,
+          error: "error" in event ? event.error : undefined,
+          message: "message" in event ? event.message : undefined,
+          usage: "usage" in event ? event.usage : undefined,
+        };
+        const promptEvents = translateEvent(codexEvent, this.translatorState);
         for (const pe of promptEvents) {
           yield pe;
         }
       }
 
       // Emit final result
-      yield {
-        type: "result",
-        inputTokens: this.lastUsage?.inputTokens || 0,
-        outputTokens: this.lastUsage?.outputTokens || 0,
-        totalTurns: 1,
-      };
+      yield createResultEvent(this.translatorState);
     } catch (error) {
       console.error("[codex-adapter] Error during prompt execution:", error);
       yield {
@@ -280,206 +278,6 @@ export class CodexAdapter implements SDKAdapter {
     }
   }
 
-  /**
-   * Translate Codex SDK events to PromptEvent format
-   */
-  private translateEvent(event: ThreadEvent): PromptEvent[] {
-    // Log events for debugging
-    console.log(`[codex-adapter] Event: ${event.type}`);
-
-    switch (event.type) {
-      case "item.started":
-        return this.translateItemStarted(event.item);
-
-      case "item.completed":
-        return this.translateItemCompleted(event.item);
-
-      case "item.updated":
-        // Could handle todo list updates here
-        return [];
-
-      case "turn.started":
-      case "turn.completed":
-      case "thread.started":
-        // Lifecycle events - no direct mapping needed
-        return [];
-
-      case "turn.failed":
-        return [{
-          type: "error",
-          message: event.error.message || "Turn failed",
-          retryable: false,
-        }];
-
-      case "error":
-        return [{
-          type: "error",
-          message: event.message || "Unknown error",
-          retryable: false,
-        }];
-
-      default:
-        return [];
-    }
-  }
-
-  /**
-   * Translate item.started events
-   */
-  private translateItemStarted(item: ThreadItem): PromptEvent[] {
-    switch (item.type) {
-      case "command_execution":
-        this.toolStartTimes.set(item.id, Date.now());
-        return [{
-          type: "toolStart",
-          tool: "bash",
-          toolUseId: item.id,
-        }];
-
-      case "file_change":
-        this.toolStartTimes.set(item.id, Date.now());
-        // Determine tool name based on change type
-        const firstChange = item.changes[0];
-        const toolName = firstChange?.kind === "add" ? "write" : "edit";
-        return [{
-          type: "toolStart",
-          tool: toolName,
-          toolUseId: item.id,
-        }];
-
-      case "mcp_tool_call":
-        this.toolStartTimes.set(item.id, Date.now());
-        return [{
-          type: "toolStart",
-          tool: item.tool,
-          toolUseId: item.id,
-        }];
-
-      case "reasoning":
-        // Generate thinking ID
-        this.currentThinkingId = `thinking_${Date.now()}_${++this.thinkingIdCounter}`;
-        return [{
-          type: "thinking",
-          thinkingId: this.currentThinkingId,
-          content: item.text || "",
-          partial: true,
-        }];
-
-      case "web_search":
-        this.toolStartTimes.set(item.id, Date.now());
-        return [{
-          type: "toolStart",
-          tool: "web_search",
-          toolUseId: item.id,
-        }];
-
-      case "agent_message":
-      case "todo_list":
-      case "error":
-        // These don't map to toolStart
-        return [];
-
-      default:
-        return [];
-    }
-  }
-
-  /**
-   * Translate item.completed events
-   */
-  private translateItemCompleted(item: ThreadItem): PromptEvent[] {
-    const startTime = this.toolStartTimes.get(item.id);
-    const durationMs = startTime ? Date.now() - startTime : undefined;
-    this.toolStartTimes.delete(item.id);
-
-    switch (item.type) {
-      case "command_execution":
-        return [
-          {
-            type: "toolInputComplete",
-            toolUseId: item.id,
-            input: { command: item.command },
-          },
-          {
-            type: "toolEnd",
-            tool: "bash",
-            toolUseId: item.id,
-            result: item.aggregated_output || "",
-            error: item.status === "failed" ? "Command failed" : undefined,
-            ...(durationMs !== undefined && { durationMs }),
-          },
-        ];
-
-      case "file_change":
-        // Summarize changes
-        const changesSummary = item.changes
-          .map((c) => `${c.kind}: ${c.path}`)
-          .join(", ");
-        const firstChange = item.changes[0];
-        const toolName = firstChange?.kind === "add" ? "write" : "edit";
-        return [{
-          type: "toolEnd",
-          tool: toolName,
-          toolUseId: item.id,
-          result: changesSummary,
-          error: item.status === "failed" ? "File change failed" : undefined,
-          ...(durationMs !== undefined && { durationMs }),
-        }];
-
-      case "mcp_tool_call":
-        return [{
-          type: "toolEnd",
-          tool: item.tool,
-          toolUseId: item.id,
-          result: item.result ? JSON.stringify(item.result) : undefined,
-          error: item.error?.message,
-          ...(durationMs !== undefined && { durationMs }),
-        }];
-
-      case "agent_message":
-        // Final text response
-        return [{
-          type: "textDelta",
-          content: item.text || "",
-          partial: false,
-        }];
-
-      case "reasoning":
-        // End of reasoning block
-        const thinkingId = this.currentThinkingId || `thinking_${Date.now()}_${++this.thinkingIdCounter}`;
-        this.currentThinkingId = null;
-        return [{
-          type: "thinking",
-          thinkingId,
-          content: item.text || "",
-          partial: false,
-        }];
-
-      case "web_search":
-        return [{
-          type: "toolEnd",
-          tool: "web_search",
-          toolUseId: item.id,
-          result: `Search: ${item.query}`,
-          ...(durationMs !== undefined && { durationMs }),
-        }];
-
-      case "error":
-        return [{
-          type: "error",
-          message: item.message,
-          retryable: false,
-        }];
-
-      case "todo_list":
-        // Could emit updates here if needed
-        return [];
-
-      default:
-        return [];
-    }
-  }
-
   setInterruptSignal(): void {
     this.interruptSignal = true;
     console.log("[codex-adapter] Interrupt signal set");
@@ -487,7 +285,7 @@ export class CodexAdapter implements SDKAdapter {
 
   clearInterruptSignal(): void {
     this.interruptSignal = false;
-    this.toolStartTimes.clear();
+    resetTranslatorState(this.translatorState);
   }
 
   isInterrupted(): boolean {
@@ -503,6 +301,6 @@ export class CodexAdapter implements SDKAdapter {
     this.thread = null;
     this.codex = null;
     codexThreadMap.clear();
-    this.toolStartTimes.clear();
+    resetTranslatorState(this.translatorState);
   }
 }

@@ -60,24 +60,24 @@ describe("convertGitStatus", () => {
 });
 
 describe("AgentEventKind enum values", () => {
-  // Verify the protobuf enum values match what we expect
+  // Verify the protobuf enum values match the proto definition
   it("has expected tool event kinds", () => {
     expect(AgentEventKind.TOOL_START).toBeDefined();
     expect(AgentEventKind.TOOL_INPUT).toBeDefined();
-    expect(AgentEventKind.TOOL_INPUT_COMPLETE).toBeDefined();
+    expect(AgentEventKind.TOOL_OUTPUT).toBeDefined();
     expect(AgentEventKind.TOOL_END).toBeDefined();
   });
 
-  it("has expected file/command event kinds", () => {
-    expect(AgentEventKind.FILE_CHANGE).toBeDefined();
-    expect(AgentEventKind.COMMAND_START).toBeDefined();
-    expect(AgentEventKind.COMMAND_END).toBeDefined();
+  it("has expected content event kinds", () => {
+    expect(AgentEventKind.MESSAGE).toBeDefined();
+    expect(AgentEventKind.THINKING).toBeDefined();
   });
 
-  it("has expected other event kinds", () => {
-    expect(AgentEventKind.THINKING).toBeDefined();
+  it("has expected system event kinds", () => {
     expect(AgentEventKind.PORT_EXPOSED).toBeDefined();
     expect(AgentEventKind.REPO_CLONE).toBeDefined();
+    expect(AgentEventKind.AGENT_DISCONNECTED).toBeDefined();
+    expect(AgentEventKind.AGENT_RECONNECTED).toBeDefined();
   });
 });
 

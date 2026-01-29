@@ -5,10 +5,10 @@
  */
 
 import type { SDKAdapter, SDKConfig, SdkType } from "./types.js";
-import { ClaudeSDKAdapter } from "./claude-adapter.js";
-import { OpenCodeAdapter } from "./opencode-adapter.js";
-import { CopilotAdapter } from "./copilot-adapter.js";
-import { CodexAdapter } from "./codex-adapter.js";
+import { ClaudeSDKAdapter } from "./claude/index.js";
+import { OpenCodeAdapter } from "./opencode/index.js";
+import { CopilotAdapter } from "./copilot/index.js";
+import { CodexAdapter } from "./codex/index.js";
 
 // Singleton adapters per SDK type
 const adapterInstances: Map<SdkType, SDKAdapter> = new Map();

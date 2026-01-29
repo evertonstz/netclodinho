@@ -5,9 +5,15 @@
  */
 
 import { spawn, type ChildProcess } from "node:child_process";
-import type { SDKAdapter, SDKConfig, PromptConfig, PromptEvent } from "./types.js";
-import { isSessionInitialized, markSessionInitialized } from "../services/session.js";
-import { setupRepository } from "../git.js";
+import type { SDKAdapter, SDKConfig, PromptConfig, PromptEvent } from "../types.js";
+import { isSessionInitialized, markSessionInitialized } from "../../services/session.js";
+import { setupRepository } from "../../git.js";
+import {
+  createTranslatorState,
+  resetTranslatorState,
+  translateEvent,
+  type TranslatorState,
+} from "./translator.js";
 
 const WORKSPACE_DIR = "/agent/workspace";
 const OPENCODE_PORT = 4096;
@@ -21,56 +27,6 @@ interface OpenCodeServer {
 // OpenCode session ID mapping (Netclode session ID -> OpenCode session ID)
 const openCodeSessionMap = new Map<string, string>();
 
-// Track assistant message IDs to filter out user message events
-const assistantMessageIds = new Set<string>();
-
-// Track tool start times for duration calculation
-const toolStartTimes = new Map<string, number>();
-
-// Track which tools have emitted toolStart (to avoid duplicates)
-const toolStartEmitted = new Set<string>();
-
-// Track text blocks - each text part becomes a separate message with its own ID
-let currentTextPartId: string | null = null;
-let currentTextMessageId: string | null = null;
-let textMessageIdCounter = 0;
-
-// Map OpenCode tool names to Claude Code style (capitalized)
-const TOOL_NAME_MAP: Record<string, string> = {
-  read: "Read",
-  write: "Write",
-  edit: "Edit",
-  glob: "Glob",
-  grep: "Grep",
-  bash: "Bash",
-  webfetch: "WebFetch",
-  todowrite: "TodoWrite",
-  todoread: "TodoRead",
-  task: "Task",
-  codesearch: "CodeSearch",
-  websearch: "WebSearch",
-};
-
-function normalizeToolName(name: string): string {
-  return TOOL_NAME_MAP[name.toLowerCase()] || name;
-}
-
-// Convert camelCase keys to snake_case for consistency with Claude SDK
-function toSnakeCase(str: string): string {
-  return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
-}
-
-// Normalize tool input keys from camelCase (OpenCode) to snake_case (Claude)
-function normalizeToolInput(input: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
-  if (!input) return undefined;
-  
-  const normalized: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(input)) {
-    normalized[toSnakeCase(key)] = value;
-  }
-  return normalized;
-}
-
 export class OpenCodeAdapter implements SDKAdapter {
   private config: SDKConfig | null = null;
   private server: OpenCodeServer | null = null;
@@ -78,16 +34,13 @@ export class OpenCodeAdapter implements SDKAdapter {
   private currentGitRepo: string | null = null;
   private currentGithubToken: string | null = null;
   private ollamaUrl: string | null = null;
-
-  // Accumulate usage data for result event (emitted on session.idle)
-  private lastUsage: { inputTokens: number; outputTokens: number } | null = null;
+  private translatorState: TranslatorState = createTranslatorState();
 
   async initialize(config: SDKConfig): Promise<void> {
     this.config = config;
     this.ollamaUrl = config.ollamaUrl || null;
     console.log("[opencode-adapter] Initializing with model:", config.model, "ollamaUrl:", this.ollamaUrl);
 
-    // Start opencode serve process
     await this.startServer();
   }
 
@@ -102,22 +55,13 @@ export class OpenCodeAdapter implements SDKAdapter {
 
     const args = ["serve", `--hostname=${OPENCODE_HOST}`, `--port=${OPENCODE_PORT}`];
 
-    // Build OpenCode config as JSON
     const model = this.config?.model || "anthropic/claude-sonnet-4-0";
-    const thinkingLevel = this.config?.reasoningEffort; // "high" or "max" from model picker
-    
-    // Extract provider and model name from model ID (e.g., "anthropic/claude-sonnet-4-5-20250514")
+    const thinkingLevel = this.config?.reasoningEffort;
     const [providerId, modelName] = model.includes("/") ? model.split("/", 2) : ["anthropic", model];
-    
-    // Build provider config with thinking enabled if a thinking level is specified
-    // OpenCode expects thinking config at: provider.<provider>.models.<model>.options.thinking
-    // Budget tokens: high = 16000, max = 32000
     const thinkingBudget = thinkingLevel === "max" ? 32000 : thinkingLevel === "high" ? 16000 : 0;
-    
-    // Start with empty provider config
+
     let providerConfig: Record<string, unknown> = {};
-    
-    // Add thinking config for Anthropic models
+
     if (thinkingBudget > 0) {
       providerConfig[providerId] = {
         models: {
@@ -132,8 +76,7 @@ export class OpenCodeAdapter implements SDKAdapter {
         },
       };
     }
-    
-    // Configure Ollama provider if model starts with "ollama/" and we have a URL
+
     if (providerId === "ollama" && this.ollamaUrl) {
       console.log("[opencode-adapter] Configuring Ollama provider with URL:", this.ollamaUrl);
       providerConfig["ollama"] = {
@@ -141,18 +84,16 @@ export class OpenCodeAdapter implements SDKAdapter {
         baseURL: this.ollamaUrl,
       };
     }
-    
+
     const opencodeConfig = {
       model,
       logLevel: "INFO",
-      // Bypass all permissions for sandboxed environment
       permission: {
         edit: "allow",
         bash: "allow",
         webfetch: "allow",
         mcp: "allow",
       },
-      // Configure provider-specific options (including thinking for Claude, baseURL for Ollama)
       ...(Object.keys(providerConfig).length > 0 && { provider: providerConfig }),
     };
 
@@ -160,23 +101,16 @@ export class OpenCodeAdapter implements SDKAdapter {
       env: {
         ...process.env,
         OPENCODE_CONFIG_CONTENT: JSON.stringify(opencodeConfig),
-        // Use existing Anthropic API key
         ANTHROPIC_API_KEY: this.config?.anthropicApiKey || process.env.ANTHROPIC_API_KEY,
-        // Use OpenAI API key if provided
         ...(this.config?.openaiApiKey && { OPENAI_API_KEY: this.config.openaiApiKey }),
-        // Use Mistral API key if provided
         ...(this.config?.mistralApiKey && { MISTRAL_API_KEY: this.config.mistralApiKey }),
-        // Disable default plugins (anthropic-auth, gitlab-auth) - they require npm downloads
         OPENCODE_DISABLE_DEFAULT_PLUGINS: "true",
-        // Disable models.json fetch - use embedded/cached data instead
         OPENCODE_DISABLE_MODELS_FETCH: "true",
       },
       stdio: ["pipe", "pipe", "pipe"],
       cwd: WORKSPACE_DIR,
     });
 
-    // Wait for server to be ready - use polling only, stdout detection can be unreliable
-    // First request triggers @opencode-ai/plugin download from npm (no cache in sandbox)
     const url = await new Promise<string>((resolve, reject) => {
       const timeout = setTimeout(() => {
         proc.kill();
@@ -219,8 +153,6 @@ export class OpenCodeAdapter implements SDKAdapter {
         reject(error);
       });
 
-      // Poll the server until it's ready - this is the reliable method
-      // Only resolve when the server actually responds to HTTP requests
       let pollCount = 0;
       const pollInterval = setInterval(async () => {
         if (resolved) return;
@@ -239,7 +171,7 @@ export class OpenCodeAdapter implements SDKAdapter {
             doResolve(`http://${OPENCODE_HOST}:${OPENCODE_PORT}`);
           }
         } catch {
-          // Server not ready yet, keep polling
+          // Server not ready yet
         }
       }, 200);
     });
@@ -248,20 +180,13 @@ export class OpenCodeAdapter implements SDKAdapter {
     console.log("[opencode-adapter] Server started at:", url);
   }
 
-  /**
-   * Abort a running OpenCode session
-   */
   private async abortSession(sessionId: string | undefined): Promise<void> {
-    if (!this.server || !sessionId) {
-      return;
-    }
+    if (!this.server || !sessionId) return;
 
     try {
       const response = await fetch(`${this.server.url}/session/${sessionId}/abort`, {
         method: "POST",
-        headers: {
-          "x-opencode-directory": WORKSPACE_DIR,
-        },
+        headers: { "x-opencode-directory": WORKSPACE_DIR },
       });
 
       if (response.ok) {
@@ -325,7 +250,6 @@ export class OpenCodeAdapter implements SDKAdapter {
     let ocSessionId = openCodeSessionMap.get(sessionId);
 
     if (!ocSessionId) {
-      // Create new OpenCode session
       const createResponse = await fetch(`${this.server.url}/session`, {
         method: "POST",
         headers: {
@@ -348,15 +272,13 @@ export class OpenCodeAdapter implements SDKAdapter {
       console.log(`[opencode-adapter] Reusing OpenCode session: ${ocSessionId}`);
     }
 
-    // Clear interrupt signal
+    // Clear interrupt signal and reset translator state
     this.clearInterruptSignal();
 
-    // Create event queue for yielding
     const eventQueue: PromptEvent[] = [];
     let resolveNextEvent: ((value: PromptEvent | null) => void) | null = null;
     let completed = false;
 
-    // Subscribe to events via SSE
     const eventUrl = `${this.server.url}/event?directory=${encodeURIComponent(WORKSPACE_DIR)}`;
 
     const processEvents = async () => {
@@ -390,7 +312,7 @@ export class OpenCodeAdapter implements SDKAdapter {
               }
               try {
                 const event = JSON.parse(data);
-                const promptEvent = this.translateEvent(event);
+                const promptEvent = translateEvent(event, this.translatorState);
                 if (promptEvent) {
                   if (resolveNextEvent) {
                     resolveNextEvent(promptEvent);
@@ -399,7 +321,6 @@ export class OpenCodeAdapter implements SDKAdapter {
                     eventQueue.push(promptEvent);
                   }
 
-                  // Check for completion
                   if (promptEvent.type === "result" || promptEvent.type === "error") {
                     completed = true;
                   }
@@ -433,10 +354,8 @@ export class OpenCodeAdapter implements SDKAdapter {
       }
     };
 
-    // Start event processing in background
     const eventProcessor = processEvents();
 
-    // Send prompt (async - returns immediately)
     try {
       const promptResponse = await fetch(`${this.server.url}/session/${ocSessionId}/prompt_async`, {
         method: "POST",
@@ -462,10 +381,8 @@ export class OpenCodeAdapter implements SDKAdapter {
       return;
     }
 
-    // Yield events from queue
     while (!completed || eventQueue.length > 0) {
       if (this.interruptSignal) {
-        // Abort the OpenCode session to stop processing
         await this.abortSession(ocSessionId);
         yield { type: "system", message: "interrupted" };
         return;
@@ -474,7 +391,6 @@ export class OpenCodeAdapter implements SDKAdapter {
       if (eventQueue.length > 0) {
         yield eventQueue.shift()!;
       } else if (!completed) {
-        // Wait for next event
         const event = await new Promise<PromptEvent | null>((resolve) => {
           resolveNextEvent = resolve;
         });
@@ -487,212 +403,6 @@ export class OpenCodeAdapter implements SDKAdapter {
     await eventProcessor;
   }
 
-  /**
-   * Translate OpenCode events to PromptEvent format
-   */
-  private translateEvent(event: { type: string; properties?: Record<string, unknown> }): PromptEvent | null {
-    const props = event.properties || {};
-
-    switch (event.type) {
-      case "message.part.updated": {
-        const part = props.part as Record<string, unknown> | undefined;
-        const delta = props.delta as string | undefined;
-
-        if (!part) return null;
-
-        // Only process parts that belong to assistant messages
-        const messageId = part.messageID as string | undefined;
-        if (messageId && !assistantMessageIds.has(messageId)) {
-          // This part belongs to a non-assistant message (e.g., user message), skip it
-          return null;
-        }
-
-        switch (part.type) {
-          case "text": {
-            // Only use delta content, not part.text (which is accumulated text)
-            // The control-plane accumulates deltas, so we should only send new content
-            if (!delta) return null;
-
-            // Each text part gets its own message ID
-            // Generate a new ID when the part ID changes
-            const partId = part.id as string;
-            if (partId !== currentTextPartId) {
-              currentTextPartId = partId;
-              currentTextMessageId = `msg_${Date.now()}_${++textMessageIdCounter}`;
-            }
-
-            return {
-              type: "textDelta",
-              content: delta,
-              partial: true,
-              messageId: currentTextMessageId || undefined,
-            };
-          }
-
-          case "reasoning":
-            return {
-              type: "thinking",
-              thinkingId: (part.id as string) || `thinking_${Date.now()}`,
-              content: delta || (part.text as string) || "",
-              partial: !!delta,
-            };
-
-          case "tool": {
-            const state = part.state as Record<string, unknown> | undefined;
-            if (!state) return null;
-
-            const status = state.status as string;
-            const toolName = normalizeToolName(part.tool as string);
-            const callId = part.callID as string;
-
-            // Get input from state.input or parse from state.raw (JSON string)
-            let input = state.input as Record<string, unknown> | undefined;
-            if (!input && state.raw) {
-              try {
-                input = JSON.parse(state.raw as string);
-              } catch {
-                // raw might be incomplete during streaming
-              }
-            }
-
-            // Normalize input keys from camelCase to snake_case
-            const normalizedInput = normalizeToolInput(input);
-
-            if (status === "pending") {
-              // Just track the start time, don't emit yet (input might not be complete)
-              if (!toolStartTimes.has(callId)) {
-                toolStartTimes.set(callId, Date.now());
-              }
-              return null;
-            } else if (status === "running") {
-              // Input is now complete, emit toolStart if we haven't already
-              if (!toolStartEmitted.has(callId)) {
-                toolStartEmitted.add(callId);
-                if (!toolStartTimes.has(callId)) {
-                  toolStartTimes.set(callId, Date.now());
-                }
-                return {
-                  type: "toolStart",
-                  tool: toolName,
-                  toolUseId: callId,
-                  input: normalizedInput as import("@bufbuild/protobuf").JsonObject | undefined,
-                };
-              }
-              return null;
-            } else if (status === "completed") {
-              // If we never emitted toolStart (tool completed very fast), emit it now
-              if (!toolStartEmitted.has(callId)) {
-                toolStartEmitted.add(callId);
-                // We need to emit both toolStart and toolEnd - return toolStart first
-                // and queue toolEnd. But since we can only return one event, emit toolStart
-                // with the input, and the next status update will emit toolEnd
-                if (!toolStartTimes.has(callId)) {
-                  toolStartTimes.set(callId, Date.now());
-                }
-                return {
-                  type: "toolStart",
-                  tool: toolName,
-                  toolUseId: callId,
-                  input: normalizedInput as import("@bufbuild/protobuf").JsonObject | undefined,
-                };
-              }
-              
-              const startTime = toolStartTimes.get(callId);
-              toolStartTimes.delete(callId);
-              toolStartEmitted.delete(callId);
-              const durationMs = startTime ? Date.now() - startTime : undefined;
-              return {
-                type: "toolEnd",
-                tool: toolName,
-                toolUseId: callId,
-                result: state.output as string | undefined,
-                ...(durationMs !== undefined && { durationMs }),
-              };
-            } else if (status === "error") {
-              // If we never emitted toolStart, emit it now
-              if (!toolStartEmitted.has(callId)) {
-                toolStartEmitted.add(callId);
-                if (!toolStartTimes.has(callId)) {
-                  toolStartTimes.set(callId, Date.now());
-                }
-                return {
-                  type: "toolStart",
-                  tool: toolName,
-                  toolUseId: callId,
-                  input: normalizedInput as import("@bufbuild/protobuf").JsonObject | undefined,
-                };
-              }
-              
-              const startTime = toolStartTimes.get(callId);
-              toolStartTimes.delete(callId);
-              toolStartEmitted.delete(callId);
-              const durationMs = startTime ? Date.now() - startTime : undefined;
-              return {
-                type: "toolEnd",
-                tool: toolName,
-                toolUseId: callId,
-                error: state.error as string | undefined,
-                ...(durationMs !== undefined && { durationMs }),
-              };
-            }
-            return null;
-          }
-        }
-        return null;
-      }
-
-      case "message.updated": {
-        const info = props.info as Record<string, unknown> | undefined;
-        if (!info) return null;
-
-        // Track assistant message IDs so we can filter message.part.updated events
-        if (info.role === "assistant" && info.id) {
-          assistantMessageIds.add(info.id as string);
-        }
-
-        // Track usage data for later (emitted with session.idle)
-        if (info.role === "assistant" && info.time) {
-          const time = info.time as Record<string, unknown>;
-          if (time.completed) {
-            const tokens = info.tokens as Record<string, number> | undefined;
-            if (tokens) {
-              // Accumulate usage - don't emit result yet, wait for session.idle
-              this.lastUsage = {
-                inputTokens: (this.lastUsage?.inputTokens || 0) + (tokens.input || 0),
-                outputTokens: (this.lastUsage?.outputTokens || 0) + (tokens.output || 0),
-              };
-            }
-          }
-        }
-
-        // Check for errors
-        if (info.error) {
-          const error = info.error as Record<string, unknown>;
-          const errorData = error.data as Record<string, string> | undefined;
-          return {
-            type: "error",
-            message: errorData?.message || "Unknown error",
-            retryable: false,
-          };
-        }
-        return null;
-      }
-
-      // session.idle signals the entire conversation turn is complete
-      case "session.idle": {
-        return {
-          type: "result",
-          inputTokens: this.lastUsage?.inputTokens || 0,
-          outputTokens: this.lastUsage?.outputTokens || 0,
-          totalTurns: 1,
-        };
-      }
-
-      default:
-        return null;
-    }
-  }
-
   setInterruptSignal(): void {
     this.interruptSignal = true;
     console.log("[opencode-adapter] Interrupt signal set");
@@ -700,14 +410,7 @@ export class OpenCodeAdapter implements SDKAdapter {
 
   clearInterruptSignal(): void {
     this.interruptSignal = false;
-    // Clear tracked assistant message IDs for new prompt
-    assistantMessageIds.clear();
-    toolStartTimes.clear();
-    toolStartEmitted.clear();
-    // Reset text message tracking for new prompt
-    currentTextPartId = null;
-    currentTextMessageId = null;
-    this.lastUsage = null;
+    resetTranslatorState(this.translatorState);
   }
 
   isInterrupted(): boolean {
@@ -727,11 +430,6 @@ export class OpenCodeAdapter implements SDKAdapter {
     }
 
     openCodeSessionMap.clear();
-    assistantMessageIds.clear();
-    toolStartTimes.clear();
-    toolStartEmitted.clear();
-    currentTextPartId = null;
-    currentTextMessageId = null;
-    this.lastUsage = null;
+    resetTranslatorState(this.translatorState);
   }
 }

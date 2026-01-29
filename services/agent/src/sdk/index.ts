@@ -1,12 +1,41 @@
 /**
  * SDK Abstraction Layer
  *
- * Exports all SDK-related types and functions
+ * Provides a unified interface for different AI SDK backends.
  */
 
-export type { SDKAdapter, SDKConfig, PromptConfig, PromptEvent, SdkType, CopilotBackend } from "./types.js";
-export { createSDKAdapter, parseSdkType, getAdapter, shutdownAllAdapters } from "./factory.js";
-export { ClaudeSDKAdapter } from "./claude-adapter.js";
-export { OpenCodeAdapter } from "./opencode-adapter.js";
-export { CopilotAdapter } from "./copilot-adapter.js";
-export { CodexAdapter } from "./codex-adapter.js";
+// Types
+export type {
+  SDKAdapter,
+  SDKConfig,
+  PromptConfig,
+  PromptEvent,
+  SdkType,
+  CopilotBackend,
+} from "./types.js";
+
+// Factory
+export {
+  createSDKAdapter,
+  parseSdkType,
+  getAdapter,
+  shutdownAllAdapters,
+} from "./factory.js";
+
+// Adapters
+export { ClaudeSDKAdapter } from "./claude/index.js";
+export { OpenCodeAdapter } from "./opencode/index.js";
+export { CopilotAdapter, type CopilotModelInfo } from "./copilot/index.js";
+export { CodexAdapter } from "./codex/index.js";
+
+// Utilities
+export {
+  normalizeToolName,
+  toSnakeCase,
+  normalizeToolInput,
+  generateThinkingId,
+  generateMessageId,
+  parseToolInput,
+  calculateDuration,
+  TOOL_NAME_MAP,
+} from "./utils/index.js";

@@ -20,10 +20,17 @@
  */
 
 import { CopilotClient, type CopilotSession, type SessionEvent, type ModelInfo } from "@github/copilot-sdk";
-import type { JsonObject } from "@bufbuild/protobuf";
-import type { SDKAdapter, SDKConfig, PromptConfig, PromptEvent, CopilotBackend } from "./types.js";
-import { isSessionInitialized, markSessionInitialized } from "../services/session.js";
-import { setupRepository } from "../git.js";
+import type { SDKAdapter, SDKConfig, PromptConfig, PromptEvent, CopilotBackend } from "../types.js";
+import { isSessionInitialized, markSessionInitialized } from "../../services/session.js";
+import { setupRepository } from "../../git.js";
+import {
+  createTranslatorState,
+  resetTranslatorState,
+  translateEvent,
+  translateSessionIdle,
+  type TranslatorState,
+  type CopilotEvent,
+} from "./translator.js";
 
 const WORKSPACE_DIR = "/agent/workspace";
 
@@ -48,21 +55,7 @@ export class CopilotAdapter implements SDKAdapter {
   private currentGitRepo: string | null = null;
   private currentGithubToken: string | null = null;
   private backend: CopilotBackend = "anthropic";
-
-  // Track tool names from execution_start for execution_complete events
-  private toolNameMap = new Map<string, string>();
-  private toolStartTimes = new Map<string, number>(); // Track tool start times for duration calculation
-
-  // Accumulate usage data for result event
-  private lastUsage: { inputTokens: number; outputTokens: number } | null = null;
-
-  // Track current thinking block ID for correlating streaming reasoning deltas
-  private currentThinkingId: string | null = null;
-  private thinkingIdCounter = 0;
-
-  // Track text blocks - each text block becomes a separate message with its own ID
-  private currentTextMessageId: string | null = null;
-  private textMessageIdCounter = 0;
+  private translatorState: TranslatorState = createTranslatorState();
 
   async initialize(config: SDKConfig): Promise<void> {
     this.config = config;
@@ -199,9 +192,8 @@ export class CopilotAdapter implements SDKAdapter {
       throw new Error("Copilot client not initialized");
     }
 
-    // Reset thinking and text message tracking for new prompt
-    this.currentThinkingId = null;
-    this.currentTextMessageId = null;
+    // Reset translator state for new prompt
+    resetTranslatorState(this.translatorState);
 
     console.log(
       `[copilot-adapter] ExecutePrompt (session=${sessionId}): "${text.slice(0, 100)}${text.length > 100 ? "..." : ""}"`
@@ -245,9 +237,8 @@ export class CopilotAdapter implements SDKAdapter {
       }
     }
 
-    // Clear interrupt signal and reset state
+    // Clear interrupt signal
     this.clearInterruptSignal();
-    this.lastUsage = null;
 
     // Get or create Copilot session
     let session: CopilotSession;
@@ -324,7 +315,29 @@ export class CopilotAdapter implements SDKAdapter {
         return;
       }
 
-      const promptEvent = this.translateEvent(event);
+      // Log all events for debugging
+      console.log(`[copilot-adapter] Event: ${event.type}`, JSON.stringify(event.data).slice(0, 200));
+
+      // Handle session.idle specially - it needs to emit the result event
+      if (event.type === "session.idle") {
+        completed = true;
+        const resultEvent = translateSessionIdle(this.translatorState);
+        if (resolveNextEvent) {
+          resolveNextEvent(resultEvent);
+          resolveNextEvent = null;
+        } else {
+          eventQueue.push(resultEvent);
+        }
+        return;
+      }
+
+      // Translate other events using the translator
+      const copilotEvent: CopilotEvent = {
+        type: event.type,
+        id: event.id,
+        data: event.data as Record<string, unknown>,
+      };
+      const promptEvent = translateEvent(copilotEvent, this.translatorState);
       if (promptEvent) {
         if (resolveNextEvent) {
           resolveNextEvent(promptEvent);
@@ -336,24 +349,6 @@ export class CopilotAdapter implements SDKAdapter {
         // Check for completion
         if (promptEvent.type === "result" || promptEvent.type === "error") {
           completed = true;
-        }
-      }
-
-      // Track session.idle to know when to emit result
-      if (event.type === "session.idle") {
-        completed = true;
-        // Emit result event with accumulated usage
-        const resultEvent: PromptEvent = {
-          type: "result",
-          inputTokens: this.lastUsage?.inputTokens || 0,
-          outputTokens: this.lastUsage?.outputTokens || 0,
-          totalTurns: 1,
-        };
-        if (resolveNextEvent) {
-          resolveNextEvent(resultEvent);
-          resolveNextEvent = null;
-        } else {
-          eventQueue.push(resultEvent);
         }
       }
     });
@@ -396,148 +391,6 @@ export class CopilotAdapter implements SDKAdapter {
     }
   }
 
-  /**
-   * Translate Copilot SDK events to PromptEvent format
-   */
-  private translateEvent(event: SessionEvent): PromptEvent | null {
-    // Log all events for debugging
-    console.log(`[copilot-adapter] Event: ${event.type}`, JSON.stringify(event.data).slice(0, 200));
-
-    switch (event.type) {
-      case "assistant.message_delta": {
-        const data = event.data as { deltaContent?: string; content?: string };
-        const textContent = data.deltaContent || data.content;
-        if (textContent) {
-          // Generate a new message ID if we don't have one for this text block
-          if (!this.currentTextMessageId) {
-            this.currentTextMessageId = `msg_${Date.now()}_${++this.textMessageIdCounter}`;
-          }
-          return {
-            type: "textDelta",
-            content: textContent,
-            partial: true,
-            messageId: this.currentTextMessageId,
-          };
-        }
-        return null;
-      }
-
-      case "assistant.message": {
-        const data = event.data as { content?: string };
-        // Final message - emit the content with partial: false to signal completion
-        // Use current message ID if available, otherwise generate one
-        const messageId = this.currentTextMessageId || `msg_${Date.now()}_${++this.textMessageIdCounter}`;
-        // Reset for next text block
-        this.currentTextMessageId = null;
-        return {
-          type: "textDelta",
-          content: data.content || "",
-          partial: false,
-          messageId,
-        };
-      }
-
-      case "assistant.reasoning_delta": {
-        const data = event.data as { deltaContent?: string };
-        if (data.deltaContent) {
-          // Generate a new thinkingId if we don't have one for this reasoning block
-          if (!this.currentThinkingId) {
-            this.currentThinkingId = `thinking_${Date.now()}_${++this.thinkingIdCounter}`;
-          }
-          return {
-            type: "thinking",
-            thinkingId: this.currentThinkingId,
-            content: data.deltaContent,
-            partial: true,
-          };
-        }
-        return null;
-      }
-
-      case "assistant.reasoning": {
-        // End of reasoning block - emit final event and reset tracking
-        const thinkingId = this.currentThinkingId || `thinking_${Date.now()}_${++this.thinkingIdCounter}`;
-        this.currentThinkingId = null; // Reset for next reasoning block
-        // Reset text message ID so next text block after reasoning gets a new ID
-        this.currentTextMessageId = null;
-        return {
-          type: "thinking",
-          thinkingId,
-          content: "",
-          partial: false,
-        };
-      }
-
-      case "tool.execution_start": {
-        const data = event.data as { toolName?: string; toolCallId?: string; arguments?: Record<string, unknown> };
-        const toolName = data.toolName || "unknown";
-        const toolCallId = data.toolCallId || event.id;
-
-        // Track tool name and start time for execution_complete
-        this.toolNameMap.set(toolCallId, toolName);
-        this.toolStartTimes.set(toolCallId, Date.now());
-
-        return {
-          type: "toolStart",
-          tool: toolName,
-          toolUseId: toolCallId,
-          input: data.arguments as JsonObject | undefined,
-        };
-      }
-
-      case "tool.execution_complete": {
-        const data = event.data as {
-          toolCallId?: string;
-          result?: string;
-          error?: string;
-          resultType?: string;
-        };
-        const toolCallId = data.toolCallId || event.id;
-        const toolName = this.toolNameMap.get(toolCallId) || "unknown";
-        this.toolNameMap.delete(toolCallId);
-        const startTime = this.toolStartTimes.get(toolCallId);
-        this.toolStartTimes.delete(toolCallId);
-        const durationMs = startTime ? Date.now() - startTime : undefined;
-
-        const isError = data.resultType === "failure" || data.resultType === "rejected" || data.resultType === "denied";
-
-        // Reset text message ID so next text block after tool gets a new ID
-        this.currentTextMessageId = null;
-
-        return {
-          type: "toolEnd",
-          tool: toolName,
-          toolUseId: toolCallId,
-          result: isError ? undefined : data.result,
-          error: isError ? (data.error || data.result) : undefined,
-          ...(durationMs !== undefined && { durationMs }),
-        };
-      }
-
-      case "assistant.usage": {
-        const data = event.data as { inputTokens?: number; outputTokens?: number };
-        // Accumulate usage for result event
-        this.lastUsage = {
-          inputTokens: data.inputTokens || 0,
-          outputTokens: data.outputTokens || 0,
-        };
-        return null;
-      }
-
-      case "session.error": {
-        const data = event.data as { message?: string; errorType?: string };
-        return {
-          type: "error",
-          message: data.message || data.errorType || "Unknown session error",
-          retryable: false,
-        };
-      }
-
-      default:
-        return null;
-    }
-  }
-
   setInterruptSignal(): void {
     this.interruptSignal = true;
     console.log("[copilot-adapter] Interrupt signal set");
@@ -545,8 +398,7 @@ export class CopilotAdapter implements SDKAdapter {
 
   clearInterruptSignal(): void {
     this.interruptSignal = false;
-    this.toolNameMap.clear();
-    this.toolStartTimes.clear();
+    resetTranslatorState(this.translatorState);
   }
 
   isInterrupted(): boolean {
@@ -570,7 +422,6 @@ export class CopilotAdapter implements SDKAdapter {
     }
 
     copilotSessionMap.clear();
-    this.toolNameMap.clear();
-    this.toolStartTimes.clear();
+    resetTranslatorState(this.translatorState);
   }
 }
