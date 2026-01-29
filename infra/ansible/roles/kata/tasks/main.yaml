@@ -145,6 +145,16 @@
     regexp: '^disable_guest_seccomp\s*='
     line: 'disable_guest_seccomp = {{ (not kata_enable_guest_seccomp) | lower }}'
 
+# Cgroup management
+# When true, all Kata processes (VMM, vhost, virtiofsd) run in the pod cgroup.
+# This requires RuntimeClass overhead to be configured so the pod cgroup is
+# properly sized. Enables accurate resource accounting and prevents noisy neighbors.
+- name: Configure sandbox_cgroup_only
+  ansible.builtin.lineinfile:
+    path: "{{ kata_dir }}/share/defaults/kata-containers/configuration-clh.toml"
+    regexp: '^sandbox_cgroup_only\s*='
+    line: 'sandbox_cgroup_only = true'
+
 # virtiofs performance tuning
 # Higher queue size allows more in-flight I/O requests, improving throughput
 # for parallel workloads like npm install, git operations, builds.
