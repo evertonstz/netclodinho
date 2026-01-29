@@ -8,20 +8,20 @@ import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { AgentEvent } from "./events_pb";
 import { file_netclode_v1_events } from "./events_pb";
-import type { Message as Message$1 } from "@bufbuild/protobuf";
+import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file netclode/v1/common.proto.
  */
 export const file_netclode_v1_common: GenFile = /*@__PURE__*/
-  fileDesc("ChhuZXRjbG9kZS92MS9jb21tb24ucHJvdG8SC25ldGNsb2RlLnYxIrkDCgdTZXNzaW9uEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSKgoGc3RhdHVzGAMgASgOMhoubmV0Y2xvZGUudjEuU2Vzc2lvblN0YXR1cxIRCgRyZXBvGAQgASgJSACIAQESMQoLcmVwb19hY2Nlc3MYBSABKA4yFy5uZXRjbG9kZS52MS5SZXBvQWNjZXNzSAGIAQESLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMgoObGFzdF9hY3RpdmVfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEisKCHNka190eXBlGAggASgOMhQubmV0Y2xvZGUudjEuU2RrVHlwZUgCiAEBEhIKBW1vZGVsGAkgASgJSAOIAQESOQoPY29waWxvdF9iYWNrZW5kGAogASgOMhsubmV0Y2xvZGUudjEuQ29waWxvdEJhY2tlbmRIBIgBAUIHCgVfcmVwb0IOCgxfcmVwb19hY2Nlc3NCCwoJX3Nka190eXBlQggKBl9tb2RlbEISChBfY29waWxvdF9iYWNrZW5kIpcBCg5TZXNzaW9uU3VtbWFyeRIlCgdzZXNzaW9uGAEgASgLMhQubmV0Y2xvZGUudjEuU2Vzc2lvbhIaCg1tZXNzYWdlX2NvdW50GAIgASgFSACIAQESHAoPbGFzdF9tZXNzYWdlX2lkGAMgASgJSAGIAQFCEAoOX21lc3NhZ2VfY291bnRCEgoQX2xhc3RfbWVzc2FnZV9pZCL7BQoNU2Vzc2lvbkNvbmZpZxISCgpzZXNzaW9uX2lkGAEgASgJEhUKDXdvcmtzcGFjZV9kaXIYAiABKAkSGQoMZ2l0aHViX3Rva2VuGAMgASgJSACIAQESEQoEcmVwbxgEIAEoCUgBiAEBEjEKC3JlcG9fYWNjZXNzGAUgASgOMhcubmV0Y2xvZGUudjEuUmVwb0FjY2Vzc0gCiAEBEhkKEWNvbnRyb2xfcGxhbmVfdXJsGAYgASgJEisKCHNka190eXBlGAcgASgOMhQubmV0Y2xvZGUudjEuU2RrVHlwZUgDiAEBEhIKBW1vZGVsGAggASgJSASIAQESOQoPY29waWxvdF9iYWNrZW5kGAkgASgOMhsubmV0Y2xvZGUudjEuQ29waWxvdEJhY2tlbmRIBYgBARIhChRnaXRodWJfY29waWxvdF90b2tlbhgKIAEoCUgGiAEBEh8KEmNvZGV4X2FjY2Vzc190b2tlbhgLIAEoCUgHiAEBEhsKDmNvZGV4X2lkX3Rva2VuGAwgASgJSAiIAQESGwoOb3BlbmFpX2FwaV9rZXkYDSABKAlICYgBARIgChNjb2RleF9yZWZyZXNoX3Rva2VuGA4gASgJSAqIAQESHQoQcmVhc29uaW5nX2VmZm9ydBgPIAEoCUgLiAEBEhwKD21pc3RyYWxfYXBpX2tleRgQIAEoCUgMiAEBQg8KDV9naXRodWJfdG9rZW5CBwoFX3JlcG9CDgoMX3JlcG9fYWNjZXNzQgsKCV9zZGtfdHlwZUIICgZfbW9kZWxCEgoQX2NvcGlsb3RfYmFja2VuZEIXChVfZ2l0aHViX2NvcGlsb3RfdG9rZW5CFQoTX2NvZGV4X2FjY2Vzc190b2tlbkIRCg9fY29kZXhfaWRfdG9rZW5CEQoPX29wZW5haV9hcGlfa2V5QhYKFF9jb2RleF9yZWZyZXNoX3Rva2VuQhMKEV9yZWFzb25pbmdfZWZmb3J0QhIKEF9taXN0cmFsX2FwaV9rZXkiaAoKR2l0SHViUmVwbxIMCgRuYW1lGAEgASgJEhEKCWZ1bGxfbmFtZRgCIAEoCRIPCgdwcml2YXRlGAMgASgIEhgKC2Rlc2NyaXB0aW9uGAQgASgJSACIAQFCDgoMX2Rlc2NyaXB0aW9uIrEBCg1HaXRGaWxlQ2hhbmdlEgwKBHBhdGgYASABKAkSKgoGc3RhdHVzGAIgASgOMhoubmV0Y2xvZGUudjEuR2l0RmlsZVN0YXR1cxIOCgZzdGFnZWQYAyABKAgSGAoLbGluZXNfYWRkZWQYBCABKAVIAIgBARIaCg1saW5lc19yZW1vdmVkGAUgASgFSAGIAQFCDgoMX2xpbmVzX2FkZGVkQhAKDl9saW5lc19yZW1vdmVkIn0KB01lc3NhZ2USCgoCaWQYASABKAkSJgoEcm9sZRgCIAEoDjIYLm5ldGNsb2RlLnYxLk1lc3NhZ2VSb2xlEg8KB2NvbnRlbnQYAyABKAkSLQoJdGltZXN0YW1wGAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJ+CgVFdmVudBIKCgJpZBgBIAEoCRISCgptZXNzYWdlX2lkGAIgASgJEi0KCXRpbWVzdGFtcBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASJgoFZXZlbnQYBCABKAsyFy5uZXRjbG9kZS52MS5BZ2VudEV2ZW50IrABCgVFcnJvchIMCgRjb2RlGAEgASgJEg8KB21lc3NhZ2UYAiABKAkSFwoKc2Vzc2lvbl9pZBgDIAEoCUgAiAEBEjAKB2RldGFpbHMYBCADKAsyHy5uZXRjbG9kZS52MS5FcnJvci5EZXRhaWxzRW50cnkaLgoMRGV0YWlsc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAFCDQoLX3Nlc3Npb25faWQiywEKCU1vZGVsSW5mbxIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhUKCHByb3ZpZGVyGAMgASgJSACIAQESHwoSYmlsbGluZ19tdWx0aXBsaWVyGAQgASgBSAGIAQESFAoMY2FwYWJpbGl0aWVzGAUgAygJEh0KEHJlYXNvbmluZ19lZmZvcnQYBiABKAlIAogBAUILCglfcHJvdmlkZXJCFQoTX2JpbGxpbmdfbXVsdGlwbGllckITChFfcmVhc29uaW5nX2VmZm9ydCJxChFDb3BpbG90QXV0aFN0YXR1cxIYChBpc19hdXRoZW50aWNhdGVkGAEgASgIEhYKCWF1dGhfdHlwZRgCIAEoCUgAiAEBEhIKBWxvZ2luGAMgASgJSAGIAQFCDAoKX2F1dGhfdHlwZUIICgZfbG9naW4iaQoTQ29waWxvdFByZW1pdW1RdW90YRIMCgR1c2VkGAEgASgFEg0KBWxpbWl0GAIgASgFEhEKCXJlbWFpbmluZxgDIAEoBRIVCghyZXNldF9hdBgEIAEoCUgAiAEBQgsKCV9yZXNldF9hdCI0ChBTYW5kYm94UmVzb3VyY2VzEg0KBXZjcHVzGAEgASgFEhEKCW1lbW9yeV9tYhgCIAEoBSLBAQoIU25hcHNob3QSCgoCaWQYASABKAkSEgoKc2Vzc2lvbl9pZBgCIAEoCRIMCgRuYW1lGAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhIKCnNpemVfYnl0ZXMYBSABKAMSEwoLdHVybl9udW1iZXIYBiABKAUSFQoNbWVzc2FnZV9jb3VudBgHIAEoBRIXCg9ldmVudF9zdHJlYW1faWQYCCABKAkqVgoKUmVwb0FjY2VzcxIbChdSRVBPX0FDQ0VTU19VTlNQRUNJRklFRBAAEhQKEFJFUE9fQUNDRVNTX1JFQUQQARIVChFSRVBPX0FDQ0VTU19XUklURRACKnkKB1Nka1R5cGUSGAoUU0RLX1RZUEVfVU5TUEVDSUZJRUQQABITCg9TREtfVFlQRV9DTEFVREUQARIVChFTREtfVFlQRV9PUEVOQ09ERRACEhQKEFNES19UWVBFX0NPUElMT1QQAxISCg5TREtfVFlQRV9DT0RFWBAEKmwKDkNvcGlsb3RCYWNrZW5kEh8KG0NPUElMT1RfQkFDS0VORF9VTlNQRUNJRklFRBAAEhoKFkNPUElMT1RfQkFDS0VORF9HSVRIVUIQARIdChlDT1BJTE9UX0JBQ0tFTkRfQU5USFJPUElDEAIq9AEKDVNlc3Npb25TdGF0dXMSHgoaU0VTU0lPTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIbChdTRVNTSU9OX1NUQVRVU19DUkVBVElORxABEhsKF1NFU1NJT05fU1RBVFVTX1JFU1VNSU5HEAISGAoUU0VTU0lPTl9TVEFUVVNfUkVBRFkQAxIaChZTRVNTSU9OX1NUQVRVU19SVU5OSU5HEAQSGQoVU0VTU0lPTl9TVEFUVVNfUEFVU0VEEAUSGAoUU0VTU0lPTl9TVEFUVVNfRVJST1IQBhIeChpTRVNTSU9OX1NUQVRVU19JTlRFUlJVUFRFRBAHKpkCCg1HaXRGaWxlU3RhdHVzEh8KG0dJVF9GSUxFX1NUQVRVU19VTlNQRUNJRklFRBAAEhwKGEdJVF9GSUxFX1NUQVRVU19NT0RJRklFRBABEhkKFUdJVF9GSUxFX1NUQVRVU19BRERFRBACEhsKF0dJVF9GSUxFX1NUQVRVU19ERUxFVEVEEAMSGwoXR0lUX0ZJTEVfU1RBVFVTX1JFTkFNRUQQBBIdChlHSVRfRklMRV9TVEFUVVNfVU5UUkFDS0VEEAUSGgoWR0lUX0ZJTEVfU1RBVFVTX0NPUElFRBAGEhsKF0dJVF9GSUxFX1NUQVRVU19JR05PUkVEEAcSHAoYR0lUX0ZJTEVfU1RBVFVTX1VOTUVSR0VEEAgqXgoLTWVzc2FnZVJvbGUSHAoYTUVTU0FHRV9ST0xFX1VOU1BFQ0lGSUVEEAASFQoRTUVTU0FHRV9ST0xFX1VTRVIQARIaChZNRVNTQUdFX1JPTEVfQVNTSVNUQU5UEAJCvAEKD2NvbS5uZXRjbG9kZS52MUILQ29tbW9uUHJvdG9QAVpPZ2l0aHViLmNvbS9hbmdyaXN0YW4vbmV0Y2xvZGUvc2VydmljZXMvY29udHJvbC1wbGFuZS9nZW4vbmV0Y2xvZGUvdjE7bmV0Y2xvZGV2MaICA05YWKoCC05ldGNsb2RlLlYxygILTmV0Y2xvZGVcVjHiAhdOZXRjbG9kZVxWMVxHUEJNZXRhZGF0YeoCDE5ldGNsb2RlOjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp, file_netclode_v1_events]);
+  fileDesc("ChhuZXRjbG9kZS92MS9jb21tb24ucHJvdG8SC25ldGNsb2RlLnYxIrkDCgdTZXNzaW9uEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSKgoGc3RhdHVzGAMgASgOMhoubmV0Y2xvZGUudjEuU2Vzc2lvblN0YXR1cxIRCgRyZXBvGAQgASgJSACIAQESMQoLcmVwb19hY2Nlc3MYBSABKA4yFy5uZXRjbG9kZS52MS5SZXBvQWNjZXNzSAGIAQESLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMgoObGFzdF9hY3RpdmVfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEisKCHNka190eXBlGAggASgOMhQubmV0Y2xvZGUudjEuU2RrVHlwZUgCiAEBEhIKBW1vZGVsGAkgASgJSAOIAQESOQoPY29waWxvdF9iYWNrZW5kGAogASgOMhsubmV0Y2xvZGUudjEuQ29waWxvdEJhY2tlbmRIBIgBAUIHCgVfcmVwb0IOCgxfcmVwb19hY2Nlc3NCCwoJX3Nka190eXBlQggKBl9tb2RlbEISChBfY29waWxvdF9iYWNrZW5kIpUBCg5TZXNzaW9uU3VtbWFyeRIlCgdzZXNzaW9uGAEgASgLMhQubmV0Y2xvZGUudjEuU2Vzc2lvbhIaCg1tZXNzYWdlX2NvdW50GAIgASgFSACIAQESGwoObGFzdF9zdHJlYW1faWQYAyABKAlIAYgBAUIQCg5fbWVzc2FnZV9jb3VudEIRCg9fbGFzdF9zdHJlYW1faWQi+wUKDVNlc3Npb25Db25maWcSEgoKc2Vzc2lvbl9pZBgBIAEoCRIVCg13b3Jrc3BhY2VfZGlyGAIgASgJEhkKDGdpdGh1Yl90b2tlbhgDIAEoCUgAiAEBEhEKBHJlcG8YBCABKAlIAYgBARIxCgtyZXBvX2FjY2VzcxgFIAEoDjIXLm5ldGNsb2RlLnYxLlJlcG9BY2Nlc3NIAogBARIZChFjb250cm9sX3BsYW5lX3VybBgGIAEoCRIrCghzZGtfdHlwZRgHIAEoDjIULm5ldGNsb2RlLnYxLlNka1R5cGVIA4gBARISCgVtb2RlbBgIIAEoCUgEiAEBEjkKD2NvcGlsb3RfYmFja2VuZBgJIAEoDjIbLm5ldGNsb2RlLnYxLkNvcGlsb3RCYWNrZW5kSAWIAQESIQoUZ2l0aHViX2NvcGlsb3RfdG9rZW4YCiABKAlIBogBARIfChJjb2RleF9hY2Nlc3NfdG9rZW4YCyABKAlIB4gBARIbCg5jb2RleF9pZF90b2tlbhgMIAEoCUgIiAEBEhsKDm9wZW5haV9hcGlfa2V5GA0gASgJSAmIAQESIAoTY29kZXhfcmVmcmVzaF90b2tlbhgOIAEoCUgKiAEBEh0KEHJlYXNvbmluZ19lZmZvcnQYDyABKAlIC4gBARIcCg9taXN0cmFsX2FwaV9rZXkYECABKAlIDIgBAUIPCg1fZ2l0aHViX3Rva2VuQgcKBV9yZXBvQg4KDF9yZXBvX2FjY2Vzc0ILCglfc2RrX3R5cGVCCAoGX21vZGVsQhIKEF9jb3BpbG90X2JhY2tlbmRCFwoVX2dpdGh1Yl9jb3BpbG90X3Rva2VuQhUKE19jb2RleF9hY2Nlc3NfdG9rZW5CEQoPX2NvZGV4X2lkX3Rva2VuQhEKD19vcGVuYWlfYXBpX2tleUIWChRfY29kZXhfcmVmcmVzaF90b2tlbkITChFfcmVhc29uaW5nX2VmZm9ydEISChBfbWlzdHJhbF9hcGlfa2V5IpsCCgtTdHJlYW1FbnRyeRIKCgJpZBgBIAEoCRItCgl0aW1lc3RhbXAYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg8KB3BhcnRpYWwYAyABKAgSKAoFZXZlbnQYBCABKAsyFy5uZXRjbG9kZS52MS5BZ2VudEV2ZW50SAASNgoPdGVybWluYWxfb3V0cHV0GAUgASgLMhsubmV0Y2xvZGUudjEuVGVybWluYWxPdXRwdXRIABIuCg5zZXNzaW9uX3VwZGF0ZRgGIAEoCzIULm5ldGNsb2RlLnYxLlNlc3Npb25IABIjCgVlcnJvchgHIAEoCzISLm5ldGNsb2RlLnYxLkVycm9ySABCCQoHcGF5bG9hZCIeCg5UZXJtaW5hbE91dHB1dBIMCgRkYXRhGAEgASgJIrABCgVFcnJvchIMCgRjb2RlGAEgASgJEg8KB21lc3NhZ2UYAiABKAkSFwoKc2Vzc2lvbl9pZBgDIAEoCUgAiAEBEjAKB2RldGFpbHMYBCADKAsyHy5uZXRjbG9kZS52MS5FcnJvci5EZXRhaWxzRW50cnkaLgoMRGV0YWlsc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAFCDQoLX3Nlc3Npb25faWQi8gIKD0luUHJvZ3Jlc3NTdGF0ZRI8CghtZXNzYWdlcxgBIAMoCzIqLm5ldGNsb2RlLnYxLkluUHJvZ3Jlc3NTdGF0ZS5NZXNzYWdlc0VudHJ5EjwKCHRoaW5raW5nGAIgAygLMioubmV0Y2xvZGUudjEuSW5Qcm9ncmVzc1N0YXRlLlRoaW5raW5nRW50cnkSNgoFdG9vbHMYAyADKAsyJy5uZXRjbG9kZS52MS5JblByb2dyZXNzU3RhdGUuVG9vbHNFbnRyeRovCg1NZXNzYWdlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEaLwoNVGhpbmtpbmdFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBGkkKClRvb2xzRW50cnkSCwoDa2V5GAEgASgJEioKBXZhbHVlGAIgASgLMhsubmV0Y2xvZGUudjEuSW5Qcm9ncmVzc1Rvb2w6AjgBIj0KDkluUHJvZ3Jlc3NUb29sEgwKBHRvb2wYASABKAkSDQoFaW5wdXQYAiABKAkSDgoGb3V0cHV0GAMgASgJIrsBCghTbmFwc2hvdBIKCgJpZBgBIAEoCRISCgpzZXNzaW9uX2lkGAIgASgJEgwKBG5hbWUYAyABKAkSLgoKY3JlYXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoKc2l6ZV9ieXRlcxgFIAEoAxITCgt0dXJuX251bWJlchgGIAEoBRIVCg1tZXNzYWdlX2NvdW50GAcgASgFEhEKCXN0cmVhbV9pZBgIIAEoCSJoCgpHaXRIdWJSZXBvEgwKBG5hbWUYASABKAkSEQoJZnVsbF9uYW1lGAIgASgJEg8KB3ByaXZhdGUYAyABKAgSGAoLZGVzY3JpcHRpb24YBCABKAlIAIgBAUIOCgxfZGVzY3JpcHRpb24isQEKDUdpdEZpbGVDaGFuZ2USDAoEcGF0aBgBIAEoCRIqCgZzdGF0dXMYAiABKA4yGi5uZXRjbG9kZS52MS5HaXRGaWxlU3RhdHVzEg4KBnN0YWdlZBgDIAEoCBIYCgtsaW5lc19hZGRlZBgEIAEoBUgAiAEBEhoKDWxpbmVzX3JlbW92ZWQYBSABKAVIAYgBAUIOCgxfbGluZXNfYWRkZWRCEAoOX2xpbmVzX3JlbW92ZWQiywEKCU1vZGVsSW5mbxIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhUKCHByb3ZpZGVyGAMgASgJSACIAQESHwoSYmlsbGluZ19tdWx0aXBsaWVyGAQgASgBSAGIAQESFAoMY2FwYWJpbGl0aWVzGAUgAygJEh0KEHJlYXNvbmluZ19lZmZvcnQYBiABKAlIAogBAUILCglfcHJvdmlkZXJCFQoTX2JpbGxpbmdfbXVsdGlwbGllckITChFfcmVhc29uaW5nX2VmZm9ydCJxChFDb3BpbG90QXV0aFN0YXR1cxIYChBpc19hdXRoZW50aWNhdGVkGAEgASgIEhYKCWF1dGhfdHlwZRgCIAEoCUgAiAEBEhIKBWxvZ2luGAMgASgJSAGIAQFCDAoKX2F1dGhfdHlwZUIICgZfbG9naW4iaQoTQ29waWxvdFByZW1pdW1RdW90YRIMCgR1c2VkGAEgASgFEg0KBWxpbWl0GAIgASgFEhEKCXJlbWFpbmluZxgDIAEoBRIVCghyZXNldF9hdBgEIAEoCUgAiAEBQgsKCV9yZXNldF9hdCI0ChBTYW5kYm94UmVzb3VyY2VzEg0KBXZjcHVzGAEgASgFEhEKCW1lbW9yeV9tYhgCIAEoBSpWCgpSZXBvQWNjZXNzEhsKF1JFUE9fQUNDRVNTX1VOU1BFQ0lGSUVEEAASFAoQUkVQT19BQ0NFU1NfUkVBRBABEhUKEVJFUE9fQUNDRVNTX1dSSVRFEAIqeQoHU2RrVHlwZRIYChRTREtfVFlQRV9VTlNQRUNJRklFRBAAEhMKD1NES19UWVBFX0NMQVVERRABEhUKEVNES19UWVBFX09QRU5DT0RFEAISFAoQU0RLX1RZUEVfQ09QSUxPVBADEhIKDlNES19UWVBFX0NPREVYEAQqbAoOQ29waWxvdEJhY2tlbmQSHwobQ09QSUxPVF9CQUNLRU5EX1VOU1BFQ0lGSUVEEAASGgoWQ09QSUxPVF9CQUNLRU5EX0dJVEhVQhABEh0KGUNPUElMT1RfQkFDS0VORF9BTlRIUk9QSUMQAir0AQoNU2Vzc2lvblN0YXR1cxIeChpTRVNTSU9OX1NUQVRVU19VTlNQRUNJRklFRBAAEhsKF1NFU1NJT05fU1RBVFVTX0NSRUFUSU5HEAESGwoXU0VTU0lPTl9TVEFUVVNfUkVTVU1JTkcQAhIYChRTRVNTSU9OX1NUQVRVU19SRUFEWRADEhoKFlNFU1NJT05fU1RBVFVTX1JVTk5JTkcQBBIZChVTRVNTSU9OX1NUQVRVU19QQVVTRUQQBRIYChRTRVNTSU9OX1NUQVRVU19FUlJPUhAGEh4KGlNFU1NJT05fU1RBVFVTX0lOVEVSUlVQVEVEEAcqmQIKDUdpdEZpbGVTdGF0dXMSHwobR0lUX0ZJTEVfU1RBVFVTX1VOU1BFQ0lGSUVEEAASHAoYR0lUX0ZJTEVfU1RBVFVTX01PRElGSUVEEAESGQoVR0lUX0ZJTEVfU1RBVFVTX0FEREVEEAISGwoXR0lUX0ZJTEVfU1RBVFVTX0RFTEVURUQQAxIbChdHSVRfRklMRV9TVEFUVVNfUkVOQU1FRBAEEh0KGUdJVF9GSUxFX1NUQVRVU19VTlRSQUNLRUQQBRIaChZHSVRfRklMRV9TVEFUVVNfQ09QSUVEEAYSGwoXR0lUX0ZJTEVfU1RBVFVTX0lHTk9SRUQQBxIcChhHSVRfRklMRV9TVEFUVVNfVU5NRVJHRUQQCEK8AQoPY29tLm5ldGNsb2RlLnYxQgtDb21tb25Qcm90b1ABWk9naXRodWIuY29tL2FuZ3Jpc3Rhbi9uZXRjbG9kZS9zZXJ2aWNlcy9jb250cm9sLXBsYW5lL2dlbi9uZXRjbG9kZS92MTtuZXRjbG9kZXYxogIDTlhYqgILTmV0Y2xvZGUuVjHKAgtOZXRjbG9kZVxWMeICF05ldGNsb2RlXFYxXEdQQk1ldGFkYXRh6gIMTmV0Y2xvZGU6OlYxYgZwcm90bzM", [file_google_protobuf_timestamp, file_netclode_v1_events]);
 
 /**
  * Session represents a coding session with an AI agent.
  *
  * @generated from message netclode.v1.Session
  */
-export type Session = Message$1<"netclode.v1.Session"> & {
+export type Session = Message<"netclode.v1.Session"> & {
   /**
    * @generated from field: string id = 1;
    */
@@ -38,15 +38,11 @@ export type Session = Message$1<"netclode.v1.Session"> & {
   status: SessionStatus;
 
   /**
-   * GitHub repository URL (e.g., "owner/repo")
-   *
    * @generated from field: optional string repo = 4;
    */
   repo?: string;
 
   /**
-   * Permission level for repository operations
-   *
    * @generated from field: optional netclode.v1.RepoAccess repo_access = 5;
    */
   repoAccess?: RepoAccess;
@@ -62,22 +58,16 @@ export type Session = Message$1<"netclode.v1.Session"> & {
   lastActiveAt?: Timestamp;
 
   /**
-   * SDK to use (defaults to CLAUDE)
-   *
    * @generated from field: optional netclode.v1.SdkType sdk_type = 8;
    */
   sdkType?: SdkType;
 
   /**
-   * Model ID (e.g., "claude-sonnet-4-0", "gpt-4o")
-   *
    * @generated from field: optional string model = 9;
    */
   model?: string;
 
   /**
-   * Backend for Copilot sessions (ignored for other SDKs)
-   *
    * @generated from field: optional netclode.v1.CopilotBackend copilot_backend = 10;
    */
   copilotBackend?: CopilotBackend;
@@ -95,25 +85,23 @@ export const SessionSchema: GenMessage<Session> = /*@__PURE__*/
  *
  * @generated from message netclode.v1.SessionSummary
  */
-export type SessionSummary = Message$1<"netclode.v1.SessionSummary"> & {
+export type SessionSummary = Message<"netclode.v1.SessionSummary"> & {
   /**
    * @generated from field: netclode.v1.Session session = 1;
    */
   session?: Session;
 
   /**
-   * Total number of messages in session
-   *
    * @generated from field: optional int32 message_count = 2;
    */
   messageCount?: number;
 
   /**
-   * ID of most recent message for pagination
+   * Cursor for resuming
    *
-   * @generated from field: optional string last_message_id = 3;
+   * @generated from field: optional string last_stream_id = 3;
    */
-  lastMessageId?: string;
+  lastStreamId?: string;
 };
 
 /**
@@ -128,113 +116,83 @@ export const SessionSummarySchema: GenMessage<SessionSummary> = /*@__PURE__*/
  *
  * @generated from message netclode.v1.SessionConfig
  */
-export type SessionConfig = Message$1<"netclode.v1.SessionConfig"> & {
+export type SessionConfig = Message<"netclode.v1.SessionConfig"> & {
   /**
    * @generated from field: string session_id = 1;
    */
   sessionId: string;
 
   /**
-   * Absolute path to workspace directory
-   *
    * @generated from field: string workspace_dir = 2;
    */
   workspaceDir: string;
 
   /**
-   * GitHub token for git credentials (from GitHub App)
-   *
    * @generated from field: optional string github_token = 3;
    */
   githubToken?: string;
 
   /**
-   * Repository to clone (e.g., "owner/repo")
-   *
    * @generated from field: optional string repo = 4;
    */
   repo?: string;
 
   /**
-   * Permission level for repository operations
-   *
    * @generated from field: optional netclode.v1.RepoAccess repo_access = 5;
    */
   repoAccess?: RepoAccess;
 
   /**
-   * URL of control plane for callbacks
-   *
    * @generated from field: string control_plane_url = 6;
    */
   controlPlaneUrl: string;
 
   /**
-   * SDK type for agent to use
-   *
    * @generated from field: optional netclode.v1.SdkType sdk_type = 7;
    */
   sdkType?: SdkType;
 
   /**
-   * Model ID (e.g., "anthropic/claude-sonnet-4-0")
-   *
    * @generated from field: optional string model = 8;
    */
   model?: string;
 
   /**
-   * Backend for Copilot sessions
-   *
    * @generated from field: optional netclode.v1.CopilotBackend copilot_backend = 9;
    */
   copilotBackend?: CopilotBackend;
 
   /**
-   * GitHub PAT with Copilot scope (for Copilot SDK)
-   *
    * @generated from field: optional string github_copilot_token = 10;
    */
   githubCopilotToken?: string;
 
   /**
-   * Codex OAuth access token (for ChatGPT auth)
-   *
    * @generated from field: optional string codex_access_token = 11;
    */
   codexAccessToken?: string;
 
   /**
-   * Codex OAuth ID token (for ChatGPT auth)
-   *
    * @generated from field: optional string codex_id_token = 12;
    */
   codexIdToken?: string;
 
   /**
-   * OpenAI API key (for Codex API auth)
-   *
    * @generated from field: optional string openai_api_key = 13;
    */
   openaiApiKey?: string;
 
   /**
-   * Codex OAuth refresh token (for ChatGPT auth)
-   *
    * @generated from field: optional string codex_refresh_token = 14;
    */
   codexRefreshToken?: string;
 
   /**
-   * Reasoning effort level (low, medium, high, minimal, xhigh)
-   *
    * @generated from field: optional string reasoning_effort = 15;
    */
   reasoningEffort?: string;
 
   /**
-   * Mistral API key (for OpenCode SDK)
-   *
    * @generated from field: optional string mistral_api_key = 16;
    */
   mistralApiKey?: string;
@@ -248,199 +206,115 @@ export const SessionConfigSchema: GenMessage<SessionConfig> = /*@__PURE__*/
   messageDesc(file_netclode_v1_common, 2);
 
 /**
- * GitHubRepo represents a GitHub repository from the user's account.
+ * StreamEntry represents a single entry in the unified session stream.
+ * All content flows through this type - messages, events, terminal output, etc.
  *
- * @generated from message netclode.v1.GitHubRepo
+ * @generated from message netclode.v1.StreamEntry
  */
-export type GitHubRepo = Message$1<"netclode.v1.GitHubRepo"> & {
+export type StreamEntry = Message<"netclode.v1.StreamEntry"> & {
   /**
-   * Repository name (e.g., "my-repo")
+   * Redis Stream ID
    *
-   * @generated from field: string name = 1;
+   * @generated from field: string id = 1;
    */
-  name: string;
+  id: string;
 
   /**
-   * Full repository name (e.g., "owner/my-repo")
-   *
-   * @generated from field: string full_name = 2;
+   * @generated from field: google.protobuf.Timestamp timestamp = 2;
    */
-  fullName: string;
+  timestamp?: Timestamp;
 
   /**
-   * Whether the repository is private
+   * true = streaming delta, false = final
    *
-   * @generated from field: bool private = 3;
+   * @generated from field: bool partial = 3;
    */
-  private: boolean;
+  partial: boolean;
 
   /**
-   * Repository description
-   *
-   * @generated from field: optional string description = 4;
+   * @generated from oneof netclode.v1.StreamEntry.payload
    */
-  description?: string;
+  payload: {
+    /**
+     * All agent content (messages, thinking, tools)
+     *
+     * @generated from field: netclode.v1.AgentEvent event = 4;
+     */
+    value: AgentEvent;
+    case: "event";
+  } | {
+    /**
+     * Terminal data
+     *
+     * @generated from field: netclode.v1.TerminalOutput terminal_output = 5;
+     */
+    value: TerminalOutput;
+    case: "terminalOutput";
+  } | {
+    /**
+     * Status changes
+     *
+     * @generated from field: netclode.v1.Session session_update = 6;
+     */
+    value: Session;
+    case: "sessionUpdate";
+  } | {
+    /**
+     * @generated from field: netclode.v1.Error error = 7;
+     */
+    value: Error;
+    case: "error";
+  } | { case: undefined; value?: undefined };
 };
 
 /**
- * Describes the message netclode.v1.GitHubRepo.
- * Use `create(GitHubRepoSchema)` to create a new message.
+ * Describes the message netclode.v1.StreamEntry.
+ * Use `create(StreamEntrySchema)` to create a new message.
  */
-export const GitHubRepoSchema: GenMessage<GitHubRepo> = /*@__PURE__*/
+export const StreamEntrySchema: GenMessage<StreamEntry> = /*@__PURE__*/
   messageDesc(file_netclode_v1_common, 3);
 
 /**
- * GitFileChange represents a changed file from git status.
+ * TerminalOutput represents terminal output data.
  *
- * @generated from message netclode.v1.GitFileChange
+ * @generated from message netclode.v1.TerminalOutput
  */
-export type GitFileChange = Message$1<"netclode.v1.GitFileChange"> & {
+export type TerminalOutput = Message<"netclode.v1.TerminalOutput"> & {
   /**
-   * File path relative to repository root
-   *
-   * @generated from field: string path = 1;
+   * @generated from field: string data = 1;
    */
-  path: string;
-
-  /**
-   * Type of change
-   *
-   * @generated from field: netclode.v1.GitFileStatus status = 2;
-   */
-  status: GitFileStatus;
-
-  /**
-   * Whether the change is staged for commit
-   *
-   * @generated from field: bool staged = 3;
-   */
-  staged: boolean;
-
-  /**
-   * Number of lines added (from git diff --numstat)
-   *
-   * @generated from field: optional int32 lines_added = 4;
-   */
-  linesAdded?: number;
-
-  /**
-   * Number of lines removed (from git diff --numstat)
-   *
-   * @generated from field: optional int32 lines_removed = 5;
-   */
-  linesRemoved?: number;
+  data: string;
 };
 
 /**
- * Describes the message netclode.v1.GitFileChange.
- * Use `create(GitFileChangeSchema)` to create a new message.
+ * Describes the message netclode.v1.TerminalOutput.
+ * Use `create(TerminalOutputSchema)` to create a new message.
  */
-export const GitFileChangeSchema: GenMessage<GitFileChange> = /*@__PURE__*/
+export const TerminalOutputSchema: GenMessage<TerminalOutput> = /*@__PURE__*/
   messageDesc(file_netclode_v1_common, 4);
 
 /**
- * Message represents a chat message in a session.
- *
- * @generated from message netclode.v1.Message
- */
-export type Message = Message$1<"netclode.v1.Message"> & {
-  /**
-   * @generated from field: string id = 1;
-   */
-  id: string;
-
-  /**
-   * @generated from field: netclode.v1.MessageRole role = 2;
-   */
-  role: MessageRole;
-
-  /**
-   * @generated from field: string content = 3;
-   */
-  content: string;
-
-  /**
-   * @generated from field: google.protobuf.Timestamp timestamp = 4;
-   */
-  timestamp?: Timestamp;
-};
-
-/**
- * Describes the message netclode.v1.Message.
- * Use `create(MessageSchema)` to create a new message.
- */
-export const MessageSchema: GenMessage<Message> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_common, 5);
-
-/**
- * Event represents an agent event in a session.
- *
- * @generated from message netclode.v1.Event
- */
-export type Event = Message$1<"netclode.v1.Event"> & {
-  /**
-   * @generated from field: string id = 1;
-   */
-  id: string;
-
-  /**
-   * Parent message ID (for future correlation)
-   *
-   * @generated from field: string message_id = 2;
-   */
-  messageId: string;
-
-  /**
-   * @generated from field: google.protobuf.Timestamp timestamp = 3;
-   */
-  timestamp?: Timestamp;
-
-  /**
-   * The full event payload
-   *
-   * @generated from field: netclode.v1.AgentEvent event = 4;
-   */
-  event?: AgentEvent;
-};
-
-/**
- * Describes the message netclode.v1.Event.
- * Use `create(EventSchema)` to create a new message.
- */
-export const EventSchema: GenMessage<Event> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_common, 6);
-
-/**
  * Error represents a structured error response.
- * Used across all error response types for consistency.
  *
  * @generated from message netclode.v1.Error
  */
-export type Error = Message$1<"netclode.v1.Error"> & {
+export type Error = Message<"netclode.v1.Error"> & {
   /**
-   * Machine-readable error code (e.g., "SESSION_NOT_FOUND")
-   *
    * @generated from field: string code = 1;
    */
   code: string;
 
   /**
-   * Human-readable error message
-   *
    * @generated from field: string message = 2;
    */
   message: string;
 
   /**
-   * Associated session ID, if applicable
-   *
    * @generated from field: optional string session_id = 3;
    */
   sessionId?: string;
 
   /**
-   * Additional error context
-   *
    * @generated from field: map<string, string> details = 4;
    */
   details: { [key: string]: string };
@@ -451,196 +325,96 @@ export type Error = Message$1<"netclode.v1.Error"> & {
  * Use `create(ErrorSchema)` to create a new message.
  */
 export const ErrorSchema: GenMessage<Error> = /*@__PURE__*/
+  messageDesc(file_netclode_v1_common, 5);
+
+/**
+ * InProgressState contains accumulated streaming state for late-joining clients.
+ * Returned when opening a session that's currently RUNNING.
+ *
+ * @generated from message netclode.v1.InProgressState
+ */
+export type InProgressState = Message<"netclode.v1.InProgressState"> & {
+  /**
+   * correlation_id -> accumulated text
+   *
+   * @generated from field: map<string, string> messages = 1;
+   */
+  messages: { [key: string]: string };
+
+  /**
+   * correlation_id -> accumulated thinking
+   *
+   * @generated from field: map<string, string> thinking = 2;
+   */
+  thinking: { [key: string]: string };
+
+  /**
+   * correlation_id -> tool state
+   *
+   * @generated from field: map<string, netclode.v1.InProgressTool> tools = 3;
+   */
+  tools: { [key: string]: InProgressTool };
+};
+
+/**
+ * Describes the message netclode.v1.InProgressState.
+ * Use `create(InProgressStateSchema)` to create a new message.
+ */
+export const InProgressStateSchema: GenMessage<InProgressState> = /*@__PURE__*/
+  messageDesc(file_netclode_v1_common, 6);
+
+/**
+ * InProgressTool contains accumulated state for a tool in progress.
+ *
+ * @generated from message netclode.v1.InProgressTool
+ */
+export type InProgressTool = Message<"netclode.v1.InProgressTool"> & {
+  /**
+   * Tool name
+   *
+   * @generated from field: string tool = 1;
+   */
+  tool: string;
+
+  /**
+   * Accumulated input
+   *
+   * @generated from field: string input = 2;
+   */
+  input: string;
+
+  /**
+   * Accumulated output
+   *
+   * @generated from field: string output = 3;
+   */
+  output: string;
+};
+
+/**
+ * Describes the message netclode.v1.InProgressTool.
+ * Use `create(InProgressToolSchema)` to create a new message.
+ */
+export const InProgressToolSchema: GenMessage<InProgressTool> = /*@__PURE__*/
   messageDesc(file_netclode_v1_common, 7);
-
-/**
- * ModelInfo represents an AI model available for use.
- *
- * @generated from message netclode.v1.ModelInfo
- */
-export type ModelInfo = Message$1<"netclode.v1.ModelInfo"> & {
-  /**
-   * Model identifier (e.g., "claude-sonnet-4-0", "gpt-4o")
-   *
-   * @generated from field: string id = 1;
-   */
-  id: string;
-
-  /**
-   * Human-readable name (e.g., "Claude Sonnet 4")
-   *
-   * @generated from field: string name = 2;
-   */
-  name: string;
-
-  /**
-   * Provider/auth mode (e.g., "Anthropic", "ChatGPT", "API")
-   *
-   * @generated from field: optional string provider = 3;
-   */
-  provider?: string;
-
-  /**
-   * Cost multiplier for GitHub Copilot (e.g., 0.33, 1.0, 3.0)
-   *
-   * @generated from field: optional double billing_multiplier = 4;
-   */
-  billingMultiplier?: number;
-
-  /**
-   * Model capabilities (e.g., "chat", "vision", "code")
-   *
-   * @generated from field: repeated string capabilities = 5;
-   */
-  capabilities: string[];
-
-  /**
-   * Reasoning effort level for Codex (e.g., "High", "Med", "Low")
-   *
-   * @generated from field: optional string reasoning_effort = 6;
-   */
-  reasoningEffort?: string;
-};
-
-/**
- * Describes the message netclode.v1.ModelInfo.
- * Use `create(ModelInfoSchema)` to create a new message.
- */
-export const ModelInfoSchema: GenMessage<ModelInfo> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_common, 8);
-
-/**
- * CopilotAuthStatus represents GitHub Copilot authentication state.
- *
- * @generated from message netclode.v1.CopilotAuthStatus
- */
-export type CopilotAuthStatus = Message$1<"netclode.v1.CopilotAuthStatus"> & {
-  /**
-   * Whether the user is authenticated with GitHub
-   *
-   * @generated from field: bool is_authenticated = 1;
-   */
-  isAuthenticated: boolean;
-
-  /**
-   * Auth method: "user", "env", "gh-cli", "token", etc.
-   *
-   * @generated from field: optional string auth_type = 2;
-   */
-  authType?: string;
-
-  /**
-   * GitHub username if authenticated
-   *
-   * @generated from field: optional string login = 3;
-   */
-  login?: string;
-};
-
-/**
- * Describes the message netclode.v1.CopilotAuthStatus.
- * Use `create(CopilotAuthStatusSchema)` to create a new message.
- */
-export const CopilotAuthStatusSchema: GenMessage<CopilotAuthStatus> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_common, 9);
-
-/**
- * CopilotPremiumQuota represents GitHub Copilot premium request quota.
- *
- * @generated from message netclode.v1.CopilotPremiumQuota
- */
-export type CopilotPremiumQuota = Message$1<"netclode.v1.CopilotPremiumQuota"> & {
-  /**
-   * Number of premium requests used this period
-   *
-   * @generated from field: int32 used = 1;
-   */
-  used: number;
-
-  /**
-   * Maximum premium requests allowed
-   *
-   * @generated from field: int32 limit = 2;
-   */
-  limit: number;
-
-  /**
-   * Remaining premium requests
-   *
-   * @generated from field: int32 remaining = 3;
-   */
-  remaining: number;
-
-  /**
-   * ISO timestamp when quota resets
-   *
-   * @generated from field: optional string reset_at = 4;
-   */
-  resetAt?: string;
-};
-
-/**
- * Describes the message netclode.v1.CopilotPremiumQuota.
- * Use `create(CopilotPremiumQuotaSchema)` to create a new message.
- */
-export const CopilotPremiumQuotaSchema: GenMessage<CopilotPremiumQuota> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_common, 10);
-
-/**
- * SandboxResources defines resource allocation for a session's sandbox VM.
- * When specified, the session bypasses the warm pool and creates a sandbox directly.
- * Resources are validated against host limits (max 50% of host resources).
- *
- * @generated from message netclode.v1.SandboxResources
- */
-export type SandboxResources = Message$1<"netclode.v1.SandboxResources"> & {
-  /**
-   * Number of vCPUs for the VM. Must be >= 1 and <= 50% of host CPUs.
-   * Default (when not specified): uses warm pool with standard resources.
-   *
-   * @generated from field: int32 vcpus = 1;
-   */
-  vcpus: number;
-
-  /**
-   * Memory in MiB for the VM. Must be >= 512 and <= 50% of host memory.
-   * Default (when not specified): uses warm pool with standard resources.
-   *
-   * @generated from field: int32 memory_mb = 2;
-   */
-  memoryMb: number;
-};
-
-/**
- * Describes the message netclode.v1.SandboxResources.
- * Use `create(SandboxResourcesSchema)` to create a new message.
- */
-export const SandboxResourcesSchema: GenMessage<SandboxResources> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_common, 11);
 
 /**
  * Snapshot represents a point-in-time snapshot of session workspace and conversation.
  *
  * @generated from message netclode.v1.Snapshot
  */
-export type Snapshot = Message$1<"netclode.v1.Snapshot"> & {
+export type Snapshot = Message<"netclode.v1.Snapshot"> & {
   /**
-   * Unique snapshot ID
-   *
    * @generated from field: string id = 1;
    */
   id: string;
 
   /**
-   * Parent session
-   *
    * @generated from field: string session_id = 2;
    */
   sessionId: string;
 
   /**
-   * Human-readable name (e.g., "Turn 3: Fix login bug")
-   *
    * @generated from field: string name = 3;
    */
   name: string;
@@ -651,32 +425,26 @@ export type Snapshot = Message$1<"netclode.v1.Snapshot"> & {
   createdAt?: Timestamp;
 
   /**
-   * Logical workspace size at snapshot time
-   *
    * @generated from field: int64 size_bytes = 5;
    */
   sizeBytes: bigint;
 
   /**
-   * Which turn this was created after (0 = initial)
-   *
    * @generated from field: int32 turn_number = 6;
    */
   turnNumber: number;
 
   /**
-   * Number of messages at snapshot time
-   *
    * @generated from field: int32 message_count = 7;
    */
   messageCount: number;
 
   /**
-   * Redis Stream ID of last event at snapshot time
+   * Redis Stream cursor at snapshot time
    *
-   * @generated from field: string event_stream_id = 8;
+   * @generated from field: string stream_id = 8;
    */
-  eventStreamId: string;
+  streamId: string;
 };
 
 /**
@@ -684,18 +452,219 @@ export type Snapshot = Message$1<"netclode.v1.Snapshot"> & {
  * Use `create(SnapshotSchema)` to create a new message.
  */
 export const SnapshotSchema: GenMessage<Snapshot> = /*@__PURE__*/
+  messageDesc(file_netclode_v1_common, 8);
+
+/**
+ * GitHubRepo represents a GitHub repository from the user's account.
+ *
+ * @generated from message netclode.v1.GitHubRepo
+ */
+export type GitHubRepo = Message<"netclode.v1.GitHubRepo"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string full_name = 2;
+   */
+  fullName: string;
+
+  /**
+   * @generated from field: bool private = 3;
+   */
+  private: boolean;
+
+  /**
+   * @generated from field: optional string description = 4;
+   */
+  description?: string;
+};
+
+/**
+ * Describes the message netclode.v1.GitHubRepo.
+ * Use `create(GitHubRepoSchema)` to create a new message.
+ */
+export const GitHubRepoSchema: GenMessage<GitHubRepo> = /*@__PURE__*/
+  messageDesc(file_netclode_v1_common, 9);
+
+/**
+ * GitFileChange represents a changed file from git status.
+ *
+ * @generated from message netclode.v1.GitFileChange
+ */
+export type GitFileChange = Message<"netclode.v1.GitFileChange"> & {
+  /**
+   * @generated from field: string path = 1;
+   */
+  path: string;
+
+  /**
+   * @generated from field: netclode.v1.GitFileStatus status = 2;
+   */
+  status: GitFileStatus;
+
+  /**
+   * @generated from field: bool staged = 3;
+   */
+  staged: boolean;
+
+  /**
+   * @generated from field: optional int32 lines_added = 4;
+   */
+  linesAdded?: number;
+
+  /**
+   * @generated from field: optional int32 lines_removed = 5;
+   */
+  linesRemoved?: number;
+};
+
+/**
+ * Describes the message netclode.v1.GitFileChange.
+ * Use `create(GitFileChangeSchema)` to create a new message.
+ */
+export const GitFileChangeSchema: GenMessage<GitFileChange> = /*@__PURE__*/
+  messageDesc(file_netclode_v1_common, 10);
+
+/**
+ * ModelInfo represents an AI model available for use.
+ *
+ * @generated from message netclode.v1.ModelInfo
+ */
+export type ModelInfo = Message<"netclode.v1.ModelInfo"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: optional string provider = 3;
+   */
+  provider?: string;
+
+  /**
+   * @generated from field: optional double billing_multiplier = 4;
+   */
+  billingMultiplier?: number;
+
+  /**
+   * @generated from field: repeated string capabilities = 5;
+   */
+  capabilities: string[];
+
+  /**
+   * @generated from field: optional string reasoning_effort = 6;
+   */
+  reasoningEffort?: string;
+};
+
+/**
+ * Describes the message netclode.v1.ModelInfo.
+ * Use `create(ModelInfoSchema)` to create a new message.
+ */
+export const ModelInfoSchema: GenMessage<ModelInfo> = /*@__PURE__*/
+  messageDesc(file_netclode_v1_common, 11);
+
+/**
+ * CopilotAuthStatus represents GitHub Copilot authentication state.
+ *
+ * @generated from message netclode.v1.CopilotAuthStatus
+ */
+export type CopilotAuthStatus = Message<"netclode.v1.CopilotAuthStatus"> & {
+  /**
+   * @generated from field: bool is_authenticated = 1;
+   */
+  isAuthenticated: boolean;
+
+  /**
+   * @generated from field: optional string auth_type = 2;
+   */
+  authType?: string;
+
+  /**
+   * @generated from field: optional string login = 3;
+   */
+  login?: string;
+};
+
+/**
+ * Describes the message netclode.v1.CopilotAuthStatus.
+ * Use `create(CopilotAuthStatusSchema)` to create a new message.
+ */
+export const CopilotAuthStatusSchema: GenMessage<CopilotAuthStatus> = /*@__PURE__*/
   messageDesc(file_netclode_v1_common, 12);
 
 /**
+ * CopilotPremiumQuota represents GitHub Copilot premium request quota.
+ *
+ * @generated from message netclode.v1.CopilotPremiumQuota
+ */
+export type CopilotPremiumQuota = Message<"netclode.v1.CopilotPremiumQuota"> & {
+  /**
+   * @generated from field: int32 used = 1;
+   */
+  used: number;
+
+  /**
+   * @generated from field: int32 limit = 2;
+   */
+  limit: number;
+
+  /**
+   * @generated from field: int32 remaining = 3;
+   */
+  remaining: number;
+
+  /**
+   * @generated from field: optional string reset_at = 4;
+   */
+  resetAt?: string;
+};
+
+/**
+ * Describes the message netclode.v1.CopilotPremiumQuota.
+ * Use `create(CopilotPremiumQuotaSchema)` to create a new message.
+ */
+export const CopilotPremiumQuotaSchema: GenMessage<CopilotPremiumQuota> = /*@__PURE__*/
+  messageDesc(file_netclode_v1_common, 13);
+
+/**
+ * SandboxResources defines resource allocation for a session's sandbox VM.
+ *
+ * @generated from message netclode.v1.SandboxResources
+ */
+export type SandboxResources = Message<"netclode.v1.SandboxResources"> & {
+  /**
+   * @generated from field: int32 vcpus = 1;
+   */
+  vcpus: number;
+
+  /**
+   * @generated from field: int32 memory_mb = 2;
+   */
+  memoryMb: number;
+};
+
+/**
+ * Describes the message netclode.v1.SandboxResources.
+ * Use `create(SandboxResourcesSchema)` to create a new message.
+ */
+export const SandboxResourcesSchema: GenMessage<SandboxResources> = /*@__PURE__*/
+  messageDesc(file_netclode_v1_common, 14);
+
+/**
  * RepoAccess defines the permission level for repository operations.
- * Only applies when a repo is selected. Write access is scoped to the selected repo only.
  *
  * @generated from enum netclode.v1.RepoAccess
  */
 export enum RepoAccess {
   /**
-   * Defaults to READ
-   *
    * @generated from enum value: REPO_ACCESS_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
@@ -728,21 +697,19 @@ export const RepoAccessSchema: GenEnum<RepoAccess> = /*@__PURE__*/
  */
 export enum SdkType {
   /**
-   * Defaults to Claude Code SDK
-   *
    * @generated from enum value: SDK_TYPE_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
-   * Anthropic Claude Code SDK (direct integration)
+   * Anthropic Claude Code SDK
    *
    * @generated from enum value: SDK_TYPE_CLAUDE = 1;
    */
   CLAUDE = 1,
 
   /**
-   * OpenCode SDK (multi-provider support)
+   * OpenCode SDK (multi-provider)
    *
    * @generated from enum value: SDK_TYPE_OPENCODE = 2;
    */
@@ -776,21 +743,19 @@ export const SdkTypeSchema: GenEnum<SdkType> = /*@__PURE__*/
  */
 export enum CopilotBackend {
   /**
-   * Defaults to GITHUB if authenticated, else ANTHROPIC
-   *
    * @generated from enum value: COPILOT_BACKEND_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
-   * GitHub Copilot API (requires GitHub authentication)
+   * GitHub Copilot API
    *
    * @generated from enum value: COPILOT_BACKEND_GITHUB = 1;
    */
   GITHUB = 1,
 
   /**
-   * Anthropic API (BYOK mode, requires ANTHROPIC_API_KEY)
+   * Anthropic API (BYOK mode)
    *
    * @generated from enum value: COPILOT_BACKEND_ANTHROPIC = 2;
    */
@@ -815,50 +780,36 @@ export enum SessionStatus {
   UNSPECIFIED = 0,
 
   /**
-   * Session is being provisioned
-   *
    * @generated from enum value: SESSION_STATUS_CREATING = 1;
    */
   CREATING = 1,
 
   /**
-   * Session is being resumed from paused state
-   *
    * @generated from enum value: SESSION_STATUS_RESUMING = 2;
    */
   RESUMING = 2,
 
   /**
-   * Session is ready to accept prompts
-   *
    * @generated from enum value: SESSION_STATUS_READY = 3;
    */
   READY = 3,
 
   /**
-   * Agent is actively processing a prompt
-   *
    * @generated from enum value: SESSION_STATUS_RUNNING = 4;
    */
   RUNNING = 4,
 
   /**
-   * Session is paused (agent container stopped)
-   *
    * @generated from enum value: SESSION_STATUS_PAUSED = 5;
    */
   PAUSED = 5,
 
   /**
-   * Session encountered an error
-   *
    * @generated from enum value: SESSION_STATUS_ERROR = 6;
    */
   ERROR = 6,
 
   /**
-   * Agent disconnected while running, awaiting user action
-   *
    * @generated from enum value: SESSION_STATUS_INTERRUPTED = 7;
    */
   INTERRUPTED = 7,
@@ -927,32 +878,4 @@ export enum GitFileStatus {
  */
 export const GitFileStatusSchema: GenEnum<GitFileStatus> = /*@__PURE__*/
   enumDesc(file_netclode_v1_common, 4);
-
-/**
- * MessageRole identifies the sender of a message.
- *
- * @generated from enum netclode.v1.MessageRole
- */
-export enum MessageRole {
-  /**
-   * @generated from enum value: MESSAGE_ROLE_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: MESSAGE_ROLE_USER = 1;
-   */
-  USER = 1,
-
-  /**
-   * @generated from enum value: MESSAGE_ROLE_ASSISTANT = 2;
-   */
-  ASSISTANT = 2,
-}
-
-/**
- * Describes the enum netclode.v1.MessageRole.
- */
-export const MessageRoleSchema: GenEnum<MessageRole> = /*@__PURE__*/
-  enumDesc(file_netclode_v1_common, 5);
 

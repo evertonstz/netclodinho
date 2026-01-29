@@ -11,7 +11,6 @@ import (
 	pb "github.com/angristan/netclode/services/control-plane/gen/netclode/v1"
 	"github.com/angristan/netclode/services/control-plane/internal/config"
 	"github.com/redis/go-redis/v9"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -31,19 +30,10 @@ func sessionKey(id string) string {
 	return "session:" + id
 }
 
-func messagesKey(id string) string {
-	return "session:" + id + ":messages"
-}
-
-// eventsStreamKey returns the Redis Stream key for events
-func eventsStreamKey(id string) string {
-	return "session:" + id + ":events:stream"
-}
-
-// NotificationsStreamKey returns the Redis Stream key for real-time notifications.
+// StreamKey returns the Redis Stream key for the unified session stream.
 // Exported for use by StreamSubscriber in the session package.
-func NotificationsStreamKey(id string) string {
-	return "session:" + id + ":notifications"
+func StreamKey(id string) string {
+	return "session:" + id + ":stream"
 }
 
 // RedisStorage implements Storage using Redis.
@@ -85,6 +75,10 @@ func NewRedisStorage(ctx context.Context, cfg *config.Config) (*RedisStorage, er
 func (r *RedisStorage) Close() error {
 	return r.client.Close()
 }
+
+// ============================================================================
+// Session Storage
+// ============================================================================
 
 // SaveSession saves a session to Redis.
 func (r *RedisStorage) SaveSession(ctx context.Context, s *pb.Session) error {
@@ -289,206 +283,25 @@ func (r *RedisStorage) DeleteSession(ctx context.Context, id string) error {
 	pipe := r.client.TxPipeline()
 	pipe.SRem(ctx, keySessionsAll, id)
 	pipe.Del(ctx, sessionKey(id))
-	pipe.Del(ctx, messagesKey(id))
-	pipe.Del(ctx, eventsStreamKey(id))        // Delete events stream
-	pipe.Del(ctx, NotificationsStreamKey(id)) // Delete notifications stream
+	pipe.Del(ctx, StreamKey(id)) // Delete unified stream
 	_, err := pipe.Exec(ctx)
 	return err
 }
 
-// protoJsonOpts configures protojson to emit readable enum names instead of numbers.
-var protoJsonOpts = protojson.MarshalOptions{
-	UseEnumNumbers: false,
-}
+// ============================================================================
+// Unified Stream Storage
+// ============================================================================
 
-// AppendMessage appends a message to a session's message list.
-func (r *RedisStorage) AppendMessage(ctx context.Context, sessionID string, msg *pb.Message) error {
-	data, err := protoJsonOpts.Marshal(msg)
-	if err != nil {
-		return err
-	}
-
-	return r.client.RPush(ctx, messagesKey(sessionID), string(data)).Err()
-}
-
-// GetMessages retrieves messages for a session, optionally after a specific message ID.
-func (r *RedisStorage) GetMessages(ctx context.Context, sessionID string, afterID *string) ([]*pb.Message, error) {
-	data, err := r.client.LRange(ctx, messagesKey(sessionID), 0, -1).Result()
-	if err != nil {
-		return nil, err
-	}
-
-	messages := make([]*pb.Message, 0, len(data))
-	foundAfter := afterID == nil
-
-	for _, d := range data {
-		msg := &pb.Message{}
-		if err := protojson.Unmarshal([]byte(d), msg); err != nil {
-			continue
-		}
-
-		if !foundAfter {
-			if msg.Id == *afterID {
-				foundAfter = true
-			}
-			continue
-		}
-
-		messages = append(messages, msg)
-	}
-
-	return messages, nil
-}
-
-// GetLastMessage retrieves the last message for a session.
-func (r *RedisStorage) GetLastMessage(ctx context.Context, sessionID string) (*pb.Message, error) {
-	data, err := r.client.LRange(ctx, messagesKey(sessionID), -1, -1).Result()
-	if err != nil {
-		return nil, err
-	}
-	if len(data) == 0 {
-		return nil, nil
-	}
-
-	msg := &pb.Message{}
-	if err := protojson.Unmarshal([]byte(data[0]), msg); err != nil {
-		return nil, err
-	}
-
-	return msg, nil
-}
-
-// GetMessageCount returns the number of messages for a session.
-func (r *RedisStorage) GetMessageCount(ctx context.Context, sessionID string) (int, error) {
-	count, err := r.client.LLen(ctx, messagesKey(sessionID)).Result()
-	if err != nil {
-		return 0, err
-	}
-	return int(count), nil
-}
-
-// AppendEvent appends an event to a session's event stream using Redis Streams.
-func (r *RedisStorage) AppendEvent(ctx context.Context, sessionID string, evt *pb.Event) error {
-	data, err := protoJsonOpts.Marshal(evt)
-	if err != nil {
-		return err
-	}
-
-	streamKey := eventsStreamKey(sessionID)
-
-	// Add to stream with auto-generated ID (no limit - events cleaned up on session delete)
-	_, err = r.client.XAdd(ctx, &redis.XAddArgs{
-		Stream: streamKey,
-		Values: map[string]interface{}{
-			"data": string(data),
-		},
-	}).Result()
-
-	return err
-}
-
-// GetEvents retrieves the last N events for a session using Redis Streams.
-func (r *RedisStorage) GetEvents(ctx context.Context, sessionID string, limit int) ([]*pb.Event, error) {
-	streamKey := eventsStreamKey(sessionID)
-
-	// Use XREVRANGE to get latest events (newest first), then reverse
-	messages, err := r.client.XRevRange(ctx, streamKey, "+", "-").Result()
-	if err != nil {
-		return nil, err
-	}
-
-	// Take only 'limit' entries (0 = no limit)
-	if limit > 0 && len(messages) > limit {
-		messages = messages[:limit]
-	}
-
-	// Reverse to get chronological order (oldest first)
-	events := make([]*pb.Event, 0, len(messages))
-	for i := len(messages) - 1; i >= 0; i-- {
-		msg := messages[i]
-		dataStr, ok := msg.Values["data"].(string)
-		if !ok {
-			continue
-		}
-
-		evt := &pb.Event{}
-		if err := protojson.Unmarshal([]byte(dataStr), evt); err != nil {
-			continue
-		}
-		events = append(events, evt)
-	}
-
-	return events, nil
-}
-
-// GetEventsAfter retrieves events after a specific stream ID (for replay).
-func (r *RedisStorage) GetEventsAfter(ctx context.Context, sessionID, afterID string, limit int) ([]*pb.Event, error) {
-	streamKey := eventsStreamKey(sessionID)
-
-	// Use XRANGE starting after the given ID
-	startID := afterID
-	if startID == "" {
-		startID = "0"
-	} else {
-		// Exclude the given ID by using exclusive range
-		startID = "(" + startID
-	}
-
-	messages, err := r.client.XRange(ctx, streamKey, startID, "+").Result()
-	if err != nil {
-		return nil, err
-	}
-
-	// Take only 'limit' entries
-	if len(messages) > limit {
-		messages = messages[:limit]
-	}
-
-	events := make([]*pb.Event, 0, len(messages))
-	for _, msg := range messages {
-		dataStr, ok := msg.Values["data"].(string)
-		if !ok {
-			continue
-		}
-
-		evt := &pb.Event{}
-		if err := protojson.Unmarshal([]byte(dataStr), evt); err != nil {
-			continue
-		}
-		events = append(events, evt)
-	}
-
-	return events, nil
-}
-
-// GetStreamInfo returns information about a session's event stream.
-func (r *RedisStorage) GetStreamInfo(ctx context.Context, sessionID string) (length int64, firstID, lastID string, err error) {
-	streamKey := eventsStreamKey(sessionID)
-
-	info, err := r.client.XInfoStream(ctx, streamKey).Result()
-	if err != nil {
-		if err == redis.Nil {
-			return 0, "", "", nil
-		}
-		return 0, "", "", err
-	}
-
-	return info.Length, info.FirstEntry.ID, info.LastEntry.ID, nil
-}
-
-// PublishNotification publishes a notification to the session's notification stream.
-// Returns the stream ID of the published notification.
-func (r *RedisStorage) PublishNotification(ctx context.Context, sessionID string, notification *Notification) (string, error) {
-	data, err := json.Marshal(notification)
+// AppendStreamEntry appends an entry to the session's unified stream.
+// Returns the Redis Stream ID of the appended entry.
+func (r *RedisStorage) AppendStreamEntry(ctx context.Context, sessionID string, entry *StreamEntry) (string, error) {
+	data, err := json.Marshal(entry)
 	if err != nil {
 		return "", err
 	}
 
-	streamKey := NotificationsStreamKey(sessionID)
-
-	// Add to stream with auto-generated ID
 	id, err := r.client.XAdd(ctx, &redis.XAddArgs{
-		Stream: streamKey,
+		Stream: StreamKey(sessionID),
 		Values: map[string]interface{}{
 			"data": string(data),
 		},
@@ -497,10 +310,18 @@ func (r *RedisStorage) PublishNotification(ctx context.Context, sessionID string
 	return id, err
 }
 
-// GetNotificationsAfter retrieves notifications after a specific stream ID.
-// If afterID is empty or "0", returns from the beginning. If "$", returns nothing (new only).
-func (r *RedisStorage) GetNotificationsAfter(ctx context.Context, sessionID string, afterID string, limit int) ([]NotificationWithID, error) {
-	streamKey := NotificationsStreamKey(sessionID)
+// GetStreamEntries retrieves entries from the session's unified stream.
+// If afterID is empty or "0", returns from the beginning.
+// If afterID is "$", returns empty (caller wants only new entries).
+// If limit is 0, returns all matching entries.
+func (r *RedisStorage) GetStreamEntries(ctx context.Context, sessionID string, afterID string, limit int) ([]StreamEntryWithID, error) {
+	return r.GetStreamEntriesByTypes(ctx, sessionID, afterID, limit, nil)
+}
+
+// GetStreamEntriesByTypes retrieves entries filtered by type.
+// If types is nil or empty, returns all entries.
+func (r *RedisStorage) GetStreamEntriesByTypes(ctx context.Context, sessionID string, afterID string, limit int, types []string) ([]StreamEntryWithID, error) {
+	streamKey := StreamKey(sessionID)
 
 	startID := afterID
 	if startID == "" {
@@ -510,9 +331,9 @@ func (r *RedisStorage) GetNotificationsAfter(ctx context.Context, sessionID stri
 		startID = "(" + startID
 	}
 
-	// If "$" just return empty - caller wants only new notifications
+	// If "$" just return empty - caller wants only new entries
 	if afterID == "$" {
-		return []NotificationWithID{}, nil
+		return []StreamEntryWithID{}, nil
 	}
 
 	messages, err := r.client.XRange(ctx, streamKey, startID, "+").Result()
@@ -520,39 +341,52 @@ func (r *RedisStorage) GetNotificationsAfter(ctx context.Context, sessionID stri
 		return nil, err
 	}
 
-	// Take only 'limit' entries
-	if len(messages) > limit {
-		messages = messages[:limit]
+	// Build type filter set if provided
+	typeFilter := make(map[string]bool)
+	if len(types) > 0 {
+		for _, t := range types {
+			typeFilter[t] = true
+		}
 	}
 
-	notifications := make([]NotificationWithID, 0, len(messages))
+	entries := make([]StreamEntryWithID, 0, len(messages))
 	for _, msg := range messages {
 		dataStr, ok := msg.Values["data"].(string)
 		if !ok {
 			continue
 		}
 
-		var notification Notification
-		if err := json.Unmarshal([]byte(dataStr), &notification); err != nil {
+		var entry StreamEntry
+		if err := json.Unmarshal([]byte(dataStr), &entry); err != nil {
 			continue
 		}
 
-		notifications = append(notifications, NotificationWithID{
-			ID:           msg.ID,
-			Notification: &notification,
+		// Apply type filter if provided
+		if len(typeFilter) > 0 && !typeFilter[entry.Type] {
+			continue
+		}
+
+		entries = append(entries, StreamEntryWithID{
+			ID:    msg.ID,
+			Entry: &entry,
 		})
+
+		// Apply limit after filtering
+		if limit > 0 && len(entries) >= limit {
+			break
+		}
 	}
 
-	return notifications, nil
+	return entries, nil
 }
 
-// GetLastNotificationID returns the ID of the last notification in a session's stream.
-// Returns "$" if the stream is empty (meaning "only new notifications").
-func (r *RedisStorage) GetLastNotificationID(ctx context.Context, sessionID string) (string, error) {
-	streamKey := NotificationsStreamKey(sessionID)
+// GetLastStreamID returns the ID of the last entry in the session's stream.
+// Returns "$" if the stream is empty (meaning "only new entries").
+func (r *RedisStorage) GetLastStreamID(ctx context.Context, sessionID string) (string, error) {
+	streamKey := StreamKey(sessionID)
 
 	// Use XREVRANGE to get just the last entry
-	messages, err := r.client.XRevRange(ctx, streamKey, "+", "-").Result()
+	messages, err := r.client.XRevRangeN(ctx, streamKey, "+", "-", 1).Result()
 	if err != nil {
 		if err == redis.Nil {
 			return "$", nil
@@ -567,43 +401,17 @@ func (r *RedisStorage) GetLastNotificationID(ctx context.Context, sessionID stri
 	return messages[0].ID, nil
 }
 
-// GetRedisClient returns the underlying Redis client for direct access (used by StreamSubscriber).
-func (r *RedisStorage) GetRedisClient() *redis.Client {
-	return r.client
-}
-
-// GetLastEventStreamID returns the ID of the most recent event in the stream.
-// Returns empty string if no events exist.
-func (r *RedisStorage) GetLastEventStreamID(ctx context.Context, sessionID string) (string, error) {
-	streamKey := eventsStreamKey(sessionID)
-
-	// Get the last entry in the stream
-	messages, err := r.client.XRevRangeN(ctx, streamKey, "+", "-", 1).Result()
-	if err != nil {
-		if err == redis.Nil {
-			return "", nil
-		}
-		return "", err
-	}
-
-	if len(messages) == 0 {
-		return "", nil
-	}
-
-	return messages[0].ID, nil
-}
-
-// TruncateEventsAfter deletes all events after the given stream ID.
-// If afterID is empty, all events are deleted.
-func (r *RedisStorage) TruncateEventsAfter(ctx context.Context, sessionID string, afterID string) error {
-	streamKey := eventsStreamKey(sessionID)
+// TruncateStreamAfter deletes all entries after the given stream ID.
+// If afterID is empty, all entries are deleted.
+func (r *RedisStorage) TruncateStreamAfter(ctx context.Context, sessionID string, afterID string) error {
+	streamKey := StreamKey(sessionID)
 
 	if afterID == "" {
 		// Delete entire stream
 		return r.client.Del(ctx, streamKey).Err()
 	}
 
-	// Get all event IDs after the given ID
+	// Get all entry IDs after the given ID
 	messages, err := r.client.XRange(ctx, streamKey, "("+afterID, "+").Result()
 	if err != nil {
 		return err
@@ -613,7 +421,7 @@ func (r *RedisStorage) TruncateEventsAfter(ctx context.Context, sessionID string
 		return nil
 	}
 
-	// Delete each event after the snapshot point
+	// Delete each entry after the snapshot point
 	ids := make([]string, len(messages))
 	for i, msg := range messages {
 		ids[i] = msg.ID
@@ -622,33 +430,24 @@ func (r *RedisStorage) TruncateEventsAfter(ctx context.Context, sessionID string
 	return r.client.XDel(ctx, streamKey, ids...).Err()
 }
 
-// TruncateNotificationsAfter deletes all notifications after the given stream ID.
-// If afterID is empty, all notifications are deleted.
-func (r *RedisStorage) TruncateNotificationsAfter(ctx context.Context, sessionID string, afterID string) error {
-	streamKey := NotificationsStreamKey(sessionID)
-
-	if afterID == "" {
-		// Delete entire stream
-		return r.client.Del(ctx, streamKey).Err()
+// GetMessageCount returns the message count for a session.
+// This reads from a counter stored in the session hash for efficiency.
+func (r *RedisStorage) GetMessageCount(ctx context.Context, sessionID string) (int, error) {
+	count, err := r.client.HGet(ctx, sessionKey(sessionID), "messageCount").Int()
+	if err == redis.Nil {
+		return 0, nil
 	}
+	return count, err
+}
 
-	// Get all notification IDs after the given ID
-	messages, err := r.client.XRange(ctx, streamKey, "("+afterID, "+").Result()
-	if err != nil {
-		return err
-	}
+// IncrementMessageCount atomically increments the message counter for a session.
+func (r *RedisStorage) IncrementMessageCount(ctx context.Context, sessionID string) error {
+	return r.client.HIncrBy(ctx, sessionKey(sessionID), "messageCount", 1).Err()
+}
 
-	if len(messages) == 0 {
-		return nil
-	}
-
-	// Delete each notification after the snapshot point
-	ids := make([]string, len(messages))
-	for i, msg := range messages {
-		ids[i] = msg.ID
-	}
-
-	return r.client.XDel(ctx, streamKey, ids...).Err()
+// SetMessageCount sets the message counter to a specific value (used for snapshot restore).
+func (r *RedisStorage) SetMessageCount(ctx context.Context, sessionID string, count int) error {
+	return r.client.HSet(ctx, sessionKey(sessionID), "messageCount", count).Err()
 }
 
 // ============================================================================
@@ -665,7 +464,7 @@ func (r *RedisStorage) SaveSnapshot(ctx context.Context, snapshot *pb.Snapshot) 
 		Member: snapshot.Id,
 	})
 
-	// Store snapshot data
+	// Store snapshot data (StreamId instead of EventStreamId)
 	pipe.HSet(ctx, snapshotKey(snapshot.SessionId, snapshot.Id),
 		"id", snapshot.Id,
 		"sessionId", snapshot.SessionId,
@@ -674,7 +473,7 @@ func (r *RedisStorage) SaveSnapshot(ctx context.Context, snapshot *pb.Snapshot) 
 		"sizeBytes", snapshot.SizeBytes,
 		"turnNumber", snapshot.TurnNumber,
 		"messageCount", snapshot.MessageCount,
-		"eventStreamId", snapshot.EventStreamId,
+		"streamId", snapshot.StreamId,
 	)
 
 	_, err := pipe.Exec(ctx)
@@ -719,8 +518,8 @@ func (r *RedisStorage) GetSnapshot(ctx context.Context, sessionID, snapshotID st
 		snapshot.MessageCount = count
 	}
 
-	if eventStreamId, ok := data["eventStreamId"]; ok {
-		snapshot.EventStreamId = eventStreamId
+	if streamId, ok := data["streamId"]; ok {
+		snapshot.StreamId = streamId
 	}
 
 	return snapshot, nil
@@ -784,8 +583,8 @@ func (r *RedisStorage) ListSnapshots(ctx context.Context, sessionID string) ([]*
 			snapshot.MessageCount = count
 		}
 
-		if eventStreamId, ok := data["eventStreamId"]; ok {
-			snapshot.EventStreamId = eventStreamId
+		if streamId, ok := data["streamId"]; ok {
+			snapshot.StreamId = streamId
 		}
 
 		snapshots = append(snapshots, snapshot)
@@ -826,15 +625,14 @@ func (r *RedisStorage) DeleteAllSnapshots(ctx context.Context, sessionID string)
 	return err
 }
 
-// TruncateMessages truncates messages to keep only the first N messages.
-func (r *RedisStorage) TruncateMessages(ctx context.Context, sessionID string, keepCount int) error {
-	if keepCount <= 0 {
-		// Delete all messages
-		return r.client.Del(ctx, messagesKey(sessionID)).Err()
-	}
-	// LTRIM with range [0, keepCount-1] keeps first keepCount elements
-	return r.client.LTrim(ctx, messagesKey(sessionID), 0, int64(keepCount-1)).Err()
+// GetRedisClient returns the underlying Redis client for direct access (used by StreamSubscriber).
+func (r *RedisStorage) GetRedisClient() *redis.Client {
+	return r.client
 }
+
+// ============================================================================
+// Utilities
+// ============================================================================
 
 // ParseRedisURL extracts host from a Redis URL for logging purposes.
 func ParseRedisURL(url string) string {

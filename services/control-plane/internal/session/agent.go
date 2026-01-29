@@ -9,7 +9,6 @@ import (
 
 	pb "github.com/angristan/netclode/services/control-plane/gen/netclode/v1"
 	"github.com/google/uuid"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -54,15 +53,8 @@ func (m *Manager) SendPrompt(ctx context.Context, sessionID, text string) error 
 	}
 
 	// Persist user message
-	userMsg := &pb.Message{
-		Id:        "msg_" + uuid.NewString()[:12],
-		Role:      pb.MessageRole_MESSAGE_ROLE_USER,
-		Content:   text,
-		Timestamp: timestamppb.Now(),
-	}
-	if err := m.storage.AppendMessage(ctx, sessionID, userMsg); err != nil {
-		slog.Warn("Failed to persist user message", "sessionID", sessionID, "error", err)
-	}
+	userMsgID := "msg_" + uuid.NewString()[:12]
+	m.appendMessage(ctx, sessionID, userMsgID, pb.MessageRole_MESSAGE_ROLE_USER, text)
 
 	// Broadcast user message to all subscribers (for cross-client sync)
 	m.emitUserMessage(ctx, sessionID, text)

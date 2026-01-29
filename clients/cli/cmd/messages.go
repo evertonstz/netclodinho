@@ -29,6 +29,13 @@ func init() {
 	messagesCmd.Flags().StringVar(&messagesRole, "role", "", "Filter by role (user, assistant)")
 }
 
+// MessageInfo contains extracted message data from AgentEvent.
+type MessageInfo struct {
+	Role      pb.MessageRole
+	Content   string
+	Timestamp string
+}
+
 func runMessages(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 	c := client.New(getServerURL())
@@ -39,11 +46,26 @@ func runMessages(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("get session: %w", err)
 	}
 
-	messages := state.Messages
+	// Extract messages from entries (AgentEvents with MESSAGE kind)
+	var messages []MessageInfo
+	for _, e := range state.Entries {
+		if e.Partial {
+			continue // Skip streaming deltas
+		}
+		if event := e.GetEvent(); event != nil && event.Kind == pb.AgentEventKind_AGENT_EVENT_KIND_MESSAGE {
+			if msg := event.GetMessage(); msg != nil {
+				messages = append(messages, MessageInfo{
+					Role:      msg.Role,
+					Content:   msg.Content,
+					Timestamp: e.Timestamp.AsTime().Format("15:04:05"),
+				})
+			}
+		}
+	}
 
 	// Filter by role if specified
 	if messagesRole != "" {
-		filtered := make([]*pb.Message, 0)
+		filtered := make([]MessageInfo, 0)
 		targetRole := strings.ToUpper(messagesRole)
 		if !strings.HasPrefix(targetRole, "MESSAGE_ROLE_") {
 			targetRole = "MESSAGE_ROLE_" + targetRole
@@ -74,14 +96,14 @@ func runMessages(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func printMessages(messages []*pb.Message) {
+func printMessages(messages []MessageInfo) {
 	for i, msg := range messages {
 		if i > 0 {
 			fmt.Println()
 		}
 
 		role := formatRole(msg.Role.String())
-		timestamp := output.FormatTimestamp(msg.Timestamp)
+		timestamp := msg.Timestamp
 
 		// Role header with color
 		var roleColor = output.MutedColor

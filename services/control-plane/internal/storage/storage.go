@@ -8,11 +8,19 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// Notification represents a real-time update published to Redis Streams.
-type Notification struct {
-	Type      string          `json:"type"`    // "event", "message", "session_update", "user_message"
-	Payload   json.RawMessage `json:"payload"` // The actual data
-	Timestamp string          `json:"timestamp"`
+// StreamEntry represents an entry in the unified session stream.
+// This is the storage-layer representation; it gets converted to pb.StreamEntry for the API.
+type StreamEntry struct {
+	Type      string          `json:"type"`      // "event", "terminal_output", "session_update", "error"
+	Partial   bool            `json:"partial"`   // true = streaming delta, false = final
+	Payload   json.RawMessage `json:"payload"`   // Type-specific data (AgentEvent, TerminalOutput, Session, Error)
+	Timestamp string          `json:"timestamp"` // ISO8601 timestamp
+}
+
+// StreamEntryWithID wraps a stream entry with its Redis Stream ID.
+type StreamEntryWithID struct {
+	ID    string
+	Entry *StreamEntry
 }
 
 // Storage defines the interface for session persistence.
@@ -25,20 +33,18 @@ type Storage interface {
 	UpdateSessionField(ctx context.Context, id, field, value string) error
 	DeleteSession(ctx context.Context, id string) error
 
-	// Messages (sessionID passed separately since pb.Message doesn't include it)
-	AppendMessage(ctx context.Context, sessionID string, msg *pb.Message) error
-	GetMessages(ctx context.Context, sessionID string, afterID *string) ([]*pb.Message, error)
-	GetLastMessage(ctx context.Context, sessionID string) (*pb.Message, error)
+	// Unified Stream (replaces messages, events, and notifications)
+	// All session data flows through a single Redis Stream per session.
+	AppendStreamEntry(ctx context.Context, sessionID string, entry *StreamEntry) (string, error)
+	GetStreamEntries(ctx context.Context, sessionID string, afterID string, limit int) ([]StreamEntryWithID, error)
+	GetStreamEntriesByTypes(ctx context.Context, sessionID string, afterID string, limit int, types []string) ([]StreamEntryWithID, error)
+	GetLastStreamID(ctx context.Context, sessionID string) (string, error)
+	TruncateStreamAfter(ctx context.Context, sessionID string, afterID string) error
+
+	// Message count (for session summary)
 	GetMessageCount(ctx context.Context, sessionID string) (int, error)
-
-	// Events (sessionID passed separately since pb.Event doesn't include it)
-	AppendEvent(ctx context.Context, sessionID string, evt *pb.Event) error
-	GetEvents(ctx context.Context, sessionID string, limit int) ([]*pb.Event, error)
-
-	// Notifications (real-time updates via Redis Streams)
-	PublishNotification(ctx context.Context, sessionID string, notification *Notification) (string, error)
-	GetNotificationsAfter(ctx context.Context, sessionID string, afterID string, limit int) ([]NotificationWithID, error)
-	GetLastNotificationID(ctx context.Context, sessionID string) (string, error)
+	IncrementMessageCount(ctx context.Context, sessionID string) error
+	SetMessageCount(ctx context.Context, sessionID string, count int) error
 
 	// Snapshots
 	SaveSnapshot(ctx context.Context, snapshot *pb.Snapshot) error
@@ -46,16 +52,6 @@ type Storage interface {
 	ListSnapshots(ctx context.Context, sessionID string) ([]*pb.Snapshot, error)
 	DeleteSnapshot(ctx context.Context, sessionID, snapshotID string) error
 	DeleteAllSnapshots(ctx context.Context, sessionID string) error
-
-	// Messages truncation (for snapshot restore)
-	TruncateMessages(ctx context.Context, sessionID string, keepCount int) error
-
-	// Events (for snapshot support)
-	GetLastEventStreamID(ctx context.Context, sessionID string) (string, error)
-	TruncateEventsAfter(ctx context.Context, sessionID string, afterID string) error
-
-	// Notifications truncation (for snapshot restore)
-	TruncateNotificationsAfter(ctx context.Context, sessionID string, afterID string) error
 
 	// Restore snapshot ID (persisted for crash recovery)
 	SetRestoreSnapshotID(ctx context.Context, sessionID, snapshotID string) error
@@ -78,8 +74,10 @@ type Storage interface {
 	Close() error
 }
 
-// NotificationWithID wraps a notification with its Redis Stream ID.
-type NotificationWithID struct {
-	ID           string
-	Notification *Notification
-}
+// Stream entry types for storage layer
+const (
+	StreamEntryTypeEvent          = "event"           // AgentEvent (messages, thinking, tools, etc.)
+	StreamEntryTypeTerminalOutput = "terminal_output" // Terminal data
+	StreamEntryTypeSessionUpdate  = "session_update"  // Session status changes
+	StreamEntryTypeError          = "error"           // Error notifications
+)

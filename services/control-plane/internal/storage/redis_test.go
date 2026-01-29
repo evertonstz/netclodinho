@@ -35,7 +35,7 @@ func setupTestRedis(t *testing.T) (*miniredis.Miniredis, *RedisStorage) {
 	return mr, storage
 }
 
-func TestPublishNotification(t *testing.T) {
+func TestAppendStreamEntry(t *testing.T) {
 	mr, storage := setupTestRedis(t)
 	defer mr.Close()
 	defer storage.Close()
@@ -43,16 +43,16 @@ func TestPublishNotification(t *testing.T) {
 	ctx := context.Background()
 	sessionID := "test-session-1"
 
-	notification := &Notification{
-		Type:      "event",
+	entry := &StreamEntry{
+		Type:      StreamEntryTypeEvent,
 		Payload:   json.RawMessage(`{"kind":"tool_start","tool":"bash"}`),
 		Timestamp: time.Now().Format(time.RFC3339),
 	}
 
-	// Publish notification
-	id, err := storage.PublishNotification(ctx, sessionID, notification)
+	// Append entry
+	id, err := storage.AppendStreamEntry(ctx, sessionID, entry)
 	if err != nil {
-		t.Fatalf("failed to publish notification: %v", err)
+		t.Fatalf("failed to append stream entry: %v", err)
 	}
 
 	if id == "" {
@@ -60,7 +60,7 @@ func TestPublishNotification(t *testing.T) {
 	}
 
 	// Verify it was written to the stream
-	streamKey := NotificationsStreamKey(sessionID)
+	streamKey := StreamKey(sessionID)
 	entries, err := storage.client.XRange(ctx, streamKey, "-", "+").Result()
 	if err != nil {
 		t.Fatalf("failed to read stream: %v", err)
@@ -75,7 +75,7 @@ func TestPublishNotification(t *testing.T) {
 	}
 }
 
-func TestGetNotificationsAfter(t *testing.T) {
+func TestGetStreamEntries(t *testing.T) {
 	mr, storage := setupTestRedis(t)
 	defer mr.Close()
 	defer storage.Close()
@@ -83,58 +83,58 @@ func TestGetNotificationsAfter(t *testing.T) {
 	ctx := context.Background()
 	sessionID := "test-session-2"
 
-	// Publish 3 notifications
+	// Append 3 entries
 	var ids []string
 	for i := 0; i < 3; i++ {
-		notification := &Notification{
-			Type:      "message",
-			Payload:   json.RawMessage(`{"content":"test"}`),
+		entry := &StreamEntry{
+			Type:      StreamEntryTypeEvent,
+			Payload:   json.RawMessage(`{"kind":1}`), // MESSAGE kind
 			Timestamp: time.Now().Format(time.RFC3339),
 		}
-		id, err := storage.PublishNotification(ctx, sessionID, notification)
+		id, err := storage.AppendStreamEntry(ctx, sessionID, entry)
 		if err != nil {
-			t.Fatalf("failed to publish notification %d: %v", i, err)
+			t.Fatalf("failed to append entry %d: %v", i, err)
 		}
 		ids = append(ids, id)
 	}
 
-	// Get all notifications from beginning
-	notifications, err := storage.GetNotificationsAfter(ctx, sessionID, "0", 100)
+	// Get all entries from beginning
+	entries, err := storage.GetStreamEntries(ctx, sessionID, "0", 0)
 	if err != nil {
-		t.Fatalf("failed to get notifications: %v", err)
+		t.Fatalf("failed to get entries: %v", err)
 	}
 
-	if len(notifications) != 3 {
-		t.Errorf("expected 3 notifications, got %d", len(notifications))
+	if len(entries) != 3 {
+		t.Errorf("expected 3 entries, got %d", len(entries))
 	}
 
-	// Get notifications after first one
-	notifications, err = storage.GetNotificationsAfter(ctx, sessionID, ids[0], 100)
+	// Get entries after first one
+	entries, err = storage.GetStreamEntries(ctx, sessionID, ids[0], 0)
 	if err != nil {
-		t.Fatalf("failed to get notifications after: %v", err)
+		t.Fatalf("failed to get entries after: %v", err)
 	}
 
-	if len(notifications) != 2 {
-		t.Errorf("expected 2 notifications after first, got %d", len(notifications))
+	if len(entries) != 2 {
+		t.Errorf("expected 2 entries after first, got %d", len(entries))
 	}
 
 	// Verify IDs match
-	if notifications[0].ID != ids[1] {
-		t.Errorf("expected first result ID %s, got %s", ids[1], notifications[0].ID)
+	if entries[0].ID != ids[1] {
+		t.Errorf("expected first result ID %s, got %s", ids[1], entries[0].ID)
 	}
 
-	// Get notifications with "$" (should return empty)
-	notifications, err = storage.GetNotificationsAfter(ctx, sessionID, "$", 100)
+	// Get entries with "$" (should return empty)
+	entries, err = storage.GetStreamEntries(ctx, sessionID, "$", 0)
 	if err != nil {
-		t.Fatalf("failed to get notifications with $: %v", err)
+		t.Fatalf("failed to get entries with $: %v", err)
 	}
 
-	if len(notifications) != 0 {
-		t.Errorf("expected 0 notifications with $, got %d", len(notifications))
+	if len(entries) != 0 {
+		t.Errorf("expected 0 entries with $, got %d", len(entries))
 	}
 }
 
-func TestGetLastNotificationID(t *testing.T) {
+func TestGetLastStreamID(t *testing.T) {
 	mr, storage := setupTestRedis(t)
 	defer mr.Close()
 	defer storage.Close()
@@ -143,30 +143,30 @@ func TestGetLastNotificationID(t *testing.T) {
 	sessionID := "test-session-3"
 
 	// Empty stream should return "$"
-	id, err := storage.GetLastNotificationID(ctx, sessionID)
+	id, err := storage.GetLastStreamID(ctx, sessionID)
 	if err != nil {
-		t.Fatalf("failed to get last notification ID: %v", err)
+		t.Fatalf("failed to get last stream ID: %v", err)
 	}
 
 	if id != "$" {
 		t.Errorf("expected '$' for empty stream, got %s", id)
 	}
 
-	// Publish some notifications
+	// Append some entries
 	var lastID string
 	for i := 0; i < 3; i++ {
-		notification := &Notification{
-			Type:      "event",
+		entry := &StreamEntry{
+			Type:      StreamEntryTypeEvent,
 			Payload:   json.RawMessage(`{}`),
 			Timestamp: time.Now().Format(time.RFC3339),
 		}
-		lastID, _ = storage.PublishNotification(ctx, sessionID, notification)
+		lastID, _ = storage.AppendStreamEntry(ctx, sessionID, entry)
 	}
 
 	// Should return the last ID
-	id, err = storage.GetLastNotificationID(ctx, sessionID)
+	id, err = storage.GetLastStreamID(ctx, sessionID)
 	if err != nil {
-		t.Fatalf("failed to get last notification ID: %v", err)
+		t.Fatalf("failed to get last stream ID: %v", err)
 	}
 
 	if id != lastID {
@@ -174,7 +174,7 @@ func TestGetLastNotificationID(t *testing.T) {
 	}
 }
 
-func TestGetNotificationsAfter_Limit(t *testing.T) {
+func TestGetStreamEntries_Limit(t *testing.T) {
 	mr, storage := setupTestRedis(t)
 	defer mr.Close()
 	defer storage.Close()
@@ -182,35 +182,98 @@ func TestGetNotificationsAfter_Limit(t *testing.T) {
 	ctx := context.Background()
 	sessionID := "test-session-4"
 
-	// Publish 10 notifications
+	// Append 10 entries
 	for i := 0; i < 10; i++ {
-		notification := &Notification{
-			Type:      "message",
-			Payload:   json.RawMessage(`{}`),
+		entry := &StreamEntry{
+			Type:      StreamEntryTypeEvent,
+			Payload:   json.RawMessage(`{"kind":1}`), // MESSAGE kind
 			Timestamp: time.Now().Format(time.RFC3339),
 		}
-		_, err := storage.PublishNotification(ctx, sessionID, notification)
+		_, err := storage.AppendStreamEntry(ctx, sessionID, entry)
 		if err != nil {
-			t.Fatalf("failed to publish notification %d: %v", i, err)
+			t.Fatalf("failed to append entry %d: %v", i, err)
 		}
 	}
 
 	// Get with limit of 5
-	notifications, err := storage.GetNotificationsAfter(ctx, sessionID, "0", 5)
+	entries, err := storage.GetStreamEntries(ctx, sessionID, "0", 5)
 	if err != nil {
-		t.Fatalf("failed to get notifications: %v", err)
+		t.Fatalf("failed to get entries: %v", err)
 	}
 
-	if len(notifications) != 5 {
-		t.Errorf("expected 5 notifications with limit, got %d", len(notifications))
+	if len(entries) != 5 {
+		t.Errorf("expected 5 entries with limit, got %d", len(entries))
 	}
 }
 
-func TestNotificationsStreamKey(t *testing.T) {
-	expected := "session:abc123:notifications"
-	actual := NotificationsStreamKey("abc123")
+func TestStreamKey(t *testing.T) {
+	expected := "session:abc123:stream"
+	actual := StreamKey("abc123")
 
 	if actual != expected {
 		t.Errorf("expected %s, got %s", expected, actual)
+	}
+}
+
+func TestGetStreamEntriesByTypes(t *testing.T) {
+	mr, storage := setupTestRedis(t)
+	defer mr.Close()
+	defer storage.Close()
+
+	ctx := context.Background()
+	sessionID := "test-session-5"
+
+	// Append entries of different types
+	entries := []struct {
+		entryType string
+		content   string
+	}{
+		{StreamEntryTypeEvent, `{"kind":1}`}, // MESSAGE kind
+		{StreamEntryTypeEvent, `{"kind":3}`}, // TOOL_START kind
+		{StreamEntryTypeEvent, `{"kind":1}`}, // MESSAGE kind
+		{StreamEntryTypeTerminalOutput, `{"data":"output"}`},
+		{StreamEntryTypeEvent, `{"kind":1}`}, // MESSAGE kind
+	}
+
+	for _, e := range entries {
+		entry := &StreamEntry{
+			Type:      e.entryType,
+			Payload:   json.RawMessage(e.content),
+			Timestamp: time.Now().Format(time.RFC3339),
+		}
+		_, err := storage.AppendStreamEntry(ctx, sessionID, entry)
+		if err != nil {
+			t.Fatalf("failed to append entry: %v", err)
+		}
+	}
+
+	// Get only event entries
+	eventEntries, err := storage.GetStreamEntriesByTypes(ctx, sessionID, "0", 0, []string{StreamEntryTypeEvent})
+	if err != nil {
+		t.Fatalf("failed to get event entries: %v", err)
+	}
+
+	if len(eventEntries) != 4 {
+		t.Errorf("expected 4 event entries, got %d", len(eventEntries))
+	}
+
+	// Get terminal output only
+	terminalEntries, err := storage.GetStreamEntriesByTypes(ctx, sessionID, "0", 0, []string{StreamEntryTypeTerminalOutput})
+	if err != nil {
+		t.Fatalf("failed to get terminal entries: %v", err)
+	}
+
+	if len(terminalEntries) != 1 {
+		t.Errorf("expected 1 terminal entry, got %d", len(terminalEntries))
+	}
+
+	// Get multiple types
+	mixedEntries, err := storage.GetStreamEntriesByTypes(ctx, sessionID, "0", 0, []string{StreamEntryTypeEvent, StreamEntryTypeTerminalOutput})
+	if err != nil {
+		t.Fatalf("failed to get mixed entries: %v", err)
+	}
+
+	if len(mixedEntries) != 5 {
+		t.Errorf("expected 5 mixed entries, got %d", len(mixedEntries))
 	}
 }

@@ -96,25 +96,41 @@ func runPrompt(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("receive: %w", err)
 		}
 
-		if agentMsg := msg.GetAgentMessage(); agentMsg != nil {
-			response.WriteString(agentMsg.Content)
-			if !agentMsg.Partial {
-				fmt.Printf("\n--- Response ---\n%s\n", response.String())
-			}
-		}
+		// Handle unified stream entry
+		if entry := msg.GetStreamEntry(); entry != nil && entry.Entry != nil {
+			e := entry.Entry
 
-		if msg.GetAgentDone() != nil {
-			fmt.Println("--- Done ---")
-			return nil
+			// Handle AgentEvent payload
+			if event := e.GetEvent(); event != nil {
+				switch event.Kind {
+				case pb.AgentEventKind_AGENT_EVENT_KIND_MESSAGE:
+					if msg := event.GetMessage(); msg != nil {
+						if e.Partial {
+							// Streaming delta
+							response.WriteString(msg.Content)
+						} else if msg.Role == pb.MessageRole_MESSAGE_ROLE_ASSISTANT {
+							// Final message
+							fmt.Printf("\n--- Response ---\n%s\n", msg.Content)
+						}
+					}
+				default:
+					if !e.Partial {
+						fmt.Printf("[event] %s\n", event.Kind)
+					}
+				}
+			}
+
+			// Handle SessionUpdate payload
+			if sess := e.GetSessionUpdate(); sess != nil {
+				if sess.Status == pb.SessionStatus_SESSION_STATUS_READY {
+					fmt.Println("--- Done ---")
+					return nil
+				}
+			}
 		}
 
 		if errResp := msg.GetError(); errResp != nil {
 			return fmt.Errorf("agent error: %s: %s", errResp.Error.Code, errResp.Error.Message)
-		}
-
-		// Also print events for debugging
-		if event := msg.GetAgentEvent(); event != nil {
-			fmt.Printf("[event] %s\n", event.Event.Kind)
 		}
 	}
 }

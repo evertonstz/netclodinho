@@ -10,6 +10,7 @@ import (
 	"github.com/angristan/netclode/services/control-plane/internal/storage"
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -18,35 +19,35 @@ const (
 	xreadBlockTimeout = 5 * time.Second
 )
 
-// StreamSubscriber reads notifications from a Redis Stream for a session.
+// StreamSubscriber reads entries from a Redis Stream for a session.
 // It provides cursor-based reading that survives reconnection.
 type StreamSubscriber struct {
-	sessionID          string
-	lastNotificationID string // Redis Stream cursor ("$" = new only, "0" = from beginning)
-	messages           chan *pb.ServerMessage
-	done               chan struct{}
-	client             *redis.Client
+	sessionID    string
+	lastStreamID string // Redis Stream cursor ("$" = new only, "0" = from beginning)
+	messages     chan *pb.ServerMessage
+	done         chan struct{}
+	client       *redis.Client
 }
 
 // NewStreamSubscriber creates a new subscriber for the given session.
-// lastNotificationID specifies where to start reading:
-//   - "$" = only new notifications
+// lastStreamID specifies where to start reading:
+//   - "$" = only new entries
 //   - "0" = from the beginning of the stream
 //   - "<stream-id>" = from after the given ID (exclusive)
-func NewStreamSubscriber(sessionID, lastNotificationID string, client *redis.Client) *StreamSubscriber {
-	if lastNotificationID == "" {
-		lastNotificationID = "$"
+func NewStreamSubscriber(sessionID, lastStreamID string, client *redis.Client) *StreamSubscriber {
+	if lastStreamID == "" {
+		lastStreamID = "$"
 	}
 	return &StreamSubscriber{
-		sessionID:          sessionID,
-		lastNotificationID: lastNotificationID,
-		messages:           make(chan *pb.ServerMessage, 64),
-		done:               make(chan struct{}),
-		client:             client,
+		sessionID:    sessionID,
+		lastStreamID: lastStreamID,
+		messages:     make(chan *pb.ServerMessage, 64),
+		done:         make(chan struct{}),
+		client:       client,
 	}
 }
 
-// Messages returns the channel to receive notifications as ServerMessages.
+// Messages returns the channel to receive entries as ServerMessages.
 func (s *StreamSubscriber) Messages() <-chan *pb.ServerMessage {
 	return s.messages
 }
@@ -56,8 +57,8 @@ func (s *StreamSubscriber) Messages() <-chan *pb.ServerMessage {
 func (s *StreamSubscriber) Run(ctx context.Context) {
 	defer close(s.messages)
 
-	streamKey := storage.NotificationsStreamKey(s.sessionID)
-	cursor := s.lastNotificationID
+	streamKey := storage.StreamKey(s.sessionID)
+	cursor := s.lastStreamID
 
 	for {
 		select {
@@ -90,29 +91,29 @@ func (s *StreamSubscriber) Run(ctx context.Context) {
 			continue
 		}
 
-		// Process messages from the stream
+		// Process entries from the stream
 		for _, stream := range streams {
 			for _, msg := range stream.Messages {
 				// Update cursor to this message ID for next read
 				cursor = msg.ID
 
-				// Parse the notification
+				// Parse the stream entry
 				dataStr, ok := msg.Values["data"].(string)
 				if !ok {
-					slog.Warn("invalid notification data", "session", s.sessionID, "id", msg.ID)
+					slog.Warn("invalid stream entry data", "session", s.sessionID, "id", msg.ID)
 					continue
 				}
 
-				var notification storage.Notification
-				if err := json.Unmarshal([]byte(dataStr), &notification); err != nil {
-					slog.Warn("failed to unmarshal notification", "session", s.sessionID, "error", err)
+				var entry storage.StreamEntry
+				if err := json.Unmarshal([]byte(dataStr), &entry); err != nil {
+					slog.Warn("failed to unmarshal stream entry", "session", s.sessionID, "error", err)
 					continue
 				}
 
-				// Convert notification to ServerMessage
-				serverMsg := notificationToServerMessage(s.sessionID, &notification)
+				// Convert stream entry to ServerMessage
+				serverMsg := streamEntryToServerMessage(s.sessionID, msg.ID, &entry)
 				if serverMsg == nil {
-					slog.Warn("failed to convert notification", "session", s.sessionID, "type", notification.Type)
+					slog.Warn("failed to convert stream entry", "session", s.sessionID, "type", entry.Type)
 					continue
 				}
 
@@ -139,128 +140,76 @@ func (s *StreamSubscriber) Close() {
 	}
 }
 
-// notificationToServerMessage converts a storage.Notification to a pb.ServerMessage.
-func notificationToServerMessage(sessionID string, n *storage.Notification) *pb.ServerMessage {
-	switch n.Type {
-	case "event":
+// streamEntryToServerMessage converts a storage.StreamEntry to a pb.ServerMessage.
+// All stream entries are now wrapped in StreamEntryResponse for unified handling.
+func streamEntryToServerMessage(sessionID string, streamID string, e *storage.StreamEntry) *pb.ServerMessage {
+	protoEntry := storageEntryToProto(sessionID, streamID, e)
+	if protoEntry == nil {
+		return nil
+	}
+
+	return &pb.ServerMessage{
+		Message: &pb.ServerMessage_StreamEntry{
+			StreamEntry: &pb.StreamEntryResponse{
+				SessionId: sessionID,
+				Entry:     protoEntry,
+			},
+		},
+	}
+}
+
+// storageEntryToProto converts a storage.StreamEntry to a pb.StreamEntry.
+// The new unified model uses oneof payload with: AgentEvent, TerminalOutput, Session, Error
+func storageEntryToProto(sessionID string, streamID string, e *storage.StreamEntry) *pb.StreamEntry {
+	entry := &pb.StreamEntry{
+		Id:      streamID,
+		Partial: e.Partial,
+	}
+
+	// Parse timestamp
+	if t, err := time.Parse(time.RFC3339, e.Timestamp); err == nil {
+		entry.Timestamp = timestamppb.New(t)
+	}
+
+	// Set payload based on type
+	switch e.Type {
+	case storage.StreamEntryTypeEvent:
+		// AgentEvent includes all content: messages, thinking, tools, etc.
 		var event pb.AgentEvent
-		if err := protojson.Unmarshal(n.Payload, &event); err != nil {
+		if err := protojson.Unmarshal(e.Payload, &event); err != nil {
 			slog.Warn("failed to unmarshal agent event", "session", sessionID, "error", err)
 			return nil
 		}
-		return &pb.ServerMessage{
-			Message: &pb.ServerMessage_AgentEvent{
-				AgentEvent: &pb.AgentEventResponse{
-					SessionId: sessionID,
-					Event:     &event,
-				},
-			},
-		}
+		entry.Payload = &pb.StreamEntry_Event{Event: &event}
 
-	case "message":
-		var msg pb.AgentMessageResponse
-		if err := protojson.Unmarshal(n.Payload, &msg); err != nil {
-			slog.Warn("failed to unmarshal message payload", "session", sessionID, "error", err)
-			return nil
-		}
-		return &pb.ServerMessage{
-			Message: &pb.ServerMessage_AgentMessage{
-				AgentMessage: &msg,
-			},
-		}
-
-	case "session_update":
-		var session pb.Session
-		if err := protojson.Unmarshal(n.Payload, &session); err != nil {
-			slog.Warn("failed to unmarshal session", "session", sessionID, "error", err)
-			return nil
-		}
-		return &pb.ServerMessage{
-			Message: &pb.ServerMessage_SessionUpdated{
-				SessionUpdated: &pb.SessionUpdatedResponse{
-					Session: &session,
-				},
-			},
-		}
-
-	case "user_message":
-		var msg pb.UserMessageResponse
-		if err := protojson.Unmarshal(n.Payload, &msg); err != nil {
-			slog.Warn("failed to unmarshal user message payload", "session", sessionID, "error", err)
-			return nil
-		}
-		return &pb.ServerMessage{
-			Message: &pb.ServerMessage_UserMessage{
-				UserMessage: &msg,
-			},
-		}
-
-	case "agent_done":
-		var msg pb.AgentDoneResponse
-		if err := protojson.Unmarshal(n.Payload, &msg); err != nil {
-			slog.Warn("failed to unmarshal agent done payload", "session", sessionID, "error", err)
-			return nil
-		}
-		return &pb.ServerMessage{
-			Message: &pb.ServerMessage_AgentDone{
-				AgentDone: &msg,
-			},
-		}
-
-	case "agent_error":
-		var err pb.Error
-		if unmarshalErr := protojson.Unmarshal(n.Payload, &err); unmarshalErr != nil {
-			slog.Warn("failed to unmarshal agent error payload", "session", sessionID, "error", unmarshalErr)
-			return nil
-		}
-		return &pb.ServerMessage{
-			Message: &pb.ServerMessage_Error{
-				Error: &pb.ErrorResponse{
-					Error: &err,
-				},
-			},
-		}
-
-	case "session_error":
-		var err pb.Error
-		if unmarshalErr := protojson.Unmarshal(n.Payload, &err); unmarshalErr != nil {
-			slog.Warn("failed to unmarshal session error payload", "session", sessionID, "error", unmarshalErr)
-			return nil
-		}
-		return &pb.ServerMessage{
-			Message: &pb.ServerMessage_Error{
-				Error: &pb.ErrorResponse{
-					Error: &err,
-				},
-			},
-		}
-
-	case "terminal_output":
-		var msg pb.TerminalOutputResponse
-		if err := protojson.Unmarshal(n.Payload, &msg); err != nil {
+	case storage.StreamEntryTypeTerminalOutput:
+		var output pb.TerminalOutput
+		if err := protojson.Unmarshal(e.Payload, &output); err != nil {
 			slog.Warn("failed to unmarshal terminal output payload", "session", sessionID, "error", err)
 			return nil
 		}
-		return &pb.ServerMessage{
-			Message: &pb.ServerMessage_TerminalOutput{
-				TerminalOutput: &msg,
-			},
-		}
+		entry.Payload = &pb.StreamEntry_TerminalOutput{TerminalOutput: &output}
 
-	case "snapshot_created":
-		var msg pb.SnapshotCreatedResponse
-		if err := protojson.Unmarshal(n.Payload, &msg); err != nil {
-			slog.Warn("failed to unmarshal snapshot created payload", "session", sessionID, "error", err)
+	case storage.StreamEntryTypeSessionUpdate:
+		var sess pb.Session
+		if err := protojson.Unmarshal(e.Payload, &sess); err != nil {
+			slog.Warn("failed to unmarshal session update", "session", sessionID, "error", err)
 			return nil
 		}
-		return &pb.ServerMessage{
-			Message: &pb.ServerMessage_SnapshotCreated{
-				SnapshotCreated: &msg,
-			},
+		entry.Payload = &pb.StreamEntry_SessionUpdate{SessionUpdate: &sess}
+
+	case storage.StreamEntryTypeError:
+		var errProto pb.Error
+		if err := protojson.Unmarshal(e.Payload, &errProto); err != nil {
+			slog.Warn("failed to unmarshal error payload", "session", sessionID, "error", err)
+			return nil
 		}
+		entry.Payload = &pb.StreamEntry_Error{Error: &errProto}
 
 	default:
-		slog.Warn("unknown notification type", "session", sessionID, "type", n.Type)
+		slog.Warn("unknown stream entry type", "session", sessionID, "type", e.Type)
 		return nil
 	}
+
+	return entry
 }

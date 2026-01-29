@@ -10,7 +10,6 @@ import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	structpb "google.golang.org/protobuf/types/known/structpb"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -23,57 +22,131 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// FileAction represents the type of change made to a file.
-type FileAction int32
+// AgentEventKind identifies the type of event.
+type AgentEventKind int32
 
 const (
-	FileAction_FILE_ACTION_UNSPECIFIED FileAction = 0
-	FileAction_FILE_ACTION_CREATE      FileAction = 1 // File was created
-	FileAction_FILE_ACTION_EDIT        FileAction = 2 // File was modified
-	FileAction_FILE_ACTION_DELETE      FileAction = 3 // File was deleted
+	AgentEventKind_AGENT_EVENT_KIND_UNSPECIFIED AgentEventKind = 0
+	// Content events (use partial flag on StreamEntry)
+	AgentEventKind_AGENT_EVENT_KIND_MESSAGE  AgentEventKind = 1 // User or assistant message
+	AgentEventKind_AGENT_EVENT_KIND_THINKING AgentEventKind = 2 // Agent thinking/reasoning content
+	// Tool lifecycle
+	AgentEventKind_AGENT_EVENT_KIND_TOOL_START  AgentEventKind = 3 // Tool invocation started
+	AgentEventKind_AGENT_EVENT_KIND_TOOL_INPUT  AgentEventKind = 4 // Tool input (partial=true for streaming)
+	AgentEventKind_AGENT_EVENT_KIND_TOOL_OUTPUT AgentEventKind = 5 // Tool output (partial=true for streaming)
+	AgentEventKind_AGENT_EVENT_KIND_TOOL_END    AgentEventKind = 6 // Tool execution completed
+	// System events
+	AgentEventKind_AGENT_EVENT_KIND_PORT_EXPOSED       AgentEventKind = 7  // Port was exposed for preview
+	AgentEventKind_AGENT_EVENT_KIND_REPO_CLONE         AgentEventKind = 8  // Repository clone progress
+	AgentEventKind_AGENT_EVENT_KIND_AGENT_DISCONNECTED AgentEventKind = 9  // Agent disconnected unexpectedly
+	AgentEventKind_AGENT_EVENT_KIND_AGENT_RECONNECTED  AgentEventKind = 10 // Agent reconnected after disconnect
 )
 
-// Enum value maps for FileAction.
+// Enum value maps for AgentEventKind.
 var (
-	FileAction_name = map[int32]string{
-		0: "FILE_ACTION_UNSPECIFIED",
-		1: "FILE_ACTION_CREATE",
-		2: "FILE_ACTION_EDIT",
-		3: "FILE_ACTION_DELETE",
+	AgentEventKind_name = map[int32]string{
+		0:  "AGENT_EVENT_KIND_UNSPECIFIED",
+		1:  "AGENT_EVENT_KIND_MESSAGE",
+		2:  "AGENT_EVENT_KIND_THINKING",
+		3:  "AGENT_EVENT_KIND_TOOL_START",
+		4:  "AGENT_EVENT_KIND_TOOL_INPUT",
+		5:  "AGENT_EVENT_KIND_TOOL_OUTPUT",
+		6:  "AGENT_EVENT_KIND_TOOL_END",
+		7:  "AGENT_EVENT_KIND_PORT_EXPOSED",
+		8:  "AGENT_EVENT_KIND_REPO_CLONE",
+		9:  "AGENT_EVENT_KIND_AGENT_DISCONNECTED",
+		10: "AGENT_EVENT_KIND_AGENT_RECONNECTED",
 	}
-	FileAction_value = map[string]int32{
-		"FILE_ACTION_UNSPECIFIED": 0,
-		"FILE_ACTION_CREATE":      1,
-		"FILE_ACTION_EDIT":        2,
-		"FILE_ACTION_DELETE":      3,
+	AgentEventKind_value = map[string]int32{
+		"AGENT_EVENT_KIND_UNSPECIFIED":        0,
+		"AGENT_EVENT_KIND_MESSAGE":            1,
+		"AGENT_EVENT_KIND_THINKING":           2,
+		"AGENT_EVENT_KIND_TOOL_START":         3,
+		"AGENT_EVENT_KIND_TOOL_INPUT":         4,
+		"AGENT_EVENT_KIND_TOOL_OUTPUT":        5,
+		"AGENT_EVENT_KIND_TOOL_END":           6,
+		"AGENT_EVENT_KIND_PORT_EXPOSED":       7,
+		"AGENT_EVENT_KIND_REPO_CLONE":         8,
+		"AGENT_EVENT_KIND_AGENT_DISCONNECTED": 9,
+		"AGENT_EVENT_KIND_AGENT_RECONNECTED":  10,
 	}
 )
 
-func (x FileAction) Enum() *FileAction {
-	p := new(FileAction)
+func (x AgentEventKind) Enum() *AgentEventKind {
+	p := new(AgentEventKind)
 	*p = x
 	return p
 }
 
-func (x FileAction) String() string {
+func (x AgentEventKind) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (FileAction) Descriptor() protoreflect.EnumDescriptor {
+func (AgentEventKind) Descriptor() protoreflect.EnumDescriptor {
 	return file_netclode_v1_events_proto_enumTypes[0].Descriptor()
 }
 
-func (FileAction) Type() protoreflect.EnumType {
+func (AgentEventKind) Type() protoreflect.EnumType {
 	return &file_netclode_v1_events_proto_enumTypes[0]
 }
 
-func (x FileAction) Number() protoreflect.EnumNumber {
+func (x AgentEventKind) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use FileAction.Descriptor instead.
-func (FileAction) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use AgentEventKind.Descriptor instead.
+func (AgentEventKind) EnumDescriptor() ([]byte, []int) {
 	return file_netclode_v1_events_proto_rawDescGZIP(), []int{0}
+}
+
+// MessageRole identifies the sender of a message.
+type MessageRole int32
+
+const (
+	MessageRole_MESSAGE_ROLE_UNSPECIFIED MessageRole = 0
+	MessageRole_MESSAGE_ROLE_USER        MessageRole = 1
+	MessageRole_MESSAGE_ROLE_ASSISTANT   MessageRole = 2
+)
+
+// Enum value maps for MessageRole.
+var (
+	MessageRole_name = map[int32]string{
+		0: "MESSAGE_ROLE_UNSPECIFIED",
+		1: "MESSAGE_ROLE_USER",
+		2: "MESSAGE_ROLE_ASSISTANT",
+	}
+	MessageRole_value = map[string]int32{
+		"MESSAGE_ROLE_UNSPECIFIED": 0,
+		"MESSAGE_ROLE_USER":        1,
+		"MESSAGE_ROLE_ASSISTANT":   2,
+	}
+)
+
+func (x MessageRole) Enum() *MessageRole {
+	p := new(MessageRole)
+	*p = x
+	return p
+}
+
+func (x MessageRole) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (MessageRole) Descriptor() protoreflect.EnumDescriptor {
+	return file_netclode_v1_events_proto_enumTypes[1].Descriptor()
+}
+
+func (MessageRole) Type() protoreflect.EnumType {
+	return &file_netclode_v1_events_proto_enumTypes[1]
+}
+
+func (x MessageRole) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use MessageRole.Descriptor instead.
+func (MessageRole) EnumDescriptor() ([]byte, []int) {
+	return file_netclode_v1_events_proto_rawDescGZIP(), []int{1}
 }
 
 // RepoCloneStage represents the stage of repository cloning.
@@ -116,11 +189,11 @@ func (x RepoCloneStage) String() string {
 }
 
 func (RepoCloneStage) Descriptor() protoreflect.EnumDescriptor {
-	return file_netclode_v1_events_proto_enumTypes[1].Descriptor()
+	return file_netclode_v1_events_proto_enumTypes[2].Descriptor()
 }
 
 func (RepoCloneStage) Type() protoreflect.EnumType {
-	return &file_netclode_v1_events_proto_enumTypes[1]
+	return &file_netclode_v1_events_proto_enumTypes[2]
 }
 
 func (x RepoCloneStage) Number() protoreflect.EnumNumber {
@@ -129,103 +202,24 @@ func (x RepoCloneStage) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RepoCloneStage.Descriptor instead.
 func (RepoCloneStage) EnumDescriptor() ([]byte, []int) {
-	return file_netclode_v1_events_proto_rawDescGZIP(), []int{1}
-}
-
-// AgentEventKind identifies the type of event.
-type AgentEventKind int32
-
-const (
-	AgentEventKind_AGENT_EVENT_KIND_UNSPECIFIED         AgentEventKind = 0
-	AgentEventKind_AGENT_EVENT_KIND_TOOL_START          AgentEventKind = 1  // Agent started using a tool
-	AgentEventKind_AGENT_EVENT_KIND_TOOL_INPUT          AgentEventKind = 2  // Streaming tool input delta
-	AgentEventKind_AGENT_EVENT_KIND_TOOL_END            AgentEventKind = 3  // Tool execution completed
-	AgentEventKind_AGENT_EVENT_KIND_FILE_CHANGE         AgentEventKind = 4  // File was created/edited/deleted
-	AgentEventKind_AGENT_EVENT_KIND_COMMAND_START       AgentEventKind = 5  // Shell command started
-	AgentEventKind_AGENT_EVENT_KIND_COMMAND_END         AgentEventKind = 6  // Shell command completed
-	AgentEventKind_AGENT_EVENT_KIND_THINKING            AgentEventKind = 7  // Agent thinking/reasoning content
-	AgentEventKind_AGENT_EVENT_KIND_PORT_EXPOSED        AgentEventKind = 8  // Port was exposed for preview
-	AgentEventKind_AGENT_EVENT_KIND_REPO_CLONE          AgentEventKind = 9  // Repository clone progress
-	AgentEventKind_AGENT_EVENT_KIND_TOOL_INPUT_COMPLETE AgentEventKind = 10 // Tool input streaming finished with full input
-	AgentEventKind_AGENT_EVENT_KIND_AGENT_DISCONNECTED  AgentEventKind = 11 // Agent disconnected unexpectedly
-	AgentEventKind_AGENT_EVENT_KIND_AGENT_RECONNECTED   AgentEventKind = 12 // Agent reconnected after disconnect
-)
-
-// Enum value maps for AgentEventKind.
-var (
-	AgentEventKind_name = map[int32]string{
-		0:  "AGENT_EVENT_KIND_UNSPECIFIED",
-		1:  "AGENT_EVENT_KIND_TOOL_START",
-		2:  "AGENT_EVENT_KIND_TOOL_INPUT",
-		3:  "AGENT_EVENT_KIND_TOOL_END",
-		4:  "AGENT_EVENT_KIND_FILE_CHANGE",
-		5:  "AGENT_EVENT_KIND_COMMAND_START",
-		6:  "AGENT_EVENT_KIND_COMMAND_END",
-		7:  "AGENT_EVENT_KIND_THINKING",
-		8:  "AGENT_EVENT_KIND_PORT_EXPOSED",
-		9:  "AGENT_EVENT_KIND_REPO_CLONE",
-		10: "AGENT_EVENT_KIND_TOOL_INPUT_COMPLETE",
-		11: "AGENT_EVENT_KIND_AGENT_DISCONNECTED",
-		12: "AGENT_EVENT_KIND_AGENT_RECONNECTED",
-	}
-	AgentEventKind_value = map[string]int32{
-		"AGENT_EVENT_KIND_UNSPECIFIED":         0,
-		"AGENT_EVENT_KIND_TOOL_START":          1,
-		"AGENT_EVENT_KIND_TOOL_INPUT":          2,
-		"AGENT_EVENT_KIND_TOOL_END":            3,
-		"AGENT_EVENT_KIND_FILE_CHANGE":         4,
-		"AGENT_EVENT_KIND_COMMAND_START":       5,
-		"AGENT_EVENT_KIND_COMMAND_END":         6,
-		"AGENT_EVENT_KIND_THINKING":            7,
-		"AGENT_EVENT_KIND_PORT_EXPOSED":        8,
-		"AGENT_EVENT_KIND_REPO_CLONE":          9,
-		"AGENT_EVENT_KIND_TOOL_INPUT_COMPLETE": 10,
-		"AGENT_EVENT_KIND_AGENT_DISCONNECTED":  11,
-		"AGENT_EVENT_KIND_AGENT_RECONNECTED":   12,
-	}
-)
-
-func (x AgentEventKind) Enum() *AgentEventKind {
-	p := new(AgentEventKind)
-	*p = x
-	return p
-}
-
-func (x AgentEventKind) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (AgentEventKind) Descriptor() protoreflect.EnumDescriptor {
-	return file_netclode_v1_events_proto_enumTypes[2].Descriptor()
-}
-
-func (AgentEventKind) Type() protoreflect.EnumType {
-	return &file_netclode_v1_events_proto_enumTypes[2]
-}
-
-func (x AgentEventKind) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use AgentEventKind.Descriptor instead.
-func (AgentEventKind) EnumDescriptor() ([]byte, []int) {
 	return file_netclode_v1_events_proto_rawDescGZIP(), []int{2}
 }
 
 // AgentEvent represents events emitted during agent execution.
-// Uses oneof for type-safe, efficient event payloads.
 type AgentEvent struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	Kind      AgentEventKind         `protobuf:"varint,1,opt,name=kind,proto3,enum=netclode.v1.AgentEventKind" json:"kind,omitempty"`
-	Timestamp *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          AgentEventKind         `protobuf:"varint,1,opt,name=kind,proto3,enum=netclode.v1.AgentEventKind" json:"kind,omitempty"`
+	CorrelationId string                 `protobuf:"bytes,2,opt,name=correlation_id,json=correlationId,proto3" json:"correlation_id,omitempty"` // Groups related events (message_id, thinking_id, tool_use_id)
 	// Event-specific payload
 	//
 	// Types that are valid to be assigned to Payload:
 	//
-	//	*AgentEvent_Tool
-	//	*AgentEvent_FileChange
-	//	*AgentEvent_Command
+	//	*AgentEvent_Message
 	//	*AgentEvent_Thinking
+	//	*AgentEvent_ToolStart
+	//	*AgentEvent_ToolInput
+	//	*AgentEvent_ToolOutput
+	//	*AgentEvent_ToolEnd
 	//	*AgentEvent_PortExposed
 	//	*AgentEvent_RepoClone
 	Payload       isAgentEvent_Payload `protobuf_oneof:"payload"`
@@ -270,11 +264,11 @@ func (x *AgentEvent) GetKind() AgentEventKind {
 	return AgentEventKind_AGENT_EVENT_KIND_UNSPECIFIED
 }
 
-func (x *AgentEvent) GetTimestamp() *timestamppb.Timestamp {
+func (x *AgentEvent) GetCorrelationId() string {
 	if x != nil {
-		return x.Timestamp
+		return x.CorrelationId
 	}
-	return nil
+	return ""
 }
 
 func (x *AgentEvent) GetPayload() isAgentEvent_Payload {
@@ -284,28 +278,10 @@ func (x *AgentEvent) GetPayload() isAgentEvent_Payload {
 	return nil
 }
 
-func (x *AgentEvent) GetTool() *ToolEventPayload {
+func (x *AgentEvent) GetMessage() *MessagePayload {
 	if x != nil {
-		if x, ok := x.Payload.(*AgentEvent_Tool); ok {
-			return x.Tool
-		}
-	}
-	return nil
-}
-
-func (x *AgentEvent) GetFileChange() *FileChangePayload {
-	if x != nil {
-		if x, ok := x.Payload.(*AgentEvent_FileChange); ok {
-			return x.FileChange
-		}
-	}
-	return nil
-}
-
-func (x *AgentEvent) GetCommand() *CommandPayload {
-	if x != nil {
-		if x, ok := x.Payload.(*AgentEvent_Command); ok {
-			return x.Command
+		if x, ok := x.Payload.(*AgentEvent_Message); ok {
+			return x.Message
 		}
 	}
 	return nil
@@ -315,6 +291,42 @@ func (x *AgentEvent) GetThinking() *ThinkingPayload {
 	if x != nil {
 		if x, ok := x.Payload.(*AgentEvent_Thinking); ok {
 			return x.Thinking
+		}
+	}
+	return nil
+}
+
+func (x *AgentEvent) GetToolStart() *ToolStartPayload {
+	if x != nil {
+		if x, ok := x.Payload.(*AgentEvent_ToolStart); ok {
+			return x.ToolStart
+		}
+	}
+	return nil
+}
+
+func (x *AgentEvent) GetToolInput() *ToolInputPayload {
+	if x != nil {
+		if x, ok := x.Payload.(*AgentEvent_ToolInput); ok {
+			return x.ToolInput
+		}
+	}
+	return nil
+}
+
+func (x *AgentEvent) GetToolOutput() *ToolOutputPayload {
+	if x != nil {
+		if x, ok := x.Payload.(*AgentEvent_ToolOutput); ok {
+			return x.ToolOutput
+		}
+	}
+	return nil
+}
+
+func (x *AgentEvent) GetToolEnd() *ToolEndPayload {
+	if x != nil {
+		if x, ok := x.Payload.(*AgentEvent_ToolEnd); ok {
+			return x.ToolEnd
 		}
 	}
 	return nil
@@ -342,72 +354,77 @@ type isAgentEvent_Payload interface {
 	isAgentEvent_Payload()
 }
 
-type AgentEvent_Tool struct {
-	Tool *ToolEventPayload `protobuf:"bytes,3,opt,name=tool,proto3,oneof"`
-}
-
-type AgentEvent_FileChange struct {
-	FileChange *FileChangePayload `protobuf:"bytes,4,opt,name=file_change,json=fileChange,proto3,oneof"`
-}
-
-type AgentEvent_Command struct {
-	Command *CommandPayload `protobuf:"bytes,5,opt,name=command,proto3,oneof"`
+type AgentEvent_Message struct {
+	Message *MessagePayload `protobuf:"bytes,3,opt,name=message,proto3,oneof"`
 }
 
 type AgentEvent_Thinking struct {
-	Thinking *ThinkingPayload `protobuf:"bytes,6,opt,name=thinking,proto3,oneof"`
+	Thinking *ThinkingPayload `protobuf:"bytes,4,opt,name=thinking,proto3,oneof"`
+}
+
+type AgentEvent_ToolStart struct {
+	ToolStart *ToolStartPayload `protobuf:"bytes,5,opt,name=tool_start,json=toolStart,proto3,oneof"`
+}
+
+type AgentEvent_ToolInput struct {
+	ToolInput *ToolInputPayload `protobuf:"bytes,6,opt,name=tool_input,json=toolInput,proto3,oneof"`
+}
+
+type AgentEvent_ToolOutput struct {
+	ToolOutput *ToolOutputPayload `protobuf:"bytes,7,opt,name=tool_output,json=toolOutput,proto3,oneof"`
+}
+
+type AgentEvent_ToolEnd struct {
+	ToolEnd *ToolEndPayload `protobuf:"bytes,8,opt,name=tool_end,json=toolEnd,proto3,oneof"`
 }
 
 type AgentEvent_PortExposed struct {
-	PortExposed *PortExposedPayload `protobuf:"bytes,7,opt,name=port_exposed,json=portExposed,proto3,oneof"`
+	PortExposed *PortExposedPayload `protobuf:"bytes,9,opt,name=port_exposed,json=portExposed,proto3,oneof"`
 }
 
 type AgentEvent_RepoClone struct {
-	RepoClone *RepoClonePayload `protobuf:"bytes,8,opt,name=repo_clone,json=repoClone,proto3,oneof"`
+	RepoClone *RepoClonePayload `protobuf:"bytes,10,opt,name=repo_clone,json=repoClone,proto3,oneof"`
 }
 
-func (*AgentEvent_Tool) isAgentEvent_Payload() {}
-
-func (*AgentEvent_FileChange) isAgentEvent_Payload() {}
-
-func (*AgentEvent_Command) isAgentEvent_Payload() {}
+func (*AgentEvent_Message) isAgentEvent_Payload() {}
 
 func (*AgentEvent_Thinking) isAgentEvent_Payload() {}
+
+func (*AgentEvent_ToolStart) isAgentEvent_Payload() {}
+
+func (*AgentEvent_ToolInput) isAgentEvent_Payload() {}
+
+func (*AgentEvent_ToolOutput) isAgentEvent_Payload() {}
+
+func (*AgentEvent_ToolEnd) isAgentEvent_Payload() {}
 
 func (*AgentEvent_PortExposed) isAgentEvent_Payload() {}
 
 func (*AgentEvent_RepoClone) isAgentEvent_Payload() {}
 
-// ToolEventPayload contains data for tool-related events.
-// Used for: TOOL_START, TOOL_INPUT, TOOL_INPUT_COMPLETE, TOOL_END
-type ToolEventPayload struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Tool            string                 `protobuf:"bytes,1,opt,name=tool,proto3" json:"tool,omitempty"`                                                        // Tool name (e.g., "Read", "Edit", "Bash")
-	ToolUseId       string                 `protobuf:"bytes,2,opt,name=tool_use_id,json=toolUseId,proto3" json:"tool_use_id,omitempty"`                           // Unique ID for this tool invocation
-	ParentToolUseId *string                `protobuf:"bytes,3,opt,name=parent_tool_use_id,json=parentToolUseId,proto3,oneof" json:"parent_tool_use_id,omitempty"` // Set when tool runs inside a Task/subagent
-	Input           *structpb.Struct       `protobuf:"bytes,4,opt,name=input,proto3,oneof" json:"input,omitempty"`                                                // Full tool input (for TOOL_START, TOOL_INPUT_COMPLETE)
-	InputDelta      *string                `protobuf:"bytes,5,opt,name=input_delta,json=inputDelta,proto3,oneof" json:"input_delta,omitempty"`                    // Streaming input delta (for TOOL_INPUT)
-	Result          *string                `protobuf:"bytes,6,opt,name=result,proto3,oneof" json:"result,omitempty"`                                              // Tool output (for TOOL_END, on success)
-	Error           *string                `protobuf:"bytes,7,opt,name=error,proto3,oneof" json:"error,omitempty"`                                                // Error message (for TOOL_END, on failure)
-	DurationMs      *int64                 `protobuf:"varint,8,opt,name=duration_ms,json=durationMs,proto3,oneof" json:"duration_ms,omitempty"`                   // Duration in milliseconds (for TOOL_END)
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+// MessagePayload contains data for user/assistant messages.
+type MessagePayload struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Role          MessageRole            `protobuf:"varint,1,opt,name=role,proto3,enum=netclode.v1.MessageRole" json:"role,omitempty"` // USER or ASSISTANT
+	Content       string                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`                         // Delta if partial=true, full if partial=false
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ToolEventPayload) Reset() {
-	*x = ToolEventPayload{}
+func (x *MessagePayload) Reset() {
+	*x = MessagePayload{}
 	mi := &file_netclode_v1_events_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ToolEventPayload) String() string {
+func (x *MessagePayload) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ToolEventPayload) ProtoMessage() {}
+func (*MessagePayload) ProtoMessage() {}
 
-func (x *ToolEventPayload) ProtoReflect() protoreflect.Message {
+func (x *MessagePayload) ProtoReflect() protoreflect.Message {
 	mi := &file_netclode_v1_events_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -419,202 +436,21 @@ func (x *ToolEventPayload) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ToolEventPayload.ProtoReflect.Descriptor instead.
-func (*ToolEventPayload) Descriptor() ([]byte, []int) {
+// Deprecated: Use MessagePayload.ProtoReflect.Descriptor instead.
+func (*MessagePayload) Descriptor() ([]byte, []int) {
 	return file_netclode_v1_events_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *ToolEventPayload) GetTool() string {
+func (x *MessagePayload) GetRole() MessageRole {
 	if x != nil {
-		return x.Tool
+		return x.Role
 	}
-	return ""
+	return MessageRole_MESSAGE_ROLE_UNSPECIFIED
 }
 
-func (x *ToolEventPayload) GetToolUseId() string {
+func (x *MessagePayload) GetContent() string {
 	if x != nil {
-		return x.ToolUseId
-	}
-	return ""
-}
-
-func (x *ToolEventPayload) GetParentToolUseId() string {
-	if x != nil && x.ParentToolUseId != nil {
-		return *x.ParentToolUseId
-	}
-	return ""
-}
-
-func (x *ToolEventPayload) GetInput() *structpb.Struct {
-	if x != nil {
-		return x.Input
-	}
-	return nil
-}
-
-func (x *ToolEventPayload) GetInputDelta() string {
-	if x != nil && x.InputDelta != nil {
-		return *x.InputDelta
-	}
-	return ""
-}
-
-func (x *ToolEventPayload) GetResult() string {
-	if x != nil && x.Result != nil {
-		return *x.Result
-	}
-	return ""
-}
-
-func (x *ToolEventPayload) GetError() string {
-	if x != nil && x.Error != nil {
-		return *x.Error
-	}
-	return ""
-}
-
-func (x *ToolEventPayload) GetDurationMs() int64 {
-	if x != nil && x.DurationMs != nil {
-		return *x.DurationMs
-	}
-	return 0
-}
-
-// FileChangePayload contains data for file modification events.
-type FileChangePayload struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`                                            // File path relative to workspace root
-	Action        FileAction             `protobuf:"varint,2,opt,name=action,proto3,enum=netclode.v1.FileAction" json:"action,omitempty"`           // Type of change (create, edit, delete)
-	LinesAdded    *int32                 `protobuf:"varint,3,opt,name=lines_added,json=linesAdded,proto3,oneof" json:"lines_added,omitempty"`       // Number of lines added
-	LinesRemoved  *int32                 `protobuf:"varint,4,opt,name=lines_removed,json=linesRemoved,proto3,oneof" json:"lines_removed,omitempty"` // Number of lines removed
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *FileChangePayload) Reset() {
-	*x = FileChangePayload{}
-	mi := &file_netclode_v1_events_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *FileChangePayload) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*FileChangePayload) ProtoMessage() {}
-
-func (x *FileChangePayload) ProtoReflect() protoreflect.Message {
-	mi := &file_netclode_v1_events_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use FileChangePayload.ProtoReflect.Descriptor instead.
-func (*FileChangePayload) Descriptor() ([]byte, []int) {
-	return file_netclode_v1_events_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *FileChangePayload) GetPath() string {
-	if x != nil {
-		return x.Path
-	}
-	return ""
-}
-
-func (x *FileChangePayload) GetAction() FileAction {
-	if x != nil {
-		return x.Action
-	}
-	return FileAction_FILE_ACTION_UNSPECIFIED
-}
-
-func (x *FileChangePayload) GetLinesAdded() int32 {
-	if x != nil && x.LinesAdded != nil {
-		return *x.LinesAdded
-	}
-	return 0
-}
-
-func (x *FileChangePayload) GetLinesRemoved() int32 {
-	if x != nil && x.LinesRemoved != nil {
-		return *x.LinesRemoved
-	}
-	return 0
-}
-
-// CommandPayload contains data for shell command events.
-// Used for: COMMAND_START, COMMAND_END
-type CommandPayload struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Command       string                 `protobuf:"bytes,1,opt,name=command,proto3" json:"command,omitempty"`                          // The command being executed
-	Cwd           *string                `protobuf:"bytes,2,opt,name=cwd,proto3,oneof" json:"cwd,omitempty"`                            // Working directory
-	ExitCode      *int32                 `protobuf:"varint,3,opt,name=exit_code,json=exitCode,proto3,oneof" json:"exit_code,omitempty"` // Exit code (for COMMAND_END)
-	Output        *string                `protobuf:"bytes,4,opt,name=output,proto3,oneof" json:"output,omitempty"`                      // Command output (for COMMAND_END, truncated)
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CommandPayload) Reset() {
-	*x = CommandPayload{}
-	mi := &file_netclode_v1_events_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CommandPayload) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CommandPayload) ProtoMessage() {}
-
-func (x *CommandPayload) ProtoReflect() protoreflect.Message {
-	mi := &file_netclode_v1_events_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CommandPayload.ProtoReflect.Descriptor instead.
-func (*CommandPayload) Descriptor() ([]byte, []int) {
-	return file_netclode_v1_events_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *CommandPayload) GetCommand() string {
-	if x != nil {
-		return x.Command
-	}
-	return ""
-}
-
-func (x *CommandPayload) GetCwd() string {
-	if x != nil && x.Cwd != nil {
-		return *x.Cwd
-	}
-	return ""
-}
-
-func (x *CommandPayload) GetExitCode() int32 {
-	if x != nil && x.ExitCode != nil {
-		return *x.ExitCode
-	}
-	return 0
-}
-
-func (x *CommandPayload) GetOutput() string {
-	if x != nil && x.Output != nil {
-		return *x.Output
+		return x.Content
 	}
 	return ""
 }
@@ -622,16 +458,14 @@ func (x *CommandPayload) GetOutput() string {
 // ThinkingPayload contains data for agent thinking/reasoning events.
 type ThinkingPayload struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ThinkingId    string                 `protobuf:"bytes,1,opt,name=thinking_id,json=thinkingId,proto3" json:"thinking_id,omitempty"` // Unique ID to correlate streaming thinking updates
-	Content       string                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`                         // Thinking content (delta if partial, empty if final)
-	Partial       bool                   `protobuf:"varint,3,opt,name=partial,proto3" json:"partial,omitempty"`                        // true for streaming deltas, false for final (empty) marker
+	Content       string                 `protobuf:"bytes,1,opt,name=content,proto3" json:"content,omitempty"` // Delta if partial=true, full if partial=false
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ThinkingPayload) Reset() {
 	*x = ThinkingPayload{}
-	mi := &file_netclode_v1_events_proto_msgTypes[4]
+	mi := &file_netclode_v1_events_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -643,7 +477,7 @@ func (x *ThinkingPayload) String() string {
 func (*ThinkingPayload) ProtoMessage() {}
 
 func (x *ThinkingPayload) ProtoReflect() protoreflect.Message {
-	mi := &file_netclode_v1_events_proto_msgTypes[4]
+	mi := &file_netclode_v1_events_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -656,14 +490,7 @@ func (x *ThinkingPayload) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ThinkingPayload.ProtoReflect.Descriptor instead.
 func (*ThinkingPayload) Descriptor() ([]byte, []int) {
-	return file_netclode_v1_events_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *ThinkingPayload) GetThinkingId() string {
-	if x != nil {
-		return x.ThinkingId
-	}
-	return ""
+	return file_netclode_v1_events_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ThinkingPayload) GetContent() string {
@@ -673,11 +500,228 @@ func (x *ThinkingPayload) GetContent() string {
 	return ""
 }
 
-func (x *ThinkingPayload) GetPartial() bool {
+// ToolStartPayload contains data for tool invocation start.
+type ToolStartPayload struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Tool            string                 `protobuf:"bytes,1,opt,name=tool,proto3" json:"tool,omitempty"`                                                        // Tool name (e.g., "Read", "Edit", "Bash")
+	ParentToolUseId *string                `protobuf:"bytes,2,opt,name=parent_tool_use_id,json=parentToolUseId,proto3,oneof" json:"parent_tool_use_id,omitempty"` // Set when tool runs inside a Task/subagent
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ToolStartPayload) Reset() {
+	*x = ToolStartPayload{}
+	mi := &file_netclode_v1_events_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ToolStartPayload) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ToolStartPayload) ProtoMessage() {}
+
+func (x *ToolStartPayload) ProtoReflect() protoreflect.Message {
+	mi := &file_netclode_v1_events_proto_msgTypes[3]
 	if x != nil {
-		return x.Partial
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ToolStartPayload.ProtoReflect.Descriptor instead.
+func (*ToolStartPayload) Descriptor() ([]byte, []int) {
+	return file_netclode_v1_events_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ToolStartPayload) GetTool() string {
+	if x != nil {
+		return x.Tool
+	}
+	return ""
+}
+
+func (x *ToolStartPayload) GetParentToolUseId() string {
+	if x != nil && x.ParentToolUseId != nil {
+		return *x.ParentToolUseId
+	}
+	return ""
+}
+
+// ToolInputPayload contains data for tool input (streaming or complete).
+type ToolInputPayload struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// For partial=true: delta contains the streaming chunk
+	// For partial=false: input contains the full input
+	Delta         *string          `protobuf:"bytes,1,opt,name=delta,proto3,oneof" json:"delta,omitempty"` // Streaming input delta
+	Input         *structpb.Struct `protobuf:"bytes,2,opt,name=input,proto3,oneof" json:"input,omitempty"` // Full tool input (when partial=false)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ToolInputPayload) Reset() {
+	*x = ToolInputPayload{}
+	mi := &file_netclode_v1_events_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ToolInputPayload) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ToolInputPayload) ProtoMessage() {}
+
+func (x *ToolInputPayload) ProtoReflect() protoreflect.Message {
+	mi := &file_netclode_v1_events_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ToolInputPayload.ProtoReflect.Descriptor instead.
+func (*ToolInputPayload) Descriptor() ([]byte, []int) {
+	return file_netclode_v1_events_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ToolInputPayload) GetDelta() string {
+	if x != nil && x.Delta != nil {
+		return *x.Delta
+	}
+	return ""
+}
+
+func (x *ToolInputPayload) GetInput() *structpb.Struct {
+	if x != nil {
+		return x.Input
+	}
+	return nil
+}
+
+// ToolOutputPayload contains data for tool output (streaming or complete).
+type ToolOutputPayload struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// For partial=true: delta contains the streaming chunk
+	// For partial=false: output contains the full output
+	Delta         *string `protobuf:"bytes,1,opt,name=delta,proto3,oneof" json:"delta,omitempty"`   // Streaming output delta
+	Output        *string `protobuf:"bytes,2,opt,name=output,proto3,oneof" json:"output,omitempty"` // Full tool output (when partial=false)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ToolOutputPayload) Reset() {
+	*x = ToolOutputPayload{}
+	mi := &file_netclode_v1_events_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ToolOutputPayload) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ToolOutputPayload) ProtoMessage() {}
+
+func (x *ToolOutputPayload) ProtoReflect() protoreflect.Message {
+	mi := &file_netclode_v1_events_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ToolOutputPayload.ProtoReflect.Descriptor instead.
+func (*ToolOutputPayload) Descriptor() ([]byte, []int) {
+	return file_netclode_v1_events_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ToolOutputPayload) GetDelta() string {
+	if x != nil && x.Delta != nil {
+		return *x.Delta
+	}
+	return ""
+}
+
+func (x *ToolOutputPayload) GetOutput() string {
+	if x != nil && x.Output != nil {
+		return *x.Output
+	}
+	return ""
+}
+
+// ToolEndPayload contains data for tool execution completion.
+type ToolEndPayload struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`                               // Whether tool succeeded
+	Error         *string                `protobuf:"bytes,2,opt,name=error,proto3,oneof" json:"error,omitempty"`                              // Error message if failed
+	DurationMs    *int64                 `protobuf:"varint,3,opt,name=duration_ms,json=durationMs,proto3,oneof" json:"duration_ms,omitempty"` // Duration in milliseconds
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ToolEndPayload) Reset() {
+	*x = ToolEndPayload{}
+	mi := &file_netclode_v1_events_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ToolEndPayload) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ToolEndPayload) ProtoMessage() {}
+
+func (x *ToolEndPayload) ProtoReflect() protoreflect.Message {
+	mi := &file_netclode_v1_events_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ToolEndPayload.ProtoReflect.Descriptor instead.
+func (*ToolEndPayload) Descriptor() ([]byte, []int) {
+	return file_netclode_v1_events_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ToolEndPayload) GetSuccess() bool {
+	if x != nil {
+		return x.Success
 	}
 	return false
+}
+
+func (x *ToolEndPayload) GetError() string {
+	if x != nil && x.Error != nil {
+		return *x.Error
+	}
+	return ""
+}
+
+func (x *ToolEndPayload) GetDurationMs() int64 {
+	if x != nil && x.DurationMs != nil {
+		return *x.DurationMs
+	}
+	return 0
 }
 
 // PortExposedPayload contains data for port exposure events.
@@ -692,7 +736,7 @@ type PortExposedPayload struct {
 
 func (x *PortExposedPayload) Reset() {
 	*x = PortExposedPayload{}
-	mi := &file_netclode_v1_events_proto_msgTypes[5]
+	mi := &file_netclode_v1_events_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -704,7 +748,7 @@ func (x *PortExposedPayload) String() string {
 func (*PortExposedPayload) ProtoMessage() {}
 
 func (x *PortExposedPayload) ProtoReflect() protoreflect.Message {
-	mi := &file_netclode_v1_events_proto_msgTypes[5]
+	mi := &file_netclode_v1_events_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -717,7 +761,7 @@ func (x *PortExposedPayload) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PortExposedPayload.ProtoReflect.Descriptor instead.
 func (*PortExposedPayload) Descriptor() ([]byte, []int) {
-	return file_netclode_v1_events_proto_rawDescGZIP(), []int{5}
+	return file_netclode_v1_events_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *PortExposedPayload) GetPort() int32 {
@@ -753,7 +797,7 @@ type RepoClonePayload struct {
 
 func (x *RepoClonePayload) Reset() {
 	*x = RepoClonePayload{}
-	mi := &file_netclode_v1_events_proto_msgTypes[6]
+	mi := &file_netclode_v1_events_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -765,7 +809,7 @@ func (x *RepoClonePayload) String() string {
 func (*RepoClonePayload) ProtoMessage() {}
 
 func (x *RepoClonePayload) ProtoReflect() protoreflect.Message {
-	mi := &file_netclode_v1_events_proto_msgTypes[6]
+	mi := &file_netclode_v1_events_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -778,7 +822,7 @@ func (x *RepoClonePayload) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RepoClonePayload.ProtoReflect.Descriptor instead.
 func (*RepoClonePayload) Descriptor() ([]byte, []int) {
-	return file_netclode_v1_events_proto_rawDescGZIP(), []int{6}
+	return file_netclode_v1_events_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *RepoClonePayload) GetRepo() string {
@@ -806,59 +850,51 @@ var File_netclode_v1_events_proto protoreflect.FileDescriptor
 
 const file_netclode_v1_events_proto_rawDesc = "" +
 	"\n" +
-	"\x18netclode/v1/events.proto\x12\vnetclode.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf5\x03\n" +
+	"\x18netclode/v1/events.proto\x12\vnetclode.v1\x1a\x1cgoogle/protobuf/struct.proto\"\xe7\x04\n" +
 	"\n" +
 	"AgentEvent\x12/\n" +
-	"\x04kind\x18\x01 \x01(\x0e2\x1b.netclode.v1.AgentEventKindR\x04kind\x128\n" +
-	"\ttimestamp\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x123\n" +
-	"\x04tool\x18\x03 \x01(\v2\x1d.netclode.v1.ToolEventPayloadH\x00R\x04tool\x12A\n" +
-	"\vfile_change\x18\x04 \x01(\v2\x1e.netclode.v1.FileChangePayloadH\x00R\n" +
-	"fileChange\x127\n" +
-	"\acommand\x18\x05 \x01(\v2\x1b.netclode.v1.CommandPayloadH\x00R\acommand\x12:\n" +
-	"\bthinking\x18\x06 \x01(\v2\x1c.netclode.v1.ThinkingPayloadH\x00R\bthinking\x12D\n" +
-	"\fport_exposed\x18\a \x01(\v2\x1f.netclode.v1.PortExposedPayloadH\x00R\vportExposed\x12>\n" +
+	"\x04kind\x18\x01 \x01(\x0e2\x1b.netclode.v1.AgentEventKindR\x04kind\x12%\n" +
+	"\x0ecorrelation_id\x18\x02 \x01(\tR\rcorrelationId\x127\n" +
+	"\amessage\x18\x03 \x01(\v2\x1b.netclode.v1.MessagePayloadH\x00R\amessage\x12:\n" +
+	"\bthinking\x18\x04 \x01(\v2\x1c.netclode.v1.ThinkingPayloadH\x00R\bthinking\x12>\n" +
 	"\n" +
-	"repo_clone\x18\b \x01(\v2\x1d.netclode.v1.RepoClonePayloadH\x00R\trepoCloneB\t\n" +
-	"\apayload\"\x86\x03\n" +
-	"\x10ToolEventPayload\x12\x12\n" +
-	"\x04tool\x18\x01 \x01(\tR\x04tool\x12\x1e\n" +
-	"\vtool_use_id\x18\x02 \x01(\tR\ttoolUseId\x120\n" +
-	"\x12parent_tool_use_id\x18\x03 \x01(\tH\x00R\x0fparentToolUseId\x88\x01\x01\x122\n" +
-	"\x05input\x18\x04 \x01(\v2\x17.google.protobuf.StructH\x01R\x05input\x88\x01\x01\x12$\n" +
-	"\vinput_delta\x18\x05 \x01(\tH\x02R\n" +
-	"inputDelta\x88\x01\x01\x12\x1b\n" +
-	"\x06result\x18\x06 \x01(\tH\x03R\x06result\x88\x01\x01\x12\x19\n" +
-	"\x05error\x18\a \x01(\tH\x04R\x05error\x88\x01\x01\x12$\n" +
-	"\vduration_ms\x18\b \x01(\x03H\x05R\n" +
-	"durationMs\x88\x01\x01B\x15\n" +
-	"\x13_parent_tool_use_idB\b\n" +
-	"\x06_inputB\x0e\n" +
-	"\f_input_deltaB\t\n" +
-	"\a_resultB\b\n" +
+	"tool_start\x18\x05 \x01(\v2\x1d.netclode.v1.ToolStartPayloadH\x00R\ttoolStart\x12>\n" +
+	"\n" +
+	"tool_input\x18\x06 \x01(\v2\x1d.netclode.v1.ToolInputPayloadH\x00R\ttoolInput\x12A\n" +
+	"\vtool_output\x18\a \x01(\v2\x1e.netclode.v1.ToolOutputPayloadH\x00R\n" +
+	"toolOutput\x128\n" +
+	"\btool_end\x18\b \x01(\v2\x1b.netclode.v1.ToolEndPayloadH\x00R\atoolEnd\x12D\n" +
+	"\fport_exposed\x18\t \x01(\v2\x1f.netclode.v1.PortExposedPayloadH\x00R\vportExposed\x12>\n" +
+	"\n" +
+	"repo_clone\x18\n" +
+	" \x01(\v2\x1d.netclode.v1.RepoClonePayloadH\x00R\trepoCloneB\t\n" +
+	"\apayload\"X\n" +
+	"\x0eMessagePayload\x12,\n" +
+	"\x04role\x18\x01 \x01(\x0e2\x18.netclode.v1.MessageRoleR\x04role\x12\x18\n" +
+	"\acontent\x18\x02 \x01(\tR\acontent\"+\n" +
+	"\x0fThinkingPayload\x12\x18\n" +
+	"\acontent\x18\x01 \x01(\tR\acontent\"o\n" +
+	"\x10ToolStartPayload\x12\x12\n" +
+	"\x04tool\x18\x01 \x01(\tR\x04tool\x120\n" +
+	"\x12parent_tool_use_id\x18\x02 \x01(\tH\x00R\x0fparentToolUseId\x88\x01\x01B\x15\n" +
+	"\x13_parent_tool_use_id\"u\n" +
+	"\x10ToolInputPayload\x12\x19\n" +
+	"\x05delta\x18\x01 \x01(\tH\x00R\x05delta\x88\x01\x01\x122\n" +
+	"\x05input\x18\x02 \x01(\v2\x17.google.protobuf.StructH\x01R\x05input\x88\x01\x01B\b\n" +
+	"\x06_deltaB\b\n" +
+	"\x06_input\"`\n" +
+	"\x11ToolOutputPayload\x12\x19\n" +
+	"\x05delta\x18\x01 \x01(\tH\x00R\x05delta\x88\x01\x01\x12\x1b\n" +
+	"\x06output\x18\x02 \x01(\tH\x01R\x06output\x88\x01\x01B\b\n" +
+	"\x06_deltaB\t\n" +
+	"\a_output\"\x85\x01\n" +
+	"\x0eToolEndPayload\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x19\n" +
+	"\x05error\x18\x02 \x01(\tH\x00R\x05error\x88\x01\x01\x12$\n" +
+	"\vduration_ms\x18\x03 \x01(\x03H\x01R\n" +
+	"durationMs\x88\x01\x01B\b\n" +
 	"\x06_errorB\x0e\n" +
-	"\f_duration_ms\"\xca\x01\n" +
-	"\x11FileChangePayload\x12\x12\n" +
-	"\x04path\x18\x01 \x01(\tR\x04path\x12/\n" +
-	"\x06action\x18\x02 \x01(\x0e2\x17.netclode.v1.FileActionR\x06action\x12$\n" +
-	"\vlines_added\x18\x03 \x01(\x05H\x00R\n" +
-	"linesAdded\x88\x01\x01\x12(\n" +
-	"\rlines_removed\x18\x04 \x01(\x05H\x01R\flinesRemoved\x88\x01\x01B\x0e\n" +
-	"\f_lines_addedB\x10\n" +
-	"\x0e_lines_removed\"\xa1\x01\n" +
-	"\x0eCommandPayload\x12\x18\n" +
-	"\acommand\x18\x01 \x01(\tR\acommand\x12\x15\n" +
-	"\x03cwd\x18\x02 \x01(\tH\x00R\x03cwd\x88\x01\x01\x12 \n" +
-	"\texit_code\x18\x03 \x01(\x05H\x01R\bexitCode\x88\x01\x01\x12\x1b\n" +
-	"\x06output\x18\x04 \x01(\tH\x02R\x06output\x88\x01\x01B\x06\n" +
-	"\x04_cwdB\f\n" +
-	"\n" +
-	"_exit_codeB\t\n" +
-	"\a_output\"f\n" +
-	"\x0fThinkingPayload\x12\x1f\n" +
-	"\vthinking_id\x18\x01 \x01(\tR\n" +
-	"thinkingId\x12\x18\n" +
-	"\acontent\x18\x02 \x01(\tR\acontent\x12\x18\n" +
-	"\apartial\x18\x03 \x01(\bR\apartial\"\x89\x01\n" +
+	"\f_duration_ms\"\x89\x01\n" +
 	"\x12PortExposedPayload\x12\x12\n" +
 	"\x04port\x18\x01 \x01(\x05R\x04port\x12\x1d\n" +
 	"\aprocess\x18\x02 \x01(\tH\x00R\aprocess\x88\x01\x01\x12$\n" +
@@ -870,34 +906,30 @@ const file_netclode_v1_events_proto_rawDesc = "" +
 	"\x10RepoClonePayload\x12\x12\n" +
 	"\x04repo\x18\x01 \x01(\tR\x04repo\x121\n" +
 	"\x05stage\x18\x02 \x01(\x0e2\x1b.netclode.v1.RepoCloneStageR\x05stage\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage*o\n" +
-	"\n" +
-	"FileAction\x12\x1b\n" +
-	"\x17FILE_ACTION_UNSPECIFIED\x10\x00\x12\x16\n" +
-	"\x12FILE_ACTION_CREATE\x10\x01\x12\x14\n" +
-	"\x10FILE_ACTION_EDIT\x10\x02\x12\x16\n" +
-	"\x12FILE_ACTION_DELETE\x10\x03*\xa6\x01\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage*\x87\x03\n" +
+	"\x0eAgentEventKind\x12 \n" +
+	"\x1cAGENT_EVENT_KIND_UNSPECIFIED\x10\x00\x12\x1c\n" +
+	"\x18AGENT_EVENT_KIND_MESSAGE\x10\x01\x12\x1d\n" +
+	"\x19AGENT_EVENT_KIND_THINKING\x10\x02\x12\x1f\n" +
+	"\x1bAGENT_EVENT_KIND_TOOL_START\x10\x03\x12\x1f\n" +
+	"\x1bAGENT_EVENT_KIND_TOOL_INPUT\x10\x04\x12 \n" +
+	"\x1cAGENT_EVENT_KIND_TOOL_OUTPUT\x10\x05\x12\x1d\n" +
+	"\x19AGENT_EVENT_KIND_TOOL_END\x10\x06\x12!\n" +
+	"\x1dAGENT_EVENT_KIND_PORT_EXPOSED\x10\a\x12\x1f\n" +
+	"\x1bAGENT_EVENT_KIND_REPO_CLONE\x10\b\x12'\n" +
+	"#AGENT_EVENT_KIND_AGENT_DISCONNECTED\x10\t\x12&\n" +
+	"\"AGENT_EVENT_KIND_AGENT_RECONNECTED\x10\n" +
+	"*^\n" +
+	"\vMessageRole\x12\x1c\n" +
+	"\x18MESSAGE_ROLE_UNSPECIFIED\x10\x00\x12\x15\n" +
+	"\x11MESSAGE_ROLE_USER\x10\x01\x12\x1a\n" +
+	"\x16MESSAGE_ROLE_ASSISTANT\x10\x02*\xa6\x01\n" +
 	"\x0eRepoCloneStage\x12 \n" +
 	"\x1cREPO_CLONE_STAGE_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19REPO_CLONE_STAGE_STARTING\x10\x01\x12\x1c\n" +
 	"\x18REPO_CLONE_STAGE_CLONING\x10\x02\x12\x19\n" +
 	"\x15REPO_CLONE_STAGE_DONE\x10\x03\x12\x1a\n" +
-	"\x16REPO_CLONE_STAGE_ERROR\x10\x04*\xd9\x03\n" +
-	"\x0eAgentEventKind\x12 \n" +
-	"\x1cAGENT_EVENT_KIND_UNSPECIFIED\x10\x00\x12\x1f\n" +
-	"\x1bAGENT_EVENT_KIND_TOOL_START\x10\x01\x12\x1f\n" +
-	"\x1bAGENT_EVENT_KIND_TOOL_INPUT\x10\x02\x12\x1d\n" +
-	"\x19AGENT_EVENT_KIND_TOOL_END\x10\x03\x12 \n" +
-	"\x1cAGENT_EVENT_KIND_FILE_CHANGE\x10\x04\x12\"\n" +
-	"\x1eAGENT_EVENT_KIND_COMMAND_START\x10\x05\x12 \n" +
-	"\x1cAGENT_EVENT_KIND_COMMAND_END\x10\x06\x12\x1d\n" +
-	"\x19AGENT_EVENT_KIND_THINKING\x10\a\x12!\n" +
-	"\x1dAGENT_EVENT_KIND_PORT_EXPOSED\x10\b\x12\x1f\n" +
-	"\x1bAGENT_EVENT_KIND_REPO_CLONE\x10\t\x12(\n" +
-	"$AGENT_EVENT_KIND_TOOL_INPUT_COMPLETE\x10\n" +
-	"\x12'\n" +
-	"#AGENT_EVENT_KIND_AGENT_DISCONNECTED\x10\v\x12&\n" +
-	"\"AGENT_EVENT_KIND_AGENT_RECONNECTED\x10\fB\xbc\x01\n" +
+	"\x16REPO_CLONE_STAGE_ERROR\x10\x04B\xbc\x01\n" +
 	"\x0fcom.netclode.v1B\vEventsProtoP\x01ZOgithub.com/angristan/netclode/services/control-plane/gen/netclode/v1;netclodev1\xa2\x02\x03NXX\xaa\x02\vNetclode.V1\xca\x02\vNetclode\\V1\xe2\x02\x17Netclode\\V1\\GPBMetadata\xea\x02\fNetclode::V1b\x06proto3"
 
 var (
@@ -913,38 +945,40 @@ func file_netclode_v1_events_proto_rawDescGZIP() []byte {
 }
 
 var file_netclode_v1_events_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_netclode_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_netclode_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_netclode_v1_events_proto_goTypes = []any{
-	(FileAction)(0),               // 0: netclode.v1.FileAction
-	(RepoCloneStage)(0),           // 1: netclode.v1.RepoCloneStage
-	(AgentEventKind)(0),           // 2: netclode.v1.AgentEventKind
-	(*AgentEvent)(nil),            // 3: netclode.v1.AgentEvent
-	(*ToolEventPayload)(nil),      // 4: netclode.v1.ToolEventPayload
-	(*FileChangePayload)(nil),     // 5: netclode.v1.FileChangePayload
-	(*CommandPayload)(nil),        // 6: netclode.v1.CommandPayload
-	(*ThinkingPayload)(nil),       // 7: netclode.v1.ThinkingPayload
-	(*PortExposedPayload)(nil),    // 8: netclode.v1.PortExposedPayload
-	(*RepoClonePayload)(nil),      // 9: netclode.v1.RepoClonePayload
-	(*timestamppb.Timestamp)(nil), // 10: google.protobuf.Timestamp
-	(*structpb.Struct)(nil),       // 11: google.protobuf.Struct
+	(AgentEventKind)(0),        // 0: netclode.v1.AgentEventKind
+	(MessageRole)(0),           // 1: netclode.v1.MessageRole
+	(RepoCloneStage)(0),        // 2: netclode.v1.RepoCloneStage
+	(*AgentEvent)(nil),         // 3: netclode.v1.AgentEvent
+	(*MessagePayload)(nil),     // 4: netclode.v1.MessagePayload
+	(*ThinkingPayload)(nil),    // 5: netclode.v1.ThinkingPayload
+	(*ToolStartPayload)(nil),   // 6: netclode.v1.ToolStartPayload
+	(*ToolInputPayload)(nil),   // 7: netclode.v1.ToolInputPayload
+	(*ToolOutputPayload)(nil),  // 8: netclode.v1.ToolOutputPayload
+	(*ToolEndPayload)(nil),     // 9: netclode.v1.ToolEndPayload
+	(*PortExposedPayload)(nil), // 10: netclode.v1.PortExposedPayload
+	(*RepoClonePayload)(nil),   // 11: netclode.v1.RepoClonePayload
+	(*structpb.Struct)(nil),    // 12: google.protobuf.Struct
 }
 var file_netclode_v1_events_proto_depIdxs = []int32{
-	2,  // 0: netclode.v1.AgentEvent.kind:type_name -> netclode.v1.AgentEventKind
-	10, // 1: netclode.v1.AgentEvent.timestamp:type_name -> google.protobuf.Timestamp
-	4,  // 2: netclode.v1.AgentEvent.tool:type_name -> netclode.v1.ToolEventPayload
-	5,  // 3: netclode.v1.AgentEvent.file_change:type_name -> netclode.v1.FileChangePayload
-	6,  // 4: netclode.v1.AgentEvent.command:type_name -> netclode.v1.CommandPayload
-	7,  // 5: netclode.v1.AgentEvent.thinking:type_name -> netclode.v1.ThinkingPayload
-	8,  // 6: netclode.v1.AgentEvent.port_exposed:type_name -> netclode.v1.PortExposedPayload
-	9,  // 7: netclode.v1.AgentEvent.repo_clone:type_name -> netclode.v1.RepoClonePayload
-	11, // 8: netclode.v1.ToolEventPayload.input:type_name -> google.protobuf.Struct
-	0,  // 9: netclode.v1.FileChangePayload.action:type_name -> netclode.v1.FileAction
-	1,  // 10: netclode.v1.RepoClonePayload.stage:type_name -> netclode.v1.RepoCloneStage
-	11, // [11:11] is the sub-list for method output_type
-	11, // [11:11] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	0,  // 0: netclode.v1.AgentEvent.kind:type_name -> netclode.v1.AgentEventKind
+	4,  // 1: netclode.v1.AgentEvent.message:type_name -> netclode.v1.MessagePayload
+	5,  // 2: netclode.v1.AgentEvent.thinking:type_name -> netclode.v1.ThinkingPayload
+	6,  // 3: netclode.v1.AgentEvent.tool_start:type_name -> netclode.v1.ToolStartPayload
+	7,  // 4: netclode.v1.AgentEvent.tool_input:type_name -> netclode.v1.ToolInputPayload
+	8,  // 5: netclode.v1.AgentEvent.tool_output:type_name -> netclode.v1.ToolOutputPayload
+	9,  // 6: netclode.v1.AgentEvent.tool_end:type_name -> netclode.v1.ToolEndPayload
+	10, // 7: netclode.v1.AgentEvent.port_exposed:type_name -> netclode.v1.PortExposedPayload
+	11, // 8: netclode.v1.AgentEvent.repo_clone:type_name -> netclode.v1.RepoClonePayload
+	1,  // 9: netclode.v1.MessagePayload.role:type_name -> netclode.v1.MessageRole
+	12, // 10: netclode.v1.ToolInputPayload.input:type_name -> google.protobuf.Struct
+	2,  // 11: netclode.v1.RepoClonePayload.stage:type_name -> netclode.v1.RepoCloneStage
+	12, // [12:12] is the sub-list for method output_type
+	12, // [12:12] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_netclode_v1_events_proto_init() }
@@ -953,24 +987,27 @@ func file_netclode_v1_events_proto_init() {
 		return
 	}
 	file_netclode_v1_events_proto_msgTypes[0].OneofWrappers = []any{
-		(*AgentEvent_Tool)(nil),
-		(*AgentEvent_FileChange)(nil),
-		(*AgentEvent_Command)(nil),
+		(*AgentEvent_Message)(nil),
 		(*AgentEvent_Thinking)(nil),
+		(*AgentEvent_ToolStart)(nil),
+		(*AgentEvent_ToolInput)(nil),
+		(*AgentEvent_ToolOutput)(nil),
+		(*AgentEvent_ToolEnd)(nil),
 		(*AgentEvent_PortExposed)(nil),
 		(*AgentEvent_RepoClone)(nil),
 	}
-	file_netclode_v1_events_proto_msgTypes[1].OneofWrappers = []any{}
-	file_netclode_v1_events_proto_msgTypes[2].OneofWrappers = []any{}
 	file_netclode_v1_events_proto_msgTypes[3].OneofWrappers = []any{}
+	file_netclode_v1_events_proto_msgTypes[4].OneofWrappers = []any{}
 	file_netclode_v1_events_proto_msgTypes[5].OneofWrappers = []any{}
+	file_netclode_v1_events_proto_msgTypes[6].OneofWrappers = []any{}
+	file_netclode_v1_events_proto_msgTypes[7].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_netclode_v1_events_proto_rawDesc), len(file_netclode_v1_events_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   7,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

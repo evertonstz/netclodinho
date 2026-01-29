@@ -20,19 +20,40 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
-/// FileAction represents the type of change made to a file.
-public enum Netclode_V1_FileAction: SwiftProtobuf.Enum, Swift.CaseIterable {
+/// AgentEventKind identifies the type of event.
+public enum Netclode_V1_AgentEventKind: SwiftProtobuf.Enum, Swift.CaseIterable {
   public typealias RawValue = Int
   case unspecified // = 0
 
-  /// File was created
-  case create // = 1
+  /// Content events (use partial flag on StreamEntry)
+  case message // = 1
 
-  /// File was modified
-  case edit // = 2
+  /// Agent thinking/reasoning content
+  case thinking // = 2
 
-  /// File was deleted
-  case delete // = 3
+  /// Tool lifecycle
+  case toolStart // = 3
+
+  /// Tool input (partial=true for streaming)
+  case toolInput // = 4
+
+  /// Tool output (partial=true for streaming)
+  case toolOutput // = 5
+
+  /// Tool execution completed
+  case toolEnd // = 6
+
+  /// System events
+  case portExposed // = 7
+
+  /// Repository clone progress
+  case repoClone // = 8
+
+  /// Agent disconnected unexpectedly
+  case agentDisconnected // = 9
+
+  /// Agent reconnected after disconnect
+  case agentReconnected // = 10
   case UNRECOGNIZED(Int)
 
   public init() {
@@ -42,9 +63,16 @@ public enum Netclode_V1_FileAction: SwiftProtobuf.Enum, Swift.CaseIterable {
   public init?(rawValue: Int) {
     switch rawValue {
     case 0: self = .unspecified
-    case 1: self = .create
-    case 2: self = .edit
-    case 3: self = .delete
+    case 1: self = .message
+    case 2: self = .thinking
+    case 3: self = .toolStart
+    case 4: self = .toolInput
+    case 5: self = .toolOutput
+    case 6: self = .toolEnd
+    case 7: self = .portExposed
+    case 8: self = .repoClone
+    case 9: self = .agentDisconnected
+    case 10: self = .agentReconnected
     default: self = .UNRECOGNIZED(rawValue)
     }
   }
@@ -52,19 +80,72 @@ public enum Netclode_V1_FileAction: SwiftProtobuf.Enum, Swift.CaseIterable {
   public var rawValue: Int {
     switch self {
     case .unspecified: return 0
-    case .create: return 1
-    case .edit: return 2
-    case .delete: return 3
+    case .message: return 1
+    case .thinking: return 2
+    case .toolStart: return 3
+    case .toolInput: return 4
+    case .toolOutput: return 5
+    case .toolEnd: return 6
+    case .portExposed: return 7
+    case .repoClone: return 8
+    case .agentDisconnected: return 9
+    case .agentReconnected: return 10
     case .UNRECOGNIZED(let i): return i
     }
   }
 
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static let allCases: [Netclode_V1_FileAction] = [
+  public static let allCases: [Netclode_V1_AgentEventKind] = [
     .unspecified,
-    .create,
-    .edit,
-    .delete,
+    .message,
+    .thinking,
+    .toolStart,
+    .toolInput,
+    .toolOutput,
+    .toolEnd,
+    .portExposed,
+    .repoClone,
+    .agentDisconnected,
+    .agentReconnected,
+  ]
+
+}
+
+/// MessageRole identifies the sender of a message.
+public enum Netclode_V1_MessageRole: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+  case unspecified // = 0
+  case user // = 1
+  case assistant // = 2
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .user
+    case 2: self = .assistant
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .user: return 1
+    case .assistant: return 2
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Netclode_V1_MessageRole] = [
+    .unspecified,
+    .user,
+    .assistant,
   ]
 
 }
@@ -124,111 +205,7 @@ public enum Netclode_V1_RepoCloneStage: SwiftProtobuf.Enum, Swift.CaseIterable {
 
 }
 
-/// AgentEventKind identifies the type of event.
-public enum Netclode_V1_AgentEventKind: SwiftProtobuf.Enum, Swift.CaseIterable {
-  public typealias RawValue = Int
-  case unspecified // = 0
-
-  /// Agent started using a tool
-  case toolStart // = 1
-
-  /// Streaming tool input delta
-  case toolInput // = 2
-
-  /// Tool execution completed
-  case toolEnd // = 3
-
-  /// File was created/edited/deleted
-  case fileChange // = 4
-
-  /// Shell command started
-  case commandStart // = 5
-
-  /// Shell command completed
-  case commandEnd // = 6
-
-  /// Agent thinking/reasoning content
-  case thinking // = 7
-
-  /// Port was exposed for preview
-  case portExposed // = 8
-
-  /// Repository clone progress
-  case repoClone // = 9
-
-  /// Tool input streaming finished with full input
-  case toolInputComplete // = 10
-
-  /// Agent disconnected unexpectedly
-  case agentDisconnected // = 11
-
-  /// Agent reconnected after disconnect
-  case agentReconnected // = 12
-  case UNRECOGNIZED(Int)
-
-  public init() {
-    self = .unspecified
-  }
-
-  public init?(rawValue: Int) {
-    switch rawValue {
-    case 0: self = .unspecified
-    case 1: self = .toolStart
-    case 2: self = .toolInput
-    case 3: self = .toolEnd
-    case 4: self = .fileChange
-    case 5: self = .commandStart
-    case 6: self = .commandEnd
-    case 7: self = .thinking
-    case 8: self = .portExposed
-    case 9: self = .repoClone
-    case 10: self = .toolInputComplete
-    case 11: self = .agentDisconnected
-    case 12: self = .agentReconnected
-    default: self = .UNRECOGNIZED(rawValue)
-    }
-  }
-
-  public var rawValue: Int {
-    switch self {
-    case .unspecified: return 0
-    case .toolStart: return 1
-    case .toolInput: return 2
-    case .toolEnd: return 3
-    case .fileChange: return 4
-    case .commandStart: return 5
-    case .commandEnd: return 6
-    case .thinking: return 7
-    case .portExposed: return 8
-    case .repoClone: return 9
-    case .toolInputComplete: return 10
-    case .agentDisconnected: return 11
-    case .agentReconnected: return 12
-    case .UNRECOGNIZED(let i): return i
-    }
-  }
-
-  // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static let allCases: [Netclode_V1_AgentEventKind] = [
-    .unspecified,
-    .toolStart,
-    .toolInput,
-    .toolEnd,
-    .fileChange,
-    .commandStart,
-    .commandEnd,
-    .thinking,
-    .portExposed,
-    .repoClone,
-    .toolInputComplete,
-    .agentDisconnected,
-    .agentReconnected,
-  ]
-
-}
-
 /// AgentEvent represents events emitted during agent execution.
-/// Uses oneof for type-safe, efficient event payloads.
 public struct Netclode_V1_AgentEvent: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -236,40 +213,18 @@ public struct Netclode_V1_AgentEvent: Sendable {
 
   public var kind: Netclode_V1_AgentEventKind = .unspecified
 
-  public var timestamp: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
-    set {_timestamp = newValue}
-  }
-  /// Returns true if `timestamp` has been explicitly set.
-  public var hasTimestamp: Bool {return self._timestamp != nil}
-  /// Clears the value of `timestamp`. Subsequent reads from it will return its default value.
-  public mutating func clearTimestamp() {self._timestamp = nil}
+  /// Groups related events (message_id, thinking_id, tool_use_id)
+  public var correlationID: String = String()
 
   /// Event-specific payload
   public var payload: Netclode_V1_AgentEvent.OneOf_Payload? = nil
 
-  public var tool: Netclode_V1_ToolEventPayload {
+  public var message: Netclode_V1_MessagePayload {
     get {
-      if case .tool(let v)? = payload {return v}
-      return Netclode_V1_ToolEventPayload()
+      if case .message(let v)? = payload {return v}
+      return Netclode_V1_MessagePayload()
     }
-    set {payload = .tool(newValue)}
-  }
-
-  public var fileChange: Netclode_V1_FileChangePayload {
-    get {
-      if case .fileChange(let v)? = payload {return v}
-      return Netclode_V1_FileChangePayload()
-    }
-    set {payload = .fileChange(newValue)}
-  }
-
-  public var command: Netclode_V1_CommandPayload {
-    get {
-      if case .command(let v)? = payload {return v}
-      return Netclode_V1_CommandPayload()
-    }
-    set {payload = .command(newValue)}
+    set {payload = .message(newValue)}
   }
 
   public var thinking: Netclode_V1_ThinkingPayload {
@@ -278,6 +233,38 @@ public struct Netclode_V1_AgentEvent: Sendable {
       return Netclode_V1_ThinkingPayload()
     }
     set {payload = .thinking(newValue)}
+  }
+
+  public var toolStart: Netclode_V1_ToolStartPayload {
+    get {
+      if case .toolStart(let v)? = payload {return v}
+      return Netclode_V1_ToolStartPayload()
+    }
+    set {payload = .toolStart(newValue)}
+  }
+
+  public var toolInput: Netclode_V1_ToolInputPayload {
+    get {
+      if case .toolInput(let v)? = payload {return v}
+      return Netclode_V1_ToolInputPayload()
+    }
+    set {payload = .toolInput(newValue)}
+  }
+
+  public var toolOutput: Netclode_V1_ToolOutputPayload {
+    get {
+      if case .toolOutput(let v)? = payload {return v}
+      return Netclode_V1_ToolOutputPayload()
+    }
+    set {payload = .toolOutput(newValue)}
+  }
+
+  public var toolEnd: Netclode_V1_ToolEndPayload {
+    get {
+      if case .toolEnd(let v)? = payload {return v}
+      return Netclode_V1_ToolEndPayload()
+    }
+    set {payload = .toolEnd(newValue)}
   }
 
   public var portExposed: Netclode_V1_PortExposedPayload {
@@ -300,32 +287,59 @@ public struct Netclode_V1_AgentEvent: Sendable {
 
   /// Event-specific payload
   public enum OneOf_Payload: Equatable, Sendable {
-    case tool(Netclode_V1_ToolEventPayload)
-    case fileChange(Netclode_V1_FileChangePayload)
-    case command(Netclode_V1_CommandPayload)
+    case message(Netclode_V1_MessagePayload)
     case thinking(Netclode_V1_ThinkingPayload)
+    case toolStart(Netclode_V1_ToolStartPayload)
+    case toolInput(Netclode_V1_ToolInputPayload)
+    case toolOutput(Netclode_V1_ToolOutputPayload)
+    case toolEnd(Netclode_V1_ToolEndPayload)
     case portExposed(Netclode_V1_PortExposedPayload)
     case repoClone(Netclode_V1_RepoClonePayload)
 
   }
 
   public init() {}
-
-  fileprivate var _timestamp: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
-/// ToolEventPayload contains data for tool-related events.
-/// Used for: TOOL_START, TOOL_INPUT, TOOL_INPUT_COMPLETE, TOOL_END
-public struct Netclode_V1_ToolEventPayload: Sendable {
+/// MessagePayload contains data for user/assistant messages.
+public struct Netclode_V1_MessagePayload: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// USER or ASSISTANT
+  public var role: Netclode_V1_MessageRole = .unspecified
+
+  /// Delta if partial=true, full if partial=false
+  public var content: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// ThinkingPayload contains data for agent thinking/reasoning events.
+public struct Netclode_V1_ThinkingPayload: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Delta if partial=true, full if partial=false
+  public var content: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// ToolStartPayload contains data for tool invocation start.
+public struct Netclode_V1_ToolStartPayload: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Tool name (e.g., "Read", "Edit", "Bash")
   public var tool: String = String()
-
-  /// Unique ID for this tool invocation
-  public var toolUseID: String = String()
 
   /// Set when tool runs inside a Task/subagent
   public var parentToolUseID: String {
@@ -337,7 +351,31 @@ public struct Netclode_V1_ToolEventPayload: Sendable {
   /// Clears the value of `parentToolUseID`. Subsequent reads from it will return its default value.
   public mutating func clearParentToolUseID() {self._parentToolUseID = nil}
 
-  /// Full tool input (for TOOL_START, TOOL_INPUT_COMPLETE)
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _parentToolUseID: String? = nil
+}
+
+/// ToolInputPayload contains data for tool input (streaming or complete).
+public struct Netclode_V1_ToolInputPayload: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// For partial=true: delta contains the streaming chunk
+  /// For partial=false: input contains the full input
+  public var delta: String {
+    get {return _delta ?? String()}
+    set {_delta = newValue}
+  }
+  /// Returns true if `delta` has been explicitly set.
+  public var hasDelta: Bool {return self._delta != nil}
+  /// Clears the value of `delta`. Subsequent reads from it will return its default value.
+  public mutating func clearDelta() {self._delta = nil}
+
+  /// Full tool input (when partial=false)
   public var input: SwiftProtobuf.Google_Protobuf_Struct {
     get {return _input ?? SwiftProtobuf.Google_Protobuf_Struct()}
     set {_input = newValue}
@@ -347,129 +385,32 @@ public struct Netclode_V1_ToolEventPayload: Sendable {
   /// Clears the value of `input`. Subsequent reads from it will return its default value.
   public mutating func clearInput() {self._input = nil}
 
-  /// Streaming input delta (for TOOL_INPUT)
-  public var inputDelta: String {
-    get {return _inputDelta ?? String()}
-    set {_inputDelta = newValue}
-  }
-  /// Returns true if `inputDelta` has been explicitly set.
-  public var hasInputDelta: Bool {return self._inputDelta != nil}
-  /// Clears the value of `inputDelta`. Subsequent reads from it will return its default value.
-  public mutating func clearInputDelta() {self._inputDelta = nil}
-
-  /// Tool output (for TOOL_END, on success)
-  public var result: String {
-    get {return _result ?? String()}
-    set {_result = newValue}
-  }
-  /// Returns true if `result` has been explicitly set.
-  public var hasResult: Bool {return self._result != nil}
-  /// Clears the value of `result`. Subsequent reads from it will return its default value.
-  public mutating func clearResult() {self._result = nil}
-
-  /// Error message (for TOOL_END, on failure)
-  public var error: String {
-    get {return _error ?? String()}
-    set {_error = newValue}
-  }
-  /// Returns true if `error` has been explicitly set.
-  public var hasError: Bool {return self._error != nil}
-  /// Clears the value of `error`. Subsequent reads from it will return its default value.
-  public mutating func clearError() {self._error = nil}
-
-  /// Duration in milliseconds (for TOOL_END)
-  public var durationMs: Int64 {
-    get {return _durationMs ?? 0}
-    set {_durationMs = newValue}
-  }
-  /// Returns true if `durationMs` has been explicitly set.
-  public var hasDurationMs: Bool {return self._durationMs != nil}
-  /// Clears the value of `durationMs`. Subsequent reads from it will return its default value.
-  public mutating func clearDurationMs() {self._durationMs = nil}
-
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _parentToolUseID: String? = nil
+  fileprivate var _delta: String? = nil
   fileprivate var _input: SwiftProtobuf.Google_Protobuf_Struct? = nil
-  fileprivate var _inputDelta: String? = nil
-  fileprivate var _result: String? = nil
-  fileprivate var _error: String? = nil
-  fileprivate var _durationMs: Int64? = nil
 }
 
-/// FileChangePayload contains data for file modification events.
-public struct Netclode_V1_FileChangePayload: Sendable {
+/// ToolOutputPayload contains data for tool output (streaming or complete).
+public struct Netclode_V1_ToolOutputPayload: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// File path relative to workspace root
-  public var path: String = String()
-
-  /// Type of change (create, edit, delete)
-  public var action: Netclode_V1_FileAction = .unspecified
-
-  /// Number of lines added
-  public var linesAdded: Int32 {
-    get {return _linesAdded ?? 0}
-    set {_linesAdded = newValue}
+  /// For partial=true: delta contains the streaming chunk
+  /// For partial=false: output contains the full output
+  public var delta: String {
+    get {return _delta ?? String()}
+    set {_delta = newValue}
   }
-  /// Returns true if `linesAdded` has been explicitly set.
-  public var hasLinesAdded: Bool {return self._linesAdded != nil}
-  /// Clears the value of `linesAdded`. Subsequent reads from it will return its default value.
-  public mutating func clearLinesAdded() {self._linesAdded = nil}
+  /// Returns true if `delta` has been explicitly set.
+  public var hasDelta: Bool {return self._delta != nil}
+  /// Clears the value of `delta`. Subsequent reads from it will return its default value.
+  public mutating func clearDelta() {self._delta = nil}
 
-  /// Number of lines removed
-  public var linesRemoved: Int32 {
-    get {return _linesRemoved ?? 0}
-    set {_linesRemoved = newValue}
-  }
-  /// Returns true if `linesRemoved` has been explicitly set.
-  public var hasLinesRemoved: Bool {return self._linesRemoved != nil}
-  /// Clears the value of `linesRemoved`. Subsequent reads from it will return its default value.
-  public mutating func clearLinesRemoved() {self._linesRemoved = nil}
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-
-  fileprivate var _linesAdded: Int32? = nil
-  fileprivate var _linesRemoved: Int32? = nil
-}
-
-/// CommandPayload contains data for shell command events.
-/// Used for: COMMAND_START, COMMAND_END
-public struct Netclode_V1_CommandPayload: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  /// The command being executed
-  public var command: String = String()
-
-  /// Working directory
-  public var cwd: String {
-    get {return _cwd ?? String()}
-    set {_cwd = newValue}
-  }
-  /// Returns true if `cwd` has been explicitly set.
-  public var hasCwd: Bool {return self._cwd != nil}
-  /// Clears the value of `cwd`. Subsequent reads from it will return its default value.
-  public mutating func clearCwd() {self._cwd = nil}
-
-  /// Exit code (for COMMAND_END)
-  public var exitCode: Int32 {
-    get {return _exitCode ?? 0}
-    set {_exitCode = newValue}
-  }
-  /// Returns true if `exitCode` has been explicitly set.
-  public var hasExitCode: Bool {return self._exitCode != nil}
-  /// Clears the value of `exitCode`. Subsequent reads from it will return its default value.
-  public mutating func clearExitCode() {self._exitCode = nil}
-
-  /// Command output (for COMMAND_END, truncated)
+  /// Full tool output (when partial=false)
   public var output: String {
     get {return _output ?? String()}
     set {_output = newValue}
@@ -483,29 +424,45 @@ public struct Netclode_V1_CommandPayload: Sendable {
 
   public init() {}
 
-  fileprivate var _cwd: String? = nil
-  fileprivate var _exitCode: Int32? = nil
+  fileprivate var _delta: String? = nil
   fileprivate var _output: String? = nil
 }
 
-/// ThinkingPayload contains data for agent thinking/reasoning events.
-public struct Netclode_V1_ThinkingPayload: Sendable {
+/// ToolEndPayload contains data for tool execution completion.
+public struct Netclode_V1_ToolEndPayload: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// Unique ID to correlate streaming thinking updates
-  public var thinkingID: String = String()
+  /// Whether tool succeeded
+  public var success: Bool = false
 
-  /// Thinking content (delta if partial, empty if final)
-  public var content: String = String()
+  /// Error message if failed
+  public var error: String {
+    get {return _error ?? String()}
+    set {_error = newValue}
+  }
+  /// Returns true if `error` has been explicitly set.
+  public var hasError: Bool {return self._error != nil}
+  /// Clears the value of `error`. Subsequent reads from it will return its default value.
+  public mutating func clearError() {self._error = nil}
 
-  /// true for streaming deltas, false for final (empty) marker
-  public var partial: Bool = false
+  /// Duration in milliseconds
+  public var durationMs: Int64 {
+    get {return _durationMs ?? 0}
+    set {_durationMs = newValue}
+  }
+  /// Returns true if `durationMs` has been explicitly set.
+  public var hasDurationMs: Bool {return self._durationMs != nil}
+  /// Clears the value of `durationMs`. Subsequent reads from it will return its default value.
+  public mutating func clearDurationMs() {self._durationMs = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
+
+  fileprivate var _error: String? = nil
+  fileprivate var _durationMs: Int64? = nil
 }
 
 /// PortExposedPayload contains data for port exposure events.
@@ -569,21 +526,21 @@ public struct Netclode_V1_RepoClonePayload: Sendable {
 
 fileprivate let _protobuf_package = "netclode.v1"
 
-extension Netclode_V1_FileAction: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0FILE_ACTION_UNSPECIFIED\0\u{1}FILE_ACTION_CREATE\0\u{1}FILE_ACTION_EDIT\0\u{1}FILE_ACTION_DELETE\0")
+extension Netclode_V1_AgentEventKind: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0AGENT_EVENT_KIND_UNSPECIFIED\0\u{1}AGENT_EVENT_KIND_MESSAGE\0\u{1}AGENT_EVENT_KIND_THINKING\0\u{1}AGENT_EVENT_KIND_TOOL_START\0\u{1}AGENT_EVENT_KIND_TOOL_INPUT\0\u{1}AGENT_EVENT_KIND_TOOL_OUTPUT\0\u{1}AGENT_EVENT_KIND_TOOL_END\0\u{1}AGENT_EVENT_KIND_PORT_EXPOSED\0\u{1}AGENT_EVENT_KIND_REPO_CLONE\0\u{1}AGENT_EVENT_KIND_AGENT_DISCONNECTED\0\u{1}AGENT_EVENT_KIND_AGENT_RECONNECTED\0")
+}
+
+extension Netclode_V1_MessageRole: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0MESSAGE_ROLE_UNSPECIFIED\0\u{1}MESSAGE_ROLE_USER\0\u{1}MESSAGE_ROLE_ASSISTANT\0")
 }
 
 extension Netclode_V1_RepoCloneStage: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0REPO_CLONE_STAGE_UNSPECIFIED\0\u{1}REPO_CLONE_STAGE_STARTING\0\u{1}REPO_CLONE_STAGE_CLONING\0\u{1}REPO_CLONE_STAGE_DONE\0\u{1}REPO_CLONE_STAGE_ERROR\0")
 }
 
-extension Netclode_V1_AgentEventKind: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0AGENT_EVENT_KIND_UNSPECIFIED\0\u{1}AGENT_EVENT_KIND_TOOL_START\0\u{1}AGENT_EVENT_KIND_TOOL_INPUT\0\u{1}AGENT_EVENT_KIND_TOOL_END\0\u{1}AGENT_EVENT_KIND_FILE_CHANGE\0\u{1}AGENT_EVENT_KIND_COMMAND_START\0\u{1}AGENT_EVENT_KIND_COMMAND_END\0\u{1}AGENT_EVENT_KIND_THINKING\0\u{1}AGENT_EVENT_KIND_PORT_EXPOSED\0\u{1}AGENT_EVENT_KIND_REPO_CLONE\0\u{1}AGENT_EVENT_KIND_TOOL_INPUT_COMPLETE\0\u{1}AGENT_EVENT_KIND_AGENT_DISCONNECTED\0\u{1}AGENT_EVENT_KIND_AGENT_RECONNECTED\0")
-}
-
 extension Netclode_V1_AgentEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AgentEvent"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}kind\0\u{1}timestamp\0\u{1}tool\0\u{3}file_change\0\u{1}command\0\u{1}thinking\0\u{3}port_exposed\0\u{3}repo_clone\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}kind\0\u{3}correlation_id\0\u{1}message\0\u{1}thinking\0\u{3}tool_start\0\u{3}tool_input\0\u{3}tool_output\0\u{3}tool_end\0\u{3}port_exposed\0\u{3}repo_clone\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -592,47 +549,21 @@ extension Netclode_V1_AgentEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageI
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularEnumField(value: &self.kind) }()
-      case 2: try { try decoder.decodeSingularMessageField(value: &self._timestamp) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.correlationID) }()
       case 3: try {
-        var v: Netclode_V1_ToolEventPayload?
+        var v: Netclode_V1_MessagePayload?
         var hadOneofValue = false
         if let current = self.payload {
           hadOneofValue = true
-          if case .tool(let m) = current {v = m}
+          if case .message(let m) = current {v = m}
         }
         try decoder.decodeSingularMessageField(value: &v)
         if let v = v {
           if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .tool(v)
+          self.payload = .message(v)
         }
       }()
       case 4: try {
-        var v: Netclode_V1_FileChangePayload?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .fileChange(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .fileChange(v)
-        }
-      }()
-      case 5: try {
-        var v: Netclode_V1_CommandPayload?
-        var hadOneofValue = false
-        if let current = self.payload {
-          hadOneofValue = true
-          if case .command(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.payload = .command(v)
-        }
-      }()
-      case 6: try {
         var v: Netclode_V1_ThinkingPayload?
         var hadOneofValue = false
         if let current = self.payload {
@@ -645,7 +576,59 @@ extension Netclode_V1_AgentEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageI
           self.payload = .thinking(v)
         }
       }()
+      case 5: try {
+        var v: Netclode_V1_ToolStartPayload?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .toolStart(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .toolStart(v)
+        }
+      }()
+      case 6: try {
+        var v: Netclode_V1_ToolInputPayload?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .toolInput(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .toolInput(v)
+        }
+      }()
       case 7: try {
+        var v: Netclode_V1_ToolOutputPayload?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .toolOutput(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .toolOutput(v)
+        }
+      }()
+      case 8: try {
+        var v: Netclode_V1_ToolEndPayload?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .toolEnd(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .toolEnd(v)
+        }
+      }()
+      case 9: try {
         var v: Netclode_V1_PortExposedPayload?
         var hadOneofValue = false
         if let current = self.payload {
@@ -658,7 +641,7 @@ extension Netclode_V1_AgentEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageI
           self.payload = .portExposed(v)
         }
       }()
-      case 8: try {
+      case 10: try {
         var v: Netclode_V1_RepoClonePayload?
         var hadOneofValue = false
         if let current = self.payload {
@@ -684,33 +667,41 @@ extension Netclode_V1_AgentEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     if self.kind != .unspecified {
       try visitor.visitSingularEnumField(value: self.kind, fieldNumber: 1)
     }
-    try { if let v = self._timestamp {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    } }()
+    if !self.correlationID.isEmpty {
+      try visitor.visitSingularStringField(value: self.correlationID, fieldNumber: 2)
+    }
     switch self.payload {
-    case .tool?: try {
-      guard case .tool(let v)? = self.payload else { preconditionFailure() }
+    case .message?: try {
+      guard case .message(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
-    }()
-    case .fileChange?: try {
-      guard case .fileChange(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
-    }()
-    case .command?: try {
-      guard case .command(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
     }()
     case .thinking?: try {
       guard case .thinking(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    }()
+    case .toolStart?: try {
+      guard case .toolStart(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    }()
+    case .toolInput?: try {
+      guard case .toolInput(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+    }()
+    case .toolOutput?: try {
+      guard case .toolOutput(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+    }()
+    case .toolEnd?: try {
+      guard case .toolEnd(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
     }()
     case .portExposed?: try {
       guard case .portExposed(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
     }()
     case .repoClone?: try {
       guard case .repoClone(let v)? = self.payload else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
     }()
     case nil: break
     }
@@ -719,16 +710,81 @@ extension Netclode_V1_AgentEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageI
 
   public static func ==(lhs: Netclode_V1_AgentEvent, rhs: Netclode_V1_AgentEvent) -> Bool {
     if lhs.kind != rhs.kind {return false}
-    if lhs._timestamp != rhs._timestamp {return false}
+    if lhs.correlationID != rhs.correlationID {return false}
     if lhs.payload != rhs.payload {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Netclode_V1_ToolEventPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".ToolEventPayload"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}tool\0\u{3}tool_use_id\0\u{3}parent_tool_use_id\0\u{1}input\0\u{3}input_delta\0\u{1}result\0\u{1}error\0\u{3}duration_ms\0")
+extension Netclode_V1_MessagePayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".MessagePayload"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}role\0\u{1}content\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.role) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.content) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.role != .unspecified {
+      try visitor.visitSingularEnumField(value: self.role, fieldNumber: 1)
+    }
+    if !self.content.isEmpty {
+      try visitor.visitSingularStringField(value: self.content, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Netclode_V1_MessagePayload, rhs: Netclode_V1_MessagePayload) -> Bool {
+    if lhs.role != rhs.role {return false}
+    if lhs.content != rhs.content {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Netclode_V1_ThinkingPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ThinkingPayload"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}content\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.content) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.content.isEmpty {
+      try visitor.visitSingularStringField(value: self.content, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Netclode_V1_ThinkingPayload, rhs: Netclode_V1_ThinkingPayload) -> Bool {
+    if lhs.content != rhs.content {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Netclode_V1_ToolStartPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ToolStartPayload"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}tool\0\u{3}parent_tool_use_id\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -737,13 +793,7 @@ extension Netclode_V1_ToolEventPayload: SwiftProtobuf.Message, SwiftProtobuf._Me
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.tool) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self.toolUseID) }()
-      case 3: try { try decoder.decodeSingularStringField(value: &self._parentToolUseID) }()
-      case 4: try { try decoder.decodeSingularMessageField(value: &self._input) }()
-      case 5: try { try decoder.decodeSingularStringField(value: &self._inputDelta) }()
-      case 6: try { try decoder.decodeSingularStringField(value: &self._result) }()
-      case 7: try { try decoder.decodeSingularStringField(value: &self._error) }()
-      case 8: try { try decoder.decodeSingularInt64Field(value: &self._durationMs) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self._parentToolUseID) }()
       default: break
       }
     }
@@ -757,145 +807,101 @@ extension Netclode_V1_ToolEventPayload: SwiftProtobuf.Message, SwiftProtobuf._Me
     if !self.tool.isEmpty {
       try visitor.visitSingularStringField(value: self.tool, fieldNumber: 1)
     }
-    if !self.toolUseID.isEmpty {
-      try visitor.visitSingularStringField(value: self.toolUseID, fieldNumber: 2)
-    }
     try { if let v = self._parentToolUseID {
-      try visitor.visitSingularStringField(value: v, fieldNumber: 3)
-    } }()
-    try { if let v = self._input {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
-    } }()
-    try { if let v = self._inputDelta {
-      try visitor.visitSingularStringField(value: v, fieldNumber: 5)
-    } }()
-    try { if let v = self._result {
-      try visitor.visitSingularStringField(value: v, fieldNumber: 6)
-    } }()
-    try { if let v = self._error {
-      try visitor.visitSingularStringField(value: v, fieldNumber: 7)
-    } }()
-    try { if let v = self._durationMs {
-      try visitor.visitSingularInt64Field(value: v, fieldNumber: 8)
-    } }()
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Netclode_V1_ToolEventPayload, rhs: Netclode_V1_ToolEventPayload) -> Bool {
-    if lhs.tool != rhs.tool {return false}
-    if lhs.toolUseID != rhs.toolUseID {return false}
-    if lhs._parentToolUseID != rhs._parentToolUseID {return false}
-    if lhs._input != rhs._input {return false}
-    if lhs._inputDelta != rhs._inputDelta {return false}
-    if lhs._result != rhs._result {return false}
-    if lhs._error != rhs._error {return false}
-    if lhs._durationMs != rhs._durationMs {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Netclode_V1_FileChangePayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".FileChangePayload"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{1}action\0\u{3}lines_added\0\u{3}lines_removed\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.path) }()
-      case 2: try { try decoder.decodeSingularEnumField(value: &self.action) }()
-      case 3: try { try decoder.decodeSingularInt32Field(value: &self._linesAdded) }()
-      case 4: try { try decoder.decodeSingularInt32Field(value: &self._linesRemoved) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    if !self.path.isEmpty {
-      try visitor.visitSingularStringField(value: self.path, fieldNumber: 1)
-    }
-    if self.action != .unspecified {
-      try visitor.visitSingularEnumField(value: self.action, fieldNumber: 2)
-    }
-    try { if let v = self._linesAdded {
-      try visitor.visitSingularInt32Field(value: v, fieldNumber: 3)
-    } }()
-    try { if let v = self._linesRemoved {
-      try visitor.visitSingularInt32Field(value: v, fieldNumber: 4)
-    } }()
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Netclode_V1_FileChangePayload, rhs: Netclode_V1_FileChangePayload) -> Bool {
-    if lhs.path != rhs.path {return false}
-    if lhs.action != rhs.action {return false}
-    if lhs._linesAdded != rhs._linesAdded {return false}
-    if lhs._linesRemoved != rhs._linesRemoved {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Netclode_V1_CommandPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".CommandPayload"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}command\0\u{1}cwd\0\u{3}exit_code\0\u{1}output\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.command) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self._cwd) }()
-      case 3: try { try decoder.decodeSingularInt32Field(value: &self._exitCode) }()
-      case 4: try { try decoder.decodeSingularStringField(value: &self._output) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    if !self.command.isEmpty {
-      try visitor.visitSingularStringField(value: self.command, fieldNumber: 1)
-    }
-    try { if let v = self._cwd {
       try visitor.visitSingularStringField(value: v, fieldNumber: 2)
     } }()
-    try { if let v = self._exitCode {
-      try visitor.visitSingularInt32Field(value: v, fieldNumber: 3)
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Netclode_V1_ToolStartPayload, rhs: Netclode_V1_ToolStartPayload) -> Bool {
+    if lhs.tool != rhs.tool {return false}
+    if lhs._parentToolUseID != rhs._parentToolUseID {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Netclode_V1_ToolInputPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ToolInputPayload"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}delta\0\u{1}input\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self._delta) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._input) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._delta {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 1)
     } }()
-    try { if let v = self._output {
-      try visitor.visitSingularStringField(value: v, fieldNumber: 4)
+    try { if let v = self._input {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Netclode_V1_CommandPayload, rhs: Netclode_V1_CommandPayload) -> Bool {
-    if lhs.command != rhs.command {return false}
-    if lhs._cwd != rhs._cwd {return false}
-    if lhs._exitCode != rhs._exitCode {return false}
+  public static func ==(lhs: Netclode_V1_ToolInputPayload, rhs: Netclode_V1_ToolInputPayload) -> Bool {
+    if lhs._delta != rhs._delta {return false}
+    if lhs._input != rhs._input {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Netclode_V1_ToolOutputPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ToolOutputPayload"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}delta\0\u{1}output\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self._delta) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self._output) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._delta {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._output {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Netclode_V1_ToolOutputPayload, rhs: Netclode_V1_ToolOutputPayload) -> Bool {
+    if lhs._delta != rhs._delta {return false}
     if lhs._output != rhs._output {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Netclode_V1_ThinkingPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".ThinkingPayload"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}thinking_id\0\u{1}content\0\u{1}partial\0")
+extension Netclode_V1_ToolEndPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ToolEndPayload"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}success\0\u{1}error\0\u{3}duration_ms\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -903,31 +909,35 @@ extension Netclode_V1_ThinkingPayload: SwiftProtobuf.Message, SwiftProtobuf._Mes
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.thinkingID) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self.content) }()
-      case 3: try { try decoder.decodeSingularBoolField(value: &self.partial) }()
+      case 1: try { try decoder.decodeSingularBoolField(value: &self.success) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self._error) }()
+      case 3: try { try decoder.decodeSingularInt64Field(value: &self._durationMs) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if !self.thinkingID.isEmpty {
-      try visitor.visitSingularStringField(value: self.thinkingID, fieldNumber: 1)
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.success != false {
+      try visitor.visitSingularBoolField(value: self.success, fieldNumber: 1)
     }
-    if !self.content.isEmpty {
-      try visitor.visitSingularStringField(value: self.content, fieldNumber: 2)
-    }
-    if self.partial != false {
-      try visitor.visitSingularBoolField(value: self.partial, fieldNumber: 3)
-    }
+    try { if let v = self._error {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._durationMs {
+      try visitor.visitSingularInt64Field(value: v, fieldNumber: 3)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Netclode_V1_ThinkingPayload, rhs: Netclode_V1_ThinkingPayload) -> Bool {
-    if lhs.thinkingID != rhs.thinkingID {return false}
-    if lhs.content != rhs.content {return false}
-    if lhs.partial != rhs.partial {return false}
+  public static func ==(lhs: Netclode_V1_ToolEndPayload, rhs: Netclode_V1_ToolEndPayload) -> Bool {
+    if lhs.success != rhs.success {return false}
+    if lhs._error != rhs._error {return false}
+    if lhs._durationMs != rhs._durationMs {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

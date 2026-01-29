@@ -14,14 +14,14 @@ func TestExtractSessionIDFromPodName(t *testing.T) {
 			expected: "abc123",
 		},
 		{
-			name:     "session with suffix",
+			name:     "session with suffix (sessionID includes dashes)",
 			podName:  "sess-abc123-xyz",
-			expected: "abc123",
+			expected: "abc123-xyz",
 		},
 		{
 			name:     "session with multiple dashes in suffix",
 			podName:  "sess-abc123-pool-warm-1",
-			expected: "abc123",
+			expected: "abc123-pool-warm-1",
 		},
 		{
 			name:     "non-session pod name",

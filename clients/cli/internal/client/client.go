@@ -153,16 +153,16 @@ func (c *Client) SyncSessions(ctx context.Context) ([]*pb.SessionSummary, error)
 	return nil, fmt.Errorf("unexpected response type: %T", msg.GetMessage())
 }
 
-// SessionState contains session details with messages and events.
+// SessionState contains session details with stream entries.
 type SessionState struct {
-	Session            *pb.Session
-	Messages           []*pb.Message
-	Events             []*pb.Event
-	HasMore            bool
-	LastNotificationID string
+	Session      *pb.Session
+	Entries      []*pb.StreamEntry
+	HasMore      bool
+	LastStreamID string
+	InProgress   *pb.InProgressState
 }
 
-// GetSession returns a session with its messages and events.
+// GetSession returns a session with its stream entries.
 func (c *Client) GetSession(ctx context.Context, sessionID string) (*SessionState, error) {
 	stream := c.client.Connect(ctx)
 	defer func() { _ = stream.CloseRequest() }()
@@ -184,14 +184,15 @@ func (c *Client) GetSession(ctx context.Context, sessionID string) (*SessionStat
 
 	if resp := msg.GetSessionState(); resp != nil {
 		state := &SessionState{
-			Session:  resp.Session,
-			Messages: resp.Messages,
-			Events:   resp.Events,
-			HasMore:  resp.HasMore,
+			Session:    resp.Session,
+			Entries:    resp.GetEntries(),
+			HasMore:    resp.HasMore,
+			InProgress: resp.GetInProgress(),
 		}
-		if resp.LastNotificationId != nil {
-			state.LastNotificationID = *resp.LastNotificationId
+		if resp.LastStreamId != nil {
+			state.LastStreamID = *resp.LastStreamId
 		}
+
 		return state, nil
 	}
 	if errResp := msg.GetError(); errResp != nil {
@@ -231,14 +232,11 @@ func (c *Client) DeleteSession(ctx context.Context, sessionID string) error {
 	return fmt.Errorf("unexpected response type: %T", msg.GetMessage())
 }
 
-// EventHandler is called for each event received during tailing.
-type EventHandler func(event *pb.AgentEventResponse) error
-
-// MessageHandler is called for each message received during tailing.
-type MessageHandler func(msg *pb.AgentMessageResponse) error
+// StreamEntryHandler is called for each stream entry received during tailing.
+type StreamEntryHandler func(entry *pb.StreamEntryResponse) error
 
 // TailEvents opens a session and streams events in real-time.
-func (c *Client) TailEvents(ctx context.Context, sessionID string, onEvent EventHandler, onMessage MessageHandler) error {
+func (c *Client) TailEvents(ctx context.Context, sessionID string, onEntry StreamEntryHandler) error {
 	stream := c.client.Connect(ctx)
 	defer func() { _ = stream.CloseRequest() }()
 
@@ -263,7 +261,7 @@ func (c *Client) TailEvents(ctx context.Context, sessionID string, onEvent Event
 		return fmt.Errorf("%s: %s", errResp.Error.Code, errResp.Error.Message)
 	}
 
-	// Stream events
+	// Stream entries
 	for {
 		select {
 		case <-ctx.Done():
@@ -276,20 +274,11 @@ func (c *Client) TailEvents(ctx context.Context, sessionID string, onEvent Event
 			return err
 		}
 
-		if event := msg.GetAgentEvent(); event != nil && onEvent != nil {
-			if err := onEvent(event); err != nil {
+		if entry := msg.GetStreamEntry(); entry != nil && onEntry != nil {
+			if err := onEntry(entry); err != nil {
 				return err
 			}
 		}
-
-		if agentMsg := msg.GetAgentMessage(); agentMsg != nil && onMessage != nil {
-			if err := onMessage(agentMsg); err != nil {
-				return err
-			}
-		}
-
-		// Handle other message types as needed (AgentDone, etc.)
-		// Agent finished processing - continue waiting for more
 	}
 }
 

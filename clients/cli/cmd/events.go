@@ -41,6 +41,13 @@ func init() {
 	eventsCmd.Flags().StringVar(&eventsKind, "kind", "", "Filter by event kind (TOOL_START, FILE_CHANGE, etc.)")
 }
 
+// EventInfo contains extracted event data from stream entries.
+type EventInfo struct {
+	Event     *pb.AgentEvent
+	Timestamp string
+	StreamID  string
+}
+
 func runEvents(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 	c := client.New(getServerURL())
@@ -51,15 +58,32 @@ func runEvents(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("get session: %w", err)
 	}
 
-	events := state.Events
+	// Extract events from entries (AgentEvents, excluding MESSAGE kind)
+	var events []EventInfo
+	for _, e := range state.Entries {
+		if e.Partial {
+			continue // Skip streaming deltas
+		}
+		if event := e.GetEvent(); event != nil {
+			// Skip MESSAGE events (they're shown in messages command)
+			if event.Kind == pb.AgentEventKind_AGENT_EVENT_KIND_MESSAGE {
+				continue
+			}
+			events = append(events, EventInfo{
+				Event:     event,
+				Timestamp: e.Timestamp.AsTime().Format("15:04:05"),
+				StreamID:  e.Id,
+			})
+		}
+	}
 
 	// Filter by kind if specified
 	if eventsKind != "" {
-		filtered := make([]*pb.Event, 0)
+		filtered := make([]EventInfo, 0)
 		targetKind := normalizeEventKind(eventsKind)
-		for _, e := range events {
-			if e.Event != nil && formatEventKind(e.Event.Kind) == targetKind {
-				filtered = append(filtered, e)
+		for _, ei := range events {
+			if ei.Event != nil && formatEventKind(ei.Event.Kind) == targetKind {
+				filtered = append(filtered, ei)
 			}
 		}
 		events = filtered
@@ -107,18 +131,18 @@ func formatEventKind(kind pb.AgentEventKind) string {
 	return s
 }
 
-func printEventsTable(events []*pb.Event) {
+func printEventsTable(events []EventInfo) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 
 	_, _ = output.HeaderColor.Fprintf(w, "TIME\tKIND\tTOOL/PATH\tDETAILS\n")
 
-	for _, pe := range events {
-		e := pe.Event
+	for _, ei := range events {
+		e := ei.Event
 		if e == nil {
 			continue
 		}
 
-		timestamp := output.FormatTimestamp(pe.Timestamp)
+		timestamp := ei.Timestamp
 		kind := formatEventKind(e.Kind)
 		toolOrPath := getToolOrPath(e)
 		details := getEventDetails(e)
@@ -135,14 +159,18 @@ func printEventsTable(events []*pb.Event) {
 }
 
 func getToolOrPath(e *pb.AgentEvent) string {
-	if tool := e.GetTool(); tool != nil {
-		return tool.Tool
+	if ts := e.GetToolStart(); ts != nil {
+		return ts.Tool
 	}
-	if fc := e.GetFileChange(); fc != nil {
-		return fc.Path
+	if te := e.GetToolEnd(); te != nil {
+		// Tool name is in correlation_id for tool events
+		return e.CorrelationId
 	}
-	if cmd := e.GetCommand(); cmd != nil {
-		return output.Truncate(cmd.Command, 30)
+	if ti := e.GetToolInput(); ti != nil {
+		return e.CorrelationId
+	}
+	if to := e.GetToolOutput(); to != nil {
+		return e.CorrelationId
 	}
 	return "-"
 }
@@ -150,66 +178,46 @@ func getToolOrPath(e *pb.AgentEvent) string {
 func getEventDetails(e *pb.AgentEvent) string {
 	switch e.Kind {
 	case pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_END:
-		if tool := e.GetTool(); tool != nil {
-			var duration string
-			if durationMs := tool.GetDurationMs(); durationMs > 0 {
-				duration = formatToolDuration(durationMs)
+		if te := e.GetToolEnd(); te != nil {
+			var parts []string
+			if te.DurationMs != nil && *te.DurationMs > 0 {
+				parts = append(parts, formatToolDuration(*te.DurationMs))
 			}
-			if tool.Result != nil {
-				if duration != "" {
-					return duration + " " + *tool.Result
-				}
-				return *tool.Result
+			if te.Error != nil {
+				parts = append(parts, "error: "+*te.Error)
+			} else if te.Success {
+				parts = append(parts, "success")
 			}
-			if tool.Error != nil {
-				if duration != "" {
-					return duration + " error: " + *tool.Error
-				}
-				return "error: " + *tool.Error
-			}
-			if duration != "" {
-				return duration
-			}
+			return strings.Join(parts, " ")
 		}
 
-	case pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_START,
-		pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_INPUT,
-		pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_INPUT_COMPLETE:
-		if tool := e.GetTool(); tool != nil {
-			// Show input fields
-			if tool.Input != nil {
+	case pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_START:
+		if ts := e.GetToolStart(); ts != nil {
+			return ts.Tool
+		}
+
+	case pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_INPUT:
+		if ti := e.GetToolInput(); ti != nil {
+			if ti.Input != nil {
+				// Show input fields summary
 				var parts []string
-				for k, v := range tool.Input.AsMap() {
-					parts = append(parts, fmt.Sprintf("%s=%v", k, v))
+				for k, v := range ti.Input.AsMap() {
+					parts = append(parts, fmt.Sprintf("%s=%v", k, output.Truncate(fmt.Sprintf("%v", v), 20)))
 				}
 				return strings.Join(parts, " ")
 			}
-		}
-
-	case pb.AgentEventKind_AGENT_EVENT_KIND_FILE_CHANGE:
-		if fc := e.GetFileChange(); fc != nil {
-			action := fc.Action.String()
-			action = strings.ToLower(strings.TrimPrefix(action, "FILE_ACTION_"))
-			lines := ""
-			if fc.LinesAdded != nil || fc.LinesRemoved != nil {
-				added := int32(0)
-				removed := int32(0)
-				if fc.LinesAdded != nil {
-					added = *fc.LinesAdded
-				}
-				if fc.LinesRemoved != nil {
-					removed = *fc.LinesRemoved
-				}
-				lines = fmt.Sprintf(" +%d/-%d", added, removed)
+			if ti.Delta != nil {
+				return "(streaming...)"
 			}
-			return action + lines
 		}
 
-	case pb.AgentEventKind_AGENT_EVENT_KIND_COMMAND_START,
-		pb.AgentEventKind_AGENT_EVENT_KIND_COMMAND_END:
-		if cmd := e.GetCommand(); cmd != nil {
-			if cmd.ExitCode != nil {
-				return fmt.Sprintf("exit=%d", *cmd.ExitCode)
+	case pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_OUTPUT:
+		if to := e.GetToolOutput(); to != nil {
+			if to.Output != nil {
+				return output.Truncate(*to.Output, 50)
+			}
+			if to.Delta != nil {
+				return "(streaming...)"
 			}
 		}
 
@@ -255,25 +263,37 @@ func runEventsTail(cmd *cobra.Command, args []string) error {
 
 	fmt.Fprintf(os.Stderr, "Tailing events for session %s (Ctrl+C to stop)...\n\n", sessionID)
 
-	err := c.TailEvents(ctx, sessionID,
-		func(event *pb.AgentEventResponse) error {
-			if isJSONOutput() {
-				return output.JSONLine(event)
-			}
-			printStreamEvent(event)
+	err := c.TailEvents(ctx, sessionID, func(entryResp *pb.StreamEntryResponse) error {
+		entry := entryResp.Entry
+		if entry == nil {
 			return nil
-		},
-		func(msg *pb.AgentMessageResponse) error {
-			if isJSONOutput() {
-				return output.JSONLine(msg)
-			}
-			// Only print final messages, not partials
-			if !msg.Partial {
-				printStreamMessage(msg)
-			}
+		}
+
+		if isJSONOutput() {
+			return output.JSONLine(entryResp)
+		}
+
+		// Skip partial (streaming) entries - only show final entries
+		if entry.Partial {
 			return nil
-		},
-	)
+		}
+
+		// Dispatch based on payload type
+		if event := entry.GetEvent(); event != nil {
+			// Handle AgentEvent (includes messages, thinking, tools, etc.)
+			if event.Kind == pb.AgentEventKind_AGENT_EVENT_KIND_MESSAGE {
+				if msg := event.GetMessage(); msg != nil {
+					printStreamMessage(event)
+				}
+			} else {
+				printStreamEvent(event, entry.Timestamp.AsTime().Format("15:04:05"))
+			}
+		} else if sess := entry.GetSessionUpdate(); sess != nil {
+			_, _ = output.TimeColor.Print("[status] ")
+			fmt.Printf("%s\n", sess.Status.String())
+		}
+		return nil
+	})
 
 	if err != nil && ctx.Err() == nil {
 		return err
@@ -282,13 +302,11 @@ func runEventsTail(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func printStreamEvent(resp *pb.AgentEventResponse) {
-	e := resp.Event
+func printStreamEvent(e *pb.AgentEvent, timestamp string) {
 	if e == nil {
 		return
 	}
 
-	timestamp := output.FormatTimestamp(e.Timestamp)
 	kind := formatEventKind(e.Kind)
 	toolOrPath := getToolOrPath(e)
 	details := getEventDetails(e)
@@ -301,9 +319,17 @@ func printStreamEvent(resp *pb.AgentEventResponse) {
 	_, _ = output.MutedColor.Printf("%s\n", details)
 }
 
-func printStreamMessage(msg *pb.AgentMessageResponse) {
+func printStreamMessage(event *pb.AgentEvent) {
+	msg := event.GetMessage()
+	if msg == nil {
+		return
+	}
+	// Convert "MESSAGE_ROLE_USER" -> "user"
+	role := strings.ToLower(msg.Role.String())
+	role = strings.TrimPrefix(role, "message_role_")
+
 	_, _ = output.TimeColor.Print("[message] ")
-	_, _ = output.IDColor.Printf("assistant: ")
+	_, _ = output.IDColor.Printf("%s: ", role)
 	// Show first line only for streaming view
 	content := msg.Content
 	if idx := strings.Index(content, "\n"); idx > 0 {

@@ -6,11 +6,14 @@ import (
 	"io"
 	"log/slog"
 	"sync"
+	"time"
 
 	"connectrpc.com/connect"
 	pb "github.com/angristan/netclode/services/control-plane/gen/netclode/v1"
 	"github.com/angristan/netclode/services/control-plane/gen/netclode/v1/netclodev1connect"
 	"github.com/angristan/netclode/services/control-plane/internal/session"
+	"github.com/angristan/netclode/services/control-plane/internal/storage"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -400,46 +403,37 @@ func (c *ConnectConnection) handleSessionList(ctx context.Context) error {
 }
 
 func (c *ConnectConnection) handleSessionOpen(ctx context.Context, req *pb.OpenSessionRequest) error {
-	var lastMsgID, lastNotifID *string
-	if req.LastMessageId != nil {
-		lastMsgID = req.LastMessageId
+	afterStreamID := ""
+	if req.AfterStreamId != nil {
+		afterStreamID = *req.AfterStreamId
 	}
-	if req.LastNotificationId != nil {
-		lastNotifID = req.LastNotificationId
+	limit := 0 // no limit by default
+	if req.Limit != nil {
+		limit = int(*req.Limit)
 	}
-	_ = lastMsgID // unused for now
 
-	sess, messages, events, hasMore, currentNotificationID, err := c.manager.GetWithHistory(ctx, req.SessionId)
+	sess, entries, hasMore, lastStreamID, inProgress, err := c.manager.GetWithHistory(ctx, req.SessionId, afterStreamID, limit)
 	if err != nil {
 		return err
 	}
 
-	cursor := currentNotificationID
-	if lastNotifID != nil && *lastNotifID != "" {
-		cursor = *lastNotifID
-	}
-
-	if err := c.subscribe(ctx, req.SessionId, cursor); err != nil {
+	// Subscribe to real-time updates starting from current position
+	if err := c.subscribe(ctx, req.SessionId, lastStreamID); err != nil {
 		slog.Warn("Failed to subscribe to opened session", "sessionID", req.SessionId, "error", err)
 	}
 
-	// Messages and Events are already pb.Message and pb.Event, convert to pointers
-	pbMessages := make([]*pb.Message, len(messages))
-	for i := range messages {
-		pbMessages[i] = &messages[i]
-	}
-
-	pbEvents := make([]*pb.Event, len(events))
-	for i := range events {
-		pbEvents[i] = &events[i]
+	// Convert storage entries to proto StreamEntry
+	pbEntries := make([]*pb.StreamEntry, len(entries))
+	for i, e := range entries {
+		pbEntries[i] = storageEntryToProto(e)
 	}
 
 	resp := &pb.SessionStateResponse{
-		Session:            sess,
-		Messages:           pbMessages,
-		Events:             pbEvents,
-		HasMore:            hasMore,
-		LastNotificationId: &currentNotificationID,
+		Session:      sess,
+		Entries:      pbEntries,
+		HasMore:      hasMore,
+		LastStreamId: &lastStreamID,
+		InProgress:   inProgress,
 	}
 
 	return c.send(&pb.ServerMessage{
@@ -800,4 +794,45 @@ func (c *ConnectConnection) handleGetResourceLimits(ctx context.Context, req *pb
 			ResourceLimits: limits,
 		},
 	})
+}
+
+// storageEntryToProto converts a storage.StreamEntryWithID to a pb.StreamEntry.
+// The new unified model uses oneof payload with: AgentEvent, TerminalOutput, Session, Error
+func storageEntryToProto(e storage.StreamEntryWithID) *pb.StreamEntry {
+	entry := &pb.StreamEntry{
+		Id:      e.ID,
+		Partial: e.Entry.Partial,
+	}
+
+	// Parse timestamp
+	if t, err := time.Parse(time.RFC3339, e.Entry.Timestamp); err == nil {
+		entry.Timestamp = timestamppb.New(t)
+	}
+
+	// Set payload based on type
+	switch e.Entry.Type {
+	case storage.StreamEntryTypeEvent:
+		// AgentEvent includes all content: messages, thinking, tools, etc.
+		var event pb.AgentEvent
+		if err := protojson.Unmarshal(e.Entry.Payload, &event); err == nil {
+			entry.Payload = &pb.StreamEntry_Event{Event: &event}
+		}
+	case storage.StreamEntryTypeTerminalOutput:
+		var output pb.TerminalOutput
+		if err := protojson.Unmarshal(e.Entry.Payload, &output); err == nil {
+			entry.Payload = &pb.StreamEntry_TerminalOutput{TerminalOutput: &output}
+		}
+	case storage.StreamEntryTypeSessionUpdate:
+		var sess pb.Session
+		if err := protojson.Unmarshal(e.Entry.Payload, &sess); err == nil {
+			entry.Payload = &pb.StreamEntry_SessionUpdate{SessionUpdate: &sess}
+		}
+	case storage.StreamEntryTypeError:
+		var errProto pb.Error
+		if err := protojson.Unmarshal(e.Entry.Payload, &errProto); err == nil {
+			entry.Payload = &pb.StreamEntry_Error{Error: &errProto}
+		}
+	}
+
+	return entry
 }

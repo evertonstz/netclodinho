@@ -3,106 +3,112 @@ syntax = "proto3";
 package netclode.v1;
 
 import "google/protobuf/struct.proto";
-import "google/protobuf/timestamp.proto";
 
-// FileAction represents the type of change made to a file.
-enum FileAction {
-  FILE_ACTION_UNSPECIFIED = 0;
-  FILE_ACTION_CREATE = 1;    // File was created
-  FILE_ACTION_EDIT = 2;      // File was modified
-  FILE_ACTION_DELETE = 3;    // File was deleted
+// AgentEventKind identifies the type of event.
+enum AgentEventKind {
+  AGENT_EVENT_KIND_UNSPECIFIED = 0;
+  
+  // Content events (use partial flag on StreamEntry)
+  AGENT_EVENT_KIND_MESSAGE = 1;               // User or assistant message
+  AGENT_EVENT_KIND_THINKING = 2;              // Agent thinking/reasoning content
+  
+  // Tool lifecycle
+  AGENT_EVENT_KIND_TOOL_START = 3;            // Tool invocation started
+  AGENT_EVENT_KIND_TOOL_INPUT = 4;            // Tool input (partial=true for streaming)
+  AGENT_EVENT_KIND_TOOL_OUTPUT = 5;           // Tool output (partial=true for streaming)
+  AGENT_EVENT_KIND_TOOL_END = 6;              // Tool execution completed
+  
+  // System events
+  AGENT_EVENT_KIND_PORT_EXPOSED = 7;          // Port was exposed for preview
+  AGENT_EVENT_KIND_REPO_CLONE = 8;            // Repository clone progress
+  AGENT_EVENT_KIND_AGENT_DISCONNECTED = 9;    // Agent disconnected unexpectedly
+  AGENT_EVENT_KIND_AGENT_RECONNECTED = 10;    // Agent reconnected after disconnect
+}
+
+// AgentEvent represents events emitted during agent execution.
+message AgentEvent {
+  AgentEventKind kind = 1;
+  string correlation_id = 2;                  // Groups related events (message_id, thinking_id, tool_use_id)
+
+  // Event-specific payload
+  oneof payload {
+    MessagePayload message = 3;
+    ThinkingPayload thinking = 4;
+    ToolStartPayload tool_start = 5;
+    ToolInputPayload tool_input = 6;
+    ToolOutputPayload tool_output = 7;
+    ToolEndPayload tool_end = 8;
+    PortExposedPayload port_exposed = 9;
+    RepoClonePayload repo_clone = 10;
+  }
+}
+
+// MessagePayload contains data for user/assistant messages.
+message MessagePayload {
+  MessageRole role = 1;                       // USER or ASSISTANT
+  string content = 2;                         // Delta if partial=true, full if partial=false
+}
+
+// MessageRole identifies the sender of a message.
+enum MessageRole {
+  MESSAGE_ROLE_UNSPECIFIED = 0;
+  MESSAGE_ROLE_USER = 1;
+  MESSAGE_ROLE_ASSISTANT = 2;
+}
+
+// ThinkingPayload contains data for agent thinking/reasoning events.
+message ThinkingPayload {
+  string content = 1;                         // Delta if partial=true, full if partial=false
+}
+
+// ToolStartPayload contains data for tool invocation start.
+message ToolStartPayload {
+  string tool = 1;                            // Tool name (e.g., "Read", "Edit", "Bash")
+  optional string parent_tool_use_id = 2;     // Set when tool runs inside a Task/subagent
+}
+
+// ToolInputPayload contains data for tool input (streaming or complete).
+message ToolInputPayload {
+  // For partial=true: delta contains the streaming chunk
+  // For partial=false: input contains the full input
+  optional string delta = 1;                  // Streaming input delta
+  optional google.protobuf.Struct input = 2;  // Full tool input (when partial=false)
+}
+
+// ToolOutputPayload contains data for tool output (streaming or complete).
+message ToolOutputPayload {
+  // For partial=true: delta contains the streaming chunk
+  // For partial=false: output contains the full output
+  optional string delta = 1;                  // Streaming output delta
+  optional string output = 2;                 // Full tool output (when partial=false)
+}
+
+// ToolEndPayload contains data for tool execution completion.
+message ToolEndPayload {
+  bool success = 1;                           // Whether tool succeeded
+  optional string error = 2;                  // Error message if failed
+  optional int64 duration_ms = 3;             // Duration in milliseconds
+}
+
+// PortExposedPayload contains data for port exposure events.
+message PortExposedPayload {
+  int32 port = 1;                             // The port number exposed
+  optional string process = 2;                // Process name listening on the port
+  optional string preview_url = 3;            // URL to access the exposed port
 }
 
 // RepoCloneStage represents the stage of repository cloning.
 enum RepoCloneStage {
   REPO_CLONE_STAGE_UNSPECIFIED = 0;
-  REPO_CLONE_STAGE_STARTING = 1;   // Clone operation is starting
-  REPO_CLONE_STAGE_CLONING = 2;    // Clone is in progress
-  REPO_CLONE_STAGE_DONE = 3;       // Clone completed successfully
-  REPO_CLONE_STAGE_ERROR = 4;      // Clone failed with an error
-}
-
-// AgentEvent represents events emitted during agent execution.
-// Uses oneof for type-safe, efficient event payloads.
-message AgentEvent {
-  AgentEventKind kind = 1;
-  google.protobuf.Timestamp timestamp = 2;
-
-  // Event-specific payload
-  oneof payload {
-    ToolEventPayload tool = 3;
-    FileChangePayload file_change = 4;
-    CommandPayload command = 5;
-    ThinkingPayload thinking = 6;
-    PortExposedPayload port_exposed = 7;
-    RepoClonePayload repo_clone = 8;
-  }
-}
-
-// ToolEventPayload contains data for tool-related events.
-// Used for: TOOL_START, TOOL_INPUT, TOOL_INPUT_COMPLETE, TOOL_END
-message ToolEventPayload {
-  string tool = 1;                              // Tool name (e.g., "Read", "Edit", "Bash")
-  string tool_use_id = 2;                       // Unique ID for this tool invocation
-  optional string parent_tool_use_id = 3;       // Set when tool runs inside a Task/subagent
-  optional google.protobuf.Struct input = 4;    // Full tool input (for TOOL_START, TOOL_INPUT_COMPLETE)
-  optional string input_delta = 5;              // Streaming input delta (for TOOL_INPUT)
-  optional string result = 6;                   // Tool output (for TOOL_END, on success)
-  optional string error = 7;                    // Error message (for TOOL_END, on failure)
-  optional int64 duration_ms = 8;               // Duration in milliseconds (for TOOL_END)
-}
-
-// FileChangePayload contains data for file modification events.
-message FileChangePayload {
-  string path = 1;                              // File path relative to workspace root
-  FileAction action = 2;                        // Type of change (create, edit, delete)
-  optional int32 lines_added = 3;               // Number of lines added
-  optional int32 lines_removed = 4;             // Number of lines removed
-}
-
-// CommandPayload contains data for shell command events.
-// Used for: COMMAND_START, COMMAND_END
-message CommandPayload {
-  string command = 1;                           // The command being executed
-  optional string cwd = 2;                      // Working directory
-  optional int32 exit_code = 3;                 // Exit code (for COMMAND_END)
-  optional string output = 4;                   // Command output (for COMMAND_END, truncated)
-}
-
-// ThinkingPayload contains data for agent thinking/reasoning events.
-message ThinkingPayload {
-  string thinking_id = 1;                       // Unique ID to correlate streaming thinking updates
-  string content = 2;                           // Thinking content (delta if partial, empty if final)
-  bool partial = 3;                             // true for streaming deltas, false for final (empty) marker
-}
-
-// PortExposedPayload contains data for port exposure events.
-message PortExposedPayload {
-  int32 port = 1;                               // The port number exposed
-  optional string process = 2;                  // Process name listening on the port
-  optional string preview_url = 3;              // URL to access the exposed port
+  REPO_CLONE_STAGE_STARTING = 1;              // Clone operation is starting
+  REPO_CLONE_STAGE_CLONING = 2;               // Clone is in progress
+  REPO_CLONE_STAGE_DONE = 3;                  // Clone completed successfully
+  REPO_CLONE_STAGE_ERROR = 4;                 // Clone failed with an error
 }
 
 // RepoClonePayload contains data for repository clone progress events.
 message RepoClonePayload {
-  string repo = 1;                              // Repository URL being cloned
-  RepoCloneStage stage = 2;                     // Current stage of the clone operation
-  string message = 3;                           // Human-readable progress message
-}
-
-// AgentEventKind identifies the type of event.
-enum AgentEventKind {
-  AGENT_EVENT_KIND_UNSPECIFIED = 0;
-  AGENT_EVENT_KIND_TOOL_START = 1;              // Agent started using a tool
-  AGENT_EVENT_KIND_TOOL_INPUT = 2;              // Streaming tool input delta
-  AGENT_EVENT_KIND_TOOL_END = 3;                // Tool execution completed
-  AGENT_EVENT_KIND_FILE_CHANGE = 4;             // File was created/edited/deleted
-  AGENT_EVENT_KIND_COMMAND_START = 5;           // Shell command started
-  AGENT_EVENT_KIND_COMMAND_END = 6;             // Shell command completed
-  AGENT_EVENT_KIND_THINKING = 7;                // Agent thinking/reasoning content
-  AGENT_EVENT_KIND_PORT_EXPOSED = 8;            // Port was exposed for preview
-  AGENT_EVENT_KIND_REPO_CLONE = 9;              // Repository clone progress
-  AGENT_EVENT_KIND_TOOL_INPUT_COMPLETE = 10;    // Tool input streaming finished with full input
-  AGENT_EVENT_KIND_AGENT_DISCONNECTED = 11;     // Agent disconnected unexpectedly
-  AGENT_EVENT_KIND_AGENT_RECONNECTED = 12;      // Agent reconnected after disconnect
+  string repo = 1;                            // Repository URL being cloned
+  RepoCloneStage stage = 2;                   // Current stage of the clone operation
+  string message = 3;                         // Human-readable progress message
 }

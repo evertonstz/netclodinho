@@ -23,11 +23,10 @@ const (
 )
 
 // RepoAccess defines the permission level for repository operations.
-// Only applies when a repo is selected. Write access is scoped to the selected repo only.
 type RepoAccess int32
 
 const (
-	RepoAccess_REPO_ACCESS_UNSPECIFIED RepoAccess = 0 // Defaults to READ
+	RepoAccess_REPO_ACCESS_UNSPECIFIED RepoAccess = 0
 	RepoAccess_REPO_ACCESS_READ        RepoAccess = 1 // Clone only (no push)
 	RepoAccess_REPO_ACCESS_WRITE       RepoAccess = 2 // Clone and push (to selected repo only)
 )
@@ -77,9 +76,9 @@ func (RepoAccess) EnumDescriptor() ([]byte, []int) {
 type SdkType int32
 
 const (
-	SdkType_SDK_TYPE_UNSPECIFIED SdkType = 0 // Defaults to Claude Code SDK
-	SdkType_SDK_TYPE_CLAUDE      SdkType = 1 // Anthropic Claude Code SDK (direct integration)
-	SdkType_SDK_TYPE_OPENCODE    SdkType = 2 // OpenCode SDK (multi-provider support)
+	SdkType_SDK_TYPE_UNSPECIFIED SdkType = 0
+	SdkType_SDK_TYPE_CLAUDE      SdkType = 1 // Anthropic Claude Code SDK
+	SdkType_SDK_TYPE_OPENCODE    SdkType = 2 // OpenCode SDK (multi-provider)
 	SdkType_SDK_TYPE_COPILOT     SdkType = 3 // GitHub Copilot SDK
 	SdkType_SDK_TYPE_CODEX       SdkType = 4 // OpenAI Codex SDK
 )
@@ -133,9 +132,9 @@ func (SdkType) EnumDescriptor() ([]byte, []int) {
 type CopilotBackend int32
 
 const (
-	CopilotBackend_COPILOT_BACKEND_UNSPECIFIED CopilotBackend = 0 // Defaults to GITHUB if authenticated, else ANTHROPIC
-	CopilotBackend_COPILOT_BACKEND_GITHUB      CopilotBackend = 1 // GitHub Copilot API (requires GitHub authentication)
-	CopilotBackend_COPILOT_BACKEND_ANTHROPIC   CopilotBackend = 2 // Anthropic API (BYOK mode, requires ANTHROPIC_API_KEY)
+	CopilotBackend_COPILOT_BACKEND_UNSPECIFIED CopilotBackend = 0
+	CopilotBackend_COPILOT_BACKEND_GITHUB      CopilotBackend = 1 // GitHub Copilot API
+	CopilotBackend_COPILOT_BACKEND_ANTHROPIC   CopilotBackend = 2 // Anthropic API (BYOK mode)
 )
 
 // Enum value maps for CopilotBackend.
@@ -184,13 +183,13 @@ type SessionStatus int32
 
 const (
 	SessionStatus_SESSION_STATUS_UNSPECIFIED SessionStatus = 0
-	SessionStatus_SESSION_STATUS_CREATING    SessionStatus = 1 // Session is being provisioned
-	SessionStatus_SESSION_STATUS_RESUMING    SessionStatus = 2 // Session is being resumed from paused state
-	SessionStatus_SESSION_STATUS_READY       SessionStatus = 3 // Session is ready to accept prompts
-	SessionStatus_SESSION_STATUS_RUNNING     SessionStatus = 4 // Agent is actively processing a prompt
-	SessionStatus_SESSION_STATUS_PAUSED      SessionStatus = 5 // Session is paused (agent container stopped)
-	SessionStatus_SESSION_STATUS_ERROR       SessionStatus = 6 // Session encountered an error
-	SessionStatus_SESSION_STATUS_INTERRUPTED SessionStatus = 7 // Agent disconnected while running, awaiting user action
+	SessionStatus_SESSION_STATUS_CREATING    SessionStatus = 1
+	SessionStatus_SESSION_STATUS_RESUMING    SessionStatus = 2
+	SessionStatus_SESSION_STATUS_READY       SessionStatus = 3
+	SessionStatus_SESSION_STATUS_RUNNING     SessionStatus = 4
+	SessionStatus_SESSION_STATUS_PAUSED      SessionStatus = 5
+	SessionStatus_SESSION_STATUS_ERROR       SessionStatus = 6
+	SessionStatus_SESSION_STATUS_INTERRUPTED SessionStatus = 7
 )
 
 // Enum value maps for SessionStatus.
@@ -312,69 +311,19 @@ func (GitFileStatus) EnumDescriptor() ([]byte, []int) {
 	return file_netclode_v1_common_proto_rawDescGZIP(), []int{4}
 }
 
-// MessageRole identifies the sender of a message.
-type MessageRole int32
-
-const (
-	MessageRole_MESSAGE_ROLE_UNSPECIFIED MessageRole = 0
-	MessageRole_MESSAGE_ROLE_USER        MessageRole = 1
-	MessageRole_MESSAGE_ROLE_ASSISTANT   MessageRole = 2
-)
-
-// Enum value maps for MessageRole.
-var (
-	MessageRole_name = map[int32]string{
-		0: "MESSAGE_ROLE_UNSPECIFIED",
-		1: "MESSAGE_ROLE_USER",
-		2: "MESSAGE_ROLE_ASSISTANT",
-	}
-	MessageRole_value = map[string]int32{
-		"MESSAGE_ROLE_UNSPECIFIED": 0,
-		"MESSAGE_ROLE_USER":        1,
-		"MESSAGE_ROLE_ASSISTANT":   2,
-	}
-)
-
-func (x MessageRole) Enum() *MessageRole {
-	p := new(MessageRole)
-	*p = x
-	return p
-}
-
-func (x MessageRole) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (MessageRole) Descriptor() protoreflect.EnumDescriptor {
-	return file_netclode_v1_common_proto_enumTypes[5].Descriptor()
-}
-
-func (MessageRole) Type() protoreflect.EnumType {
-	return &file_netclode_v1_common_proto_enumTypes[5]
-}
-
-func (x MessageRole) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use MessageRole.Descriptor instead.
-func (MessageRole) EnumDescriptor() ([]byte, []int) {
-	return file_netclode_v1_common_proto_rawDescGZIP(), []int{5}
-}
-
 // Session represents a coding session with an AI agent.
 type Session struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Name           string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Status         SessionStatus          `protobuf:"varint,3,opt,name=status,proto3,enum=netclode.v1.SessionStatus" json:"status,omitempty"`
-	Repo           *string                `protobuf:"bytes,4,opt,name=repo,proto3,oneof" json:"repo,omitempty"`                                                            // GitHub repository URL (e.g., "owner/repo")
-	RepoAccess     *RepoAccess            `protobuf:"varint,5,opt,name=repo_access,json=repoAccess,proto3,enum=netclode.v1.RepoAccess,oneof" json:"repo_access,omitempty"` // Permission level for repository operations
+	Repo           *string                `protobuf:"bytes,4,opt,name=repo,proto3,oneof" json:"repo,omitempty"`
+	RepoAccess     *RepoAccess            `protobuf:"varint,5,opt,name=repo_access,json=repoAccess,proto3,enum=netclode.v1.RepoAccess,oneof" json:"repo_access,omitempty"`
 	CreatedAt      *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	LastActiveAt   *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=last_active_at,json=lastActiveAt,proto3" json:"last_active_at,omitempty"`
-	SdkType        *SdkType               `protobuf:"varint,8,opt,name=sdk_type,json=sdkType,proto3,enum=netclode.v1.SdkType,oneof" json:"sdk_type,omitempty"`                              // SDK to use (defaults to CLAUDE)
-	Model          *string                `protobuf:"bytes,9,opt,name=model,proto3,oneof" json:"model,omitempty"`                                                                           // Model ID (e.g., "claude-sonnet-4-0", "gpt-4o")
-	CopilotBackend *CopilotBackend        `protobuf:"varint,10,opt,name=copilot_backend,json=copilotBackend,proto3,enum=netclode.v1.CopilotBackend,oneof" json:"copilot_backend,omitempty"` // Backend for Copilot sessions (ignored for other SDKs)
+	SdkType        *SdkType               `protobuf:"varint,8,opt,name=sdk_type,json=sdkType,proto3,enum=netclode.v1.SdkType,oneof" json:"sdk_type,omitempty"`
+	Model          *string                `protobuf:"bytes,9,opt,name=model,proto3,oneof" json:"model,omitempty"`
+	CopilotBackend *CopilotBackend        `protobuf:"varint,10,opt,name=copilot_backend,json=copilotBackend,proto3,enum=netclode.v1.CopilotBackend,oneof" json:"copilot_backend,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -483,8 +432,8 @@ func (x *Session) GetCopilotBackend() CopilotBackend {
 type SessionSummary struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Session       *Session               `protobuf:"bytes,1,opt,name=session,proto3" json:"session,omitempty"`
-	MessageCount  *int32                 `protobuf:"varint,2,opt,name=message_count,json=messageCount,proto3,oneof" json:"message_count,omitempty"`     // Total number of messages in session
-	LastMessageId *string                `protobuf:"bytes,3,opt,name=last_message_id,json=lastMessageId,proto3,oneof" json:"last_message_id,omitempty"` // ID of most recent message for pagination
+	MessageCount  *int32                 `protobuf:"varint,2,opt,name=message_count,json=messageCount,proto3,oneof" json:"message_count,omitempty"`
+	LastStreamId  *string                `protobuf:"bytes,3,opt,name=last_stream_id,json=lastStreamId,proto3,oneof" json:"last_stream_id,omitempty"` // Cursor for resuming
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -533,9 +482,9 @@ func (x *SessionSummary) GetMessageCount() int32 {
 	return 0
 }
 
-func (x *SessionSummary) GetLastMessageId() string {
-	if x != nil && x.LastMessageId != nil {
-		return *x.LastMessageId
+func (x *SessionSummary) GetLastStreamId() string {
+	if x != nil && x.LastStreamId != nil {
+		return *x.LastStreamId
 	}
 	return ""
 }
@@ -544,21 +493,21 @@ func (x *SessionSummary) GetLastMessageId() string {
 type SessionConfig struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	SessionId          string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	WorkspaceDir       string                 `protobuf:"bytes,2,opt,name=workspace_dir,json=workspaceDir,proto3" json:"workspace_dir,omitempty"`                                              // Absolute path to workspace directory
-	GithubToken        *string                `protobuf:"bytes,3,opt,name=github_token,json=githubToken,proto3,oneof" json:"github_token,omitempty"`                                           // GitHub token for git credentials (from GitHub App)
-	Repo               *string                `protobuf:"bytes,4,opt,name=repo,proto3,oneof" json:"repo,omitempty"`                                                                            // Repository to clone (e.g., "owner/repo")
-	RepoAccess         *RepoAccess            `protobuf:"varint,5,opt,name=repo_access,json=repoAccess,proto3,enum=netclode.v1.RepoAccess,oneof" json:"repo_access,omitempty"`                 // Permission level for repository operations
-	ControlPlaneUrl    string                 `protobuf:"bytes,6,opt,name=control_plane_url,json=controlPlaneUrl,proto3" json:"control_plane_url,omitempty"`                                   // URL of control plane for callbacks
-	SdkType            *SdkType               `protobuf:"varint,7,opt,name=sdk_type,json=sdkType,proto3,enum=netclode.v1.SdkType,oneof" json:"sdk_type,omitempty"`                             // SDK type for agent to use
-	Model              *string                `protobuf:"bytes,8,opt,name=model,proto3,oneof" json:"model,omitempty"`                                                                          // Model ID (e.g., "anthropic/claude-sonnet-4-0")
-	CopilotBackend     *CopilotBackend        `protobuf:"varint,9,opt,name=copilot_backend,json=copilotBackend,proto3,enum=netclode.v1.CopilotBackend,oneof" json:"copilot_backend,omitempty"` // Backend for Copilot sessions
-	GithubCopilotToken *string                `protobuf:"bytes,10,opt,name=github_copilot_token,json=githubCopilotToken,proto3,oneof" json:"github_copilot_token,omitempty"`                   // GitHub PAT with Copilot scope (for Copilot SDK)
-	CodexAccessToken   *string                `protobuf:"bytes,11,opt,name=codex_access_token,json=codexAccessToken,proto3,oneof" json:"codex_access_token,omitempty"`                         // Codex OAuth access token (for ChatGPT auth)
-	CodexIdToken       *string                `protobuf:"bytes,12,opt,name=codex_id_token,json=codexIdToken,proto3,oneof" json:"codex_id_token,omitempty"`                                     // Codex OAuth ID token (for ChatGPT auth)
-	OpenaiApiKey       *string                `protobuf:"bytes,13,opt,name=openai_api_key,json=openaiApiKey,proto3,oneof" json:"openai_api_key,omitempty"`                                     // OpenAI API key (for Codex API auth)
-	CodexRefreshToken  *string                `protobuf:"bytes,14,opt,name=codex_refresh_token,json=codexRefreshToken,proto3,oneof" json:"codex_refresh_token,omitempty"`                      // Codex OAuth refresh token (for ChatGPT auth)
-	ReasoningEffort    *string                `protobuf:"bytes,15,opt,name=reasoning_effort,json=reasoningEffort,proto3,oneof" json:"reasoning_effort,omitempty"`                              // Reasoning effort level (low, medium, high, minimal, xhigh)
-	MistralApiKey      *string                `protobuf:"bytes,16,opt,name=mistral_api_key,json=mistralApiKey,proto3,oneof" json:"mistral_api_key,omitempty"`                                  // Mistral API key (for OpenCode SDK)
+	WorkspaceDir       string                 `protobuf:"bytes,2,opt,name=workspace_dir,json=workspaceDir,proto3" json:"workspace_dir,omitempty"`
+	GithubToken        *string                `protobuf:"bytes,3,opt,name=github_token,json=githubToken,proto3,oneof" json:"github_token,omitempty"`
+	Repo               *string                `protobuf:"bytes,4,opt,name=repo,proto3,oneof" json:"repo,omitempty"`
+	RepoAccess         *RepoAccess            `protobuf:"varint,5,opt,name=repo_access,json=repoAccess,proto3,enum=netclode.v1.RepoAccess,oneof" json:"repo_access,omitempty"`
+	ControlPlaneUrl    string                 `protobuf:"bytes,6,opt,name=control_plane_url,json=controlPlaneUrl,proto3" json:"control_plane_url,omitempty"`
+	SdkType            *SdkType               `protobuf:"varint,7,opt,name=sdk_type,json=sdkType,proto3,enum=netclode.v1.SdkType,oneof" json:"sdk_type,omitempty"`
+	Model              *string                `protobuf:"bytes,8,opt,name=model,proto3,oneof" json:"model,omitempty"`
+	CopilotBackend     *CopilotBackend        `protobuf:"varint,9,opt,name=copilot_backend,json=copilotBackend,proto3,enum=netclode.v1.CopilotBackend,oneof" json:"copilot_backend,omitempty"`
+	GithubCopilotToken *string                `protobuf:"bytes,10,opt,name=github_copilot_token,json=githubCopilotToken,proto3,oneof" json:"github_copilot_token,omitempty"`
+	CodexAccessToken   *string                `protobuf:"bytes,11,opt,name=codex_access_token,json=codexAccessToken,proto3,oneof" json:"codex_access_token,omitempty"`
+	CodexIdToken       *string                `protobuf:"bytes,12,opt,name=codex_id_token,json=codexIdToken,proto3,oneof" json:"codex_id_token,omitempty"`
+	OpenaiApiKey       *string                `protobuf:"bytes,13,opt,name=openai_api_key,json=openaiApiKey,proto3,oneof" json:"openai_api_key,omitempty"`
+	CodexRefreshToken  *string                `protobuf:"bytes,14,opt,name=codex_refresh_token,json=codexRefreshToken,proto3,oneof" json:"codex_refresh_token,omitempty"`
+	ReasoningEffort    *string                `protobuf:"bytes,15,opt,name=reasoning_effort,json=reasoningEffort,proto3,oneof" json:"reasoning_effort,omitempty"`
+	MistralApiKey      *string                `protobuf:"bytes,16,opt,name=mistral_api_key,json=mistralApiKey,proto3,oneof" json:"mistral_api_key,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -705,31 +654,38 @@ func (x *SessionConfig) GetMistralApiKey() string {
 	return ""
 }
 
-// GitHubRepo represents a GitHub repository from the user's account.
-type GitHubRepo struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`                         // Repository name (e.g., "my-repo")
-	FullName      string                 `protobuf:"bytes,2,opt,name=full_name,json=fullName,proto3" json:"full_name,omitempty"` // Full repository name (e.g., "owner/my-repo")
-	Private       bool                   `protobuf:"varint,3,opt,name=private,proto3" json:"private,omitempty"`                  // Whether the repository is private
-	Description   *string                `protobuf:"bytes,4,opt,name=description,proto3,oneof" json:"description,omitempty"`     // Repository description
+// StreamEntry represents a single entry in the unified session stream.
+// All content flows through this type - messages, events, terminal output, etc.
+type StreamEntry struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Id        string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"` // Redis Stream ID
+	Timestamp *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	Partial   bool                   `protobuf:"varint,3,opt,name=partial,proto3" json:"partial,omitempty"` // true = streaming delta, false = final
+	// Types that are valid to be assigned to Payload:
+	//
+	//	*StreamEntry_Event
+	//	*StreamEntry_TerminalOutput
+	//	*StreamEntry_SessionUpdate
+	//	*StreamEntry_Error
+	Payload       isStreamEntry_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GitHubRepo) Reset() {
-	*x = GitHubRepo{}
+func (x *StreamEntry) Reset() {
+	*x = StreamEntry{}
 	mi := &file_netclode_v1_common_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GitHubRepo) String() string {
+func (x *StreamEntry) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GitHubRepo) ProtoMessage() {}
+func (*StreamEntry) ProtoMessage() {}
 
-func (x *GitHubRepo) ProtoReflect() protoreflect.Message {
+func (x *StreamEntry) ProtoReflect() protoreflect.Message {
 	mi := &file_netclode_v1_common_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -741,65 +697,125 @@ func (x *GitHubRepo) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GitHubRepo.ProtoReflect.Descriptor instead.
-func (*GitHubRepo) Descriptor() ([]byte, []int) {
+// Deprecated: Use StreamEntry.ProtoReflect.Descriptor instead.
+func (*StreamEntry) Descriptor() ([]byte, []int) {
 	return file_netclode_v1_common_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *GitHubRepo) GetName() string {
+func (x *StreamEntry) GetId() string {
 	if x != nil {
-		return x.Name
+		return x.Id
 	}
 	return ""
 }
 
-func (x *GitHubRepo) GetFullName() string {
+func (x *StreamEntry) GetTimestamp() *timestamppb.Timestamp {
 	if x != nil {
-		return x.FullName
+		return x.Timestamp
 	}
-	return ""
+	return nil
 }
 
-func (x *GitHubRepo) GetPrivate() bool {
+func (x *StreamEntry) GetPartial() bool {
 	if x != nil {
-		return x.Private
+		return x.Partial
 	}
 	return false
 }
 
-func (x *GitHubRepo) GetDescription() string {
-	if x != nil && x.Description != nil {
-		return *x.Description
+func (x *StreamEntry) GetPayload() isStreamEntry_Payload {
+	if x != nil {
+		return x.Payload
 	}
-	return ""
+	return nil
 }
 
-// GitFileChange represents a changed file from git status.
-type GitFileChange struct {
+func (x *StreamEntry) GetEvent() *AgentEvent {
+	if x != nil {
+		if x, ok := x.Payload.(*StreamEntry_Event); ok {
+			return x.Event
+		}
+	}
+	return nil
+}
+
+func (x *StreamEntry) GetTerminalOutput() *TerminalOutput {
+	if x != nil {
+		if x, ok := x.Payload.(*StreamEntry_TerminalOutput); ok {
+			return x.TerminalOutput
+		}
+	}
+	return nil
+}
+
+func (x *StreamEntry) GetSessionUpdate() *Session {
+	if x != nil {
+		if x, ok := x.Payload.(*StreamEntry_SessionUpdate); ok {
+			return x.SessionUpdate
+		}
+	}
+	return nil
+}
+
+func (x *StreamEntry) GetError() *Error {
+	if x != nil {
+		if x, ok := x.Payload.(*StreamEntry_Error); ok {
+			return x.Error
+		}
+	}
+	return nil
+}
+
+type isStreamEntry_Payload interface {
+	isStreamEntry_Payload()
+}
+
+type StreamEntry_Event struct {
+	Event *AgentEvent `protobuf:"bytes,4,opt,name=event,proto3,oneof"` // All agent content (messages, thinking, tools)
+}
+
+type StreamEntry_TerminalOutput struct {
+	TerminalOutput *TerminalOutput `protobuf:"bytes,5,opt,name=terminal_output,json=terminalOutput,proto3,oneof"` // Terminal data
+}
+
+type StreamEntry_SessionUpdate struct {
+	SessionUpdate *Session `protobuf:"bytes,6,opt,name=session_update,json=sessionUpdate,proto3,oneof"` // Status changes
+}
+
+type StreamEntry_Error struct {
+	Error *Error `protobuf:"bytes,7,opt,name=error,proto3,oneof"`
+}
+
+func (*StreamEntry_Event) isStreamEntry_Payload() {}
+
+func (*StreamEntry_TerminalOutput) isStreamEntry_Payload() {}
+
+func (*StreamEntry_SessionUpdate) isStreamEntry_Payload() {}
+
+func (*StreamEntry_Error) isStreamEntry_Payload() {}
+
+// TerminalOutput represents terminal output data.
+type TerminalOutput struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`                                            // File path relative to repository root
-	Status        GitFileStatus          `protobuf:"varint,2,opt,name=status,proto3,enum=netclode.v1.GitFileStatus" json:"status,omitempty"`        // Type of change
-	Staged        bool                   `protobuf:"varint,3,opt,name=staged,proto3" json:"staged,omitempty"`                                       // Whether the change is staged for commit
-	LinesAdded    *int32                 `protobuf:"varint,4,opt,name=lines_added,json=linesAdded,proto3,oneof" json:"lines_added,omitempty"`       // Number of lines added (from git diff --numstat)
-	LinesRemoved  *int32                 `protobuf:"varint,5,opt,name=lines_removed,json=linesRemoved,proto3,oneof" json:"lines_removed,omitempty"` // Number of lines removed (from git diff --numstat)
+	Data          string                 `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GitFileChange) Reset() {
-	*x = GitFileChange{}
+func (x *TerminalOutput) Reset() {
+	*x = TerminalOutput{}
 	mi := &file_netclode_v1_common_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GitFileChange) String() string {
+func (x *TerminalOutput) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GitFileChange) ProtoMessage() {}
+func (*TerminalOutput) ProtoMessage() {}
 
-func (x *GitFileChange) ProtoReflect() protoreflect.Message {
+func (x *TerminalOutput) ProtoReflect() protoreflect.Message {
 	mi := &file_netclode_v1_common_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -811,199 +827,32 @@ func (x *GitFileChange) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GitFileChange.ProtoReflect.Descriptor instead.
-func (*GitFileChange) Descriptor() ([]byte, []int) {
+// Deprecated: Use TerminalOutput.ProtoReflect.Descriptor instead.
+func (*TerminalOutput) Descriptor() ([]byte, []int) {
 	return file_netclode_v1_common_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *GitFileChange) GetPath() string {
+func (x *TerminalOutput) GetData() string {
 	if x != nil {
-		return x.Path
+		return x.Data
 	}
 	return ""
-}
-
-func (x *GitFileChange) GetStatus() GitFileStatus {
-	if x != nil {
-		return x.Status
-	}
-	return GitFileStatus_GIT_FILE_STATUS_UNSPECIFIED
-}
-
-func (x *GitFileChange) GetStaged() bool {
-	if x != nil {
-		return x.Staged
-	}
-	return false
-}
-
-func (x *GitFileChange) GetLinesAdded() int32 {
-	if x != nil && x.LinesAdded != nil {
-		return *x.LinesAdded
-	}
-	return 0
-}
-
-func (x *GitFileChange) GetLinesRemoved() int32 {
-	if x != nil && x.LinesRemoved != nil {
-		return *x.LinesRemoved
-	}
-	return 0
-}
-
-// Message represents a chat message in a session.
-type Message struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Role          MessageRole            `protobuf:"varint,2,opt,name=role,proto3,enum=netclode.v1.MessageRole" json:"role,omitempty"`
-	Content       string                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
-	Timestamp     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *Message) Reset() {
-	*x = Message{}
-	mi := &file_netclode_v1_common_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Message) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Message) ProtoMessage() {}
-
-func (x *Message) ProtoReflect() protoreflect.Message {
-	mi := &file_netclode_v1_common_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Message.ProtoReflect.Descriptor instead.
-func (*Message) Descriptor() ([]byte, []int) {
-	return file_netclode_v1_common_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *Message) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *Message) GetRole() MessageRole {
-	if x != nil {
-		return x.Role
-	}
-	return MessageRole_MESSAGE_ROLE_UNSPECIFIED
-}
-
-func (x *Message) GetContent() string {
-	if x != nil {
-		return x.Content
-	}
-	return ""
-}
-
-func (x *Message) GetTimestamp() *timestamppb.Timestamp {
-	if x != nil {
-		return x.Timestamp
-	}
-	return nil
-}
-
-// Event represents an agent event in a session.
-type Event struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	MessageId     string                 `protobuf:"bytes,2,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"` // Parent message ID (for future correlation)
-	Timestamp     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	Event         *AgentEvent            `protobuf:"bytes,4,opt,name=event,proto3" json:"event,omitempty"` // The full event payload
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *Event) Reset() {
-	*x = Event{}
-	mi := &file_netclode_v1_common_proto_msgTypes[6]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Event) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Event) ProtoMessage() {}
-
-func (x *Event) ProtoReflect() protoreflect.Message {
-	mi := &file_netclode_v1_common_proto_msgTypes[6]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Event.ProtoReflect.Descriptor instead.
-func (*Event) Descriptor() ([]byte, []int) {
-	return file_netclode_v1_common_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *Event) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *Event) GetMessageId() string {
-	if x != nil {
-		return x.MessageId
-	}
-	return ""
-}
-
-func (x *Event) GetTimestamp() *timestamppb.Timestamp {
-	if x != nil {
-		return x.Timestamp
-	}
-	return nil
-}
-
-func (x *Event) GetEvent() *AgentEvent {
-	if x != nil {
-		return x.Event
-	}
-	return nil
 }
 
 // Error represents a structured error response.
-// Used across all error response types for consistency.
 type Error struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Code          string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`                                                                                 // Machine-readable error code (e.g., "SESSION_NOT_FOUND")
-	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`                                                                           // Human-readable error message
-	SessionId     *string                `protobuf:"bytes,3,opt,name=session_id,json=sessionId,proto3,oneof" json:"session_id,omitempty"`                                                // Associated session ID, if applicable
-	Details       map[string]string      `protobuf:"bytes,4,rep,name=details,proto3" json:"details,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Additional error context
+	Code          string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	SessionId     *string                `protobuf:"bytes,3,opt,name=session_id,json=sessionId,proto3,oneof" json:"session_id,omitempty"`
+	Details       map[string]string      `protobuf:"bytes,4,rep,name=details,proto3" json:"details,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Error) Reset() {
 	*x = Error{}
-	mi := &file_netclode_v1_common_proto_msgTypes[7]
+	mi := &file_netclode_v1_common_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1015,7 +864,7 @@ func (x *Error) String() string {
 func (*Error) ProtoMessage() {}
 
 func (x *Error) ProtoReflect() protoreflect.Message {
-	mi := &file_netclode_v1_common_proto_msgTypes[7]
+	mi := &file_netclode_v1_common_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1028,7 +877,7 @@ func (x *Error) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Error.ProtoReflect.Descriptor instead.
 func (*Error) Descriptor() ([]byte, []int) {
-	return file_netclode_v1_common_proto_rawDescGZIP(), []int{7}
+	return file_netclode_v1_common_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *Error) GetCode() string {
@@ -1059,34 +908,32 @@ func (x *Error) GetDetails() map[string]string {
 	return nil
 }
 
-// ModelInfo represents an AI model available for use.
-type ModelInfo struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	Id                string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`                                                                // Model identifier (e.g., "claude-sonnet-4-0", "gpt-4o")
-	Name              string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`                                                            // Human-readable name (e.g., "Claude Sonnet 4")
-	Provider          *string                `protobuf:"bytes,3,opt,name=provider,proto3,oneof" json:"provider,omitempty"`                                              // Provider/auth mode (e.g., "Anthropic", "ChatGPT", "API")
-	BillingMultiplier *float64               `protobuf:"fixed64,4,opt,name=billing_multiplier,json=billingMultiplier,proto3,oneof" json:"billing_multiplier,omitempty"` // Cost multiplier for GitHub Copilot (e.g., 0.33, 1.0, 3.0)
-	Capabilities      []string               `protobuf:"bytes,5,rep,name=capabilities,proto3" json:"capabilities,omitempty"`                                            // Model capabilities (e.g., "chat", "vision", "code")
-	ReasoningEffort   *string                `protobuf:"bytes,6,opt,name=reasoning_effort,json=reasoningEffort,proto3,oneof" json:"reasoning_effort,omitempty"`         // Reasoning effort level for Codex (e.g., "High", "Med", "Low")
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+// InProgressState contains accumulated streaming state for late-joining clients.
+// Returned when opening a session that's currently RUNNING.
+type InProgressState struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	Messages      map[string]string          `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // correlation_id -> accumulated text
+	Thinking      map[string]string          `protobuf:"bytes,2,rep,name=thinking,proto3" json:"thinking,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // correlation_id -> accumulated thinking
+	Tools         map[string]*InProgressTool `protobuf:"bytes,3,rep,name=tools,proto3" json:"tools,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`       // correlation_id -> tool state
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ModelInfo) Reset() {
-	*x = ModelInfo{}
-	mi := &file_netclode_v1_common_proto_msgTypes[8]
+func (x *InProgressState) Reset() {
+	*x = InProgressState{}
+	mi := &file_netclode_v1_common_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ModelInfo) String() string {
+func (x *InProgressState) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ModelInfo) ProtoMessage() {}
+func (*InProgressState) ProtoMessage() {}
 
-func (x *ModelInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_netclode_v1_common_proto_msgTypes[8]
+func (x *InProgressState) ProtoReflect() protoreflect.Message {
+	mi := &file_netclode_v1_common_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1097,140 +944,57 @@ func (x *ModelInfo) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ModelInfo.ProtoReflect.Descriptor instead.
-func (*ModelInfo) Descriptor() ([]byte, []int) {
-	return file_netclode_v1_common_proto_rawDescGZIP(), []int{8}
+// Deprecated: Use InProgressState.ProtoReflect.Descriptor instead.
+func (*InProgressState) Descriptor() ([]byte, []int) {
+	return file_netclode_v1_common_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *ModelInfo) GetId() string {
+func (x *InProgressState) GetMessages() map[string]string {
 	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *ModelInfo) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *ModelInfo) GetProvider() string {
-	if x != nil && x.Provider != nil {
-		return *x.Provider
-	}
-	return ""
-}
-
-func (x *ModelInfo) GetBillingMultiplier() float64 {
-	if x != nil && x.BillingMultiplier != nil {
-		return *x.BillingMultiplier
-	}
-	return 0
-}
-
-func (x *ModelInfo) GetCapabilities() []string {
-	if x != nil {
-		return x.Capabilities
+		return x.Messages
 	}
 	return nil
 }
 
-func (x *ModelInfo) GetReasoningEffort() string {
-	if x != nil && x.ReasoningEffort != nil {
-		return *x.ReasoningEffort
-	}
-	return ""
-}
-
-// CopilotAuthStatus represents GitHub Copilot authentication state.
-type CopilotAuthStatus struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	IsAuthenticated bool                   `protobuf:"varint,1,opt,name=is_authenticated,json=isAuthenticated,proto3" json:"is_authenticated,omitempty"` // Whether the user is authenticated with GitHub
-	AuthType        *string                `protobuf:"bytes,2,opt,name=auth_type,json=authType,proto3,oneof" json:"auth_type,omitempty"`                 // Auth method: "user", "env", "gh-cli", "token", etc.
-	Login           *string                `protobuf:"bytes,3,opt,name=login,proto3,oneof" json:"login,omitempty"`                                       // GitHub username if authenticated
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
-}
-
-func (x *CopilotAuthStatus) Reset() {
-	*x = CopilotAuthStatus{}
-	mi := &file_netclode_v1_common_proto_msgTypes[9]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CopilotAuthStatus) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CopilotAuthStatus) ProtoMessage() {}
-
-func (x *CopilotAuthStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_netclode_v1_common_proto_msgTypes[9]
+func (x *InProgressState) GetThinking() map[string]string {
 	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
+		return x.Thinking
 	}
-	return mi.MessageOf(x)
+	return nil
 }
 
-// Deprecated: Use CopilotAuthStatus.ProtoReflect.Descriptor instead.
-func (*CopilotAuthStatus) Descriptor() ([]byte, []int) {
-	return file_netclode_v1_common_proto_rawDescGZIP(), []int{9}
-}
-
-func (x *CopilotAuthStatus) GetIsAuthenticated() bool {
+func (x *InProgressState) GetTools() map[string]*InProgressTool {
 	if x != nil {
-		return x.IsAuthenticated
+		return x.Tools
 	}
-	return false
+	return nil
 }
 
-func (x *CopilotAuthStatus) GetAuthType() string {
-	if x != nil && x.AuthType != nil {
-		return *x.AuthType
-	}
-	return ""
-}
-
-func (x *CopilotAuthStatus) GetLogin() string {
-	if x != nil && x.Login != nil {
-		return *x.Login
-	}
-	return ""
-}
-
-// CopilotPremiumQuota represents GitHub Copilot premium request quota.
-type CopilotPremiumQuota struct {
+// InProgressTool contains accumulated state for a tool in progress.
+type InProgressTool struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Used          int32                  `protobuf:"varint,1,opt,name=used,proto3" json:"used,omitempty"`                           // Number of premium requests used this period
-	Limit         int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`                         // Maximum premium requests allowed
-	Remaining     int32                  `protobuf:"varint,3,opt,name=remaining,proto3" json:"remaining,omitempty"`                 // Remaining premium requests
-	ResetAt       *string                `protobuf:"bytes,4,opt,name=reset_at,json=resetAt,proto3,oneof" json:"reset_at,omitempty"` // ISO timestamp when quota resets
+	Tool          string                 `protobuf:"bytes,1,opt,name=tool,proto3" json:"tool,omitempty"`     // Tool name
+	Input         string                 `protobuf:"bytes,2,opt,name=input,proto3" json:"input,omitempty"`   // Accumulated input
+	Output        string                 `protobuf:"bytes,3,opt,name=output,proto3" json:"output,omitempty"` // Accumulated output
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *CopilotPremiumQuota) Reset() {
-	*x = CopilotPremiumQuota{}
-	mi := &file_netclode_v1_common_proto_msgTypes[10]
+func (x *InProgressTool) Reset() {
+	*x = InProgressTool{}
+	mi := &file_netclode_v1_common_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *CopilotPremiumQuota) String() string {
+func (x *InProgressTool) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*CopilotPremiumQuota) ProtoMessage() {}
+func (*InProgressTool) ProtoMessage() {}
 
-func (x *CopilotPremiumQuota) ProtoReflect() protoreflect.Message {
-	mi := &file_netclode_v1_common_proto_msgTypes[10]
+func (x *InProgressTool) ProtoReflect() protoreflect.Message {
+	mi := &file_netclode_v1_common_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1241,116 +1005,50 @@ func (x *CopilotPremiumQuota) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use CopilotPremiumQuota.ProtoReflect.Descriptor instead.
-func (*CopilotPremiumQuota) Descriptor() ([]byte, []int) {
-	return file_netclode_v1_common_proto_rawDescGZIP(), []int{10}
+// Deprecated: Use InProgressTool.ProtoReflect.Descriptor instead.
+func (*InProgressTool) Descriptor() ([]byte, []int) {
+	return file_netclode_v1_common_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *CopilotPremiumQuota) GetUsed() int32 {
+func (x *InProgressTool) GetTool() string {
 	if x != nil {
-		return x.Used
-	}
-	return 0
-}
-
-func (x *CopilotPremiumQuota) GetLimit() int32 {
-	if x != nil {
-		return x.Limit
-	}
-	return 0
-}
-
-func (x *CopilotPremiumQuota) GetRemaining() int32 {
-	if x != nil {
-		return x.Remaining
-	}
-	return 0
-}
-
-func (x *CopilotPremiumQuota) GetResetAt() string {
-	if x != nil && x.ResetAt != nil {
-		return *x.ResetAt
+		return x.Tool
 	}
 	return ""
 }
 
-// SandboxResources defines resource allocation for a session's sandbox VM.
-// When specified, the session bypasses the warm pool and creates a sandbox directly.
-// Resources are validated against host limits (max 50% of host resources).
-type SandboxResources struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Number of vCPUs for the VM. Must be >= 1 and <= 50% of host CPUs.
-	// Default (when not specified): uses warm pool with standard resources.
-	Vcpus int32 `protobuf:"varint,1,opt,name=vcpus,proto3" json:"vcpus,omitempty"`
-	// Memory in MiB for the VM. Must be >= 512 and <= 50% of host memory.
-	// Default (when not specified): uses warm pool with standard resources.
-	MemoryMb      int32 `protobuf:"varint,2,opt,name=memory_mb,json=memoryMb,proto3" json:"memory_mb,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SandboxResources) Reset() {
-	*x = SandboxResources{}
-	mi := &file_netclode_v1_common_proto_msgTypes[11]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SandboxResources) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SandboxResources) ProtoMessage() {}
-
-func (x *SandboxResources) ProtoReflect() protoreflect.Message {
-	mi := &file_netclode_v1_common_proto_msgTypes[11]
+func (x *InProgressTool) GetInput() string {
 	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
+		return x.Input
 	}
-	return mi.MessageOf(x)
+	return ""
 }
 
-// Deprecated: Use SandboxResources.ProtoReflect.Descriptor instead.
-func (*SandboxResources) Descriptor() ([]byte, []int) {
-	return file_netclode_v1_common_proto_rawDescGZIP(), []int{11}
-}
-
-func (x *SandboxResources) GetVcpus() int32 {
+func (x *InProgressTool) GetOutput() string {
 	if x != nil {
-		return x.Vcpus
+		return x.Output
 	}
-	return 0
-}
-
-func (x *SandboxResources) GetMemoryMb() int32 {
-	if x != nil {
-		return x.MemoryMb
-	}
-	return 0
+	return ""
 }
 
 // Snapshot represents a point-in-time snapshot of session workspace and conversation.
 type Snapshot struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`                                // Unique snapshot ID
-	SessionId     string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"` // Parent session
-	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`                            // Human-readable name (e.g., "Turn 3: Fix login bug")
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	SessionId     string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	SizeBytes     int64                  `protobuf:"varint,5,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`              // Logical workspace size at snapshot time
-	TurnNumber    int32                  `protobuf:"varint,6,opt,name=turn_number,json=turnNumber,proto3" json:"turn_number,omitempty"`           // Which turn this was created after (0 = initial)
-	MessageCount  int32                  `protobuf:"varint,7,opt,name=message_count,json=messageCount,proto3" json:"message_count,omitempty"`     // Number of messages at snapshot time
-	EventStreamId string                 `protobuf:"bytes,8,opt,name=event_stream_id,json=eventStreamId,proto3" json:"event_stream_id,omitempty"` // Redis Stream ID of last event at snapshot time
+	SizeBytes     int64                  `protobuf:"varint,5,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	TurnNumber    int32                  `protobuf:"varint,6,opt,name=turn_number,json=turnNumber,proto3" json:"turn_number,omitempty"`
+	MessageCount  int32                  `protobuf:"varint,7,opt,name=message_count,json=messageCount,proto3" json:"message_count,omitempty"`
+	StreamId      string                 `protobuf:"bytes,8,opt,name=stream_id,json=streamId,proto3" json:"stream_id,omitempty"` // Redis Stream cursor at snapshot time
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Snapshot) Reset() {
 	*x = Snapshot{}
-	mi := &file_netclode_v1_common_proto_msgTypes[12]
+	mi := &file_netclode_v1_common_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1362,7 +1060,7 @@ func (x *Snapshot) String() string {
 func (*Snapshot) ProtoMessage() {}
 
 func (x *Snapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_netclode_v1_common_proto_msgTypes[12]
+	mi := &file_netclode_v1_common_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1375,7 +1073,7 @@ func (x *Snapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Snapshot.ProtoReflect.Descriptor instead.
 func (*Snapshot) Descriptor() ([]byte, []int) {
-	return file_netclode_v1_common_proto_rawDescGZIP(), []int{12}
+	return file_netclode_v1_common_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *Snapshot) GetId() string {
@@ -1427,11 +1125,425 @@ func (x *Snapshot) GetMessageCount() int32 {
 	return 0
 }
 
-func (x *Snapshot) GetEventStreamId() string {
+func (x *Snapshot) GetStreamId() string {
 	if x != nil {
-		return x.EventStreamId
+		return x.StreamId
 	}
 	return ""
+}
+
+// GitHubRepo represents a GitHub repository from the user's account.
+type GitHubRepo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	FullName      string                 `protobuf:"bytes,2,opt,name=full_name,json=fullName,proto3" json:"full_name,omitempty"`
+	Private       bool                   `protobuf:"varint,3,opt,name=private,proto3" json:"private,omitempty"`
+	Description   *string                `protobuf:"bytes,4,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GitHubRepo) Reset() {
+	*x = GitHubRepo{}
+	mi := &file_netclode_v1_common_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitHubRepo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitHubRepo) ProtoMessage() {}
+
+func (x *GitHubRepo) ProtoReflect() protoreflect.Message {
+	mi := &file_netclode_v1_common_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitHubRepo.ProtoReflect.Descriptor instead.
+func (*GitHubRepo) Descriptor() ([]byte, []int) {
+	return file_netclode_v1_common_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *GitHubRepo) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *GitHubRepo) GetFullName() string {
+	if x != nil {
+		return x.FullName
+	}
+	return ""
+}
+
+func (x *GitHubRepo) GetPrivate() bool {
+	if x != nil {
+		return x.Private
+	}
+	return false
+}
+
+func (x *GitHubRepo) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
+}
+
+// GitFileChange represents a changed file from git status.
+type GitFileChange struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	Status        GitFileStatus          `protobuf:"varint,2,opt,name=status,proto3,enum=netclode.v1.GitFileStatus" json:"status,omitempty"`
+	Staged        bool                   `protobuf:"varint,3,opt,name=staged,proto3" json:"staged,omitempty"`
+	LinesAdded    *int32                 `protobuf:"varint,4,opt,name=lines_added,json=linesAdded,proto3,oneof" json:"lines_added,omitempty"`
+	LinesRemoved  *int32                 `protobuf:"varint,5,opt,name=lines_removed,json=linesRemoved,proto3,oneof" json:"lines_removed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GitFileChange) Reset() {
+	*x = GitFileChange{}
+	mi := &file_netclode_v1_common_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitFileChange) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitFileChange) ProtoMessage() {}
+
+func (x *GitFileChange) ProtoReflect() protoreflect.Message {
+	mi := &file_netclode_v1_common_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitFileChange.ProtoReflect.Descriptor instead.
+func (*GitFileChange) Descriptor() ([]byte, []int) {
+	return file_netclode_v1_common_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *GitFileChange) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *GitFileChange) GetStatus() GitFileStatus {
+	if x != nil {
+		return x.Status
+	}
+	return GitFileStatus_GIT_FILE_STATUS_UNSPECIFIED
+}
+
+func (x *GitFileChange) GetStaged() bool {
+	if x != nil {
+		return x.Staged
+	}
+	return false
+}
+
+func (x *GitFileChange) GetLinesAdded() int32 {
+	if x != nil && x.LinesAdded != nil {
+		return *x.LinesAdded
+	}
+	return 0
+}
+
+func (x *GitFileChange) GetLinesRemoved() int32 {
+	if x != nil && x.LinesRemoved != nil {
+		return *x.LinesRemoved
+	}
+	return 0
+}
+
+// ModelInfo represents an AI model available for use.
+type ModelInfo struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Id                string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name              string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Provider          *string                `protobuf:"bytes,3,opt,name=provider,proto3,oneof" json:"provider,omitempty"`
+	BillingMultiplier *float64               `protobuf:"fixed64,4,opt,name=billing_multiplier,json=billingMultiplier,proto3,oneof" json:"billing_multiplier,omitempty"`
+	Capabilities      []string               `protobuf:"bytes,5,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
+	ReasoningEffort   *string                `protobuf:"bytes,6,opt,name=reasoning_effort,json=reasoningEffort,proto3,oneof" json:"reasoning_effort,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *ModelInfo) Reset() {
+	*x = ModelInfo{}
+	mi := &file_netclode_v1_common_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ModelInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ModelInfo) ProtoMessage() {}
+
+func (x *ModelInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_netclode_v1_common_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ModelInfo.ProtoReflect.Descriptor instead.
+func (*ModelInfo) Descriptor() ([]byte, []int) {
+	return file_netclode_v1_common_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ModelInfo) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ModelInfo) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ModelInfo) GetProvider() string {
+	if x != nil && x.Provider != nil {
+		return *x.Provider
+	}
+	return ""
+}
+
+func (x *ModelInfo) GetBillingMultiplier() float64 {
+	if x != nil && x.BillingMultiplier != nil {
+		return *x.BillingMultiplier
+	}
+	return 0
+}
+
+func (x *ModelInfo) GetCapabilities() []string {
+	if x != nil {
+		return x.Capabilities
+	}
+	return nil
+}
+
+func (x *ModelInfo) GetReasoningEffort() string {
+	if x != nil && x.ReasoningEffort != nil {
+		return *x.ReasoningEffort
+	}
+	return ""
+}
+
+// CopilotAuthStatus represents GitHub Copilot authentication state.
+type CopilotAuthStatus struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	IsAuthenticated bool                   `protobuf:"varint,1,opt,name=is_authenticated,json=isAuthenticated,proto3" json:"is_authenticated,omitempty"`
+	AuthType        *string                `protobuf:"bytes,2,opt,name=auth_type,json=authType,proto3,oneof" json:"auth_type,omitempty"`
+	Login           *string                `protobuf:"bytes,3,opt,name=login,proto3,oneof" json:"login,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *CopilotAuthStatus) Reset() {
+	*x = CopilotAuthStatus{}
+	mi := &file_netclode_v1_common_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CopilotAuthStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CopilotAuthStatus) ProtoMessage() {}
+
+func (x *CopilotAuthStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_netclode_v1_common_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CopilotAuthStatus.ProtoReflect.Descriptor instead.
+func (*CopilotAuthStatus) Descriptor() ([]byte, []int) {
+	return file_netclode_v1_common_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *CopilotAuthStatus) GetIsAuthenticated() bool {
+	if x != nil {
+		return x.IsAuthenticated
+	}
+	return false
+}
+
+func (x *CopilotAuthStatus) GetAuthType() string {
+	if x != nil && x.AuthType != nil {
+		return *x.AuthType
+	}
+	return ""
+}
+
+func (x *CopilotAuthStatus) GetLogin() string {
+	if x != nil && x.Login != nil {
+		return *x.Login
+	}
+	return ""
+}
+
+// CopilotPremiumQuota represents GitHub Copilot premium request quota.
+type CopilotPremiumQuota struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Used          int32                  `protobuf:"varint,1,opt,name=used,proto3" json:"used,omitempty"`
+	Limit         int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	Remaining     int32                  `protobuf:"varint,3,opt,name=remaining,proto3" json:"remaining,omitempty"`
+	ResetAt       *string                `protobuf:"bytes,4,opt,name=reset_at,json=resetAt,proto3,oneof" json:"reset_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CopilotPremiumQuota) Reset() {
+	*x = CopilotPremiumQuota{}
+	mi := &file_netclode_v1_common_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CopilotPremiumQuota) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CopilotPremiumQuota) ProtoMessage() {}
+
+func (x *CopilotPremiumQuota) ProtoReflect() protoreflect.Message {
+	mi := &file_netclode_v1_common_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CopilotPremiumQuota.ProtoReflect.Descriptor instead.
+func (*CopilotPremiumQuota) Descriptor() ([]byte, []int) {
+	return file_netclode_v1_common_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *CopilotPremiumQuota) GetUsed() int32 {
+	if x != nil {
+		return x.Used
+	}
+	return 0
+}
+
+func (x *CopilotPremiumQuota) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *CopilotPremiumQuota) GetRemaining() int32 {
+	if x != nil {
+		return x.Remaining
+	}
+	return 0
+}
+
+func (x *CopilotPremiumQuota) GetResetAt() string {
+	if x != nil && x.ResetAt != nil {
+		return *x.ResetAt
+	}
+	return ""
+}
+
+// SandboxResources defines resource allocation for a session's sandbox VM.
+type SandboxResources struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Vcpus         int32                  `protobuf:"varint,1,opt,name=vcpus,proto3" json:"vcpus,omitempty"`
+	MemoryMb      int32                  `protobuf:"varint,2,opt,name=memory_mb,json=memoryMb,proto3" json:"memory_mb,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SandboxResources) Reset() {
+	*x = SandboxResources{}
+	mi := &file_netclode_v1_common_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SandboxResources) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SandboxResources) ProtoMessage() {}
+
+func (x *SandboxResources) ProtoReflect() protoreflect.Message {
+	mi := &file_netclode_v1_common_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SandboxResources.ProtoReflect.Descriptor instead.
+func (*SandboxResources) Descriptor() ([]byte, []int) {
+	return file_netclode_v1_common_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *SandboxResources) GetVcpus() int32 {
+	if x != nil {
+		return x.Vcpus
+	}
+	return 0
+}
+
+func (x *SandboxResources) GetMemoryMb() int32 {
+	if x != nil {
+		return x.MemoryMb
+	}
+	return 0
 }
 
 var File_netclode_v1_common_proto protoreflect.FileDescriptor
@@ -1457,13 +1569,13 @@ const file_netclode_v1_common_proto_rawDesc = "" +
 	"\f_repo_accessB\v\n" +
 	"\t_sdk_typeB\b\n" +
 	"\x06_modelB\x12\n" +
-	"\x10_copilot_backend\"\xbd\x01\n" +
+	"\x10_copilot_backend\"\xba\x01\n" +
 	"\x0eSessionSummary\x12.\n" +
 	"\asession\x18\x01 \x01(\v2\x14.netclode.v1.SessionR\asession\x12(\n" +
-	"\rmessage_count\x18\x02 \x01(\x05H\x00R\fmessageCount\x88\x01\x01\x12+\n" +
-	"\x0flast_message_id\x18\x03 \x01(\tH\x01R\rlastMessageId\x88\x01\x01B\x10\n" +
-	"\x0e_message_countB\x12\n" +
-	"\x10_last_message_id\"\xd9\a\n" +
+	"\rmessage_count\x18\x02 \x01(\x05H\x00R\fmessageCount\x88\x01\x01\x12)\n" +
+	"\x0elast_stream_id\x18\x03 \x01(\tH\x01R\flastStreamId\x88\x01\x01B\x10\n" +
+	"\x0e_message_countB\x11\n" +
+	"\x0f_last_stream_id\"\xd9\a\n" +
 	"\rSessionConfig\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12#\n" +
@@ -1497,7 +1609,59 @@ const file_netclode_v1_common_proto_rawDesc = "" +
 	"\x0f_openai_api_keyB\x16\n" +
 	"\x14_codex_refresh_tokenB\x13\n" +
 	"\x11_reasoning_effortB\x12\n" +
-	"\x10_mistral_api_key\"\x8e\x01\n" +
+	"\x10_mistral_api_key\"\xe0\x02\n" +
+	"\vStreamEntry\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x128\n" +
+	"\ttimestamp\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\x18\n" +
+	"\apartial\x18\x03 \x01(\bR\apartial\x12/\n" +
+	"\x05event\x18\x04 \x01(\v2\x17.netclode.v1.AgentEventH\x00R\x05event\x12F\n" +
+	"\x0fterminal_output\x18\x05 \x01(\v2\x1b.netclode.v1.TerminalOutputH\x00R\x0eterminalOutput\x12=\n" +
+	"\x0esession_update\x18\x06 \x01(\v2\x14.netclode.v1.SessionH\x00R\rsessionUpdate\x12*\n" +
+	"\x05error\x18\a \x01(\v2\x12.netclode.v1.ErrorH\x00R\x05errorB\t\n" +
+	"\apayload\"$\n" +
+	"\x0eTerminalOutput\x12\x12\n" +
+	"\x04data\x18\x01 \x01(\tR\x04data\"\xdf\x01\n" +
+	"\x05Error\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\tR\x04code\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x12\"\n" +
+	"\n" +
+	"session_id\x18\x03 \x01(\tH\x00R\tsessionId\x88\x01\x01\x129\n" +
+	"\adetails\x18\x04 \x03(\v2\x1f.netclode.v1.Error.DetailsEntryR\adetails\x1a:\n" +
+	"\fDetailsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\r\n" +
+	"\v_session_id\"\xb1\x03\n" +
+	"\x0fInProgressState\x12F\n" +
+	"\bmessages\x18\x01 \x03(\v2*.netclode.v1.InProgressState.MessagesEntryR\bmessages\x12F\n" +
+	"\bthinking\x18\x02 \x03(\v2*.netclode.v1.InProgressState.ThinkingEntryR\bthinking\x12=\n" +
+	"\x05tools\x18\x03 \x03(\v2'.netclode.v1.InProgressState.ToolsEntryR\x05tools\x1a;\n" +
+	"\rMessagesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a;\n" +
+	"\rThinkingEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aU\n" +
+	"\n" +
+	"ToolsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x121\n" +
+	"\x05value\x18\x02 \x01(\v2\x1b.netclode.v1.InProgressToolR\x05value:\x028\x01\"R\n" +
+	"\x0eInProgressTool\x12\x12\n" +
+	"\x04tool\x18\x01 \x01(\tR\x04tool\x12\x14\n" +
+	"\x05input\x18\x02 \x01(\tR\x05input\x12\x16\n" +
+	"\x06output\x18\x03 \x01(\tR\x06output\"\x8a\x02\n" +
+	"\bSnapshot\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x02 \x01(\tR\tsessionId\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x129\n" +
+	"\n" +
+	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"size_bytes\x18\x05 \x01(\x03R\tsizeBytes\x12\x1f\n" +
+	"\vturn_number\x18\x06 \x01(\x05R\n" +
+	"turnNumber\x12#\n" +
+	"\rmessage_count\x18\a \x01(\x05R\fmessageCount\x12\x1b\n" +
+	"\tstream_id\x18\b \x01(\tR\bstreamId\"\x8e\x01\n" +
 	"\n" +
 	"GitHubRepo\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1b\n" +
@@ -1513,28 +1677,7 @@ const file_netclode_v1_common_proto_rawDesc = "" +
 	"linesAdded\x88\x01\x01\x12(\n" +
 	"\rlines_removed\x18\x05 \x01(\x05H\x01R\flinesRemoved\x88\x01\x01B\x0e\n" +
 	"\f_lines_addedB\x10\n" +
-	"\x0e_lines_removed\"\x9b\x01\n" +
-	"\aMessage\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12,\n" +
-	"\x04role\x18\x02 \x01(\x0e2\x18.netclode.v1.MessageRoleR\x04role\x12\x18\n" +
-	"\acontent\x18\x03 \x01(\tR\acontent\x128\n" +
-	"\ttimestamp\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"\x9f\x01\n" +
-	"\x05Event\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
-	"\n" +
-	"message_id\x18\x02 \x01(\tR\tmessageId\x128\n" +
-	"\ttimestamp\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12-\n" +
-	"\x05event\x18\x04 \x01(\v2\x17.netclode.v1.AgentEventR\x05event\"\xdf\x01\n" +
-	"\x05Error\x12\x12\n" +
-	"\x04code\x18\x01 \x01(\tR\x04code\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\x12\"\n" +
-	"\n" +
-	"session_id\x18\x03 \x01(\tH\x00R\tsessionId\x88\x01\x01\x129\n" +
-	"\adetails\x18\x04 \x03(\v2\x1f.netclode.v1.Error.DetailsEntryR\adetails\x1a:\n" +
-	"\fDetailsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\r\n" +
-	"\v_session_id\"\x91\x02\n" +
+	"\x0e_lines_removed\"\x91\x02\n" +
 	"\tModelInfo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1f\n" +
@@ -1560,20 +1703,7 @@ const file_netclode_v1_common_proto_rawDesc = "" +
 	"\t_reset_at\"E\n" +
 	"\x10SandboxResources\x12\x14\n" +
 	"\x05vcpus\x18\x01 \x01(\x05R\x05vcpus\x12\x1b\n" +
-	"\tmemory_mb\x18\x02 \x01(\x05R\bmemoryMb\"\x95\x02\n" +
-	"\bSnapshot\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
-	"\n" +
-	"session_id\x18\x02 \x01(\tR\tsessionId\x12\x12\n" +
-	"\x04name\x18\x03 \x01(\tR\x04name\x129\n" +
-	"\n" +
-	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x1d\n" +
-	"\n" +
-	"size_bytes\x18\x05 \x01(\x03R\tsizeBytes\x12\x1f\n" +
-	"\vturn_number\x18\x06 \x01(\x05R\n" +
-	"turnNumber\x12#\n" +
-	"\rmessage_count\x18\a \x01(\x05R\fmessageCount\x12&\n" +
-	"\x0fevent_stream_id\x18\b \x01(\tR\reventStreamId*V\n" +
+	"\tmemory_mb\x18\x02 \x01(\x05R\bmemoryMb*V\n" +
 	"\n" +
 	"RepoAccess\x12\x1b\n" +
 	"\x17REPO_ACCESS_UNSPECIFIED\x10\x00\x12\x14\n" +
@@ -1607,11 +1737,7 @@ const file_netclode_v1_common_proto_rawDesc = "" +
 	"\x19GIT_FILE_STATUS_UNTRACKED\x10\x05\x12\x1a\n" +
 	"\x16GIT_FILE_STATUS_COPIED\x10\x06\x12\x1b\n" +
 	"\x17GIT_FILE_STATUS_IGNORED\x10\a\x12\x1c\n" +
-	"\x18GIT_FILE_STATUS_UNMERGED\x10\b*^\n" +
-	"\vMessageRole\x12\x1c\n" +
-	"\x18MESSAGE_ROLE_UNSPECIFIED\x10\x00\x12\x15\n" +
-	"\x11MESSAGE_ROLE_USER\x10\x01\x12\x1a\n" +
-	"\x16MESSAGE_ROLE_ASSISTANT\x10\x02B\xbc\x01\n" +
+	"\x18GIT_FILE_STATUS_UNMERGED\x10\bB\xbc\x01\n" +
 	"\x0fcom.netclode.v1B\vCommonProtoP\x01ZOgithub.com/angristan/netclode/services/control-plane/gen/netclode/v1;netclodev1\xa2\x02\x03NXX\xaa\x02\vNetclode.V1\xca\x02\vNetclode\\V1\xe2\x02\x17Netclode\\V1\\GPBMetadata\xea\x02\fNetclode::V1b\x06proto3"
 
 var (
@@ -1626,55 +1752,64 @@ func file_netclode_v1_common_proto_rawDescGZIP() []byte {
 	return file_netclode_v1_common_proto_rawDescData
 }
 
-var file_netclode_v1_common_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
-var file_netclode_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_netclode_v1_common_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
+var file_netclode_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_netclode_v1_common_proto_goTypes = []any{
 	(RepoAccess)(0),               // 0: netclode.v1.RepoAccess
 	(SdkType)(0),                  // 1: netclode.v1.SdkType
 	(CopilotBackend)(0),           // 2: netclode.v1.CopilotBackend
 	(SessionStatus)(0),            // 3: netclode.v1.SessionStatus
 	(GitFileStatus)(0),            // 4: netclode.v1.GitFileStatus
-	(MessageRole)(0),              // 5: netclode.v1.MessageRole
-	(*Session)(nil),               // 6: netclode.v1.Session
-	(*SessionSummary)(nil),        // 7: netclode.v1.SessionSummary
-	(*SessionConfig)(nil),         // 8: netclode.v1.SessionConfig
-	(*GitHubRepo)(nil),            // 9: netclode.v1.GitHubRepo
-	(*GitFileChange)(nil),         // 10: netclode.v1.GitFileChange
-	(*Message)(nil),               // 11: netclode.v1.Message
-	(*Event)(nil),                 // 12: netclode.v1.Event
-	(*Error)(nil),                 // 13: netclode.v1.Error
-	(*ModelInfo)(nil),             // 14: netclode.v1.ModelInfo
-	(*CopilotAuthStatus)(nil),     // 15: netclode.v1.CopilotAuthStatus
-	(*CopilotPremiumQuota)(nil),   // 16: netclode.v1.CopilotPremiumQuota
-	(*SandboxResources)(nil),      // 17: netclode.v1.SandboxResources
-	(*Snapshot)(nil),              // 18: netclode.v1.Snapshot
-	nil,                           // 19: netclode.v1.Error.DetailsEntry
-	(*timestamppb.Timestamp)(nil), // 20: google.protobuf.Timestamp
-	(*AgentEvent)(nil),            // 21: netclode.v1.AgentEvent
+	(*Session)(nil),               // 5: netclode.v1.Session
+	(*SessionSummary)(nil),        // 6: netclode.v1.SessionSummary
+	(*SessionConfig)(nil),         // 7: netclode.v1.SessionConfig
+	(*StreamEntry)(nil),           // 8: netclode.v1.StreamEntry
+	(*TerminalOutput)(nil),        // 9: netclode.v1.TerminalOutput
+	(*Error)(nil),                 // 10: netclode.v1.Error
+	(*InProgressState)(nil),       // 11: netclode.v1.InProgressState
+	(*InProgressTool)(nil),        // 12: netclode.v1.InProgressTool
+	(*Snapshot)(nil),              // 13: netclode.v1.Snapshot
+	(*GitHubRepo)(nil),            // 14: netclode.v1.GitHubRepo
+	(*GitFileChange)(nil),         // 15: netclode.v1.GitFileChange
+	(*ModelInfo)(nil),             // 16: netclode.v1.ModelInfo
+	(*CopilotAuthStatus)(nil),     // 17: netclode.v1.CopilotAuthStatus
+	(*CopilotPremiumQuota)(nil),   // 18: netclode.v1.CopilotPremiumQuota
+	(*SandboxResources)(nil),      // 19: netclode.v1.SandboxResources
+	nil,                           // 20: netclode.v1.Error.DetailsEntry
+	nil,                           // 21: netclode.v1.InProgressState.MessagesEntry
+	nil,                           // 22: netclode.v1.InProgressState.ThinkingEntry
+	nil,                           // 23: netclode.v1.InProgressState.ToolsEntry
+	(*timestamppb.Timestamp)(nil), // 24: google.protobuf.Timestamp
+	(*AgentEvent)(nil),            // 25: netclode.v1.AgentEvent
 }
 var file_netclode_v1_common_proto_depIdxs = []int32{
 	3,  // 0: netclode.v1.Session.status:type_name -> netclode.v1.SessionStatus
 	0,  // 1: netclode.v1.Session.repo_access:type_name -> netclode.v1.RepoAccess
-	20, // 2: netclode.v1.Session.created_at:type_name -> google.protobuf.Timestamp
-	20, // 3: netclode.v1.Session.last_active_at:type_name -> google.protobuf.Timestamp
+	24, // 2: netclode.v1.Session.created_at:type_name -> google.protobuf.Timestamp
+	24, // 3: netclode.v1.Session.last_active_at:type_name -> google.protobuf.Timestamp
 	1,  // 4: netclode.v1.Session.sdk_type:type_name -> netclode.v1.SdkType
 	2,  // 5: netclode.v1.Session.copilot_backend:type_name -> netclode.v1.CopilotBackend
-	6,  // 6: netclode.v1.SessionSummary.session:type_name -> netclode.v1.Session
+	5,  // 6: netclode.v1.SessionSummary.session:type_name -> netclode.v1.Session
 	0,  // 7: netclode.v1.SessionConfig.repo_access:type_name -> netclode.v1.RepoAccess
 	1,  // 8: netclode.v1.SessionConfig.sdk_type:type_name -> netclode.v1.SdkType
 	2,  // 9: netclode.v1.SessionConfig.copilot_backend:type_name -> netclode.v1.CopilotBackend
-	4,  // 10: netclode.v1.GitFileChange.status:type_name -> netclode.v1.GitFileStatus
-	5,  // 11: netclode.v1.Message.role:type_name -> netclode.v1.MessageRole
-	20, // 12: netclode.v1.Message.timestamp:type_name -> google.protobuf.Timestamp
-	20, // 13: netclode.v1.Event.timestamp:type_name -> google.protobuf.Timestamp
-	21, // 14: netclode.v1.Event.event:type_name -> netclode.v1.AgentEvent
-	19, // 15: netclode.v1.Error.details:type_name -> netclode.v1.Error.DetailsEntry
-	20, // 16: netclode.v1.Snapshot.created_at:type_name -> google.protobuf.Timestamp
-	17, // [17:17] is the sub-list for method output_type
-	17, // [17:17] is the sub-list for method input_type
-	17, // [17:17] is the sub-list for extension type_name
-	17, // [17:17] is the sub-list for extension extendee
-	0,  // [0:17] is the sub-list for field type_name
+	24, // 10: netclode.v1.StreamEntry.timestamp:type_name -> google.protobuf.Timestamp
+	25, // 11: netclode.v1.StreamEntry.event:type_name -> netclode.v1.AgentEvent
+	9,  // 12: netclode.v1.StreamEntry.terminal_output:type_name -> netclode.v1.TerminalOutput
+	5,  // 13: netclode.v1.StreamEntry.session_update:type_name -> netclode.v1.Session
+	10, // 14: netclode.v1.StreamEntry.error:type_name -> netclode.v1.Error
+	20, // 15: netclode.v1.Error.details:type_name -> netclode.v1.Error.DetailsEntry
+	21, // 16: netclode.v1.InProgressState.messages:type_name -> netclode.v1.InProgressState.MessagesEntry
+	22, // 17: netclode.v1.InProgressState.thinking:type_name -> netclode.v1.InProgressState.ThinkingEntry
+	23, // 18: netclode.v1.InProgressState.tools:type_name -> netclode.v1.InProgressState.ToolsEntry
+	24, // 19: netclode.v1.Snapshot.created_at:type_name -> google.protobuf.Timestamp
+	4,  // 20: netclode.v1.GitFileChange.status:type_name -> netclode.v1.GitFileStatus
+	12, // 21: netclode.v1.InProgressState.ToolsEntry.value:type_name -> netclode.v1.InProgressTool
+	22, // [22:22] is the sub-list for method output_type
+	22, // [22:22] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_netclode_v1_common_proto_init() }
@@ -1686,19 +1821,25 @@ func file_netclode_v1_common_proto_init() {
 	file_netclode_v1_common_proto_msgTypes[0].OneofWrappers = []any{}
 	file_netclode_v1_common_proto_msgTypes[1].OneofWrappers = []any{}
 	file_netclode_v1_common_proto_msgTypes[2].OneofWrappers = []any{}
-	file_netclode_v1_common_proto_msgTypes[3].OneofWrappers = []any{}
-	file_netclode_v1_common_proto_msgTypes[4].OneofWrappers = []any{}
-	file_netclode_v1_common_proto_msgTypes[7].OneofWrappers = []any{}
-	file_netclode_v1_common_proto_msgTypes[8].OneofWrappers = []any{}
+	file_netclode_v1_common_proto_msgTypes[3].OneofWrappers = []any{
+		(*StreamEntry_Event)(nil),
+		(*StreamEntry_TerminalOutput)(nil),
+		(*StreamEntry_SessionUpdate)(nil),
+		(*StreamEntry_Error)(nil),
+	}
+	file_netclode_v1_common_proto_msgTypes[5].OneofWrappers = []any{}
 	file_netclode_v1_common_proto_msgTypes[9].OneofWrappers = []any{}
 	file_netclode_v1_common_proto_msgTypes[10].OneofWrappers = []any{}
+	file_netclode_v1_common_proto_msgTypes[11].OneofWrappers = []any{}
+	file_netclode_v1_common_proto_msgTypes[12].OneofWrappers = []any{}
+	file_netclode_v1_common_proto_msgTypes[13].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_netclode_v1_common_proto_rawDesc), len(file_netclode_v1_common_proto_rawDesc)),
-			NumEnums:      6,
-			NumMessages:   14,
+			NumEnums:      5,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

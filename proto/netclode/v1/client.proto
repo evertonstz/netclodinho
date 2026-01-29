@@ -54,11 +54,9 @@ message ServerMessage {
     SessionListResponse session_list = 5;
     SessionStateResponse session_state = 6;
     SyncResponse sync_response = 7;
-    AgentEventResponse agent_event = 8;
-    AgentMessageResponse agent_message = 9;
-    AgentDoneResponse agent_done = 10;
-    UserMessageResponse user_message = 11;
-    TerminalOutputResponse terminal_output = 12;
+    // Unified real-time stream entry (replaces agent_event, agent_message, agent_done, user_message, terminal_output)
+    StreamEntryResponse stream_entry = 8;
+    // Reserved: 9-12 were agent_message, agent_done, user_message, terminal_output
     PortExposedResponse port_exposed = 13;
     GitHubReposResponse github_repos = 14;
     GitStatusResponse git_status = 15;
@@ -109,8 +107,8 @@ message ListSessionsRequest {
 message OpenSessionRequest {
   optional string request_id = 1;
   string session_id = 2;
-  optional string last_message_id = 3;       // Cursor for message pagination
-  optional string last_notification_id = 4;  // Cursor for real-time event stream reconnection
+  optional string after_stream_id = 3;       // Cursor: return entries after this stream ID
+  optional int32 limit = 4;                  // Max entries to return (default: all)
 }
 
 message ResumeSessionRequest {
@@ -242,10 +240,10 @@ message SessionListResponse {
 
 message SessionStateResponse {
   Session session = 1;
-  repeated Message messages = 2;
-  repeated Event events = 3;
-  bool has_more = 4;                         // true if more messages available for pagination
-  optional string last_notification_id = 5;  // Cursor for subscribing to real-time updates
+  repeated StreamEntry entries = 2;          // History: partial=false entries only
+  bool has_more = 3;                         // true if more entries available for pagination
+  optional string last_stream_id = 4;        // Cursor for subscribing to real-time updates
+  optional InProgressState in_progress = 5;  // Accumulated streaming state if RUNNING
   optional string request_id = 6;
 }
 
@@ -255,30 +253,11 @@ message SyncResponse {
   optional string request_id = 3;
 }
 
-message AgentEventResponse {
+// StreamEntryResponse wraps a StreamEntry for real-time push notifications.
+// This is the unified type for all session stream updates (messages, events, terminal output, etc.)
+message StreamEntryResponse {
   string session_id = 1;
-  AgentEvent event = 2;
-}
-
-message AgentMessageResponse {
-  string session_id = 1;
-  string content = 2;
-  bool partial = 3;                          // true for streaming deltas, false for final message
-  string message_id = 4;                     // Correlates partial messages belonging to same response
-}
-
-message AgentDoneResponse {
-  string session_id = 1;
-}
-
-message UserMessageResponse {
-  string session_id = 1;
-  string content = 2;
-}
-
-message TerminalOutputResponse {
-  string session_id = 1;
-  string data = 2;
+  StreamEntry entry = 2;
 }
 
 message PortExposedResponse {

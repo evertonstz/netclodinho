@@ -37,7 +37,7 @@ func newMockRuntime() *mockRuntime {
 	}
 }
 
-func (m *mockRuntime) CreateSandbox(ctx context.Context, sessionID string, env map[string]string) error {
+func (m *mockRuntime) CreateSandbox(ctx context.Context, sessionID string, env map[string]string, resources *k8s.SandboxResourceConfig) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.createdSandboxes = append(m.createdSandboxes, sessionID)
@@ -289,40 +289,37 @@ func (m *mockStorage) DeleteSession(ctx context.Context, id string) error {
 	return nil
 }
 
-func (m *mockStorage) AppendMessage(ctx context.Context, sessionID string, msg *pb.Message) error {
+// Unified Stream methods (replaces messages, events, and notifications)
+func (m *mockStorage) AppendStreamEntry(ctx context.Context, sessionID string, entry *storage.StreamEntry) (string, error) {
+	return "0-0", nil
+}
+
+func (m *mockStorage) GetStreamEntries(ctx context.Context, sessionID string, afterID string, limit int) ([]storage.StreamEntryWithID, error) {
+	return nil, nil
+}
+
+func (m *mockStorage) GetStreamEntriesByTypes(ctx context.Context, sessionID string, afterID string, limit int, types []string) ([]storage.StreamEntryWithID, error) {
+	return nil, nil
+}
+
+func (m *mockStorage) GetLastStreamID(ctx context.Context, sessionID string) (string, error) {
+	return "0-0", nil
+}
+
+func (m *mockStorage) TruncateStreamAfter(ctx context.Context, sessionID string, afterID string) error {
 	return nil
-}
-
-func (m *mockStorage) GetMessages(ctx context.Context, sessionID string, afterID *string) ([]*pb.Message, error) {
-	return nil, nil
-}
-
-func (m *mockStorage) GetLastMessage(ctx context.Context, sessionID string) (*pb.Message, error) {
-	return nil, nil
 }
 
 func (m *mockStorage) GetMessageCount(ctx context.Context, sessionID string) (int, error) {
 	return 0, nil
 }
 
-func (m *mockStorage) AppendEvent(ctx context.Context, sessionID string, evt *pb.Event) error {
+func (m *mockStorage) IncrementMessageCount(ctx context.Context, sessionID string) error {
 	return nil
 }
 
-func (m *mockStorage) GetEvents(ctx context.Context, sessionID string, limit int) ([]*pb.Event, error) {
-	return nil, nil
-}
-
-func (m *mockStorage) PublishNotification(ctx context.Context, sessionID string, notification *storage.Notification) (string, error) {
-	return "0-0", nil
-}
-
-func (m *mockStorage) GetNotificationsAfter(ctx context.Context, sessionID string, afterID string, limit int) ([]storage.NotificationWithID, error) {
-	return nil, nil
-}
-
-func (m *mockStorage) GetLastNotificationID(ctx context.Context, sessionID string) (string, error) {
-	return "0", nil
+func (m *mockStorage) SetMessageCount(ctx context.Context, sessionID string, count int) error {
+	return nil
 }
 
 func (m *mockStorage) GetRedisClient() *redis.Client {
@@ -351,22 +348,6 @@ func (m *mockStorage) DeleteSnapshot(ctx context.Context, sessionID, snapshotID 
 }
 
 func (m *mockStorage) DeleteAllSnapshots(ctx context.Context, sessionID string) error {
-	return nil
-}
-
-func (m *mockStorage) TruncateMessages(ctx context.Context, sessionID string, keepCount int) error {
-	return nil
-}
-
-func (m *mockStorage) GetLastEventStreamID(ctx context.Context, sessionID string) (string, error) {
-	return "0-0", nil
-}
-
-func (m *mockStorage) TruncateEventsAfter(ctx context.Context, sessionID string, afterID string) error {
-	return nil
-}
-
-func (m *mockStorage) TruncateNotificationsAfter(ctx context.Context, sessionID string, afterID string) error {
 	return nil
 }
 

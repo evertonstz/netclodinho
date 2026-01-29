@@ -1002,8 +1002,8 @@ func (m *Manager) ExposePort(ctx context.Context, sessionID string, port int) (s
 
 	// Create and persist the port_exposed event
 	event := &pb.AgentEvent{
-		Kind:      pb.AgentEventKind_AGENT_EVENT_KIND_PORT_EXPOSED,
-		Timestamp: timestamppb.Now(),
+		Kind:          pb.AgentEventKind_AGENT_EVENT_KIND_PORT_EXPOSED,
+		CorrelationId: fmt.Sprintf("port-%d", port),
 		Payload: &pb.AgentEvent_PortExposed{
 			PortExposed: &pb.PortExposedPayload{
 				Port:       port32,
@@ -1012,17 +1012,9 @@ func (m *Manager) ExposePort(ctx context.Context, sessionID string, port int) (s
 		},
 	}
 
-	persistedEvent := &pb.Event{
-		Id:        "evt_" + uuid.NewString()[:12],
-		Timestamp: timestamppb.Now(),
-		Event:     event,
-	}
-	if err := m.storage.AppendEvent(ctx, sessionID, persistedEvent); err != nil {
-		slog.Warn("Failed to persist port exposed event", "sessionID", sessionID, "error", err)
-	}
-
-	// Emit to all connected clients
-	m.emitAgentEvent(ctx, sessionID, event)
+	// Emit to all connected clients (this also persists to the stream)
+	// Port exposed events are final (not partial streaming)
+	m.emitAgentEvent(ctx, sessionID, event, false)
 
 	return previewURL, nil
 }
@@ -1071,44 +1063,62 @@ func (m *Manager) Get(ctx context.Context, id string) (*pb.Session, error) {
 	return state.Session, nil
 }
 
-// GetWithHistory returns a session with its message and event history.
-// Also returns the lastNotificationID for cursor-based subscription.
-func (m *Manager) GetWithHistory(ctx context.Context, id string) (*pb.Session, []pb.Message, []pb.Event, bool, string, error) {
+// GetWithHistory returns a session with its stream entries and in-progress state.
+// Returns: session, entries, hasMore, lastStreamID, inProgress, error
+func (m *Manager) GetWithHistory(ctx context.Context, id string, afterStreamID string, limit int) (*pb.Session, []storage.StreamEntryWithID, bool, string, *pb.InProgressState, error) {
 	session, err := m.Get(ctx, id)
 	if err != nil {
-		return nil, nil, nil, false, "", err
+		return nil, nil, false, "", nil, err
 	}
 
-	messages, err := m.storage.GetMessages(ctx, id, nil)
+	// Get all entries and filter for history (non-partial only)
+	allEntries, err := m.storage.GetStreamEntries(ctx, id, afterStreamID, limit)
 	if err != nil {
-		return nil, nil, nil, false, "", fmt.Errorf("get messages: %w", err)
+		return nil, nil, false, "", nil, fmt.Errorf("get stream entries: %w", err)
 	}
 
-	events, err := m.storage.GetEvents(ctx, id, 0) // 0 = no limit
+	// Filter to only include non-partial (final) entries for history
+	entries := make([]storage.StreamEntryWithID, 0, len(allEntries))
+	for _, e := range allEntries {
+		if !e.Entry.Partial {
+			entries = append(entries, e)
+		}
+	}
+
+	// Get the latest stream ID for cursor-based subscription
+	lastStreamID, err := m.storage.GetLastStreamID(ctx, id)
 	if err != nil {
-		return nil, nil, nil, false, "", fmt.Errorf("get events: %w", err)
+		slog.Warn("Failed to get last stream ID, using $", "sessionID", id, "error", err)
+		lastStreamID = "$" // Default to "only new" if error
 	}
 
-	// Get the latest notification ID for cursor-based subscription
-	// This allows the client to subscribe starting from where the history ends
-	lastNotificationID, err := m.storage.GetLastNotificationID(ctx, id)
-	if err != nil {
-		slog.Warn("Failed to get last notification ID, using $", "sessionID", id, "error", err)
-		lastNotificationID = "$" // Default to "only new" if error
+	// If session is RUNNING, include in-progress state
+	var inProgress *pb.InProgressState
+	if session.Status == pb.SessionStatus_SESSION_STATUS_RUNNING {
+		m.mu.RLock()
+		state, ok := m.sessions[id]
+		if ok {
+			inProgress = &pb.InProgressState{
+				Messages: make(map[string]string),
+				Thinking: make(map[string]string),
+				Tools:    make(map[string]*pb.InProgressTool),
+			}
+			// Add current message content if any
+			if state.CurrentMessageID != "" {
+				content := state.ContentBuilder.String()
+				if content != "" {
+					inProgress.Messages[state.CurrentMessageID] = content
+				}
+			}
+			// TODO: Add thinking and tool accumulators when state.go is updated
+		}
+		m.mu.RUnlock()
 	}
 
-	// Convert to value slices
-	msgSlice := make([]pb.Message, len(messages))
-	for i, msg := range messages {
-		msgSlice[i] = *msg
-	}
+	// TODO: implement proper pagination with hasMore
+	hasMore := false
 
-	evtSlice := make([]pb.Event, len(events))
-	for i, e := range events {
-		evtSlice[i] = *e
-	}
-
-	return session, msgSlice, evtSlice, false, lastNotificationID, nil
+	return session, entries, hasMore, lastStreamID, inProgress, nil
 }
 
 // GetAllWithMeta returns all sessions with metadata.
@@ -1126,9 +1136,10 @@ func (m *Manager) GetAllWithMeta(ctx context.Context) ([]pb.SessionSummary, erro
 			meta.MessageCount = &count32
 		}
 
-		lastMsg, err := m.storage.GetLastMessage(ctx, id)
-		if err == nil && lastMsg != nil {
-			meta.LastMessageId = &lastMsg.Id
+		// Get last stream ID as a cursor reference
+		lastStreamID, err := m.storage.GetLastStreamID(ctx, id)
+		if err == nil && lastStreamID != "" && lastStreamID != "$" {
+			meta.LastStreamId = &lastStreamID
 		}
 
 		result = append(result, meta)
@@ -1485,11 +1496,11 @@ func (m *Manager) UpdateRepoAccess(ctx context.Context, sessionID string, newAcc
 	return nil
 }
 
-// publishNotification publishes a notification to Redis Streams.
+// publishStreamEntry publishes an entry to the unified session stream.
 // All StreamSubscribers reading from this session's stream will receive it.
-func (m *Manager) publishNotification(ctx context.Context, sessionID string, notification *storage.Notification) {
-	if _, err := m.storage.PublishNotification(ctx, sessionID, notification); err != nil {
-		slog.Warn("Failed to publish notification", "sessionID", sessionID, "type", notification.Type, "error", err)
+func (m *Manager) publishStreamEntry(ctx context.Context, sessionID string, entry *storage.StreamEntry) {
+	if _, err := m.storage.AppendStreamEntry(ctx, sessionID, entry); err != nil {
+		slog.Warn("Failed to publish stream entry", "sessionID", sessionID, "type", entry.Type, "error", err)
 	}
 }
 
@@ -1501,8 +1512,8 @@ var protoJsonOpts = protojson.MarshalOptions{
 // emitSessionUpdated broadcasts a session update to all subscribers.
 func (m *Manager) emitSessionUpdated(ctx context.Context, session *pb.Session) {
 	payload, _ := protoJsonOpts.Marshal(session)
-	m.publishNotification(ctx, session.Id, &storage.Notification{
-		Type:      "session_update",
+	m.publishStreamEntry(ctx, session.Id, &storage.StreamEntry{
+		Type:      storage.StreamEntryTypeSessionUpdate,
 		Payload:   payload,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	})
@@ -1515,45 +1526,62 @@ func (m *Manager) emitSessionError(ctx context.Context, sessionID, errMsg string
 		Message:   errMsg,
 		SessionId: &sessionID,
 	})
-	m.publishNotification(ctx, sessionID, &storage.Notification{
-		Type:      "session_error",
+	m.publishStreamEntry(ctx, sessionID, &storage.StreamEntry{
+		Type:      storage.StreamEntryTypeError,
 		Payload:   payload,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	})
 }
 
 // emitAgentEvent broadcasts an agent event to all subscribers.
-func (m *Manager) emitAgentEvent(ctx context.Context, sessionID string, event *pb.AgentEvent) {
+// The partial flag indicates if this is a streaming delta (true) or final event (false).
+func (m *Manager) emitAgentEvent(ctx context.Context, sessionID string, event *pb.AgentEvent, partial bool) {
 	payload, _ := protoJsonOpts.Marshal(event)
-	m.publishNotification(ctx, sessionID, &storage.Notification{
-		Type:      "event",
+	m.publishStreamEntry(ctx, sessionID, &storage.StreamEntry{
+		Type:      storage.StreamEntryTypeEvent,
+		Partial:   partial,
 		Payload:   payload,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	})
 }
 
 // emitAgentMessage broadcasts an agent message to all subscribers.
+// Uses AgentEvent with MESSAGE kind. partial=true for streaming deltas.
 func (m *Manager) emitAgentMessage(ctx context.Context, sessionID, messageID, content string, partial bool) {
-	payload, _ := protoJsonOpts.Marshal(&pb.AgentMessageResponse{
-		SessionId: sessionID,
-		MessageId: messageID,
-		Content:   content,
+	event := &pb.AgentEvent{
+		Kind:          pb.AgentEventKind_AGENT_EVENT_KIND_MESSAGE,
+		CorrelationId: messageID,
+		Payload: &pb.AgentEvent_Message{
+			Message: &pb.MessagePayload{
+				Role:    pb.MessageRole_MESSAGE_ROLE_ASSISTANT,
+				Content: content,
+			},
+		},
+	}
+	payload, _ := protoJsonOpts.Marshal(event)
+	m.publishStreamEntry(ctx, sessionID, &storage.StreamEntry{
+		Type:      storage.StreamEntryTypeEvent,
 		Partial:   partial,
-	})
-	m.publishNotification(ctx, sessionID, &storage.Notification{
-		Type:      "message",
 		Payload:   payload,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	})
 }
 
 // emitAgentDone broadcasts agent completion to all subscribers.
+// This is emitted as a SESSION_UPDATE with the current session state.
 func (m *Manager) emitAgentDone(ctx context.Context, sessionID string) {
-	payload, _ := protoJsonOpts.Marshal(&pb.AgentDoneResponse{
-		SessionId: sessionID,
-	})
-	m.publishNotification(ctx, sessionID, &storage.Notification{
-		Type:      "agent_done",
+	m.mu.RLock()
+	state, ok := m.sessions[sessionID]
+	m.mu.RUnlock()
+
+	if !ok {
+		slog.Warn("emitAgentDone: session not found", "sessionID", sessionID)
+		return
+	}
+
+	payload, _ := protoJsonOpts.Marshal(state.Session)
+	m.publishStreamEntry(ctx, sessionID, &storage.StreamEntry{
+		Type:      storage.StreamEntryTypeSessionUpdate,
 		Payload:   payload,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	})
@@ -1566,8 +1594,8 @@ func (m *Manager) emitAgentError(ctx context.Context, sessionID, errMsg string) 
 		Message:   errMsg,
 		SessionId: &sessionID,
 	})
-	m.publishNotification(ctx, sessionID, &storage.Notification{
-		Type:      "agent_error",
+	m.publishStreamEntry(ctx, sessionID, &storage.StreamEntry{
+		Type:      storage.StreamEntryTypeError,
 		Payload:   payload,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	})
@@ -1575,12 +1603,21 @@ func (m *Manager) emitAgentError(ctx context.Context, sessionID, errMsg string) 
 
 // emitUserMessage broadcasts a user message to all subscribers.
 func (m *Manager) emitUserMessage(ctx context.Context, sessionID, text string) {
-	payload, _ := protoJsonOpts.Marshal(&pb.UserMessageResponse{
-		SessionId: sessionID,
-		Content:   text,
-	})
-	m.publishNotification(ctx, sessionID, &storage.Notification{
-		Type:      "user_message",
+	messageID := uuid.New().String()
+	event := &pb.AgentEvent{
+		Kind:          pb.AgentEventKind_AGENT_EVENT_KIND_MESSAGE,
+		CorrelationId: messageID,
+		Payload: &pb.AgentEvent_Message{
+			Message: &pb.MessagePayload{
+				Role:    pb.MessageRole_MESSAGE_ROLE_USER,
+				Content: text,
+			},
+		},
+	}
+	payload, _ := protoJsonOpts.Marshal(event)
+	m.publishStreamEntry(ctx, sessionID, &storage.StreamEntry{
+		Type:      storage.StreamEntryTypeEvent,
+		Partial:   false, // User messages are always complete
 		Payload:   payload,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	})
@@ -1598,20 +1635,19 @@ func (m *Manager) EmitEvent(ctx context.Context, sessionID string, event *pb.Age
 		return fmt.Errorf("session %s not found", sessionID)
 	}
 
-	// Emit the event
-	m.emitAgentEvent(ctx, sessionID, event)
+	// Emit the event (internal events are final, not streaming deltas)
+	m.emitAgentEvent(ctx, sessionID, event, false)
 	slog.Debug("Emitted internal event", "sessionID", sessionID, "kind", event.Kind)
 	return nil
 }
 
 // emitTerminalOutput broadcasts terminal output to all connected clients.
 func (m *Manager) emitTerminalOutput(ctx context.Context, sessionID, data string) {
-	payload, _ := protoJsonOpts.Marshal(&pb.TerminalOutputResponse{
-		SessionId: sessionID,
-		Data:      data,
+	payload, _ := protoJsonOpts.Marshal(&pb.TerminalOutput{
+		Data: data,
 	})
-	m.publishNotification(ctx, sessionID, &storage.Notification{
-		Type:      "terminal_output",
+	m.publishStreamEntry(ctx, sessionID, &storage.StreamEntry{
+		Type:      storage.StreamEntryTypeTerminalOutput,
 		Payload:   payload,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	})
@@ -1677,10 +1713,9 @@ func (m *Manager) RegisterAgentConnection(sessionID string, conn AgentConnection
 	// If session was interrupted, emit reconnect event (status stays interrupted until user sends prompt)
 	if wasInterrupted {
 		event := &pb.AgentEvent{
-			Kind:      pb.AgentEventKind_AGENT_EVENT_KIND_AGENT_RECONNECTED,
-			Timestamp: timestamppb.Now(),
+			Kind: pb.AgentEventKind_AGENT_EVENT_KIND_AGENT_RECONNECTED,
 		}
-		m.emitAgentEvent(ctx, sessionID, event)
+		m.emitAgentEvent(ctx, sessionID, event, false)
 		slog.Info("Emitted agent_reconnected event", "sessionID", sessionID)
 	}
 
@@ -1712,10 +1747,9 @@ func (m *Manager) UnregisterAgentConnection(sessionID string) {
 		m.updateSessionStatus(ctx, sessionID, pb.SessionStatus_SESSION_STATUS_INTERRUPTED)
 
 		event := &pb.AgentEvent{
-			Kind:      pb.AgentEventKind_AGENT_EVENT_KIND_AGENT_DISCONNECTED,
-			Timestamp: timestamppb.Now(),
+			Kind: pb.AgentEventKind_AGENT_EVENT_KIND_AGENT_DISCONNECTED,
 		}
-		m.emitAgentEvent(ctx, sessionID, event)
+		m.emitAgentEvent(ctx, sessionID, event, false)
 
 		slog.Info("Session marked as interrupted due to agent disconnect", "sessionID", sessionID)
 	}
@@ -2225,17 +2259,26 @@ func (m *Manager) CreateSnapshot(ctx context.Context, sessionID string, name str
 	// Get message count for the snapshot
 	msgCount, _ := m.storage.GetMessageCount(ctx, sessionID)
 
-	// Count assistant messages (turns)
-	messages, _ := m.storage.GetMessages(ctx, sessionID, nil)
-	turnNumber := 0
-	for _, msg := range messages {
-		if msg.Role == pb.MessageRole_MESSAGE_ROLE_ASSISTANT {
-			turnNumber++
+	// Count turns by counting MESSAGE events (approximate)
+	// We look at event entries to count how many complete messages exist
+	entries, _ := m.storage.GetStreamEntriesByTypes(ctx, sessionID, "0", 0, []string{storage.StreamEntryTypeEvent})
+	// Filter for MESSAGE kind events and count
+	messageEventCount := 0
+	for _, e := range entries {
+		if e.Entry.Partial {
+			continue // Skip partial (streaming) entries
+		}
+		var event pb.AgentEvent
+		if err := json.Unmarshal(e.Entry.Payload, &event); err == nil {
+			if event.Kind == pb.AgentEventKind_AGENT_EVENT_KIND_MESSAGE {
+				messageEventCount++
+			}
 		}
 	}
+	turnNumber := messageEventCount / 2 // Rough approximation: each turn has user + assistant message
 
-	// Get current event stream ID for snapshot point
-	eventStreamID, _ := m.storage.GetLastEventStreamID(ctx, sessionID)
+	// Get current stream ID for snapshot point
+	streamID, _ := m.storage.GetLastStreamID(ctx, sessionID)
 
 	// Generate snapshot ID
 	snapshotID := uuid.NewString()[:12]
@@ -2254,14 +2297,14 @@ func (m *Manager) CreateSnapshot(ctx context.Context, sessionID string, name str
 
 	// Create snapshot record
 	snapshot := &pb.Snapshot{
-		Id:            snapshotID,
-		SessionId:     sessionID,
-		Name:          name,
-		CreatedAt:     timestamppb.Now(),
-		SizeBytes:     0, // K8s VolumeSnapshots don't report size synchronously
-		TurnNumber:    int32(turnNumber),
-		MessageCount:  int32(msgCount),
-		EventStreamId: eventStreamID,
+		Id:           snapshotID,
+		SessionId:    sessionID,
+		Name:         name,
+		CreatedAt:    timestamppb.Now(),
+		SizeBytes:    0, // K8s VolumeSnapshots don't report size synchronously
+		TurnNumber:   int32(turnNumber),
+		MessageCount: int32(msgCount),
+		StreamId:     streamID,
 	}
 
 	// Save to storage
@@ -2334,28 +2377,15 @@ func (m *Manager) RestoreSnapshot(ctx context.Context, sessionID, snapshotID str
 		}
 	}
 
-	// Truncate messages, events, and notifications in parallel (independent operations)
-	var truncateWg sync.WaitGroup
-	truncateWg.Add(3)
-	go func() {
-		defer truncateWg.Done()
-		if err := m.storage.TruncateMessages(ctx, sessionID, int(snapshot.MessageCount)); err != nil {
-			slog.Warn("Failed to truncate messages", "sessionID", sessionID, "error", err)
-		}
-	}()
-	go func() {
-		defer truncateWg.Done()
-		if err := m.storage.TruncateEventsAfter(ctx, sessionID, snapshot.EventStreamId); err != nil {
-			slog.Warn("Failed to truncate events", "sessionID", sessionID, "error", err)
-		}
-	}()
-	go func() {
-		defer truncateWg.Done()
-		if err := m.storage.TruncateNotificationsAfter(ctx, sessionID, snapshot.EventStreamId); err != nil {
-			slog.Warn("Failed to truncate notifications", "sessionID", sessionID, "error", err)
-		}
-	}()
-	truncateWg.Wait()
+	// Truncate the unified stream to the snapshot point
+	if err := m.storage.TruncateStreamAfter(ctx, sessionID, snapshot.StreamId); err != nil {
+		slog.Warn("Failed to truncate stream", "sessionID", sessionID, "error", err)
+	}
+
+	// Reset message counter to snapshot value
+	if err := m.storage.SetMessageCount(ctx, sessionID, int(snapshot.MessageCount)); err != nil {
+		slog.Warn("Failed to reset message count", "sessionID", sessionID, "error", err)
+	}
 
 	// Delete snapshots newer than the restored one (destructive restore)
 	m.deleteSnapshotsAfter(ctx, sessionID, snapshot)
@@ -2484,7 +2514,7 @@ func (m *Manager) emitSnapshotList(ctx context.Context, sessionID string) {
 		SessionId: sessionID,
 		Snapshots: snapshots,
 	})
-	m.publishNotification(ctx, sessionID, &storage.Notification{
+	m.publishStreamEntry(ctx, sessionID, &storage.StreamEntry{
 		Type:      "snapshot_list",
 		Payload:   payload,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
@@ -2497,7 +2527,7 @@ func (m *Manager) emitSnapshotCreated(ctx context.Context, sessionID string, sna
 		SessionId: sessionID,
 		Snapshot:  snapshot,
 	})
-	m.publishNotification(ctx, sessionID, &storage.Notification{
+	m.publishStreamEntry(ctx, sessionID, &storage.StreamEntry{
 		Type:      "snapshot_created",
 		Payload:   payload,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),

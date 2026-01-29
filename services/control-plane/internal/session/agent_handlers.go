@@ -2,12 +2,13 @@ package session
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"time"
 
 	pb "github.com/angristan/netclode/services/control-plane/gen/netclode/v1"
+	"github.com/angristan/netclode/services/control-plane/internal/storage"
 	"github.com/google/uuid"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // RoleAssistant is the role constant for assistant messages.
@@ -51,23 +52,13 @@ func (m *Manager) handleTextDelta(ctx context.Context, sessionID string, state *
 	}
 
 	// If message ID changed and we have accumulated content, persist the previous message
-	var msgToPersist *pb.Message
-	var previousStartTime time.Time
+	var contentToPersist string
+	var idToPersist string
 	if state.CurrentMessageID != "" && state.CurrentMessageID != messageID {
 		previousContent := state.ContentBuilder.String()
-		previousStartTime = state.CurrentMessageStartTime
 		if previousContent != "" {
-			// Use the timestamp from when the message content first arrived, not now
-			msgTimestamp := previousStartTime
-			if msgTimestamp.IsZero() {
-				msgTimestamp = time.Now()
-			}
-			msgToPersist = &pb.Message{
-				Id:        state.CurrentMessageID,
-				Role:      pb.MessageRole_MESSAGE_ROLE_ASSISTANT,
-				Content:   previousContent,
-				Timestamp: timestamppb.New(msgTimestamp),
-			}
+			contentToPersist = previousContent
+			idToPersist = state.CurrentMessageID
 		}
 		// Reset content builder for new message
 		state.ContentBuilder.Reset()
@@ -85,10 +76,8 @@ func (m *Manager) handleTextDelta(ctx context.Context, sessionID string, state *
 	m.mu.Unlock()
 
 	// Persist previous message outside the lock
-	if msgToPersist != nil {
-		if err := m.storage.AppendMessage(ctx, sessionID, msgToPersist); err != nil {
-			slog.Warn("Failed to persist assistant message", "sessionID", sessionID, "error", err)
-		}
+	if contentToPersist != "" {
+		m.appendMessage(ctx, sessionID, idToPersist, pb.MessageRole_MESSAGE_ROLE_ASSISTANT, contentToPersist)
 	}
 
 	// Emit delta to clients (not accumulated content) - client accumulates
@@ -97,25 +86,68 @@ func (m *Manager) handleTextDelta(ctx context.Context, sessionID string, state *
 	return nil
 }
 
+// appendMessage appends a complete message as an AgentEvent with MESSAGE kind to the unified stream.
+func (m *Manager) appendMessage(ctx context.Context, sessionID string, messageID string, role pb.MessageRole, content string) {
+	event := &pb.AgentEvent{
+		Kind:          pb.AgentEventKind_AGENT_EVENT_KIND_MESSAGE,
+		CorrelationId: messageID,
+		Payload: &pb.AgentEvent_Message{
+			Message: &pb.MessagePayload{
+				Role:    role,
+				Content: content,
+			},
+		},
+	}
+	payload, err := protoJsonOpts.Marshal(event)
+	if err != nil {
+		slog.Warn("Failed to marshal message event", "sessionID", sessionID, "error", err)
+		return
+	}
+	entry := &storage.StreamEntry{
+		Type:      storage.StreamEntryTypeEvent,
+		Partial:   false, // Final message
+		Payload:   payload,
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+	}
+	if _, err := m.storage.AppendStreamEntry(ctx, sessionID, entry); err != nil {
+		slog.Warn("Failed to persist message", "sessionID", sessionID, "error", err)
+		return
+	}
+	// Increment message counter
+	if err := m.storage.IncrementMessageCount(ctx, sessionID); err != nil {
+		slog.Warn("Failed to increment message count", "sessionID", sessionID, "error", err)
+	}
+}
+
 // handleAgentEvent processes events from agent execution.
 func (m *Manager) handleAgentEvent(ctx context.Context, sessionID string, state *SessionState, event *pb.AgentEvent) error {
 	if event == nil {
 		return nil
 	}
 
-	// Persist the event
-	persistedEvent := &pb.Event{
-		Id:        "evt_" + uuid.NewString()[:12],
-		Timestamp: timestamppb.Now(),
-		Event:     event,
+	// Determine if this is a partial (streaming) event based on kind
+	// Tool input/output deltas are partial; start/end events are final
+	partial := false
+	switch event.Kind {
+	case pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_INPUT,
+		pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_OUTPUT,
+		pb.AgentEventKind_AGENT_EVENT_KIND_THINKING:
+		// Check if the payload indicates streaming
+		if event.GetToolInput() != nil && event.GetToolInput().Delta != nil {
+			partial = true
+		}
+		if event.GetToolOutput() != nil && event.GetToolOutput().Delta != nil {
+			partial = true
+		}
+		if event.GetThinking() != nil {
+			// Thinking events without content are partial deltas
+			partial = true
+		}
 	}
 
-	if err := m.storage.AppendEvent(ctx, sessionID, persistedEvent); err != nil {
-		slog.Warn("Failed to persist agent event", "sessionID", sessionID, "error", err)
-	}
-
-	// Emit to clients
-	m.emitAgentEvent(ctx, sessionID, event)
+	// Events are persisted and emitted via emitAgentEvent
+	// which writes to the unified stream
+	m.emitAgentEvent(ctx, sessionID, event, partial)
 
 	return nil
 }
@@ -133,19 +165,8 @@ func (m *Manager) handleAgentResult(ctx context.Context, sessionID string, state
 	// Persist final assistant message if we have content
 	if content != "" && messageID != "" {
 		// Use the timestamp from when the message content first arrived
-		msgTimestamp := messageStartTime
-		if msgTimestamp.IsZero() {
-			msgTimestamp = time.Now()
-		}
-		msg := &pb.Message{
-			Id:        messageID,
-			Role:      pb.MessageRole_MESSAGE_ROLE_ASSISTANT,
-			Content:   content,
-			Timestamp: timestamppb.New(msgTimestamp),
-		}
-		if err := m.storage.AppendMessage(ctx, sessionID, msg); err != nil {
-			slog.Warn("Failed to persist assistant message", "sessionID", sessionID, "error", err)
-		}
+		_ = messageStartTime // Timestamp is now set at storage layer
+		m.appendMessage(ctx, sessionID, messageID, pb.MessageRole_MESSAGE_ROLE_ASSISTANT, content)
 
 		// Emit final (non-partial) message
 		m.emitAgentMessage(ctx, sessionID, messageID, content, false)
@@ -176,16 +197,9 @@ func (m *Manager) handleAgentResult(ctx context.Context, sessionID string, state
 
 	// Create auto-snapshot after each turn (async with timeout)
 	if originalPrompt != "" {
-		// Count user messages to get turn number (each turn starts with exactly one user message)
-		userCount := 0
-		if messages, err := m.storage.GetMessages(ctx, sessionID, nil); err == nil {
-			for _, msg := range messages {
-				if msg.Role == pb.MessageRole_MESSAGE_ROLE_USER {
-					userCount++
-				}
-			}
-		}
-		turnNumber := userCount
+		// Count user messages to get turn number
+		msgCount, _ := m.storage.GetMessageCount(ctx, sessionID)
+		turnNumber := (msgCount + 1) / 2 // Approximate: each turn is user + assistant
 		go func() {
 			snapshotCtx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			defer cancel()
@@ -269,4 +283,33 @@ func (m *Manager) HandleGitDiffResponse(ctx context.Context, sessionID string, r
 	pendingGitMu.Unlock()
 
 	return nil
+}
+
+// countUserMessages counts messages with user role from the stream for turn tracking.
+func (m *Manager) countUserMessages(ctx context.Context, sessionID string) int {
+	entries, err := m.storage.GetStreamEntriesByTypes(ctx, sessionID, "0", 0, []string{storage.StreamEntryTypeEvent})
+	if err != nil {
+		return 0
+	}
+
+	count := 0
+	for _, e := range entries {
+		// Skip partial entries (streaming deltas)
+		if e.Entry.Partial {
+			continue
+		}
+
+		// Parse as AgentEvent and check for MESSAGE kind with USER role
+		var event pb.AgentEvent
+		if err := json.Unmarshal(e.Entry.Payload, &event); err != nil {
+			continue
+		}
+
+		if event.Kind == pb.AgentEventKind_AGENT_EVENT_KIND_MESSAGE {
+			if msg := event.GetMessage(); msg != nil && msg.Role == pb.MessageRole_MESSAGE_ROLE_USER {
+				count++
+			}
+		}
+	}
+	return count
 }

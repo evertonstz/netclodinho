@@ -5,98 +5,43 @@ package netclode.v1;
 import "google/protobuf/timestamp.proto";
 import "netclode/v1/events.proto";
 
+// ============================================================================
+// Enums
+// ============================================================================
+
 // RepoAccess defines the permission level for repository operations.
-// Only applies when a repo is selected. Write access is scoped to the selected repo only.
 enum RepoAccess {
-  REPO_ACCESS_UNSPECIFIED = 0;   // Defaults to READ
+  REPO_ACCESS_UNSPECIFIED = 0;
   REPO_ACCESS_READ = 1;          // Clone only (no push)
   REPO_ACCESS_WRITE = 2;         // Clone and push (to selected repo only)
 }
 
 // SdkType defines which agent SDK to use for the session.
 enum SdkType {
-  SDK_TYPE_UNSPECIFIED = 0;  // Defaults to Claude Code SDK
-  SDK_TYPE_CLAUDE = 1;       // Anthropic Claude Code SDK (direct integration)
-  SDK_TYPE_OPENCODE = 2;     // OpenCode SDK (multi-provider support)
-  SDK_TYPE_COPILOT = 3;      // GitHub Copilot SDK
-  SDK_TYPE_CODEX = 4;        // OpenAI Codex SDK
+  SDK_TYPE_UNSPECIFIED = 0;
+  SDK_TYPE_CLAUDE = 1;           // Anthropic Claude Code SDK
+  SDK_TYPE_OPENCODE = 2;         // OpenCode SDK (multi-provider)
+  SDK_TYPE_COPILOT = 3;          // GitHub Copilot SDK
+  SDK_TYPE_CODEX = 4;            // OpenAI Codex SDK
 }
 
 // CopilotBackend defines which backend to use for Copilot SDK sessions.
 enum CopilotBackend {
-  COPILOT_BACKEND_UNSPECIFIED = 0;  // Defaults to GITHUB if authenticated, else ANTHROPIC
-  COPILOT_BACKEND_GITHUB = 1;       // GitHub Copilot API (requires GitHub authentication)
-  COPILOT_BACKEND_ANTHROPIC = 2;    // Anthropic API (BYOK mode, requires ANTHROPIC_API_KEY)
-}
-
-// Session represents a coding session with an AI agent.
-message Session {
-  string id = 1;
-  string name = 2;
-  SessionStatus status = 3;
-  optional string repo = 4;                  // GitHub repository URL (e.g., "owner/repo")
-  optional RepoAccess repo_access = 5;       // Permission level for repository operations
-  google.protobuf.Timestamp created_at = 6;
-  google.protobuf.Timestamp last_active_at = 7;
-  optional SdkType sdk_type = 8;             // SDK to use (defaults to CLAUDE)
-  optional string model = 9;                 // Model ID (e.g., "claude-sonnet-4-0", "gpt-4o")
-  optional CopilotBackend copilot_backend = 10;  // Backend for Copilot sessions (ignored for other SDKs)
+  COPILOT_BACKEND_UNSPECIFIED = 0;
+  COPILOT_BACKEND_GITHUB = 1;    // GitHub Copilot API
+  COPILOT_BACKEND_ANTHROPIC = 2; // Anthropic API (BYOK mode)
 }
 
 // SessionStatus represents the lifecycle state of a session.
 enum SessionStatus {
   SESSION_STATUS_UNSPECIFIED = 0;
-  SESSION_STATUS_CREATING = 1;   // Session is being provisioned
-  SESSION_STATUS_RESUMING = 2;   // Session is being resumed from paused state
-  SESSION_STATUS_READY = 3;      // Session is ready to accept prompts
-  SESSION_STATUS_RUNNING = 4;    // Agent is actively processing a prompt
-  SESSION_STATUS_PAUSED = 5;     // Session is paused (agent container stopped)
-  SESSION_STATUS_ERROR = 6;      // Session encountered an error
-  SESSION_STATUS_INTERRUPTED = 7; // Agent disconnected while running, awaiting user action
-}
-
-// SessionSummary includes session data plus metadata for list views.
-message SessionSummary {
-  Session session = 1;
-  optional int32 message_count = 2;      // Total number of messages in session
-  optional string last_message_id = 3;   // ID of most recent message for pagination
-}
-
-// SessionConfig contains configuration passed to the agent on registration.
-message SessionConfig {
-  string session_id = 1;
-  string workspace_dir = 2;              // Absolute path to workspace directory
-  optional string github_token = 3;      // GitHub token for git credentials (from GitHub App)
-  optional string repo = 4;              // Repository to clone (e.g., "owner/repo")
-  optional RepoAccess repo_access = 5;   // Permission level for repository operations
-  string control_plane_url = 6;          // URL of control plane for callbacks
-  optional SdkType sdk_type = 7;         // SDK type for agent to use
-  optional string model = 8;             // Model ID (e.g., "anthropic/claude-sonnet-4-0")
-  optional CopilotBackend copilot_backend = 9;  // Backend for Copilot sessions
-  optional string github_copilot_token = 10;    // GitHub PAT with Copilot scope (for Copilot SDK)
-  optional string codex_access_token = 11;      // Codex OAuth access token (for ChatGPT auth)
-  optional string codex_id_token = 12;          // Codex OAuth ID token (for ChatGPT auth)
-  optional string openai_api_key = 13;          // OpenAI API key (for Codex API auth)
-  optional string codex_refresh_token = 14;     // Codex OAuth refresh token (for ChatGPT auth)
-  optional string reasoning_effort = 15;        // Reasoning effort level (low, medium, high, minimal, xhigh)
-  optional string mistral_api_key = 16;         // Mistral API key (for OpenCode SDK)
-}
-
-// GitHubRepo represents a GitHub repository from the user's account.
-message GitHubRepo {
-  string name = 1;                       // Repository name (e.g., "my-repo")
-  string full_name = 2;                  // Full repository name (e.g., "owner/my-repo")
-  bool private = 3;                      // Whether the repository is private
-  optional string description = 4;       // Repository description
-}
-
-// GitFileChange represents a changed file from git status.
-message GitFileChange {
-  string path = 1;                       // File path relative to repository root
-  GitFileStatus status = 2;              // Type of change
-  bool staged = 3;                       // Whether the change is staged for commit
-  optional int32 lines_added = 4;        // Number of lines added (from git diff --numstat)
-  optional int32 lines_removed = 5;      // Number of lines removed (from git diff --numstat)
+  SESSION_STATUS_CREATING = 1;
+  SESSION_STATUS_RESUMING = 2;
+  SESSION_STATUS_READY = 3;
+  SESSION_STATUS_RUNNING = 4;
+  SESSION_STATUS_PAUSED = 5;
+  SESSION_STATUS_ERROR = 6;
+  SESSION_STATUS_INTERRUPTED = 7;
 }
 
 // GitFileStatus represents the type of change to a file.
@@ -112,84 +57,170 @@ enum GitFileStatus {
   GIT_FILE_STATUS_UNMERGED = 8;
 }
 
-// Message represents a chat message in a session.
-message Message {
+// ============================================================================
+// Session
+// ============================================================================
+
+// Session represents a coding session with an AI agent.
+message Session {
   string id = 1;
-  MessageRole role = 2;
-  string content = 3;
-  google.protobuf.Timestamp timestamp = 4;
+  string name = 2;
+  SessionStatus status = 3;
+  optional string repo = 4;
+  optional RepoAccess repo_access = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp last_active_at = 7;
+  optional SdkType sdk_type = 8;
+  optional string model = 9;
+  optional CopilotBackend copilot_backend = 10;
 }
 
-// MessageRole identifies the sender of a message.
-enum MessageRole {
-  MESSAGE_ROLE_UNSPECIFIED = 0;
-  MESSAGE_ROLE_USER = 1;
-  MESSAGE_ROLE_ASSISTANT = 2;
+// SessionSummary includes session data plus metadata for list views.
+message SessionSummary {
+  Session session = 1;
+  optional int32 message_count = 2;
+  optional string last_stream_id = 3;        // Cursor for resuming
 }
 
-// Event represents an agent event in a session.
-message Event {
-  string id = 1;
-  string message_id = 2;                 // Parent message ID (for future correlation)
-  google.protobuf.Timestamp timestamp = 3;
-  AgentEvent event = 4;                  // The full event payload
+// SessionConfig contains configuration passed to the agent on registration.
+message SessionConfig {
+  string session_id = 1;
+  string workspace_dir = 2;
+  optional string github_token = 3;
+  optional string repo = 4;
+  optional RepoAccess repo_access = 5;
+  string control_plane_url = 6;
+  optional SdkType sdk_type = 7;
+  optional string model = 8;
+  optional CopilotBackend copilot_backend = 9;
+  optional string github_copilot_token = 10;
+  optional string codex_access_token = 11;
+  optional string codex_id_token = 12;
+  optional string openai_api_key = 13;
+  optional string codex_refresh_token = 14;
+  optional string reasoning_effort = 15;
+  optional string mistral_api_key = 16;
+}
+
+// ============================================================================
+// Stream Entry (Unified)
+// ============================================================================
+
+// StreamEntry represents a single entry in the unified session stream.
+// All content flows through this type - messages, events, terminal output, etc.
+message StreamEntry {
+  string id = 1;                             // Redis Stream ID
+  google.protobuf.Timestamp timestamp = 2;
+  bool partial = 3;                          // true = streaming delta, false = final
+
+  oneof payload {
+    AgentEvent event = 4;                    // All agent content (messages, thinking, tools)
+    TerminalOutput terminal_output = 5;      // Terminal data
+    Session session_update = 6;              // Status changes
+    Error error = 7;
+  }
+}
+
+// TerminalOutput represents terminal output data.
+message TerminalOutput {
+  string data = 1;
 }
 
 // Error represents a structured error response.
-// Used across all error response types for consistency.
 message Error {
-  string code = 1;                       // Machine-readable error code (e.g., "SESSION_NOT_FOUND")
-  string message = 2;                    // Human-readable error message
-  optional string session_id = 3;        // Associated session ID, if applicable
-  map<string, string> details = 4;       // Additional error context
+  string code = 1;
+  string message = 2;
+  optional string session_id = 3;
+  map<string, string> details = 4;
 }
+
+// ============================================================================
+// In-Progress State (for session open)
+// ============================================================================
+
+// InProgressState contains accumulated streaming state for late-joining clients.
+// Returned when opening a session that's currently RUNNING.
+message InProgressState {
+  map<string, string> messages = 1;          // correlation_id -> accumulated text
+  map<string, string> thinking = 2;          // correlation_id -> accumulated thinking
+  map<string, InProgressTool> tools = 3;     // correlation_id -> tool state
+}
+
+// InProgressTool contains accumulated state for a tool in progress.
+message InProgressTool {
+  string tool = 1;                           // Tool name
+  string input = 2;                          // Accumulated input
+  string output = 3;                         // Accumulated output
+}
+
+// ============================================================================
+// Snapshots
+// ============================================================================
+
+// Snapshot represents a point-in-time snapshot of session workspace and conversation.
+message Snapshot {
+  string id = 1;
+  string session_id = 2;
+  string name = 3;
+  google.protobuf.Timestamp created_at = 4;
+  int64 size_bytes = 5;
+  int32 turn_number = 6;
+  int32 message_count = 7;
+  string stream_id = 8;                      // Redis Stream cursor at snapshot time
+}
+
+// ============================================================================
+// GitHub
+// ============================================================================
+
+// GitHubRepo represents a GitHub repository from the user's account.
+message GitHubRepo {
+  string name = 1;
+  string full_name = 2;
+  bool private = 3;
+  optional string description = 4;
+}
+
+// GitFileChange represents a changed file from git status.
+message GitFileChange {
+  string path = 1;
+  GitFileStatus status = 2;
+  bool staged = 3;
+  optional int32 lines_added = 4;
+  optional int32 lines_removed = 5;
+}
+
+// ============================================================================
+// Models
+// ============================================================================
 
 // ModelInfo represents an AI model available for use.
 message ModelInfo {
-  string id = 1;                         // Model identifier (e.g., "claude-sonnet-4-0", "gpt-4o")
-  string name = 2;                       // Human-readable name (e.g., "Claude Sonnet 4")
-  optional string provider = 3;          // Provider/auth mode (e.g., "Anthropic", "ChatGPT", "API")
-  optional double billing_multiplier = 4;  // Cost multiplier for GitHub Copilot (e.g., 0.33, 1.0, 3.0)
-  repeated string capabilities = 5;      // Model capabilities (e.g., "chat", "vision", "code")
-  optional string reasoning_effort = 6;  // Reasoning effort level for Codex (e.g., "High", "Med", "Low")
+  string id = 1;
+  string name = 2;
+  optional string provider = 3;
+  optional double billing_multiplier = 4;
+  repeated string capabilities = 5;
+  optional string reasoning_effort = 6;
 }
 
 // CopilotAuthStatus represents GitHub Copilot authentication state.
 message CopilotAuthStatus {
-  bool is_authenticated = 1;             // Whether the user is authenticated with GitHub
-  optional string auth_type = 2;         // Auth method: "user", "env", "gh-cli", "token", etc.
-  optional string login = 3;             // GitHub username if authenticated
+  bool is_authenticated = 1;
+  optional string auth_type = 2;
+  optional string login = 3;
 }
 
 // CopilotPremiumQuota represents GitHub Copilot premium request quota.
 message CopilotPremiumQuota {
-  int32 used = 1;                        // Number of premium requests used this period
-  int32 limit = 2;                       // Maximum premium requests allowed
-  int32 remaining = 3;                   // Remaining premium requests
-  optional string reset_at = 4;          // ISO timestamp when quota resets
+  int32 used = 1;
+  int32 limit = 2;
+  int32 remaining = 3;
+  optional string reset_at = 4;
 }
 
 // SandboxResources defines resource allocation for a session's sandbox VM.
-// When specified, the session bypasses the warm pool and creates a sandbox directly.
-// Resources are validated against host limits (max 50% of host resources).
 message SandboxResources {
-  // Number of vCPUs for the VM. Must be >= 1 and <= 50% of host CPUs.
-  // Default (when not specified): uses warm pool with standard resources.
   int32 vcpus = 1;
-
-  // Memory in MiB for the VM. Must be >= 512 and <= 50% of host memory.
-  // Default (when not specified): uses warm pool with standard resources.
   int32 memory_mb = 2;
-}
-
-// Snapshot represents a point-in-time snapshot of session workspace and conversation.
-message Snapshot {
-  string id = 1;                         // Unique snapshot ID
-  string session_id = 2;                 // Parent session
-  string name = 3;                       // Human-readable name (e.g., "Turn 3: Fix login bug")
-  google.protobuf.Timestamp created_at = 4;
-  int64 size_bytes = 5;                  // Logical workspace size at snapshot time
-  int32 turn_number = 6;                 // Which turn this was created after (0 = initial)
-  int32 message_count = 7;               // Number of messages at snapshot time
-  string event_stream_id = 8;            // Redis Stream ID of last event at snapshot time
 }

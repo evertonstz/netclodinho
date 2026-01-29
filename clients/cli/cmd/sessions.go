@@ -165,10 +165,9 @@ func runSessionsGet(cmd *cobra.Command, args []string) error {
 
 	if isJSONOutput() {
 		return output.JSON(map[string]interface{}{
-			"session":      state.Session,
-			"messageCount": len(state.Messages),
-			"eventCount":   len(state.Events),
-			"hasMore":      state.HasMore,
+			"session":    state.Session,
+			"entryCount": len(state.Entries),
+			"hasMore":    state.HasMore,
 		})
 	}
 
@@ -209,10 +208,9 @@ func printSessionDetails(state *client.SessionState) {
 	fmt.Println()
 	_, _ = output.HeaderColor.Println("Statistics")
 	fmt.Println(strings.Repeat("-", 40))
-	fmt.Printf("%-15s %d\n", "Messages:", len(state.Messages))
-	fmt.Printf("%-15s %d\n", "Events:", len(state.Events))
+	fmt.Printf("%-15s %d\n", "Entries:", len(state.Entries))
 	if state.HasMore {
-		_, _ = output.MutedColor.Println("(more messages available)")
+		_, _ = output.MutedColor.Println("(more entries available)")
 	}
 	fmt.Println()
 }
