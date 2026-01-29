@@ -198,6 +198,15 @@ public struct Netclode_V1_ClientMessage: Sendable {
     set {message = .updateRepoAccess(newValue)}
   }
 
+  /// Resource limits
+  public var getResourceLimits: Netclode_V1_GetResourceLimitsRequest {
+    get {
+      if case .getResourceLimits(let v)? = message {return v}
+      return Netclode_V1_GetResourceLimitsRequest()
+    }
+    set {message = .getResourceLimits(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Message: Equatable, Sendable {
@@ -224,6 +233,8 @@ public struct Netclode_V1_ClientMessage: Sendable {
     case restoreSnapshot(Netclode_V1_RestoreSnapshotRequest)
     /// Repo access update
     case updateRepoAccess(Netclode_V1_UpdateRepoAccessRequest)
+    /// Resource limits
+    case getResourceLimits(Netclode_V1_GetResourceLimitsRequest)
 
   }
 
@@ -424,6 +435,15 @@ public struct Netclode_V1_ServerMessage: Sendable {
     set {message = .repoAccessUpdated(newValue)}
   }
 
+  /// Resource limits
+  public var resourceLimits: Netclode_V1_ResourceLimitsResponse {
+    get {
+      if case .resourceLimits(let v)? = message {return v}
+      return Netclode_V1_ResourceLimitsResponse()
+    }
+    set {message = .resourceLimits(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Message: Equatable, Sendable {
@@ -452,6 +472,8 @@ public struct Netclode_V1_ServerMessage: Sendable {
     case snapshotRestored(Netclode_V1_SnapshotRestoredResponse)
     /// Repo access update
     case repoAccessUpdated(Netclode_V1_RepoAccessUpdatedResponse)
+    /// Resource limits
+    case resourceLimits(Netclode_V1_ResourceLimitsResponse)
 
   }
 
@@ -1105,6 +1127,27 @@ public struct Netclode_V1_UpdateRepoAccessRequest: Sendable {
   fileprivate var _requestID: String? = nil
 }
 
+public struct Netclode_V1_GetResourceLimitsRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var requestID: String {
+    get {return _requestID ?? String()}
+    set {_requestID = newValue}
+  }
+  /// Returns true if `requestID` has been explicitly set.
+  public var hasRequestID: Bool {return self._requestID != nil}
+  /// Clears the value of `requestID`. Subsequent reads from it will return its default value.
+  public mutating func clearRequestID() {self._requestID = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _requestID: String? = nil
+}
+
 public struct Netclode_V1_SessionCreatedResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -1718,13 +1761,48 @@ public struct Netclode_V1_RepoAccessUpdatedResponse: Sendable {
   fileprivate var _requestID: String? = nil
 }
 
+/// ResourceLimitsResponse contains the maximum sandbox resource allocation.
+/// Values are the maximum allowed per session (50% of host resources).
+public struct Netclode_V1_ResourceLimitsResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Maximum vCPUs per session
+  public var maxVcpus: Int32 = 0
+
+  /// Maximum memory in MiB per session
+  public var maxMemoryMb: Int32 = 0
+
+  /// Default vCPUs (warm pool configuration)
+  public var defaultVcpus: Int32 = 0
+
+  /// Default memory in MiB (warm pool configuration)
+  public var defaultMemoryMb: Int32 = 0
+
+  public var requestID: String {
+    get {return _requestID ?? String()}
+    set {_requestID = newValue}
+  }
+  /// Returns true if `requestID` has been explicitly set.
+  public var hasRequestID: Bool {return self._requestID != nil}
+  /// Clears the value of `requestID`. Subsequent reads from it will return its default value.
+  public mutating func clearRequestID() {self._requestID = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _requestID: String? = nil
+}
+
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate let _protobuf_package = "netclode.v1"
 
 extension Netclode_V1_ClientMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ClientMessage"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}create_session\0\u{3}list_sessions\0\u{3}open_session\0\u{3}resume_session\0\u{3}pause_session\0\u{3}delete_session\0\u{3}delete_all_sessions\0\u{3}send_prompt\0\u{3}interrupt_prompt\0\u{3}terminal_input\0\u{3}terminal_resize\0\u{3}expose_port\0\u{1}sync\0\u{3}list_github_repos\0\u{3}git_status\0\u{3}git_diff\0\u{3}list_models\0\u{3}get_copilot_status\0\u{3}list_snapshots\0\u{3}restore_snapshot\0\u{3}update_repo_access\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}create_session\0\u{3}list_sessions\0\u{3}open_session\0\u{3}resume_session\0\u{3}pause_session\0\u{3}delete_session\0\u{3}delete_all_sessions\0\u{3}send_prompt\0\u{3}interrupt_prompt\0\u{3}terminal_input\0\u{3}terminal_resize\0\u{3}expose_port\0\u{1}sync\0\u{3}list_github_repos\0\u{3}git_status\0\u{3}git_diff\0\u{3}list_models\0\u{3}get_copilot_status\0\u{3}list_snapshots\0\u{3}restore_snapshot\0\u{3}update_repo_access\0\u{3}get_resource_limits\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2005,6 +2083,19 @@ extension Netclode_V1_ClientMessage: SwiftProtobuf.Message, SwiftProtobuf._Messa
           self.message = .updateRepoAccess(v)
         }
       }()
+      case 22: try {
+        var v: Netclode_V1_GetResourceLimitsRequest?
+        var hadOneofValue = false
+        if let current = self.message {
+          hadOneofValue = true
+          if case .getResourceLimits(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.message = .getResourceLimits(v)
+        }
+      }()
       default: break
       }
     }
@@ -2100,6 +2191,10 @@ extension Netclode_V1_ClientMessage: SwiftProtobuf.Message, SwiftProtobuf._Messa
       guard case .updateRepoAccess(let v)? = self.message else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 21)
     }()
+    case .getResourceLimits?: try {
+      guard case .getResourceLimits(let v)? = self.message else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 22)
+    }()
     case nil: break
     }
     try unknownFields.traverse(visitor: &visitor)
@@ -2114,7 +2209,7 @@ extension Netclode_V1_ClientMessage: SwiftProtobuf.Message, SwiftProtobuf._Messa
 
 extension Netclode_V1_ServerMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ServerMessage"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_created\0\u{3}session_updated\0\u{3}session_deleted\0\u{3}sessions_deleted_all\0\u{3}session_list\0\u{3}session_state\0\u{3}sync_response\0\u{3}agent_event\0\u{3}agent_message\0\u{3}agent_done\0\u{3}user_message\0\u{3}terminal_output\0\u{3}port_exposed\0\u{3}github_repos\0\u{3}git_status\0\u{3}git_diff\0\u{1}error\0\u{1}models\0\u{3}copilot_status\0\u{3}snapshot_created\0\u{3}snapshot_list\0\u{3}snapshot_restored\0\u{3}repo_access_updated\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_created\0\u{3}session_updated\0\u{3}session_deleted\0\u{3}sessions_deleted_all\0\u{3}session_list\0\u{3}session_state\0\u{3}sync_response\0\u{3}agent_event\0\u{3}agent_message\0\u{3}agent_done\0\u{3}user_message\0\u{3}terminal_output\0\u{3}port_exposed\0\u{3}github_repos\0\u{3}git_status\0\u{3}git_diff\0\u{1}error\0\u{1}models\0\u{3}copilot_status\0\u{3}snapshot_created\0\u{3}snapshot_list\0\u{3}snapshot_restored\0\u{3}repo_access_updated\0\u{3}resource_limits\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2421,6 +2516,19 @@ extension Netclode_V1_ServerMessage: SwiftProtobuf.Message, SwiftProtobuf._Messa
           self.message = .repoAccessUpdated(v)
         }
       }()
+      case 24: try {
+        var v: Netclode_V1_ResourceLimitsResponse?
+        var hadOneofValue = false
+        if let current = self.message {
+          hadOneofValue = true
+          if case .resourceLimits(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.message = .resourceLimits(v)
+        }
+      }()
       default: break
       }
     }
@@ -2523,6 +2631,10 @@ extension Netclode_V1_ServerMessage: SwiftProtobuf.Message, SwiftProtobuf._Messa
     case .repoAccessUpdated?: try {
       guard case .repoAccessUpdated(let v)? = self.message else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 23)
+    }()
+    case .resourceLimits?: try {
+      guard case .resourceLimits(let v)? = self.message else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 24)
     }()
     case nil: break
     }
@@ -3450,6 +3562,40 @@ extension Netclode_V1_UpdateRepoAccessRequest: SwiftProtobuf.Message, SwiftProto
     if lhs._requestID != rhs._requestID {return false}
     if lhs.sessionID != rhs.sessionID {return false}
     if lhs.repoAccess != rhs.repoAccess {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Netclode_V1_GetResourceLimitsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetResourceLimitsRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self._requestID) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._requestID {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Netclode_V1_GetResourceLimitsRequest, rhs: Netclode_V1_GetResourceLimitsRequest) -> Bool {
+    if lhs._requestID != rhs._requestID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -4451,6 +4597,60 @@ extension Netclode_V1_RepoAccessUpdatedResponse: SwiftProtobuf.Message, SwiftPro
   public static func ==(lhs: Netclode_V1_RepoAccessUpdatedResponse, rhs: Netclode_V1_RepoAccessUpdatedResponse) -> Bool {
     if lhs.sessionID != rhs.sessionID {return false}
     if lhs.repoAccess != rhs.repoAccess {return false}
+    if lhs._requestID != rhs._requestID {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Netclode_V1_ResourceLimitsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ResourceLimitsResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}max_vcpus\0\u{3}max_memory_mb\0\u{3}default_vcpus\0\u{3}default_memory_mb\0\u{3}request_id\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularInt32Field(value: &self.maxVcpus) }()
+      case 2: try { try decoder.decodeSingularInt32Field(value: &self.maxMemoryMb) }()
+      case 3: try { try decoder.decodeSingularInt32Field(value: &self.defaultVcpus) }()
+      case 4: try { try decoder.decodeSingularInt32Field(value: &self.defaultMemoryMb) }()
+      case 5: try { try decoder.decodeSingularStringField(value: &self._requestID) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.maxVcpus != 0 {
+      try visitor.visitSingularInt32Field(value: self.maxVcpus, fieldNumber: 1)
+    }
+    if self.maxMemoryMb != 0 {
+      try visitor.visitSingularInt32Field(value: self.maxMemoryMb, fieldNumber: 2)
+    }
+    if self.defaultVcpus != 0 {
+      try visitor.visitSingularInt32Field(value: self.defaultVcpus, fieldNumber: 3)
+    }
+    if self.defaultMemoryMb != 0 {
+      try visitor.visitSingularInt32Field(value: self.defaultMemoryMb, fieldNumber: 4)
+    }
+    try { if let v = self._requestID {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 5)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Netclode_V1_ResourceLimitsResponse, rhs: Netclode_V1_ResourceLimitsResponse) -> Bool {
+    if lhs.maxVcpus != rhs.maxVcpus {return false}
+    if lhs.maxMemoryMb != rhs.maxMemoryMb {return false}
+    if lhs.defaultVcpus != rhs.defaultVcpus {return false}
+    if lhs.defaultMemoryMb != rhs.defaultMemoryMb {return false}
     if lhs._requestID != rhs._requestID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true

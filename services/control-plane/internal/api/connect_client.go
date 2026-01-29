@@ -202,6 +202,8 @@ func (c *ConnectConnection) handleMessage(ctx context.Context, msg *pb.ClientMes
 		return c.handleRestoreSnapshot(ctx, m.RestoreSnapshot)
 	case *pb.ClientMessage_UpdateRepoAccess:
 		return c.handleUpdateRepoAccess(ctx, m.UpdateRepoAccess)
+	case *pb.ClientMessage_GetResourceLimits:
+		return c.handleGetResourceLimits(ctx, m.GetResourceLimits)
 	default:
 		return connect.NewError(connect.CodeInvalidArgument, errUnknownMessage)
 	}
@@ -784,6 +786,18 @@ func (c *ConnectConnection) handleUpdateRepoAccess(ctx context.Context, req *pb.
 				RepoAccess: req.RepoAccess,
 				RequestId:  req.RequestId,
 			},
+		},
+	})
+}
+
+// handleGetResourceLimits returns the maximum allowed sandbox resources per session.
+func (c *ConnectConnection) handleGetResourceLimits(ctx context.Context, req *pb.GetResourceLimitsRequest) error {
+	limits := c.manager.GetResourceLimits()
+	limits.RequestId = req.RequestId
+
+	return c.send(&pb.ServerMessage{
+		Message: &pb.ServerMessage_ResourceLimits{
+			ResourceLimits: limits,
 		},
 	})
 }

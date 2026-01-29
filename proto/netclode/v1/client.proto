@@ -39,6 +39,8 @@ message ClientMessage {
     RestoreSnapshotRequest restore_snapshot = 20;
     // Repo access update
     UpdateRepoAccessRequest update_repo_access = 21;
+    // Resource limits
+    GetResourceLimitsRequest get_resource_limits = 22;
   }
 }
 
@@ -70,6 +72,8 @@ message ServerMessage {
     SnapshotRestoredResponse snapshot_restored = 22;
     // Repo access update
     RepoAccessUpdatedResponse repo_access_updated = 23;
+    // Resource limits
+    ResourceLimitsResponse resource_limits = 24;
   }
 }
 
@@ -202,6 +206,10 @@ message UpdateRepoAccessRequest {
   optional string request_id = 1;
   string session_id = 2;
   RepoAccess repo_access = 3;              // New access level
+}
+
+message GetResourceLimitsRequest {
+  optional string request_id = 1;
 }
 
 // ============================================================================
@@ -345,4 +353,14 @@ message RepoAccessUpdatedResponse {
   string session_id = 1;
   RepoAccess repo_access = 2;                // New access level that was set
   optional string request_id = 3;
+}
+
+// ResourceLimitsResponse contains the maximum sandbox resource allocation.
+// Values are the maximum allowed per session (50% of host resources).
+message ResourceLimitsResponse {
+  int32 max_vcpus = 1;                       // Maximum vCPUs per session
+  int32 max_memory_mb = 2;                   // Maximum memory in MiB per session
+  int32 default_vcpus = 3;                   // Default vCPUs (warm pool configuration)
+  int32 default_memory_mb = 4;               // Default memory in MiB (warm pool configuration)
+  optional string request_id = 5;
 }

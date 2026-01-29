@@ -39,6 +39,18 @@ struct CopilotStatus: Sendable {
     let quota: CopilotPremiumQuota?
 }
 
+/// Sandbox resource limits for session creation
+struct ResourceLimits: Sendable, Equatable {
+    /// Maximum vCPUs allowed per session
+    let maxVcpus: Int32
+    /// Maximum memory in MiB allowed per session
+    let maxMemoryMB: Int32
+    /// Default vCPUs (warm pool configuration)
+    let defaultVcpus: Int32
+    /// Default memory in MiB (warm pool configuration)
+    let defaultMemoryMB: Int32
+}
+
 enum ServerMessage: Sendable {
     case sessionCreated(session: Session)
     case sessionUpdated(session: Session)
@@ -83,6 +95,9 @@ enum ServerMessage: Sendable {
 
     // Repo access
     case repoAccessUpdated(sessionId: String, repoAccess: RepoAccess)
+
+    // Resource limits
+    case resourceLimitsResponse(limits: ResourceLimits)
 }
 
 extension ServerMessage: Decodable {

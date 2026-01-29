@@ -2594,3 +2594,13 @@ func (m *Manager) fetchCopilotQuota(ctx context.Context) (*pb.CopilotPremiumQuot
 func strPtr(s string) *string {
 	return &s
 }
+
+// GetResourceLimits returns the maximum allowed sandbox resources per session.
+func (m *Manager) GetResourceLimits() *pb.ResourceLimitsResponse {
+	return &pb.ResourceLimitsResponse{
+		MaxVcpus:        int32(m.config.MaxSessionCPUs()),
+		MaxMemoryMb:     int32(m.config.MaxSessionMemoryMB()),
+		DefaultVcpus:    int32(m.config.DefaultCPUs),
+		DefaultMemoryMb: int32(m.config.DefaultMemoryMB),
+	}
+}

@@ -314,6 +314,11 @@ final class MessageRouter {
             print("[MessageRouter] repo.access.updated received: session=\(sessionId), repoAccess=\(repoAccess)")
             // Update local state immediately (don't wait for Redis notification)
             sessionStore.updateRepoAccess(sessionId: sessionId, repoAccess: repoAccess)
+
+        // Resource limits
+        case .resourceLimitsResponse(let limits):
+            print("[MessageRouter] resource.limits received: maxVcpus=\(limits.maxVcpus), maxMemoryMB=\(limits.maxMemoryMB)")
+            modelsStore.updateResourceLimits(limits)
         }
     }
 

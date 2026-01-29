@@ -6,8 +6,17 @@ struct NetworkConfig: Sendable {
     var tailnetAccess: Bool = false
 }
 
+/// Custom VM resource allocation for sandbox sessions
+/// When specified, the session bypasses the warm pool and creates a sandbox directly.
+struct SandboxResources: Sendable {
+    /// Number of vCPUs for the VM (1-8, limited to 50% of host)
+    var vcpus: Int32
+    /// Memory in MiB for the VM (512-8192, limited to 50% of host)
+    var memoryMB: Int32
+}
+
 enum ClientMessage: Encodable, Sendable {
-    case sessionCreate(name: String?, repo: String?, repoAccess: RepoAccess?, initialPrompt: String?, sdkType: SdkType?, model: String?, copilotBackend: CopilotBackend?, networkConfig: NetworkConfig?)
+    case sessionCreate(name: String?, repo: String?, repoAccess: RepoAccess?, initialPrompt: String?, sdkType: SdkType?, model: String?, copilotBackend: CopilotBackend?, networkConfig: NetworkConfig?, resources: SandboxResources?)
     case sessionList
     case sessionResume(id: String)
     case sessionPause(id: String)
@@ -34,6 +43,8 @@ enum ClientMessage: Encodable, Sendable {
     case restoreSnapshot(sessionId: String, snapshotId: String)
     // Repo access
     case updateRepoAccess(sessionId: String, repoAccess: RepoAccess)
+    // Resource limits
+    case getResourceLimits
 
     private enum CodingKeys: String, CodingKey {
         case type
@@ -44,8 +55,8 @@ enum ClientMessage: Encodable, Sendable {
         var container = encoder.container(keyedBy: CodingKeys.self)
 
         switch self {
-        case .sessionCreate(let name, let repo, let repoAccess, let initialPrompt, let sdkType, let model, let copilotBackend, _):
-            // Note: networkConfig is handled via proto in ConnectService, not JSON encoding
+        case .sessionCreate(let name, let repo, let repoAccess, let initialPrompt, let sdkType, let model, let copilotBackend, _, _):
+            // Note: networkConfig and resources are handled via proto in ConnectService, not JSON encoding
             try container.encode("session.create", forKey: .type)
             try container.encodeIfPresent(name, forKey: .name)
             try container.encodeIfPresent(repo, forKey: .repo)
@@ -140,6 +151,9 @@ enum ClientMessage: Encodable, Sendable {
             try container.encode("repo.access.update", forKey: .type)
             try container.encode(sessionId, forKey: .sessionId)
             try container.encode(repoAccess.rawValue, forKey: .repoAccess)
+
+        case .getResourceLimits:
+            try container.encode("resource.limits.get", forKey: .type)
         }
     }
 }

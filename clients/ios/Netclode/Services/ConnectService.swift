@@ -544,6 +544,14 @@ final class ConnectService {
         case .repoAccessUpdated(let msg):
             return .repoAccessUpdated(sessionId: msg.sessionID, repoAccess: convertRepoAccess(msg.repoAccess))
 
+        case .resourceLimits(let msg):
+            return .resourceLimitsResponse(limits: ResourceLimits(
+                maxVcpus: msg.maxVcpus,
+                maxMemoryMB: msg.maxMemoryMb,
+                defaultVcpus: msg.defaultVcpus,
+                defaultMemoryMB: msg.defaultMemoryMb
+            ))
+
         case .none:
             return nil
         }
@@ -1224,7 +1232,7 @@ final class ConnectService {
         case .sync:
             proto.message = .sync(Netclode_V1_SyncRequest())
             
-        case .sessionCreate(let name, let repo, let repoAccess, let initialPrompt, let sdkType, let model, let copilotBackend, let networkConfig):
+        case .sessionCreate(let name, let repo, let repoAccess, let initialPrompt, let sdkType, let model, let copilotBackend, let networkConfig, let resources):
             var req = Netclode_V1_CreateSessionRequest()
             if let name = name {
                 req.name = name
@@ -1251,6 +1259,12 @@ final class ConnectService {
                 var protoNetworkConfig = Netclode_V1_NetworkConfig()
                 protoNetworkConfig.tailnetAccess = networkConfig.tailnetAccess
                 req.networkConfig = protoNetworkConfig
+            }
+            if let resources = resources {
+                var protoResources = Netclode_V1_SandboxResources()
+                protoResources.vcpus = resources.vcpus
+                protoResources.memoryMb = resources.memoryMB
+                req.resources = protoResources
             }
             proto.message = .createSession(req)
             
@@ -1359,6 +1373,9 @@ final class ConnectService {
             req.sessionID = sessionId
             req.repoAccess = convertToProtoRepoAccess(repoAccess)
             proto.message = .updateRepoAccess(req)
+
+        case .getResourceLimits:
+            proto.message = .getResourceLimits(Netclode_V1_GetResourceLimitsRequest())
         }
         
         return proto

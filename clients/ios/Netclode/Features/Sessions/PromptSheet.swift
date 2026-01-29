@@ -23,6 +23,9 @@ struct PromptSheet: View {
     @State private var showRepoDropdown = false
     @State private var showAccessDropdown = false
     @State private var tailnetAccess = false
+    @State private var customResourcesEnabled = false
+    @State private var vcpus: Int32 = 2
+    @State private var memoryMB: Int32 = 4096
     @FocusState private var isFocused: Bool
 
     /// Get available models as PickerModels based on current SDK selection
@@ -48,6 +51,51 @@ struct PromptSheet: View {
     /// Whether models are loading
     private var isLoadingModels: Bool {
         modelsStore.isLoading(for: selectedSdkType)
+    }
+
+    /// Available vCPU options based on server limits
+    private var vcpusOptions: [Int32] {
+        guard let limits = modelsStore.resourceLimits else {
+            return [1, 2, 4] // Fallback defaults
+        }
+        // Generate options: 1, 2, 4, 6, 8... up to max
+        var options: [Int32] = []
+        let step: Int32 = 2
+        var current: Int32 = 1
+        options.append(current)
+        current = 2
+        while current <= limits.maxVcpus {
+            options.append(current)
+            current += step
+        }
+        // Ensure max is included if it's not already
+        if let last = options.last, last < limits.maxVcpus {
+            options.append(limits.maxVcpus)
+        }
+        return options
+    }
+
+    /// Available memory options based on server limits (in MB)
+    private var memoryOptions: [Int32] {
+        guard let limits = modelsStore.resourceLimits else {
+            return [1024, 2048, 4096] // Fallback defaults
+        }
+        // Generate options: 1GB, 2GB, 4GB, 6GB, 8GB... up to max
+        var options: [Int32] = []
+        let gbOptions: [Int32] = [1024, 2048, 4096, 6144, 8192, 12288, 16384]
+        for mb in gbOptions {
+            if mb <= limits.maxMemoryMB {
+                options.append(mb)
+            }
+        }
+        // Ensure max is included if it's not already (rounded to nearest GB)
+        if let last = options.last, last < limits.maxMemoryMB {
+            let maxRoundedGB = (limits.maxMemoryMB / 1024) * 1024
+            if maxRoundedGB > last {
+                options.append(maxRoundedGB)
+            }
+        }
+        return options.isEmpty ? [1024, 2048] : options
     }
 
     var body: some View {
@@ -219,6 +267,89 @@ struct PromptSheet: View {
                     }
                     .padding(.horizontal, Theme.Spacing.md)
                     .padding(.top, Theme.Spacing.md)
+
+                    // Compute Resources section
+                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                        HStack(spacing: Theme.Spacing.xs) {
+                            Image(systemName: "memorychip")
+                                .font(.system(size: 16))
+                                .foregroundStyle(.secondary)
+                            Text("Compute Resources")
+                                .font(.netclodeCaption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        VStack(spacing: 0) {
+                            Toggle(isOn: $customResourcesEnabled) {
+                                HStack(spacing: Theme.Spacing.sm) {
+                                    Image(systemName: "slider.horizontal.3")
+                                        .foregroundStyle(.secondary)
+                                        .frame(width: 20, height: 20)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Custom Resources")
+                                            .font(.netclodeBody)
+                                        Text("Configure VM CPU and memory")
+                                            .font(.netclodeCaption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                            .tint(Theme.Colors.brand)
+                            .padding(Theme.Spacing.sm)
+
+                            if customResourcesEnabled {
+                                Divider()
+                                    .padding(.horizontal, Theme.Spacing.sm)
+
+                                // vCPUs picker
+                                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                                    HStack {
+                                        Text("vCPUs")
+                                            .font(.netclodeBody)
+                                        Spacer()
+                                        Text("\(vcpus)")
+                                            .font(.netclodeBody)
+                                            .monospacedDigit()
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Picker("vCPUs", selection: $vcpus) {
+                                        ForEach(vcpusOptions, id: \.self) { value in
+                                            Text("\(value)").tag(value)
+                                        }
+                                    }
+                                    .pickerStyle(.segmented)
+                                }
+                                .padding(.horizontal, Theme.Spacing.sm)
+                                .padding(.vertical, Theme.Spacing.xs)
+
+                                // Memory picker
+                                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                                    HStack {
+                                        Text("Memory")
+                                            .font(.netclodeBody)
+                                        Spacer()
+                                        Text(formatMemory(memoryMB))
+                                            .font(.netclodeBody)
+                                            .monospacedDigit()
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Picker("Memory", selection: $memoryMB) {
+                                        ForEach(memoryOptions, id: \.self) { value in
+                                            Text(formatMemory(value)).tag(value)
+                                        }
+                                    }
+                                    .pickerStyle(.segmented)
+                                }
+                                .padding(.horizontal, Theme.Spacing.sm)
+                                .padding(.vertical, Theme.Spacing.xs)
+                                .padding(.bottom, Theme.Spacing.xs)
+                            }
+                        }
+                        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
+                        .animation(.smooth(duration: 0.25), value: customResourcesEnabled)
+                    }
+                    .padding(.horizontal, Theme.Spacing.md)
+                    .padding(.top, Theme.Spacing.md)
                     .padding(.bottom, Theme.Spacing.lg)
                 }
             }
@@ -297,6 +428,13 @@ struct PromptSheet: View {
                     repoAccess = .read
                 }
             }
+            .onChange(of: modelsStore.resourceLimits) { _, newLimits in
+                // Set defaults from server when limits arrive (only if custom resources not yet enabled)
+                if let limits = newLimits, !customResourcesEnabled {
+                    vcpus = limits.defaultVcpus
+                    memoryMB = limits.defaultMemoryMB
+                }
+            }
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
@@ -316,6 +454,18 @@ struct PromptSheet: View {
             }
             Spacer()
         }
+    }
+
+    private func formatMemory(_ mb: Int32) -> String {
+        if mb >= 1024 {
+            let gb = Double(mb) / 1024.0
+            if gb == Double(Int(gb)) {
+                return "\(Int(gb)) GB"
+            } else {
+                return String(format: "%.1f GB", gb)
+            }
+        }
+        return "\(mb) MB"
     }
 
     private func submitPrompt() {
@@ -359,6 +509,15 @@ struct PromptSheet: View {
             )
         }
 
+        // Build resources config (only if custom resources is enabled)
+        var resources: SandboxResources? = nil
+        if customResourcesEnabled {
+            resources = SandboxResources(
+                vcpus: vcpus,
+                memoryMB: memoryMB
+            )
+        }
+
         // Create session
         connectService.send(.sessionCreate(
             name: nil,
@@ -368,7 +527,8 @@ struct PromptSheet: View {
             sdkType: sdkParam,
             model: modelParam,
             copilotBackend: nil,
-            networkConfig: networkConfig
+            networkConfig: networkConfig,
+            resources: resources
         ))
 
         dismiss()
@@ -386,6 +546,11 @@ struct PromptSheet: View {
         if modelsStore.copilotStatus == nil && !modelsStore.isLoadingCopilotStatus {
             modelsStore.setLoadingCopilotStatus(true)
             connectService.send(.getCopilotStatus)
+        }
+        // Request resource limits
+        if modelsStore.resourceLimits == nil && !modelsStore.isLoadingResourceLimits {
+            modelsStore.setLoadingResourceLimits(true)
+            connectService.send(.getResourceLimits)
         }
     }
 }

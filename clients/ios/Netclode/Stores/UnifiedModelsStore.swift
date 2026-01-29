@@ -21,6 +21,10 @@ final class UnifiedModelsStore {
     private(set) var copilotStatus: CopilotStatus?
     private(set) var isLoadingCopilotStatus = false
 
+    /// Sandbox resource limits
+    private(set) var resourceLimits: ResourceLimits?
+    private(set) var isLoadingResourceLimits = false
+
     /// Default model IDs per SDK
     static let defaultClaudeModelId = "claude-sonnet-4-5"
     static let defaultOpenCodeModelId = "anthropic/claude-sonnet-4-5"
@@ -114,6 +118,17 @@ final class UnifiedModelsStore {
     /// Set Copilot status loading
     func setLoadingCopilotStatus(_ loading: Bool) {
         isLoadingCopilotStatus = loading
+    }
+
+    /// Update resource limits from server response
+    func updateResourceLimits(_ limits: ResourceLimits) {
+        self.resourceLimits = limits
+        self.isLoadingResourceLimits = false
+    }
+
+    /// Set resource limits loading
+    func setLoadingResourceLimits(_ loading: Bool) {
+        isLoadingResourceLimits = loading
     }
 
     // MARK: - Lookups
