@@ -24,8 +24,8 @@ struct PromptSheet: View {
     @State private var showAccessDropdown = false
     @State private var tailnetAccess = false
     @State private var customResourcesEnabled = false
-    @State private var vcpus: Int32 = 2
-    @State private var memoryMB: Int32 = 4096
+    @State private var vcpus: Int32 = 0      // Initialized from server defaults in onAppear
+    @State private var memoryMB: Int32 = 0   // Initialized from server defaults in onAppear
     @FocusState private var isFocused: Bool
 
     /// Get available models as PickerModels based on current SDK selection
@@ -370,6 +370,11 @@ struct PromptSheet: View {
             }
             .onAppear {
                 isFocused = true
+                // Initialize resource defaults from server (if already loaded)
+                if let limits = modelsStore.resourceLimits {
+                    vcpus = limits.defaultVcpus
+                    memoryMB = limits.defaultMemoryMB
+                }
                 // Preload all models on sheet open for smooth SDK switching
                 preloadAllModels()
             }
