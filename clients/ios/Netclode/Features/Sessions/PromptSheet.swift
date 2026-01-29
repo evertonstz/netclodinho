@@ -112,7 +112,7 @@ struct PromptSheet: View {
                                 .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
                                 .transition(.opacity)
                             }
-                            
+
                             // Model picker (show even while loading if we have cached models)
                             if !availablePickerModels.isEmpty {
                                 InlineModelPicker(
@@ -142,7 +142,7 @@ struct PromptSheet: View {
                                 .font(.netclodeCaption)
                                 .foregroundStyle(.secondary)
                         }
-                        
+
                         InlineRepoPicker(
                             selectedRepo: $repoURL,
                             onRepoSelected: { repo in
@@ -162,7 +162,7 @@ struct PromptSheet: View {
                     .id("repoSection")
                     .padding(.horizontal, Theme.Spacing.md)
                     .padding(.top, Theme.Spacing.md)
-                    
+
                     // Access level section (always visible)
                     VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                         HStack(spacing: Theme.Spacing.xs) {
@@ -173,7 +173,7 @@ struct PromptSheet: View {
                                 .font(.netclodeCaption)
                                 .foregroundStyle(.secondary)
                         }
-                        
+
                         InlineAccessPicker(
                             selectedAccess: $repoAccess,
                             isExpanded: $showAccessDropdown,
@@ -182,7 +182,7 @@ struct PromptSheet: View {
                     }
                     .padding(.horizontal, Theme.Spacing.md)
                     .padding(.top, Theme.Spacing.md)
-                    
+
                     // Network section
                     VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                         HStack(spacing: Theme.Spacing.xs) {
@@ -193,7 +193,7 @@ struct PromptSheet: View {
                                 .font(.netclodeCaption)
                                 .foregroundStyle(.secondary)
                         }
-                        
+
                         VStack(spacing: 0) {
                             Toggle(isOn: $tailnetAccess) {
                                 HStack(spacing: Theme.Spacing.sm) {
@@ -327,7 +327,7 @@ struct PromptSheet: View {
 
         // Store prompt text - will be associated with session when sessionCreated arrives
         sessionStore.pendingPromptText = text
-        
+
         // Parse repo URL if provided
         let repo = repoURL.trimmingCharacters(in: .whitespacesAndNewlines)
         let repoParam = repo.isEmpty ? nil : repo
@@ -336,7 +336,7 @@ struct PromptSheet: View {
         // SDK and model params
         let sdkParam = selectedSdkType
         let modelParam: String?
-        
+
         switch selectedSdkType {
         case .claude:
             modelParam = selectedClaudeModelId
@@ -347,7 +347,7 @@ struct PromptSheet: View {
         case .codex:
             modelParam = selectedCodexModelId
         }
-        
+
         // Build network config (only if tailnet access is requested)
         var networkConfig: NetworkConfig? = nil
         if tailnetAccess {
@@ -355,7 +355,7 @@ struct PromptSheet: View {
                 tailnetAccess: tailnetAccess
             )
         }
-        
+
         // Create session
         connectService.send(.sessionCreate(
             name: nil,
@@ -398,7 +398,7 @@ struct InlineAccessPicker: View {
     private var availableOptions: [RepoAccess] {
         return RepoAccess.allCases
     }
-    
+
     private func isOptionDisabled(_ access: RepoAccess) -> Bool {
         // Write is only available when a repo is selected
         return access == .write && !hasRepo
@@ -406,25 +406,30 @@ struct InlineAccessPicker: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Collapsed state - shows selected access level
+            // Collapsed state - shows selected access level or "None" when no repo
             Button {
+                guard hasRepo else { return }
                 withAnimation(.smooth(duration: 0.25)) {
                     isExpanded.toggle()
                 }
             } label: {
                 HStack(spacing: Theme.Spacing.xs) {
-                    Image(systemName: selectedAccess.icon)
+                    Image(systemName: hasRepo ? selectedAccess.icon : "eye")
                         .font(.system(size: 16))
                         .frame(width: 20)
                         .foregroundStyle(.secondary)
-                    Text(selectedAccess.displayName)
+                    Text(hasRepo ? selectedAccess.displayName : "Read only")
                         .font(.netclodeBody)
-                        .contentTransition(.numericText())
                     Spacer()
-                    Image(systemName: "chevron.up.chevron.down")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                    Text(hasRepo ? selectedAccess.description : "No token · Select a repo")
+                        .font(.netclodeCaption)
+                        .foregroundStyle(.tertiary)
+                    if hasRepo {
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                    }
                 }
                 .padding(Theme.Spacing.sm)
                 .frame(maxWidth: .infinity)
@@ -432,6 +437,7 @@ struct InlineAccessPicker: View {
                 .animation(.smooth(duration: 0.2), value: selectedAccess)
             }
             .buttonStyle(.plain)
+            .disabled(!hasRepo)
             .glassEffect(
                 isExpanded ? .regular.tint(Theme.Colors.brand.glassTint).interactive() : .regular.interactive(),
                 in: RoundedRectangle(cornerRadius: Theme.Radius.md)
@@ -459,16 +465,13 @@ struct InlineAccessPicker: View {
                                         .font(.system(size: 14))
                                         .foregroundStyle(.secondary)
 
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(access.displayName)
-                                            .font(.netclodeBody)
-                                            .foregroundStyle(disabled ? .tertiary : .primary)
-                                        Text(disabled ? "Select a repo first" : access.description)
-                                            .font(.netclodeCaption)
-                                            .foregroundStyle(disabled ? .tertiary : .secondary)
-                                    }
-
+                                    Text(access.displayName)
+                                        .font(.netclodeBody)
+                                        .foregroundStyle(disabled ? .tertiary : .primary)
                                     Spacer()
+                                    Text(disabled ? "Select a repo first" : access.description)
+                                        .font(.netclodeCaption)
+                                        .foregroundStyle(disabled ? .tertiary : .secondary)
                                 }
                                 .opacity(disabled ? 0.5 : 1.0)
                                 .padding(.horizontal, Theme.Spacing.sm)

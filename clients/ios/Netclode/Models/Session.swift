@@ -56,8 +56,8 @@ enum RepoAccess: String, Codable, CaseIterable, Sendable {
 
     var description: String {
         switch self {
-        case .read: "Clone only (no push)"
-        case .write: "Clone and push to this repo"
+        case .read: "Token scoped to this repo"
+        case .write: "Token scoped to this repo"
         }
     }
 
@@ -126,7 +126,7 @@ struct Session: Identifiable, Codable, Hashable, Sendable {
     var sdkType: SdkType?
     var model: String?
     var copilotBackend: CopilotBackend?
-    
+
     /// Message count from server (for display before session is opened)
     var messageCount: Int?
 
