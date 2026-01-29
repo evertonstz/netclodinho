@@ -171,3 +171,12 @@
     regexp: '^virtio_fs_extra_args\s*='
     line: 'virtio_fs_extra_args = ["--thread-pool-size={{ kata_virtio_fs_thread_pool_size }}", "--announce-submounts"]'
 
+# Enable per-pod resource annotations
+# This allows individual pods to override default_vcpus and default_memory
+# via annotations like io.katacontainers.config.hypervisor.default_vcpus
+- name: Enable hypervisor annotations for per-pod resource configuration
+  ansible.builtin.lineinfile:
+    path: "{{ kata_dir }}/share/defaults/kata-containers/configuration-clh.toml"
+    regexp: '^enable_annotations\s*='
+    line: 'enable_annotations = ["default_vcpus", "default_memory"]'
+
