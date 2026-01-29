@@ -160,11 +160,11 @@ Snapshot metadata is stored in Redis:
   "sizeBytes": 0,
   "turnNumber": 3,
   "messageCount": 7,
-  "eventStreamId": "1706180400000-0"
+  "streamId": "1706180400000-0"
 }
 ```
 
-The `eventStreamId` is the Redis Stream ID of the last event at snapshot time. On restore, all events after this ID are deleted to match the snapshot state.
+The `streamId` is the Redis Stream ID of the last entry at snapshot time. On restore, all entries after this ID are deleted to match the snapshot state.
 
 ## Retention
 

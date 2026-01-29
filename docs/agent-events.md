@@ -196,14 +196,13 @@ This allows clients to display nested tool execution hierarchically.
 
 ## Persistence
 
-Events are stored in Redis Streams for replay:
+Events are stored in a unified Redis Stream per session:
 
 ```
-session:{id}:events:stream  # Tool events (trimmed to MAX_EVENTS_PER_SESSION)
-session:{id}:notifications  # Real-time notifications
+session:{id}:stream  # All session data (events, messages, status changes)
 ```
 
-The notification stream uses cursor-based reading to handle reconnection without missing events (see [control-plane README](../services/control-plane/README.md#redis-streams)).
+The stream uses cursor-based reading to handle reconnection without missing events (see [control-plane README](../services/control-plane/README.md#unified-stream-model)).
 
 ## Filtering Events
 

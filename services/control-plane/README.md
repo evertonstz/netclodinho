@@ -35,10 +35,12 @@ services/control-plane/
 | `AGENT_IMAGE` | `ghcr.io/angristan/netclode-agent:latest` | Agent image |
 | `SANDBOX_TEMPLATE` | `netclode-agent` | SandboxTemplate name |
 | `REDIS_URL` | `redis://redis-sessions...` | Redis URL |
-| `WARM_POOL_ENABLED` | `false` | Use warm pool |
-| `MAX_ACTIVE_SESSIONS` | `2` | Max concurrent sessions |
-| `MAX_MESSAGES_PER_SESSION` | `1000` | Message history limit |
-| `MAX_EVENTS_PER_SESSION` | `50` | Event history limit |
+| `WARM_POOL_ENABLED` | `true` | Use warm pool |
+| `MAX_ACTIVE_SESSIONS` | `5` | Max concurrent sessions |
+| `HOST_CPUS` | `16` | Total host CPUs (for 50% limit validation) |
+| `HOST_MEMORY_MB` | `32768` | Total host memory in MB (for 50% limit) |
+| `DEFAULT_CPUS` | `4` | Default vCPUs per session |
+| `DEFAULT_MEMORY_MB` | `4096` | Default memory per session |
 
 ## Connect API
 
@@ -58,7 +60,7 @@ rpc Connect(stream ClientMessage) returns (stream ServerMessage);
 |--------------|--------|-------------|
 | `create_session` | `name`, `repo?`, `repo_access?`, `network_config?` | Create session ([network options](../../docs/network-access.md)) |
 | `list_sessions` | | List sessions |
-| `open_session` | `session_id`, `last_notification_id?` | Open with history |
+| `open_session` | `session_id`, `last_stream_id?` | Open with history |
 | `resume_session` | `session_id` | Resume paused |
 | `pause_session` | `session_id` | Pause |
 | `delete_session` | `session_id` | Delete |
@@ -138,51 +140,72 @@ Delivered via `agent_event`:
 | Key | Type | Description |
 |-----|------|-------------|
 | `sessions:all` | Set | All session IDs |
-| `session:{id}` | Hash | Session metadata |
-| `session:{id}:messages` | List | Conversation history |
-| `session:{id}:events:stream` | Stream | Tool events |
-| `session:{id}:notifications` | Stream | Real-time notifications |
+| `session:{id}` | Hash | Session metadata (name, status, timestamps, messageCount) |
+| `session:{id}:stream` | Stream | Unified stream for all session data |
+| `session:{id}:snapshots` | Sorted Set | Snapshot IDs scored by timestamp |
+| `session:{id}:snapshot:{snapId}` | Hash | Snapshot metadata |
 
-### Why Redis Streams
+### Unified Stream Model
 
-The classic approach for real-time updates is: fetch history, then subscribe to pub/sub. Problem is there's a race condition. Events that happen between the history fetch and the subscription are lost.
+All session data flows through a single Redis Stream per session (`session:{id}:stream`). Each entry has a type field:
 
-Redis Streams solve this with cursor-based reading. Each entry in a stream has an ID (e.g., `1234567890123-0`). When a client opens a session:
+| Type | Description |
+|------|-------------|
+| `event` | Agent events (messages, tools, thinking, file changes, etc.) |
+| `terminal_output` | Terminal data |
+| `session_update` | Session status changes |
+| `error` | Error notifications |
 
-1. Server returns current state + `last_notification_id` (the latest stream ID)
+Each entry also has:
+- `partial`: true for streaming deltas, false for final/complete data
+- `timestamp`: ISO8601 timestamp (used for ordering on reload)
+- `payload`: Type-specific JSON data
+
+### Why a Unified Stream
+
+Previously we had separate stores (messages list, events stream, notifications stream). This caused ordering issues on reload - messages and events had different timestamps and would interleave incorrectly.
+
+The unified stream ensures:
+1. **Correct ordering**: All data is in a single timeline with consistent timestamps
+2. **Atomic snapshots**: Truncating to a snapshot point is a single stream operation
+3. **Simpler sync**: Clients track one cursor instead of multiple
+
+### Stream Cursors
+
+Redis Streams provide cursor-based reading. Each entry has an ID (e.g., `1234567890123-0`). When a client opens a session:
+
+1. Server returns current state + `lastStreamId` (the latest stream ID)
 2. Client stores this cursor
-3. Server starts a blocking read with `XREAD BLOCK 0 STREAMS session:{id}:notifications {cursor}`
-4. New events get pushed to the client as they arrive
+3. Server starts a blocking read with `XREAD BLOCK 0 STREAMS session:{id}:stream {cursor}`
+4. New entries get pushed to the client as they arrive
 
-On reconnect, the client sends its stored `last_notification_id`. The server resumes from that position. Events that happened while disconnected are delivered immediately.
+On reconnect, the client sends its stored `lastStreamId`. The server resumes from that position. Entries that happened while disconnected are delivered immediately.
 
 ```
 Client A connects
     │
     ▼
-Server: XREAD BLOCK ... $  ($ = only new events)
+Server: XREAD BLOCK ... $  ($ = only new entries)
     │
-    ├──── Event 1 arrives ──► Client A receives
-    ├──── Event 2 arrives ──► Client A receives
+    ├──── Entry 1 arrives ──► Client A receives
+    ├──── Entry 2 arrives ──► Client A receives
     │
 Client A disconnects (cursor = "1234567890123-1")
     │
-    ├──── Event 3 arrives ──► stored in stream
-    ├──── Event 4 arrives ──► stored in stream
+    ├──── Entry 3 arrives ──► stored in stream
+    ├──── Entry 4 arrives ──► stored in stream
     │
 Client A reconnects with cursor "1234567890123-1"
     │
     ▼
 Server: XREAD BLOCK ... 1234567890123-1
     │
-    ├──── Event 3 delivered immediately
-    ├──── Event 4 delivered immediately
-    └──── Resume blocking for new events
+    ├──── Entry 3 delivered immediately
+    ├──── Entry 4 delivered immediately
+    └──── Resume blocking for new entries
 ```
 
-Multi-client sync works the same way. Multiple clients on the same session all get events through separate XREAD consumers on the same stream.
-
-The streams are trimmed to keep memory bounded (`MAXLEN ~50` for events, configurable via `MAX_EVENTS_PER_SESSION`).
+Multi-client sync works the same way. Multiple clients on the same session all get entries through separate XREAD consumers on the same stream.
 
 ## Data flow
 
