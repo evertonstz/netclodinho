@@ -82,10 +82,25 @@ func (m *Manager) handleTextDelta(ctx context.Context, sessionID string, state *
 		m.appendMessage(ctx, sessionID, idToPersist, pb.MessageRole_MESSAGE_ROLE_ASSISTANT, contentToPersist, previousMessageStartTime)
 	}
 
-	// Only emit streaming deltas (partial=true) to clients
-	// The final complete message (partial=false) will be stored by handleAgentResult via appendMessage
 	if delta.Partial {
+		// Emit streaming deltas to clients
 		m.emitAgentMessage(ctx, sessionID, messageID, delta.Content, true)
+	} else {
+		// Final text event (partial=false) - store the message immediately
+		// This ensures correct ordering with other events (like thinking blocks)
+		m.mu.Lock()
+		finalContent := state.ContentBuilder.String()
+		finalMessageID := state.CurrentMessageID
+		finalStartTime := state.CurrentMessageStartTime
+		// Clear state so handleAgentResult won't store it again
+		state.ContentBuilder.Reset()
+		state.CurrentMessageID = ""
+		state.CurrentMessageStartTime = time.Time{}
+		m.mu.Unlock()
+
+		if finalContent != "" && finalMessageID != "" {
+			m.appendMessage(ctx, sessionID, finalMessageID, pb.MessageRole_MESSAGE_ROLE_ASSISTANT, finalContent, finalStartTime)
+		}
 	}
 
 	return nil
@@ -175,8 +190,8 @@ func (m *Manager) handleAgentResult(ctx context.Context, sessionID string, state
 	m.mu.Unlock()
 
 	// Persist final assistant message if we have content
-	// Note: appendMessage both stores the message AND increments the message counter
-	// We don't call emitAgentMessage here because appendMessage already persists to the stream
+	// Note: This may be empty if handleTextDelta already stored the message when partial=false arrived
+	// appendMessage both stores the message AND increments the message counter
 	if content != "" && messageID != "" {
 		m.appendMessage(ctx, sessionID, messageID, pb.MessageRole_MESSAGE_ROLE_ASSISTANT, content, messageStartTime)
 	}
