@@ -59,6 +59,7 @@ enum MessageRole {
 // ThinkingPayload contains data for agent thinking/reasoning events.
 message ThinkingPayload {
   string content = 1;                         // Delta if partial=true, full if partial=false
+  bool partial = 2;                           // True for streaming deltas, false for final complete content
 }
 
 // ToolStartPayload contains data for tool invocation start.

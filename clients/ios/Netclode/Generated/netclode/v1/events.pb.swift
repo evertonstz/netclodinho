@@ -327,6 +327,9 @@ public struct Netclode_V1_ThinkingPayload: Sendable {
   /// Delta if partial=true, full if partial=false
   public var content: String = String()
 
+  /// True for streaming deltas, false for final complete content
+  public var partial: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -754,7 +757,7 @@ extension Netclode_V1_MessagePayload: SwiftProtobuf.Message, SwiftProtobuf._Mess
 
 extension Netclode_V1_ThinkingPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ThinkingPayload"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}content\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}content\0\u{1}partial\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -763,6 +766,7 @@ extension Netclode_V1_ThinkingPayload: SwiftProtobuf.Message, SwiftProtobuf._Mes
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.content) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.partial) }()
       default: break
       }
     }
@@ -772,11 +776,15 @@ extension Netclode_V1_ThinkingPayload: SwiftProtobuf.Message, SwiftProtobuf._Mes
     if !self.content.isEmpty {
       try visitor.visitSingularStringField(value: self.content, fieldNumber: 1)
     }
+    if self.partial != false {
+      try visitor.visitSingularBoolField(value: self.partial, fieldNumber: 2)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Netclode_V1_ThinkingPayload, rhs: Netclode_V1_ThinkingPayload) -> Bool {
     if lhs.content != rhs.content {return false}
+    if lhs.partial != rhs.partial {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

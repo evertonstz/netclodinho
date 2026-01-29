@@ -235,6 +235,7 @@ function promptEventToAgentMessage(event: PromptEvent): AgentMessage {
             case: "thinking",
             value: create(ThinkingPayloadSchema, {
               content: event.content,
+              partial: event.partial,
             }),
           },
         }),

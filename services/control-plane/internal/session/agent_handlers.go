@@ -142,8 +142,7 @@ func (m *Manager) handleAgentEvent(ctx context.Context, sessionID string, state 
 	partial := false
 	switch event.Kind {
 	case pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_INPUT,
-		pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_OUTPUT,
-		pb.AgentEventKind_AGENT_EVENT_KIND_THINKING:
+		pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_OUTPUT:
 		// Check if the payload indicates streaming
 		if event.GetToolInput() != nil && event.GetToolInput().Delta != nil {
 			partial = true
@@ -151,9 +150,10 @@ func (m *Manager) handleAgentEvent(ctx context.Context, sessionID string, state 
 		if event.GetToolOutput() != nil && event.GetToolOutput().Delta != nil {
 			partial = true
 		}
+	case pb.AgentEventKind_AGENT_EVENT_KIND_THINKING:
+		// Use the partial field from the proto - true for streaming deltas, false for final complete content
 		if event.GetThinking() != nil {
-			// Thinking events without content are partial deltas
-			partial = true
+			partial = event.GetThinking().Partial
 		}
 	}
 

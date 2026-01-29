@@ -458,7 +458,8 @@ func (x *MessagePayload) GetContent() string {
 // ThinkingPayload contains data for agent thinking/reasoning events.
 type ThinkingPayload struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Content       string                 `protobuf:"bytes,1,opt,name=content,proto3" json:"content,omitempty"` // Delta if partial=true, full if partial=false
+	Content       string                 `protobuf:"bytes,1,opt,name=content,proto3" json:"content,omitempty"`  // Delta if partial=true, full if partial=false
+	Partial       bool                   `protobuf:"varint,2,opt,name=partial,proto3" json:"partial,omitempty"` // True for streaming deltas, false for final complete content
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -498,6 +499,13 @@ func (x *ThinkingPayload) GetContent() string {
 		return x.Content
 	}
 	return ""
+}
+
+func (x *ThinkingPayload) GetPartial() bool {
+	if x != nil {
+		return x.Partial
+	}
+	return false
 }
 
 // ToolStartPayload contains data for tool invocation start.
@@ -871,9 +879,10 @@ const file_netclode_v1_events_proto_rawDesc = "" +
 	"\apayload\"X\n" +
 	"\x0eMessagePayload\x12,\n" +
 	"\x04role\x18\x01 \x01(\x0e2\x18.netclode.v1.MessageRoleR\x04role\x12\x18\n" +
-	"\acontent\x18\x02 \x01(\tR\acontent\"+\n" +
+	"\acontent\x18\x02 \x01(\tR\acontent\"E\n" +
 	"\x0fThinkingPayload\x12\x18\n" +
-	"\acontent\x18\x01 \x01(\tR\acontent\"o\n" +
+	"\acontent\x18\x01 \x01(\tR\acontent\x12\x18\n" +
+	"\apartial\x18\x02 \x01(\bR\apartial\"o\n" +
 	"\x10ToolStartPayload\x12\x12\n" +
 	"\x04tool\x18\x01 \x01(\tR\x04tool\x120\n" +
 	"\x12parent_tool_use_id\x18\x02 \x01(\tH\x00R\x0fparentToolUseId\x88\x01\x01B\x15\n" +

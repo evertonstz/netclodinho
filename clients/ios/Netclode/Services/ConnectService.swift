@@ -997,7 +997,7 @@ final class ConnectService {
             let payload = proto.thinking
             thinkingId = correlationId
             content = payload.content
-            partial = false  // partial flag is on StreamEntry
+            partial = payload.partial
             
         case .portExposed:
             kind = "port_exposed"

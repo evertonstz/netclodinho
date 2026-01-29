@@ -26,6 +26,7 @@ export class ClaudeSDKAdapter implements SDKAdapter {
   private blockIndexToToolId = new Map<number, string>();
   private blockIndexToToolInput = new Map<number, string>();
   private blockIndexToThinkingId = new Map<string, string>();
+  private blockIndexToThinkingContent = new Map<string, string>(); // Accumulate thinking content
   private currentParentToolUseId: string | null = null;
   private thinkingIdCounter = 0;
   // Track text blocks - each text block becomes a separate message with its own ID
@@ -241,14 +242,18 @@ export class ClaudeSDKAdapter implements SDKAdapter {
                 const thinkingId = this.blockIndexToThinkingId.get(String(message.event.index));
                 if (thinkingId) {
                   streamedThinkingIds.add(thinkingId);
+                  // Accumulate the thinking content
+                  const existing = this.blockIndexToThinkingContent.get(String(message.event.index)) || "";
+                  this.blockIndexToThinkingContent.set(String(message.event.index), existing + thinkingDelta.thinking);
                   yield { type: "thinking", thinkingId, content: thinkingDelta.thinking, partial: true };
                 }
               }
             } else if (message.event.type === "content_block_stop") {
-              // Handle thinking block completion
+              // Handle thinking block completion - emit accumulated full content
               const thinkingId = this.blockIndexToThinkingId.get(String(message.event.index));
+              const accumulatedThinking = this.blockIndexToThinkingContent.get(String(message.event.index));
               if (thinkingId && streamedThinkingIds.has(thinkingId)) {
-                yield { type: "thinking", thinkingId, content: "", partial: false };
+                yield { type: "thinking", thinkingId, content: accumulatedThinking || "", partial: false };
               }
 
               // Handle tool input completion - emit accumulated input
@@ -277,6 +282,7 @@ export class ClaudeSDKAdapter implements SDKAdapter {
               this.blockIndexToToolId.delete(message.event.index);
               this.blockIndexToToolInput.delete(message.event.index);
               this.blockIndexToThinkingId.delete(String(message.event.index));
+              this.blockIndexToThinkingContent.delete(String(message.event.index));
             }
             break;
         }
