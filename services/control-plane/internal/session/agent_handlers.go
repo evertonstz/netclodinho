@@ -54,11 +54,13 @@ func (m *Manager) handleTextDelta(ctx context.Context, sessionID string, state *
 	// If message ID changed and we have accumulated content, persist the previous message
 	var contentToPersist string
 	var idToPersist string
+	var previousMessageStartTime time.Time
 	if state.CurrentMessageID != "" && state.CurrentMessageID != messageID {
 		previousContent := state.ContentBuilder.String()
 		if previousContent != "" {
 			contentToPersist = previousContent
 			idToPersist = state.CurrentMessageID
+			previousMessageStartTime = state.CurrentMessageStartTime
 		}
 		// Reset content builder for new message
 		state.ContentBuilder.Reset()
@@ -77,7 +79,7 @@ func (m *Manager) handleTextDelta(ctx context.Context, sessionID string, state *
 
 	// Persist previous message outside the lock
 	if contentToPersist != "" {
-		m.appendMessage(ctx, sessionID, idToPersist, pb.MessageRole_MESSAGE_ROLE_ASSISTANT, contentToPersist)
+		m.appendMessage(ctx, sessionID, idToPersist, pb.MessageRole_MESSAGE_ROLE_ASSISTANT, contentToPersist, previousMessageStartTime)
 	}
 
 	// Only emit streaming deltas (partial=true) to clients
@@ -90,7 +92,8 @@ func (m *Manager) handleTextDelta(ctx context.Context, sessionID string, state *
 }
 
 // appendMessage appends a complete message as an AgentEvent with MESSAGE kind to the unified stream.
-func (m *Manager) appendMessage(ctx context.Context, sessionID string, messageID string, role pb.MessageRole, content string) {
+// The timestamp parameter should be when the message content first started arriving (for correct ordering on reload).
+func (m *Manager) appendMessage(ctx context.Context, sessionID string, messageID string, role pb.MessageRole, content string, timestamp time.Time) {
 	event := &pb.AgentEvent{
 		Kind:          pb.AgentEventKind_AGENT_EVENT_KIND_MESSAGE,
 		CorrelationId: messageID,
@@ -106,11 +109,17 @@ func (m *Manager) appendMessage(ctx context.Context, sessionID string, messageID
 		slog.Warn("Failed to marshal message event", "sessionID", sessionID, "error", err)
 		return
 	}
+	// Use the provided timestamp (when content first arrived) for correct ordering on reload
+	// Fall back to now if no timestamp provided
+	ts := timestamp
+	if ts.IsZero() {
+		ts = time.Now()
+	}
 	entry := &storage.StreamEntry{
 		Type:      storage.StreamEntryTypeEvent,
 		Partial:   false, // Final message
 		Payload:   payload,
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		Timestamp: ts.UTC().Format(time.RFC3339),
 	}
 	if _, err := m.storage.AppendStreamEntry(ctx, sessionID, entry); err != nil {
 		slog.Warn("Failed to persist message", "sessionID", sessionID, "error", err)
@@ -169,8 +178,7 @@ func (m *Manager) handleAgentResult(ctx context.Context, sessionID string, state
 	// Note: appendMessage both stores the message AND increments the message counter
 	// We don't call emitAgentMessage here because appendMessage already persists to the stream
 	if content != "" && messageID != "" {
-		_ = messageStartTime // Timestamp is now set at storage layer
-		m.appendMessage(ctx, sessionID, messageID, pb.MessageRole_MESSAGE_ROLE_ASSISTANT, content)
+		m.appendMessage(ctx, sessionID, messageID, pb.MessageRole_MESSAGE_ROLE_ASSISTANT, content, messageStartTime)
 	}
 
 	// Emit agent done
