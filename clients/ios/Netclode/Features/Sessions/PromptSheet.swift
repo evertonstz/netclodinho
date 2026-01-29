@@ -463,6 +463,7 @@ struct InlineAccessPicker: View {
 
                                     Image(systemName: access.icon)
                                         .font(.system(size: 14))
+                                        .frame(width: 20)
                                         .foregroundStyle(.secondary)
 
                                     Text(access.displayName)
