@@ -26,7 +26,10 @@ import {
 import {
   AgentEventKind,
   AgentEventSchema,
-  ToolEventPayloadSchema,
+  ToolStartPayloadSchema,
+  ToolInputPayloadSchema,
+  ToolOutputPayloadSchema,
+  ToolEndPayloadSchema,
   ThinkingPayloadSchema,
   RepoClonePayloadSchema,
   RepoCloneStage,
@@ -158,14 +161,12 @@ function promptEventToAgentMessage(event: PromptEvent): AgentMessage {
         case: "event",
         value: create(AgentEventSchema, {
           kind: AgentEventKind.TOOL_START,
-          timestamp,
+          correlationId: event.toolUseId,
           payload: {
-            case: "tool",
-            value: create(ToolEventPayloadSchema, {
+            case: "toolStart",
+            value: create(ToolStartPayloadSchema, {
               tool: event.tool,
-              toolUseId: event.toolUseId,
               ...(event.parentToolUseId && { parentToolUseId: event.parentToolUseId }),
-              ...(event.input && { input: event.input }),
             }),
           },
         }),
@@ -173,18 +174,16 @@ function promptEventToAgentMessage(event: PromptEvent): AgentMessage {
       break;
 
     case "toolInput":
+      // Streaming input delta
       response = {
         case: "event",
         value: create(AgentEventSchema, {
           kind: AgentEventKind.TOOL_INPUT,
-          timestamp,
+          correlationId: event.toolUseId,
           payload: {
-            case: "tool",
-            value: create(ToolEventPayloadSchema, {
-              tool: "",
-              toolUseId: event.toolUseId,
-              inputDelta: event.inputDelta,
-              ...(event.parentToolUseId && { parentToolUseId: event.parentToolUseId }),
+            case: "toolInput",
+            value: create(ToolInputPayloadSchema, {
+              delta: event.inputDelta,
             }),
           },
         }),
@@ -192,18 +191,16 @@ function promptEventToAgentMessage(event: PromptEvent): AgentMessage {
       break;
 
     case "toolInputComplete":
+      // Complete input (partial=false will be set at control-plane level)
       response = {
         case: "event",
         value: create(AgentEventSchema, {
-          kind: AgentEventKind.TOOL_INPUT_COMPLETE,
-          timestamp,
+          kind: AgentEventKind.TOOL_INPUT,
+          correlationId: event.toolUseId,
           payload: {
-            case: "tool",
-            value: create(ToolEventPayloadSchema, {
-              tool: "",
-              toolUseId: event.toolUseId,
+            case: "toolInput",
+            value: create(ToolInputPayloadSchema, {
               input: event.input,
-              ...(event.parentToolUseId && { parentToolUseId: event.parentToolUseId }),
             }),
           },
         }),
@@ -215,15 +212,12 @@ function promptEventToAgentMessage(event: PromptEvent): AgentMessage {
         case: "event",
         value: create(AgentEventSchema, {
           kind: AgentEventKind.TOOL_END,
-          timestamp,
+          correlationId: event.toolUseId,
           payload: {
-            case: "tool",
-            value: create(ToolEventPayloadSchema, {
-              tool: event.tool,
-              toolUseId: event.toolUseId,
-              result: event.result,
+            case: "toolEnd",
+            value: create(ToolEndPayloadSchema, {
+              success: !event.error,
               error: event.error,
-              ...(event.parentToolUseId && { parentToolUseId: event.parentToolUseId }),
               ...(event.durationMs !== undefined && { durationMs: BigInt(event.durationMs) }),
             }),
           },
@@ -236,13 +230,11 @@ function promptEventToAgentMessage(event: PromptEvent): AgentMessage {
         case: "event",
         value: create(AgentEventSchema, {
           kind: AgentEventKind.THINKING,
-          timestamp,
+          correlationId: event.thinkingId,
           payload: {
             case: "thinking",
             value: create(ThinkingPayloadSchema, {
-              thinkingId: event.thinkingId,
               content: event.content,
-              partial: event.partial,
             }),
           },
         }),
@@ -254,7 +246,7 @@ function promptEventToAgentMessage(event: PromptEvent): AgentMessage {
         case: "event",
         value: create(AgentEventSchema, {
           kind: AgentEventKind.REPO_CLONE,
-          timestamp,
+          correlationId: event.repo || "",
           payload: {
             case: "repoClone",
             value: create(RepoClonePayloadSchema, {
