@@ -264,3 +264,88 @@ Use `--repo` multiple times to clone multiple repositories in a single session.
 | `CODEX_ACCESS_TOKEN` | Codex | ChatGPT OAuth access token |
 | `CODEX_ID_TOKEN` | Codex | ChatGPT OAuth ID token |
 | `CODEX_REFRESH_TOKEN` | Codex | ChatGPT OAuth refresh token |
+
+## Local Models with Ollama
+
+Netclode supports running local LLMs via Ollama with GPU acceleration. This requires:
+1. NVIDIA GPU on the host
+2. Ollama deployment enabled in Ansible
+
+### Infrastructure Setup
+
+See [infra/ansible/README.md](/infra/ansible/README.md#gpu-support-optional) for complete setup instructions including:
+- NVIDIA driver installation (with Secure Boot support)
+- Container toolkit and device plugin
+- Ollama deployment with GPU access
+
+Quick setup:
+
+```bash
+cd infra/ansible
+
+# Enable GPU + Ollama
+DEPLOY_HOST=your-server NVIDIA_ENABLED=true OLLAMA_ENABLED=true \
+  ansible-playbook playbooks/site.yaml
+```
+
+### Pulling Models
+
+```bash
+# Pull a model
+kubectl --context netclode -n netclode exec -it deploy/ollama -- ollama pull qwen2.5-coder:32b
+
+# List available models
+kubectl --context netclode -n netclode exec -it deploy/ollama -- ollama list
+```
+
+### Using Ollama in Sessions
+
+Create sessions with the `opencode` SDK and `ollama/` model prefix:
+
+```bash
+netclode sessions create --repo owner/repo --sdk opencode --model ollama/qwen2.5:7b-instruct
+```
+
+Or via iOS app: Select "OpenCode" SDK and choose an Ollama model from the picker.
+
+### Available Models
+
+Models are listed in the iOS app model picker once Ollama is enabled. The control-plane fetches available models from Ollama's `/api/tags` endpoint.
+
+Recommended models for 16GB VRAM:
+
+| Model | Command | Use Case |
+|-------|---------|----------|
+| Qwen 2.5 Coder 32B | `ollama pull qwen2.5-coder:32b-instruct-q4_K_M` | Best coding |
+| DeepSeek Coder V2 16B | `ollama pull deepseek-coder-v2:16b` | Fast coding |
+| Mistral 7B | `ollama pull mistral:7b-instruct` | Fast general |
+
+### Configuration
+
+Ollama is configured with:
+
+| Setting | Value | Description |
+|---------|-------|-------------|
+| `OLLAMA_NUM_CTX` | 8192 | Context window size |
+| `OLLAMA_KEEP_ALIVE` | 24h | Keep model loaded |
+| `OLLAMA_NUM_PARALLEL` | 1 | Concurrent requests |
+| `OLLAMA_FLASH_ATTENTION` | 1 | Enable flash attention |
+
+### GPU Monitoring
+
+```bash
+# Quick status
+ssh root@netclode-host nvidia-smi
+
+# Live monitoring
+ssh root@netclode-host nvidia-smi -l 1
+
+# Pretty TUI
+ssh root@netclode-host nvtop
+```
+
+### Limitations
+
+**Tool calling is unreliable with local models.** While models can generate responses, structured tool calls (file reads, bash commands) often fail or produce malformed JSON. This is a fundamental limitation of smaller local models compared to cloud APIs.
+
+For production agentic workloads requiring reliable tool use, use cloud providers (Anthropic, OpenAI).
