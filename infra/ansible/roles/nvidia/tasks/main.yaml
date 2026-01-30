@@ -115,9 +115,9 @@
   ansible.builtin.shell: |
     cd /tmp
     ./NVIDIA-driver.run --extract-only
-    cp NVIDIA-Linux-x86_64-{{ nvidia_driver_version }}/nvidia-smi /usr/bin/
+    cp NVIDIA-Linux-x86_64-{{ nvidia_driver_version_clean }}/nvidia-smi /usr/bin/
     chmod +x /usr/bin/nvidia-smi
-    rm -rf NVIDIA-Linux-x86_64-{{ nvidia_driver_version }}
+    rm -rf NVIDIA-Linux-x86_64-{{ nvidia_driver_version_clean }}
   when: nvidia_module_working and not nvidia_smi_working
 
 - name: Clean up driver installer after extraction
@@ -355,18 +355,11 @@
       driver:
         enabled: false
 
-      # Enable toolkit to configure containerd
+      # Disable toolkit containerd configuration - we handle this in k3s role
+      # The toolkit's import-based config doesn't work with k3s embedded containerd
+      # See: infra/ansible/roles/k3s/templates/containerd-config.toml.tmpl.j2
       toolkit:
-        enabled: true
-        env:
-          - name: CONTAINERD_CONFIG
-            value: /var/lib/rancher/k3s/agent/etc/containerd/config.toml.tmpl
-          - name: CONTAINERD_SOCKET
-            value: /run/k3s/containerd/containerd.sock
-          - name: CONTAINERD_RUNTIME_CLASS
-            value: nvidia
-          - name: CONTAINERD_SET_AS_DEFAULT
-            value: "false"
+        enabled: false
 
       # Operator configuration
       operator:
@@ -375,10 +368,9 @@
         # nvidia runtime tries to initialize NVML before GPU access is available
         runtimeClass: "runc"
 
-      # Validator configuration
+      # Validator disabled - designed for GPU Operator managed drivers/toolkit
+      # We verify GPU via kubectl command instead (see end of role)
       validator:
-        # Disable validator since it fails with pre-installed drivers
-        # (can't find nvidia-smi when running with runc runtime)
         enabled: false
 
       # Enable device plugin
@@ -399,24 +391,40 @@
       nfd:
         enabled: true
 
-- name: Wait for GPU Operator toolkit to be ready
-  kubernetes.core.k8s_info:
-    api_version: apps/v1
-    kind: DaemonSet
-    name: nvidia-container-toolkit-daemonset
-    namespace: gpu-operator
-    kubeconfig: "{{ k3s_kubeconfig }}"
-  register: toolkit_status
-  until: toolkit_status.resources[0].status.numberReady | default(0) > 0
-  retries: 60
-  delay: 10
+# Toolkit is disabled - we configure containerd in k3s role directly
+# Create validation files for GPU Operator components that expect them
+
+- name: Ensure validation directory exists
+  ansible.builtin.file:
+    path: /run/nvidia/validations
+    state: directory
+    mode: "0755"
+
+- name: Create driver-ready validation file (for pre-installed drivers)
+  ansible.builtin.copy:
+    content: "DRIVER_READY=true\n"
+    dest: /run/nvidia/validations/.driver-ctr-ready
+    mode: "0644"
 
 - name: Create toolkit-ready validation file
   ansible.builtin.copy:
     content: "TOOLKIT_READY=true\n"
     dest: /run/nvidia/validations/toolkit-ready
     mode: "0644"
-  when: toolkit_status.resources[0].status.numberReady | default(0) > 0
+
+# Disable validator via node label - it fails with pre-installed drivers
+# and we already verify GPU via kubectl command
+- name: Label node to disable GPU Operator validator
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ k3s_kubeconfig }}"
+    definition:
+      apiVersion: v1
+      kind: Node
+      metadata:
+        name: "{{ ansible_hostname }}"
+        labels:
+          nvidia.com/gpu.deploy.operator-validator: "false"
 
 - name: Wait for GPU Operator device plugin to be ready
   kubernetes.core.k8s_info:

@@ -8,6 +8,11 @@ nvidia_enabled: "{{ lookup('env', 'NVIDIA_ENABLED') | default('false', true) | l
 # Check available versions: https://developer.download.nvidia.com/compute/cuda/repos/debian13/x86_64/
 nvidia_driver_version: "590.48.01-1"
 
+# NVIDIA driver .run installer URL (for extracting nvidia-smi if missing from apt package)
+# Version without Debian package suffix
+nvidia_driver_version_clean: "{{ nvidia_driver_version | regex_replace('-.*', '') }}"
+nvidia_driver_url: "https://us.download.nvidia.com/XFree86/Linux-x86_64/{{ nvidia_driver_version_clean }}/NVIDIA-Linux-x86_64-{{ nvidia_driver_version_clean }}.run"
+
 # NVIDIA CUDA repository keyring
 nvidia_cuda_keyring_url: "https://developer.download.nvidia.com/compute/cuda/repos/debian13/x86_64/cuda-keyring_1.1-1_all.deb"
 

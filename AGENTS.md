@@ -4,6 +4,7 @@
 
 - Always ask before running `git push`
 - Prefer breaking changes over backwards compatibility (no `reserved` fields in protos, etc.)
+- **Never make manual changes to servers** - always use Ansible. If debugging requires manual changes, backport them to Ansible immediately.
 
 ## Deployment
 
@@ -192,14 +193,17 @@ kubectl --context netclode -n netclode exec -it deploy/ollama -- nvidia-smi
 ### Ollama Management
 
 ```bash
-# Pull a model
-kubectl --context netclode -n netclode exec -it deploy/ollama -- ollama pull qwen2.5-coder:32b
+# Pull a model (14b fits in 16GB VRAM, 32b needs 24GB+)
+kubectl --context netclode -n netclode exec -it deploy/ollama -- ollama pull qwen2.5-coder:14b
 
 # List models
 kubectl --context netclode -n netclode exec -it deploy/ollama -- ollama list
 
 # Check Ollama logs
 kubectl --context netclode -n netclode logs -l app=ollama -f
+
+# Check GPU operator pods
+kubectl --context netclode -n gpu-operator get pods
 ```
 
 See `infra/ansible/README.md` for full GPU setup documentation.

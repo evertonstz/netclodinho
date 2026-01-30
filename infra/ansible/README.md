@@ -228,10 +228,14 @@ MOK_PASSWORD=mypassword
 ### What gets installed
 
 1. **NVIDIA Driver** (590+ from NVIDIA CUDA repo, supports RTX 50 series Blackwell)
-2. **NVIDIA Container Toolkit** - Enables GPU access from containers
-3. **NVIDIA Device Plugin** - K8s scheduler sees `nvidia.com/gpu` resources
+2. **NVIDIA Container Toolkit** - `nvidia-container-runtime` for GPU container access
+3. **NVIDIA GPU Operator** - Deploys device plugin for K8s GPU scheduling
 4. **nvtop** - GPU monitoring TUI
 5. **Ollama** - Local LLM inference server with GPU acceleration
+
+> **Note:** The GPU Operator's toolkit and validator DaemonSets are disabled. We configure
+> the `nvidia` containerd runtime directly in the k3s role for better compatibility with
+> pre-installed drivers.
 
 ### Secure Boot Support (Two-Step Installation)
 
@@ -340,13 +344,22 @@ kubectl --context netclode -n netclode exec -it deploy/ollama -- ollama list
 kubectl --context netclode -n netclode exec -it deploy/ollama -- ollama rm qwen2.5-coder:32b
 ```
 
-### Recommended Models for 16GB VRAM (RTX 5080)
+### Recommended Models
+
+**For 16GB VRAM (RTX 5080):**
+
+| Model | Size | Use Case |
+|-------|------|----------|
+| `qwen2.5-coder:14b` | ~8GB | Good coding performance |
+| `deepseek-coder-v2:16b` | ~9GB | Fast coding |
+| `mistral:7b-instruct` | ~4GB | Fast general purpose |
+
+**For 24GB+ VRAM (RTX 4090/5090):**
 
 | Model | Size | Use Case |
 |-------|------|----------|
 | `qwen2.5-coder:32b-instruct-q4_K_M` | ~19GB | Best coding performance |
-| `deepseek-coder-v2:16b` | ~9GB | Fast coding |
-| `mistral:7b-instruct` | ~4GB | Fast general purpose |
+| `codellama:34b-instruct-q4_K_M` | ~20GB | Meta's coding model |
 
 
 
@@ -439,3 +452,36 @@ kubectl -n kube-system exec $(kubectl -n kube-system get pods -l app.kubernetes.
 ```
 
 **Warning:** Writeback caching means writes are acknowledged before being synced to S3. Data could be lost if the node crashes before sync completes. This is acceptable for agent workloads since sessions can be replayed.
+
+### GPU not visible to Kubernetes
+
+Check if driver is loaded:
+```bash
+ssh root@your-host nvidia-smi
+```
+
+Check if GPU Operator device plugin is running:
+```bash
+kubectl -n gpu-operator get pods -l app=nvidia-device-plugin-daemonset
+```
+
+Check if GPU is allocatable:
+```bash
+kubectl get nodes -o json | jq '.items[].status.allocatable["nvidia.com/gpu"]'
+```
+
+Check containerd has nvidia runtime configured:
+```bash
+ssh root@your-host cat /var/lib/rancher/k3s/agent/etc/containerd/config.toml.tmpl | grep nvidia
+```
+
+### GPU Operator validator failing
+
+The validator DaemonSet is disabled by default (via node label) because it's designed for GPU Operator-managed drivers, not pre-installed drivers. If you see validator pods in `CrashLoopBackOff`, verify the node label:
+
+```bash
+kubectl get node -o jsonpath='{.items[0].metadata.labels}' | jq '."nvidia.com/gpu.deploy.operator-validator"'
+# Should return: "false"
+```
+
+GPU functionality is verified via the device plugin and `nvidia.com/gpu` allocatable count instead.
