@@ -163,7 +163,8 @@ struct ChatView: View {
 
         // Add grouped events
         let groupedEvents = groupEvents(events)
-        for grouped in groupedEvents {
+        let adjustedEvents = adjustRepoCloneTimestamps(groupedEvents, repoOrder: repoOrder)
+        for grouped in adjustedEvents {
             items.append(.event(grouped))
         }
 
@@ -203,6 +204,34 @@ struct ChatView: View {
             return afterGithub.replacingOccurrences(of: ".git", with: "")
         }
         return repo.replacingOccurrences(of: ".git", with: "")
+    }
+
+    private func adjustRepoCloneTimestamps(_ groupedEvents: [GroupedEvent], repoOrder: [String: Int]) -> [GroupedEvent] {
+        let cloneEvents = groupedEvents.compactMap { grouped -> (GroupedEvent, RepoCloneEvent)? in
+            if case .repoClone(let event) = grouped.event {
+                return (grouped, event)
+            }
+            return nil
+        }
+
+        guard let baseTimestamp = cloneEvents.map({ $0.0.timestamp }).min() else {
+            return groupedEvents
+        }
+
+        return groupedEvents.map { grouped in
+            guard case .repoClone(let cloneEvent) = grouped.event else {
+                return grouped
+            }
+
+            let normalized = normalizeRepoName(cloneEvent.repo)
+            let index = repoOrder[normalized] ?? 0
+            let adjustedTimestamp = baseTimestamp.addingTimeInterval(Double(index) * 0.001)
+
+            var updated = GroupedEvent(id: grouped.id, event: grouped.event, timestamp: adjustedTimestamp)
+            updated.endEvent = grouped.endEvent
+            updated.children = grouped.children
+            return updated
+        }
     }
 
     var body: some View {
