@@ -326,7 +326,7 @@ Ollama is configured with:
 
 | Setting | Value | Description |
 |---------|-------|-------------|
-| `OLLAMA_NUM_CTX` | 32768 | Context window size |
+| `OLLAMA_NUM_CTX` | 16384 | Context window size |
 | `OLLAMA_KEEP_ALIVE` | 24h | Keep model loaded |
 | `OLLAMA_NUM_PARALLEL` | 1 | Concurrent requests |
 | `OLLAMA_FLASH_ATTENTION` | 1 | Enable flash attention |
@@ -344,4 +344,8 @@ ssh root@netclode-host nvidia-smi -l 1
 ssh root@netclode-host nvtop
 ```
 
+### Limitations
 
+**Tool calling is unreliable with local models.** While models can generate responses, structured tool calls (file reads, bash commands) often fail or produce malformed JSON. This is a fundamental limitation of smaller local models compared to cloud APIs.
+
+For production agentic workloads requiring reliable tool use, use cloud providers (Anthropic, OpenAI).

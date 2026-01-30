@@ -30,7 +30,7 @@ Configure the control-plane URL using one of these methods (in order of preceden
 2. **Environment variable**: `NETCLODE_URL=https://your-server.example.com`
 3. **Default**: `http://localhost:3000`
 
-To connect to a deployed instance, set `NETCLODE_URL` to your Tailscale ingress URL:
+For production, set `NETCLODE_URL` to your Tailscale ingress URL:
 ```bash
 export NETCLODE_URL=https://netclode-control-plane-ingress.<your-tailnet>.ts.net
 ```

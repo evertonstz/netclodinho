@@ -348,7 +348,9 @@ kubectl --context netclode -n netclode exec -it deploy/ollama -- ollama rm qwen2
 | `deepseek-coder-v2:16b` | ~9GB | Fast coding |
 | `mistral:7b-instruct` | ~4GB | Fast general purpose |
 
+### Limitations
 
+**Tool calling with local models is unreliable.** OpenCode + Ollama may generate tool call JSON but commands don't execute. This is a model capability issue, not infrastructure. Use cloud APIs (Anthropic, OpenAI) for production agentic workloads.
 
 ## Supported Distributions
 

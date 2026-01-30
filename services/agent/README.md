@@ -271,7 +271,7 @@ const opencodeConfig = {
 };
 ```
 
-Tool calling behavior varies between models - local models may not execute tool calls as reliably as larger models.
+**Limitations:** Tool calling with local models is unreliable. The model may generate tool call JSON but commands don't execute. This is a model capability limitation, not infrastructure. Use cloud APIs for production agentic workloads.
 
 ### Copilot SDK
 

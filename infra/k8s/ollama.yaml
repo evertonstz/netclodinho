@@ -85,7 +85,7 @@ spec:
               value: "1"
             # Context window size (default 2048) - higher uses more VRAM
             - name: OLLAMA_NUM_CTX
-              value: "32768"
+              value: "16384"
           resources:
             limits:
               nvidia.com/gpu: 1
