@@ -207,6 +207,18 @@
   changed_when: false
   when: mok_enrollment_needed and mok_pub_file.stat.exists | default(false)
 
+- name: Fail if MOK_PASSWORD not set
+  ansible.builtin.fail:
+    msg: |
+      MOK_PASSWORD environment variable is required for Secure Boot systems.
+      Add to .env: MOK_PASSWORD=your-password
+      This password will be entered at the blue MOK screen during reboot.
+  when:
+    - mok_enrollment_needed
+    - mok_pub_file.stat.exists | default(false)
+    - mok_pending.stdout | default('') | trim == ''
+    - mok_enrollment_password == ''
+
 - name: Queue MOK for enrollment (requires reboot + physical approval)
   ansible.builtin.shell: |
     printf '%s\n%s\n' "{{ mok_enrollment_password }}" "{{ mok_enrollment_password }}" | mokutil --import /var/lib/dkms/mok.pub
@@ -214,6 +226,7 @@
     - mok_enrollment_needed
     - mok_pub_file.stat.exists | default(false)
     - mok_pending.stdout | default('') | trim == ''
+    - mok_enrollment_password != ''
   register: mok_queued
 
 - name: Display MOK enrollment instructions

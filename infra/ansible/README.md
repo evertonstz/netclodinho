@@ -220,8 +220,9 @@ OLLAMA_ENABLED=true
 # Ollama URL for control-plane (auto-configured if OLLAMA_ENABLED=true)
 OLLAMA_URL=http://ollama.netclode.svc.cluster.local:11434
 
-# MOK enrollment password for Secure Boot (optional, default: "nvidia")
-MOK_PASSWORD=nvidia
+# MOK enrollment password for Secure Boot (required if Secure Boot is enabled)
+# This is entered at the blue MOK screen during reboot - choose something simple
+MOK_PASSWORD=mypassword
 ```
 
 ### What gets installed

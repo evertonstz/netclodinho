@@ -12,9 +12,8 @@ nvidia_driver_version: "590.48.01-1"
 nvidia_cuda_keyring_url: "https://developer.download.nvidia.com/compute/cuda/repos/debian13/x86_64/cuda-keyring_1.1-1_all.deb"
 
 # MOK enrollment password (used for Secure Boot systems)
-# This is a one-time password entered at the blue MOK screen during reboot
-# Can be simple since it's only used once during physical enrollment
-mok_enrollment_password: "{{ lookup('env', 'MOK_PASSWORD') | default('nvidia', true) }}"
+# Set MOK_PASSWORD in .env - this is entered at the blue MOK screen during reboot
+mok_enrollment_password: "{{ lookup('env', 'MOK_PASSWORD') }}"
 
 # K3s containerd config path
 k3s_containerd_config: /var/lib/rancher/k3s/agent/etc/containerd/config.toml.tmpl
