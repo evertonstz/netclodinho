@@ -326,7 +326,7 @@ Ollama is configured with:
 
 | Setting | Value | Description |
 |---------|-------|-------------|
-| `OLLAMA_NUM_CTX` | 16384 | Context window size |
+| `OLLAMA_NUM_CTX` | 32768 | Context window size |
 | `OLLAMA_KEEP_ALIVE` | 24h | Keep model loaded |
 | `OLLAMA_NUM_PARALLEL` | 1 | Concurrent requests |
 | `OLLAMA_FLASH_ATTENTION` | 1 | Enable flash attention |
