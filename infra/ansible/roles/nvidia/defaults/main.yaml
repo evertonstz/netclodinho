@@ -1,15 +1,26 @@
 ---
 # NVIDIA role defaults
 
-# Enable/disable NVIDIA GPU support (set to false to skip even if GPU is detected)
-nvidia_enabled: "{{ lookup('env', 'NVIDIA_ENABLED') | default('true', true) | bool }}"
+# Enable/disable NVIDIA GPU support
+nvidia_enabled: "{{ lookup('env', 'NVIDIA_ENABLED') | default('false', true) | lower == 'true' }}"
 
-# Driver version - 570+ required for RTX 50 series (Blackwell)
-nvidia_driver_version: "570.86.16"
-nvidia_driver_url: "https://us.download.nvidia.com/XFree86/Linux-x86_64/{{ nvidia_driver_version }}/NVIDIA-Linux-x86_64-{{ nvidia_driver_version }}.run"
+# Driver version from NVIDIA CUDA repository
+# Check available versions: https://developer.download.nvidia.com/compute/cuda/repos/debian13/x86_64/
+nvidia_driver_version: "590.48.01-1"
+
+# NVIDIA CUDA repository keyring
+nvidia_cuda_keyring_url: "https://developer.download.nvidia.com/compute/cuda/repos/debian13/x86_64/cuda-keyring_1.1-1_all.deb"
+
+# MOK enrollment password (used for Secure Boot systems)
+# This is a one-time password entered at the blue MOK screen during reboot
+# Can be simple since it's only used once during physical enrollment
+mok_enrollment_password: "{{ lookup('env', 'MOK_PASSWORD') | default('nvidia', true) }}"
 
 # K3s containerd config path
 k3s_containerd_config: /var/lib/rancher/k3s/agent/etc/containerd/config.toml.tmpl
 
 # GPU Operator
 gpu_operator_version: ""  # Empty = latest from Helm repo
+
+# K3s kubeconfig path
+k3s_kubeconfig: /etc/rancher/k3s/k3s.yaml

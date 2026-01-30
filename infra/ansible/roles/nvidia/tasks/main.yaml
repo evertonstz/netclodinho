@@ -1,14 +1,14 @@
 ---
 # NVIDIA role - Driver, Container Toolkit, and K8s Device Plugin
 #
-# Installs:
-# 1. NVIDIA driver (570+ for RTX 50 series Blackwell support)
-# 2. NVIDIA Container Toolkit (for container GPU access)
-# 3. Configures K3s containerd for nvidia runtime
-# 4. Deploys NVIDIA Device Plugin for K8s GPU scheduling
+# Supports Secure Boot with two-step MOK (Machine Owner Key) enrollment:
+#
+# Step 1 (remote): Run this role - installs driver, queues MOK for enrollment
+# Step 2 (physical): Reboot and approve MOK at the blue UEFI screen
+# Step 3 (remote): Re-run this role - driver loads, completes setup
 #
 # Control via environment variable:
-#   NVIDIA_ENABLED=false ansible-playbook playbooks/site.yaml
+#   NVIDIA_ENABLED=true ansible-playbook playbooks/site.yaml
 
 # =============================================================================
 # Prerequisites
@@ -43,7 +43,25 @@
     msg: "Detected NVIDIA GPU: {{ nvidia_gpu_check.stdout }}"
 
 # =============================================================================
-# NVIDIA Driver Installation
+# Secure Boot Detection
+# =============================================================================
+
+- name: Check Secure Boot status
+  ansible.builtin.command: mokutil --sb-state
+  register: secureboot_state
+  failed_when: false
+  changed_when: false
+
+- name: Set secure_boot_enabled fact
+  ansible.builtin.set_fact:
+    secure_boot_enabled: "{{ 'SecureBoot enabled' in secureboot_state.stdout }}"
+
+- name: Display Secure Boot status
+  ansible.builtin.debug:
+    msg: "Secure Boot: {{ 'ENABLED' if secure_boot_enabled else 'DISABLED' }}"
+
+# =============================================================================
+# Check if driver is already working
 # =============================================================================
 
 - name: Check if nvidia kernel module is loaded and working
@@ -72,6 +90,7 @@
     nvidia_smi_working: "{{ nvidia_smi_binary.stat.exists and nvidia_smi_version.rc == 0 }}"
     driver_version_current: "{{ nvidia_module_version.stdout | default('none') | trim }}"
     smi_version_current: "{{ nvidia_smi_version.stdout | default('none') | trim }}"
+    driver_working: "{{ nvidia_module_version.rc == 0 and nvidia_module_version.stdout | length > 0 }}"
 
 - name: Display driver status
   ansible.builtin.debug:
@@ -111,7 +130,11 @@
 # Full driver installation (only if module not working)
 # =============================================================================
 
-- name: Install driver build dependencies
+# =============================================================================
+# NVIDIA CUDA Repository Setup
+# =============================================================================
+
+- name: Install prerequisites
   ansible.builtin.apt:
     name:
       - build-essential
@@ -119,46 +142,114 @@
       - pkg-config
       - libglvnd-dev
       - dkms
+      - mokutil
     state: present
     update_cache: yes
   when: not nvidia_module_working
 
-- name: Download NVIDIA driver
+- name: Download NVIDIA CUDA keyring
   ansible.builtin.get_url:
-    url: "{{ nvidia_driver_url }}"
-    dest: /tmp/NVIDIA-driver.run
-    mode: "0755"
+    url: "{{ nvidia_cuda_keyring_url }}"
+    dest: /tmp/cuda-keyring.deb
+    mode: "0644"
   when: not nvidia_module_working
 
-- name: Stop display manager if running
-  ansible.builtin.systemd:
-    name: "{{ item }}"
-    state: stopped
-  loop:
-    - gdm
-    - lightdm
-    - sddm
-  failed_when: false
+- name: Install NVIDIA CUDA keyring
+  ansible.builtin.apt:
+    deb: /tmp/cuda-keyring.deb
+    state: present
   when: not nvidia_module_working
 
-- name: Unload nouveau driver
+- name: Update apt cache after adding CUDA repo
+  ansible.builtin.apt:
+    update_cache: yes
+  when: not driver_working
+
+# =============================================================================
+# NVIDIA Driver Installation (via DKMS)
+# =============================================================================
+
+- name: Install NVIDIA driver packages
+  ansible.builtin.apt:
+    name:
+      - "nvidia-driver={{ nvidia_driver_version }}"
+      - "nvidia-kernel-dkms={{ nvidia_driver_version }}"
+    state: present
+  when: not driver_working
+  register: driver_installed
+
+# =============================================================================
+# Secure Boot: MOK Enrollment Handling
+# =============================================================================
+
+- name: Try loading nvidia module
   community.general.modprobe:
-    name: nouveau
-    state: absent
+    name: nvidia
+    state: present
+  register: nvidia_modprobe
   failed_when: false
-  when: not nvidia_module_working
+  when: driver_installed is changed or not nvidia_module_working
 
-- name: Install NVIDIA driver
-  ansible.builtin.command: >
-    /tmp/NVIDIA-driver.run
-    --silent
-    --dkms
-    --no-questions
-    --ui=none
-  when: not nvidia_module_working
-  register: driver_install
+- name: Check if module load failed due to Secure Boot
+  ansible.builtin.set_fact:
+    mok_enrollment_needed: "{{ nvidia_modprobe.rc | default(0) != 0 and secure_boot_enabled }}"
 
-- name: Load nvidia kernel modules
+- name: Check if MOK key exists
+  ansible.builtin.stat:
+    path: /var/lib/dkms/mok.pub
+  register: mok_pub_file
+  when: mok_enrollment_needed
+
+- name: Check if MOK is already queued for enrollment
+  ansible.builtin.command: mokutil --list-new
+  register: mok_pending
+  failed_when: false
+  changed_when: false
+  when: mok_enrollment_needed and mok_pub_file.stat.exists | default(false)
+
+- name: Queue MOK for enrollment (requires reboot + physical approval)
+  ansible.builtin.shell: |
+    echo -e "{{ mok_enrollment_password }}\n{{ mok_enrollment_password }}" | mokutil --import /var/lib/dkms/mok.pub
+  when:
+    - mok_enrollment_needed
+    - mok_pub_file.stat.exists | default(false)
+    - "'No new keys' in mok_pending.stdout or mok_pending.rc != 0"
+  register: mok_queued
+
+- name: Display MOK enrollment instructions
+  ansible.builtin.debug:
+    msg: |
+      ╔══════════════════════════════════════════════════════════════════════════╗
+      ║                     SECURE BOOT: MOK ENROLLMENT REQUIRED                  ║
+      ╠══════════════════════════════════════════════════════════════════════════╣
+      ║                                                                          ║
+      ║  The NVIDIA driver is installed but cannot load due to Secure Boot.      ║
+      ║  A Machine Owner Key (MOK) must be enrolled in your UEFI firmware.       ║
+      ║                                                                          ║
+      ║  STEP 1: Reboot the machine                                              ║
+      ║          ssh root@{{ inventory_hostname }} reboot                        ║
+      ║                                                                          ║
+      ║  STEP 2: At the blue "MOK Management" screen:                            ║
+      ║          → Select "Enroll MOK"                                           ║
+      ║          → Select "Continue"                                             ║
+      ║          → Enter password: {{ mok_enrollment_password }}                 ║
+      ║          → Select "Reboot"                                               ║
+      ║                                                                          ║
+      ║  STEP 3: Re-run this playbook to complete GPU setup                      ║
+      ║          ansible-playbook playbooks/site.yaml --tags nvidia              ║
+      ║                                                                          ║
+      ╚══════════════════════════════════════════════════════════════════════════╝
+  when: mok_enrollment_needed
+
+- name: End play if MOK enrollment needed (will continue after reboot)
+  ansible.builtin.meta: end_host
+  when: mok_enrollment_needed
+
+# =============================================================================
+# Driver Verification (only reached if driver loads successfully)
+# =============================================================================
+
+- name: Verify nvidia module is loaded
   community.general.modprobe:
     name: "{{ item }}"
     state: present
@@ -168,17 +259,7 @@
     - nvidia_modeset
   when: not nvidia_module_working
 
-- name: Clean up driver installer
-  ansible.builtin.file:
-    path: /tmp/NVIDIA-driver.run
-    state: absent
-  when: not nvidia_module_working
-
-# =============================================================================
-# Verify driver is working
-# =============================================================================
-
-- name: Verify nvidia-smi works
+- name: Verify driver with nvidia-smi
   ansible.builtin.command: nvidia-smi
   register: nvidia_smi_verify
   changed_when: false
@@ -342,4 +423,16 @@
 
 - name: Display K8s GPU status
   ansible.builtin.debug:
-    msg: "Kubernetes sees {{ k8s_gpu_check.stdout }} NVIDIA GPU(s)"
+    msg: |
+      ╔══════════════════════════════════════════════════════════════════════════╗
+      ║                         GPU SETUP COMPLETE                                ║
+      ╠══════════════════════════════════════════════════════════════════════════╣
+      ║  Kubernetes sees {{ k8s_gpu_check.stdout | trim }} NVIDIA GPU(s)                                            ║
+      ║                                                                          ║
+      ║  Monitoring commands:                                                    ║
+      ║    nvidia-smi              - GPU status                                  ║
+      ║    nvtop                   - Interactive GPU monitor                     ║
+      ║                                                                          ║
+      ║  Ollama deployment:                                                      ║
+      ║    Set OLLAMA_ENABLED=true and re-run playbook                           ║
+      ╚══════════════════════════════════════════════════════════════════════════╝

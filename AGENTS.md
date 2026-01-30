@@ -145,9 +145,35 @@ go run ./clients/cli events <session-id> --json
 - `repo_clone` - Repository clone progress
 - `port_exposed` - Port exposed for preview
 
-## GPU Monitoring (Ollama)
+## GPU Setup (Ollama)
 
-If NVIDIA GPU support is enabled, monitor GPU usage:
+Enable NVIDIA GPU support for local model inference:
+
+```bash
+cd infra/ansible
+DEPLOY_HOST=your-server NVIDIA_ENABLED=true OLLAMA_ENABLED=true \
+  ansible-playbook playbooks/site.yaml
+```
+
+### Secure Boot (Two-Step Installation)
+
+If your server has Secure Boot enabled, GPU setup requires **physical access** for MOK enrollment:
+
+1. **First run** - Installs driver, queues MOK key, shows instructions
+2. **Reboot + MOK screen** - Approve the key at the blue UEFI screen (physical access required)
+3. **Second run** - Completes setup (container toolkit, device plugin, Ollama)
+
+```bash
+# Check Secure Boot status
+ssh root@netclode-host mokutil --sb-state
+
+# Check if driver loads
+ssh root@netclode-host modprobe nvidia && echo "OK" || echo "FAILED - need MOK enrollment"
+```
+
+See `infra/ansible/README.md` for detailed Secure Boot instructions.
+
+### GPU Monitoring
 
 ```bash
 # Quick status
