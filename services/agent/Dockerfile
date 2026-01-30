@@ -149,8 +149,13 @@ RUN OPENCODE_VERSION=$(/usr/local/bin/opencode --version) && \
     export HOME=/opt/bun-cache-home && \
     mkdir -p $HOME/.bun && \
     mkdir -p /opt/opencode-config && cd /opt/opencode-config && \
-    /opt/bun add "@opencode-ai/plugin@${OPENCODE_VERSION}" "@opencode-ai/sdk@${OPENCODE_VERSION}" "zod" --exact && \
-    mv $HOME/.bun /opt/bun-cache && \
+    if /opt/bun add "@opencode-ai/plugin@${OPENCODE_VERSION}" "@opencode-ai/sdk@${OPENCODE_VERSION}" "zod" --exact; then \
+      echo "Preinstalled OpenCode plugin ${OPENCODE_VERSION}"; \
+    else \
+      echo "Warning: OpenCode plugin ${OPENCODE_VERSION} not found, falling back to latest"; \
+      /opt/bun add "@opencode-ai/plugin@latest" "@opencode-ai/sdk@latest" "zod"; \
+    fi && \
+    if [ -d "$HOME/.bun" ]; then mv $HOME/.bun /opt/bun-cache; fi && \
     rm -rf $HOME
 
 # Create profile for agent user that sets PATH and mise env vars

@@ -252,7 +252,7 @@ func TestSyncSessions(t *testing.T) {
 }
 
 func TestGetSession(t *testing.T) {
-	notifID := "notif-123"
+	lastStreamID := "stream-123"
 	handler := &mockClientServiceHandler{
 		sessionState: &pb.SessionStateResponse{
 			Session: &pb.Session{
@@ -260,23 +260,19 @@ func TestGetSession(t *testing.T) {
 				Name:   "Test Session",
 				Status: pb.SessionStatus_SESSION_STATUS_READY,
 			},
-			Messages: []*pb.Message{
+			Entries: []*pb.StreamEntry{
 				{
-					Id:      "msg-1",
-					Role:    pb.MessageRole_MESSAGE_ROLE_USER,
-					Content: "Hello",
-				},
-			},
-			Events: []*pb.Event{
-				{
-					Id: "evt-1",
-					Event: &pb.AgentEvent{
-						Kind: pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_START,
+					Id:        "1-0",
+					Timestamp: timestamppb.Now(),
+					Payload: &pb.StreamEntry_Event{
+						Event: &pb.AgentEvent{
+							Kind: pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_START,
+						},
 					},
 				},
 			},
-			HasMore:            true,
-			LastNotificationId: &notifID,
+			HasMore:      true,
+			LastStreamId: &lastStreamID,
 		},
 	}
 
@@ -293,20 +289,16 @@ func TestGetSession(t *testing.T) {
 		t.Errorf("expected session ID 'sess-1', got '%s'", state.Session.Id)
 	}
 
-	if len(state.Messages) != 1 {
-		t.Errorf("expected 1 message, got %d", len(state.Messages))
-	}
-
-	if len(state.Events) != 1 {
-		t.Errorf("expected 1 event, got %d", len(state.Events))
+	if len(state.Entries) != 1 {
+		t.Errorf("expected 1 entry, got %d", len(state.Entries))
 	}
 
 	if !state.HasMore {
 		t.Error("expected HasMore to be true")
 	}
 
-	if state.LastNotificationID != "notif-123" {
-		t.Errorf("expected LastNotificationID 'notif-123', got '%s'", state.LastNotificationID)
+	if state.LastStreamID != "stream-123" {
+		t.Errorf("expected LastStreamID 'stream-123', got '%s'", state.LastStreamID)
 	}
 }
 
@@ -379,9 +371,8 @@ func TestGetSessionWithMinimalData(t *testing.T) {
 				Name:   "Minimal",
 				Status: pb.SessionStatus_SESSION_STATUS_CREATING,
 			},
-			Messages: nil,
-			Events:   nil,
-			HasMore:  false,
+			Entries: nil,
+			HasMore: false,
 		},
 	}
 
@@ -398,8 +389,8 @@ func TestGetSessionWithMinimalData(t *testing.T) {
 		t.Errorf("expected CREATING status, got %v", state.Session.Status)
 	}
 
-	if len(state.Messages) != 0 {
-		t.Errorf("expected 0 messages, got %d", len(state.Messages))
+	if len(state.Entries) != 0 {
+		t.Errorf("expected 0 entries, got %d", len(state.Entries))
 	}
 
 	if state.HasMore {
