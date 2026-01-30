@@ -249,7 +249,7 @@
 
           1. Select "Enroll MOK"
           2. Select "Continue"
-          3. Enter password: {{ mok_enrollment_password }}
+          3. Enter password: {{ mok_enrollment_password | default('[your MOK_PASSWORD from .env]', true) }}
           4. Select "Reboot"
 
       STEP 3: Re-run this playbook to complete GPU setup
