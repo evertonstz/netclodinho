@@ -209,36 +209,41 @@
 
 - name: Queue MOK for enrollment (requires reboot + physical approval)
   ansible.builtin.shell: |
-    echo -e "{{ mok_enrollment_password }}\n{{ mok_enrollment_password }}" | mokutil --import /var/lib/dkms/mok.pub
+    printf '%s\n%s\n' "{{ mok_enrollment_password }}" "{{ mok_enrollment_password }}" | mokutil --import /var/lib/dkms/mok.pub
   when:
     - mok_enrollment_needed
     - mok_pub_file.stat.exists | default(false)
-    - "'No new keys' in mok_pending.stdout or mok_pending.rc != 0"
+    - mok_pending.stdout | default('') | trim == ''
   register: mok_queued
 
 - name: Display MOK enrollment instructions
-  ansible.builtin.debug:
-    msg: |
-      ╔══════════════════════════════════════════════════════════════════════════╗
-      ║                     SECURE BOOT: MOK ENROLLMENT REQUIRED                  ║
-      ╠══════════════════════════════════════════════════════════════════════════╣
-      ║                                                                          ║
-      ║  The NVIDIA driver is installed but cannot load due to Secure Boot.      ║
-      ║  A Machine Owner Key (MOK) must be enrolled in your UEFI firmware.       ║
-      ║                                                                          ║
-      ║  STEP 1: Reboot the machine                                              ║
-      ║          ssh root@{{ inventory_hostname }} reboot                        ║
-      ║                                                                          ║
-      ║  STEP 2: At the blue "MOK Management" screen:                            ║
-      ║          → Select "Enroll MOK"                                           ║
-      ║          → Select "Continue"                                             ║
-      ║          → Enter password: {{ mok_enrollment_password }}                 ║
-      ║          → Select "Reboot"                                               ║
-      ║                                                                          ║
-      ║  STEP 3: Re-run this playbook to complete GPU setup                      ║
-      ║          ansible-playbook playbooks/site.yaml --tags nvidia              ║
-      ║                                                                          ║
-      ╚══════════════════════════════════════════════════════════════════════════╝
+  ansible.builtin.pause:
+    seconds: 1
+    prompt: |
+
+      ============================================================================
+                        SECURE BOOT: MOK ENROLLMENT REQUIRED
+      ============================================================================
+
+      The NVIDIA driver is installed but cannot load due to Secure Boot.
+      A Machine Owner Key (MOK) must be enrolled in your UEFI firmware.
+
+      STEP 1: Reboot the machine
+
+          ssh root@{{ ansible_host }} reboot
+
+      STEP 2: At the blue "MOK Management" screen (requires physical access):
+
+          1. Select "Enroll MOK"
+          2. Select "Continue"
+          3. Enter password: {{ mok_enrollment_password }}
+          4. Select "Reboot"
+
+      STEP 3: Re-run this playbook to complete GPU setup
+
+          ansible-playbook playbooks/site.yaml --tags nvidia
+
+      ============================================================================
   when: mok_enrollment_needed
 
 - name: End play if MOK enrollment needed (will continue after reboot)
