@@ -330,6 +330,7 @@ Ollama is configured with:
 | `OLLAMA_KEEP_ALIVE` | 24h | Keep model loaded |
 | `OLLAMA_NUM_PARALLEL` | 1 | Concurrent requests |
 | `OLLAMA_FLASH_ATTENTION` | 1 | Enable flash attention |
+| `OLLAMA_KV_CACHE_TYPE` | q8_0 | KV cache quantization (~27% VRAM savings) |
 
 ### GPU Monitoring
 

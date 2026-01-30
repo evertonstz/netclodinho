@@ -86,6 +86,10 @@ spec:
             # Context window size (default 2048) - higher uses more VRAM
             - name: OLLAMA_NUM_CTX
               value: "32768"
+            # KV cache quantization - reduces VRAM usage for context
+            # q8_0 saves ~27% VRAM with minimal quality loss
+            - name: OLLAMA_KV_CACHE_TYPE
+              value: "q8_0"
           resources:
             limits:
               nvidia.com/gpu: 1
