@@ -84,9 +84,8 @@ spec:
             - name: OLLAMA_FLASH_ATTENTION
               value: "1"
             # Context window size (default 2048) - higher uses more VRAM
-            # 8192 is good balance for coding tasks
             - name: OLLAMA_NUM_CTX
-              value: "8192"
+              value: "16384"
           resources:
             limits:
               nvidia.com/gpu: 1
