@@ -16,9 +16,23 @@ struct GitFileChange: Identifiable, Codable, Equatable, Sendable {
         (path as NSString).lastPathComponent
     }
     
-    /// Directory path
+    /// Directory path (raw filesystem path)
     var directory: String {
         (path as NSString).deletingLastPathComponent
+    }
+    
+    /// Directory path formatted for display (converts owner__repo to owner/repo)
+    var displayDirectory: String {
+        let dir = directory
+        guard !dir.isEmpty else { return dir }
+        
+        // Split into components and fix the first one (repo prefix)
+        var components = dir.components(separatedBy: "/")
+        if let first = components.first, first.contains("__") {
+            // Convert "owner__repo" to "owner/repo"
+            components[0] = first.replacingOccurrences(of: "__", with: "/")
+        }
+        return components.joined(separator: "/")
     }
     
     /// Whether diff stats are available

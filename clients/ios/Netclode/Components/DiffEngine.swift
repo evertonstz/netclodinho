@@ -313,6 +313,20 @@ struct UnifiedDiffFile: Identifiable {
     let newPath: String
     let status: DiffFileStatus
     let hunks: [DiffHunk]
+    
+    /// Path formatted for display (converts owner__repo to owner/repo)
+    var displayPath: String {
+        formatPathForDisplay(newPath)
+    }
+    
+    private func formatPathForDisplay(_ path: String) -> String {
+        var components = path.components(separatedBy: "/")
+        if let first = components.first, first.contains("__") {
+            // Convert "owner__repo" to "owner/repo"
+            components[0] = first.replacingOccurrences(of: "__", with: "/")
+        }
+        return components.joined(separator: "/")
+    }
 }
 
 enum DiffFileStatus: String {

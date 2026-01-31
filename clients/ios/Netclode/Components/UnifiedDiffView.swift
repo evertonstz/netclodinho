@@ -78,7 +78,7 @@ struct FileDiffSection: View {
                         FileStatusBadge(status: file.status)
 
                         // File path
-                        Text(file.newPath)
+                        Text(file.displayPath)
                             .font(.netclodeMonospacedSmall)
                             .foregroundStyle(.primary)
                             .lineLimit(1)

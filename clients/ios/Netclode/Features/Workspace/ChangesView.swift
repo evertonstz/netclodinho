@@ -223,7 +223,7 @@ private struct FileChangeRow: View {
                             .lineLimit(1)
                         
                         if !file.directory.isEmpty {
-                            Text(file.directory)
+                            Text(file.displayDirectory)
                                 .font(.system(size: TypeScale.tiny, design: .monospaced))
                                 .foregroundStyle(.tertiary)
                                 .lineLimit(1)
