@@ -844,6 +844,26 @@ func (r *k8sRuntime) DeleteSandboxService(ctx context.Context, sessionID string)
 	return nil
 }
 
+// ListTailscaleServices returns the session IDs that have Tailscale services (ts-* services).
+// This is used during startup reconciliation to clean up orphaned services.
+func (r *k8sRuntime) ListTailscaleServices(ctx context.Context) ([]string, error) {
+	services, err := r.clientset.CoreV1().Services(r.namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: "netclode.io/session",
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list services: %w", err)
+	}
+
+	sessionIDs := make([]string, 0, len(services.Items))
+	for _, svc := range services.Items {
+		if sessionID, ok := svc.Labels["netclode.io/session"]; ok {
+			sessionIDs = append(sessionIDs, sessionID)
+		}
+	}
+
+	return sessionIDs, nil
+}
+
 // ExposePort adds a port to the Tailscale service and NetworkPolicy for a sandbox.
 // This is called when a port_exposed event is received from the agent.
 func (r *k8sRuntime) ExposePort(ctx context.Context, sessionID string, port int) error {

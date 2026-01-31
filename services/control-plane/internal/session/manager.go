@@ -183,11 +183,15 @@ func (m *Manager) Initialize(ctx context.Context) error {
 	for id, state := range m.sessions {
 		sb, exists := sandboxMap[id]
 		if !exists {
-			// No sandbox exists
+			// No sandbox exists - clean up Tailscale service and mark as paused
 			if state.Session.Status == pb.SessionStatus_SESSION_STATUS_RUNNING || state.Session.Status == pb.SessionStatus_SESSION_STATUS_CREATING {
 				slog.Info("Session has no sandbox, marking as paused", "sessionID", id)
 				state.Session.Status = pb.SessionStatus_SESSION_STATUS_PAUSED
 				_ = m.storage.UpdateSessionStatus(ctx, id, pb.SessionStatus_SESSION_STATUS_PAUSED)
+			}
+			// Delete orphaned Tailscale service (if any)
+			if err := m.k8s.DeleteSandboxService(ctx, id); err != nil {
+				slog.Warn("Failed to delete orphaned sandbox service", "sessionID", id, "error", err)
 			}
 		} else if sb.Ready {
 			state.ServiceFQDN = sb.ServiceFQDN
@@ -213,6 +217,20 @@ func (m *Manager) Initialize(ctx context.Context) error {
 	}
 
 	slog.Info("Session manager initialized", "sessions", len(m.sessions), "sandboxes", len(sandboxes))
+
+	// Clean up orphaned Tailscale services (services without sessions in storage)
+	if tsServices, err := m.k8s.ListTailscaleServices(ctx); err != nil {
+		slog.Warn("Failed to list Tailscale services, skipping orphan cleanup", "error", err)
+	} else {
+		for _, sessionID := range tsServices {
+			if _, exists := m.sessions[sessionID]; !exists {
+				slog.Info("Deleting orphaned Tailscale service", "sessionID", sessionID)
+				if err := m.k8s.DeleteSandboxService(ctx, sessionID); err != nil {
+					slog.Warn("Failed to delete orphaned Tailscale service", "sessionID", sessionID, "error", err)
+				}
+			}
+		}
+	}
 
 	// Enforce active session limit on startup
 	m.enforceActiveLimit(ctx)

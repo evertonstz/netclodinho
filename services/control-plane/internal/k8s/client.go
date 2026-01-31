@@ -39,6 +39,7 @@ type Runtime interface {
 	// Service operations (for Tailscale preview URLs)
 	CreateSandboxService(ctx context.Context, sessionID string) error
 	DeleteSandboxService(ctx context.Context, sessionID string) error
+	ListTailscaleServices(ctx context.Context) ([]string, error) // Returns session IDs with ts-* services
 	ExposePort(ctx context.Context, sessionID string, port int) error
 
 	// Network policy operations

@@ -125,6 +125,10 @@ func (m *mockRuntime) DeleteSandboxService(ctx context.Context, sessionID string
 	return nil
 }
 
+func (m *mockRuntime) ListTailscaleServices(ctx context.Context) ([]string, error) {
+	return nil, nil
+}
+
 func (m *mockRuntime) ExposePort(ctx context.Context, sessionID string, port int) error {
 	return nil
 }
