@@ -96,6 +96,7 @@ export class OpenCodeAdapter implements SDKAdapter {
         models: {
           [modelName]: {
             name: modelName,
+            tools: true,
           },
         },
       };
