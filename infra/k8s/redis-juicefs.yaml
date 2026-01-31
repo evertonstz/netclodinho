@@ -30,6 +30,7 @@ spec:
       labels:
         app: redis-juicefs
     spec:
+      priorityClassName: netclode-infrastructure
       containers:
         - name: redis
           image: redis:7-alpine
