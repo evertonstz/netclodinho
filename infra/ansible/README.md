@@ -82,6 +82,11 @@ GITHUB_INSTALLATION_ID=12345678
 # Mistral (optional - for Mistral models via OpenCode)
 MISTRAL_API_KEY=your-mistral-api-key
 
+# OpenCode Zen (optional - for OpenCode Zen models)
+# If not set, only free Zen models are available (gpt-5-nano, big-pickle, etc.)
+# If set, all Zen models including paid models are available
+OPENCODE_API_KEY=your-opencode-api-key
+
 # Kata VM Resources (optional - defaults shown)
 KATA_VM_CPUS=4
 KATA_VM_MEMORY_MB=4096
@@ -102,7 +107,7 @@ This creates:
 - `tailscale-authkey` - Tailscale auth key (optional)
 
 **Kubernetes secrets** (in `netclode` namespace):
-- `netclode-secrets` - Contains `anthropic-api-key`, and optionally `github-app-id`, `github-app-private-key`, `github-installation-id`
+- `netclode-secrets` - Contains `anthropic-api-key`, and optionally `github-app-id`, `github-app-private-key`, `github-installation-id`, `opencode-api-key`
 - `juicefs-secret` - Contains S3 credentials and JuiceFS metadata URL
 
 ## Usage

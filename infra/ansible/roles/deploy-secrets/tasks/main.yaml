@@ -49,6 +49,7 @@
         codex_id_token: "{{ (env_content_raw | regex_search('(?m)^CODEX_ID_TOKEN=(.*)$', '\\1') or [''])[0] }}"
         codex_refresh_token: "{{ (env_content_raw | regex_search('(?m)^CODEX_REFRESH_TOKEN=(.*)$', '\\1') or [''])[0] }}"
         mistral_api_key: "{{ (env_content_raw | regex_search('(?m)^MISTRAL_API_KEY=(.*)$', '\\1') or [''])[0] }}"
+        opencode_api_key: "{{ (env_content_raw | regex_search('(?m)^OPENCODE_API_KEY=(.*)$', '\\1') or [''])[0] }}"
 
 # Host secrets - skip if only deploying k8s secrets
 - name: Deploy host secrets
@@ -129,6 +130,7 @@
             codex-id-token: "{{ codex_id_token }}"
             codex-refresh-token: "{{ codex_refresh_token }}"
             mistral-api-key: "{{ mistral_api_key }}"
+            opencode-api-key: "{{ opencode_api_key }}"
       when: anthropic_api_key | length > 0
 
     - name: Check if juicefs-secret already exists

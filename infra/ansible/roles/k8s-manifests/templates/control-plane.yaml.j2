@@ -91,6 +91,13 @@ spec:
                   name: netclode-secrets
                   key: mistral-api-key
                   optional: true
+            # OpenCode Zen API key (optional - for paid Zen models)
+            - name: OPENCODE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: netclode-secrets
+                  key: opencode-api-key
+                  optional: true
             # Ollama local inference (optional - only set if ollama_enabled)
 {% if ollama_enabled | default(false) %}
             - name: OLLAMA_URL
