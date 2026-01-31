@@ -1700,8 +1700,8 @@ private struct RepoCloneIconView: View {
                 .fill(color.opacity(0.15))
                 .frame(width: 24, height: 24)
             
-            // GitHub logo
-            Image("github-mark")
+            // Git logo
+            Image("git-logo")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 14, height: 14)
