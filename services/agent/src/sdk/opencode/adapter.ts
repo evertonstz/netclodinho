@@ -61,6 +61,9 @@ export class OpenCodeAdapter implements SDKAdapter {
     const [providerId, modelName] = model.includes("/") ? model.split("/", 2) : ["anthropic", model];
     const thinkingBudget = thinkingLevel === "max" ? 32000 : thinkingLevel === "high" ? 16000 : 0;
 
+    // Check if this is a Zen model (provider ID is "opencode")
+    const isZenModel = providerId === "opencode";
+
     let providerConfig: Record<string, unknown> = {};
 
     if (thinkingBudget > 0) {
@@ -117,8 +120,13 @@ export class OpenCodeAdapter implements SDKAdapter {
         ANTHROPIC_API_KEY: this.config?.anthropicApiKey || process.env.ANTHROPIC_API_KEY,
         ...(this.config?.openaiApiKey && { OPENAI_API_KEY: this.config.openaiApiKey }),
         ...(this.config?.mistralApiKey && { MISTRAL_API_KEY: this.config.mistralApiKey }),
+        // OpenCode Zen API key: use configured key, or "public" for free tier if Zen model
+        ...(this.config?.openCodeApiKey
+          ? { OPENCODE_API_KEY: this.config.openCodeApiKey }
+          : isZenModel && { OPENCODE_API_KEY: "public" }),
         OPENCODE_DISABLE_DEFAULT_PLUGINS: "true",
-        OPENCODE_DISABLE_MODELS_FETCH: "true",
+        // Only disable models fetch if NOT using Zen (Zen needs models.dev to work)
+        ...(!isZenModel && { OPENCODE_DISABLE_MODELS_FETCH: "true" }),
       },
       stdio: ["pipe", "pipe", "pipe"],
       cwd: WORKSPACE_DIR,

@@ -34,6 +34,8 @@ export interface SDKConfig {
   reasoningEffort?: string;
   // Ollama URL for local inference (e.g., "http://ollama.netclode.svc.cluster.local:11434")
   ollamaUrl?: string;
+  // OpenCode Zen API key (for paid models; empty/"public" = free tier only)
+  openCodeApiKey?: string;
 }
 
 /**

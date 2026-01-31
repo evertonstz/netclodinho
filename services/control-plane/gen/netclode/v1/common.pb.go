@@ -508,7 +508,8 @@ type SessionConfig struct {
 	CodexRefreshToken  *string                `protobuf:"bytes,14,opt,name=codex_refresh_token,json=codexRefreshToken,proto3,oneof" json:"codex_refresh_token,omitempty"`
 	ReasoningEffort    *string                `protobuf:"bytes,15,opt,name=reasoning_effort,json=reasoningEffort,proto3,oneof" json:"reasoning_effort,omitempty"`
 	MistralApiKey      *string                `protobuf:"bytes,16,opt,name=mistral_api_key,json=mistralApiKey,proto3,oneof" json:"mistral_api_key,omitempty"`
-	OllamaUrl          *string                `protobuf:"bytes,17,opt,name=ollama_url,json=ollamaUrl,proto3,oneof" json:"ollama_url,omitempty"` // URL for local Ollama inference (e.g., "http://ollama.netclode.svc.cluster.local:11434")
+	OllamaUrl          *string                `protobuf:"bytes,17,opt,name=ollama_url,json=ollamaUrl,proto3,oneof" json:"ollama_url,omitempty"`                  // URL for local Ollama inference (e.g., "http://ollama.netclode.svc.cluster.local:11434")
+	OpencodeApiKey     *string                `protobuf:"bytes,18,opt,name=opencode_api_key,json=opencodeApiKey,proto3,oneof" json:"opencode_api_key,omitempty"` // OpenCode Zen API key (for paid models, empty/"public" = free tier only)
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -658,6 +659,13 @@ func (x *SessionConfig) GetMistralApiKey() string {
 func (x *SessionConfig) GetOllamaUrl() string {
 	if x != nil && x.OllamaUrl != nil {
 		return *x.OllamaUrl
+	}
+	return ""
+}
+
+func (x *SessionConfig) GetOpencodeApiKey() string {
+	if x != nil && x.OpencodeApiKey != nil {
+		return *x.OpencodeApiKey
 	}
 	return ""
 }
@@ -1606,7 +1614,7 @@ const file_netclode_v1_common_proto_rawDesc = "" +
 	"\rmessage_count\x18\x02 \x01(\x05H\x00R\fmessageCount\x88\x01\x01\x12)\n" +
 	"\x0elast_stream_id\x18\x03 \x01(\tH\x01R\flastStreamId\x88\x01\x01B\x10\n" +
 	"\x0e_message_countB\x11\n" +
-	"\x0f_last_stream_id\"\x80\b\n" +
+	"\x0f_last_stream_id\"\xc4\b\n" +
 	"\rSessionConfig\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12#\n" +
@@ -1629,7 +1637,8 @@ const file_netclode_v1_common_proto_rawDesc = "" +
 	"R\x0freasoningEffort\x88\x01\x01\x12+\n" +
 	"\x0fmistral_api_key\x18\x10 \x01(\tH\vR\rmistralApiKey\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"ollama_url\x18\x11 \x01(\tH\fR\tollamaUrl\x88\x01\x01B\x0f\n" +
+	"ollama_url\x18\x11 \x01(\tH\fR\tollamaUrl\x88\x01\x01\x12-\n" +
+	"\x10opencode_api_key\x18\x12 \x01(\tH\rR\x0eopencodeApiKey\x88\x01\x01B\x0f\n" +
 	"\r_github_tokenB\x0e\n" +
 	"\f_repo_accessB\v\n" +
 	"\t_sdk_typeB\b\n" +
@@ -1642,7 +1651,8 @@ const file_netclode_v1_common_proto_rawDesc = "" +
 	"\x14_codex_refresh_tokenB\x13\n" +
 	"\x11_reasoning_effortB\x12\n" +
 	"\x10_mistral_api_keyB\r\n" +
-	"\v_ollama_url\"\xe0\x02\n" +
+	"\v_ollama_urlB\x13\n" +
+	"\x11_opencode_api_key\"\xe0\x02\n" +
 	"\vStreamEntry\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x128\n" +
 	"\ttimestamp\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\x18\n" +

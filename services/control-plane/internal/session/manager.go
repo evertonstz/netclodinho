@@ -46,6 +46,7 @@ type AgentSessionConfig struct {
 	CodexRefreshToken  string // For Codex OAuth mode
 	ReasoningEffort    string // For Codex reasoning effort (low, medium, high)
 	OllamaURL          string // For local Ollama inference
+	OpenCodeAPIKey     string // For OpenCode Zen models
 }
 
 // AgentConnection represents a connected agent that can receive commands.
@@ -1449,6 +1450,7 @@ func (m *Manager) GetSessionConfig(ctx context.Context, sessionID string) (*Agen
 		SdkType:            state.Session.SdkType,
 		CopilotBackend:     state.Session.CopilotBackend,
 		OllamaURL:          m.config.OllamaURL,
+		OpenCodeAPIKey:     m.config.OpenCodeAPIKey,
 	}
 
 	if state.Session.Model != nil {
@@ -1960,9 +1962,15 @@ func (m *Manager) fetchOpenCodeModels() []*pb.ModelInfo {
 	slog.Info("fetchOpenCodeModels called",
 		"hasAnthropicKey", m.config.AnthropicAPIKey != "",
 		"hasOpenAIKey", m.config.OpenAIAPIKey != "",
-		"hasMistralKey", m.config.MistralAPIKey != "")
+		"hasMistralKey", m.config.MistralAPIKey != "",
+		"hasOpenCodeKey", m.config.OpenCodeAPIKey != "")
 
 	var models []*pb.ModelInfo
+
+	// Add OpenCode Zen models (always available - free models if no key, all models if key is set)
+	zenModels := m.fetchZenModels()
+	slog.Info("Fetched OpenCode Zen models", "count", len(zenModels))
+	models = append(models, zenModels...)
 
 	// Add Anthropic models if ANTHROPIC_API_KEY is set
 	if m.config.AnthropicAPIKey != "" {
@@ -1993,7 +2001,7 @@ func (m *Manager) fetchOpenCodeModels() []*pb.ModelInfo {
 	}
 
 	if len(models) == 0 {
-		slog.Warn("No OpenCode credentials configured (need ANTHROPIC_API_KEY, OPENAI_API_KEY, MISTRAL_API_KEY, or OLLAMA_URL)")
+		slog.Warn("No OpenCode credentials configured (need ANTHROPIC_API_KEY, OPENAI_API_KEY, MISTRAL_API_KEY, OPENCODE_API_KEY, or OLLAMA_URL)")
 	}
 
 	slog.Info("fetchOpenCodeModels returning", "totalModels", len(models))
@@ -2061,6 +2069,79 @@ func (m *Manager) fetchOpenCodeModelsForProvider(provider string) []*pb.ModelInf
 	}
 
 	return models
+}
+
+// fetchZenModels fetches models from the OpenCode Zen provider
+// If OPENCODE_API_KEY is not set, only returns free models (cost.input === 0)
+func (m *Manager) fetchZenModels() []*pb.ModelInfo {
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Get("https://models.dev/api.json")
+	if err != nil {
+		slog.Error("Failed to fetch from models.dev for Zen", "error", err)
+		return m.getZenModelsFallback()
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		slog.Error("models.dev API error for Zen", "status", resp.StatusCode)
+		return m.getZenModelsFallback()
+	}
+
+	var data modelsDevResponse
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		slog.Error("Failed to decode models.dev response for Zen", "error", err)
+		return m.getZenModelsFallback()
+	}
+
+	zenData, ok := data["opencode"]
+	if !ok {
+		slog.Warn("OpenCode provider not found in models.dev")
+		return m.getZenModelsFallback()
+	}
+
+	hasAPIKey := m.config.OpenCodeAPIKey != ""
+	var models []*pb.ModelInfo
+
+	for _, model := range zenData.Models {
+		// If no API key, only include free models (cost.input == 0 and cost.output == 0)
+		isFree := model.Cost.Input == 0 && model.Cost.Output == 0
+		if !hasAPIKey && !isFree {
+			continue
+		}
+
+		capabilities := []string{"chat", "code"}
+		for _, input := range model.Modalities.Input {
+			if input == "image" {
+				capabilities = append(capabilities, "vision")
+				break
+			}
+		}
+		if model.Reasoning {
+			capabilities = append(capabilities, "reasoning")
+		}
+
+		// Zen models use "opencode/" prefix
+		models = append(models, &pb.ModelInfo{
+			Id:           "opencode/" + model.ID,
+			Name:         model.Name,
+			Provider:     strPtr("OpenCode Zen"),
+			Capabilities: capabilities,
+		})
+	}
+
+	slog.Info("Fetched Zen models", "total", len(models), "hasAPIKey", hasAPIKey)
+	return models
+}
+
+// getZenModelsFallback returns fallback free models when API is unavailable
+func (m *Manager) getZenModelsFallback() []*pb.ModelInfo {
+	// Only return free models as fallback (always available without API key)
+	return []*pb.ModelInfo{
+		{Id: "opencode/gpt-5-nano", Name: "GPT-5 Nano", Provider: strPtr("OpenCode Zen"), Capabilities: []string{"chat", "vision", "code", "reasoning"}},
+		{Id: "opencode/big-pickle", Name: "Big Pickle", Provider: strPtr("OpenCode Zen"), Capabilities: []string{"chat", "code", "reasoning"}},
+		{Id: "opencode/glm-4.7-free", Name: "GLM-4.7 Free", Provider: strPtr("OpenCode Zen"), Capabilities: []string{"chat", "code", "reasoning"}},
+		{Id: "opencode/minimax-m2.1-free", Name: "MiniMax M2.1 Free", Provider: strPtr("OpenCode Zen"), Capabilities: []string{"chat", "code", "reasoning"}},
+	}
 }
 
 // ollamaTagsResponse represents the response from Ollama /api/tags endpoint

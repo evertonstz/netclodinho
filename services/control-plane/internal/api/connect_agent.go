@@ -128,6 +128,9 @@ func (h *ConnectAgentServiceHandler) Connect(ctx context.Context, stream *connec
 	if config.OllamaURL != "" {
 		sessionConfig.OllamaUrl = &config.OllamaURL
 	}
+	if config.OpenCodeAPIKey != "" {
+		sessionConfig.OpencodeApiKey = &config.OpenCodeAPIKey
+	}
 
 	if err := conn.send(&v1.ControlPlaneMessage{
 		Message: &v1.ControlPlaneMessage_Registered{

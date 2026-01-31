@@ -101,6 +101,7 @@ message SessionConfig {
   optional string reasoning_effort = 15;
   optional string mistral_api_key = 16;
   optional string ollama_url = 17;     // URL for local Ollama inference (e.g., "http://ollama.netclode.svc.cluster.local:11434")
+  optional string opencode_api_key = 18; // OpenCode Zen API key (for paid models, empty/"public" = free tier only)
 }
 
 // ============================================================================

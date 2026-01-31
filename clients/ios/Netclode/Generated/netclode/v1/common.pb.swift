@@ -550,6 +550,16 @@ public struct Netclode_V1_SessionConfig: @unchecked Sendable {
   /// Clears the value of `ollamaURL`. Subsequent reads from it will return its default value.
   public mutating func clearOllamaURL() {_uniqueStorage()._ollamaURL = nil}
 
+  /// OpenCode Zen API key (for paid models, empty/"public" = free tier only)
+  public var opencodeApiKey: String {
+    get {return _storage._opencodeApiKey ?? String()}
+    set {_uniqueStorage()._opencodeApiKey = newValue}
+  }
+  /// Returns true if `opencodeApiKey` has been explicitly set.
+  public var hasOpencodeApiKey: Bool {return _storage._opencodeApiKey != nil}
+  /// Clears the value of `opencodeApiKey`. Subsequent reads from it will return its default value.
+  public mutating func clearOpencodeApiKey() {_uniqueStorage()._opencodeApiKey = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1117,7 +1127,7 @@ extension Netclode_V1_SessionSummary: SwiftProtobuf.Message, SwiftProtobuf._Mess
 
 extension Netclode_V1_SessionConfig: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SessionConfig"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_id\0\u{3}workspace_dir\0\u{3}github_token\0\u{1}repos\0\u{3}repo_access\0\u{3}control_plane_url\0\u{3}sdk_type\0\u{1}model\0\u{3}copilot_backend\0\u{3}github_copilot_token\0\u{3}codex_access_token\0\u{3}codex_id_token\0\u{3}openai_api_key\0\u{3}codex_refresh_token\0\u{3}reasoning_effort\0\u{3}mistral_api_key\0\u{3}ollama_url\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_id\0\u{3}workspace_dir\0\u{3}github_token\0\u{1}repos\0\u{3}repo_access\0\u{3}control_plane_url\0\u{3}sdk_type\0\u{1}model\0\u{3}copilot_backend\0\u{3}github_copilot_token\0\u{3}codex_access_token\0\u{3}codex_id_token\0\u{3}openai_api_key\0\u{3}codex_refresh_token\0\u{3}reasoning_effort\0\u{3}mistral_api_key\0\u{3}ollama_url\0\u{3}opencode_api_key\0")
 
   fileprivate class _StorageClass {
     var _sessionID: String = String()
@@ -1137,6 +1147,7 @@ extension Netclode_V1_SessionConfig: SwiftProtobuf.Message, SwiftProtobuf._Messa
     var _reasoningEffort: String? = nil
     var _mistralApiKey: String? = nil
     var _ollamaURL: String? = nil
+    var _opencodeApiKey: String? = nil
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -1164,6 +1175,7 @@ extension Netclode_V1_SessionConfig: SwiftProtobuf.Message, SwiftProtobuf._Messa
       _reasoningEffort = source._reasoningEffort
       _mistralApiKey = source._mistralApiKey
       _ollamaURL = source._ollamaURL
+      _opencodeApiKey = source._opencodeApiKey
     }
   }
 
@@ -1199,6 +1211,7 @@ extension Netclode_V1_SessionConfig: SwiftProtobuf.Message, SwiftProtobuf._Messa
         case 15: try { try decoder.decodeSingularStringField(value: &_storage._reasoningEffort) }()
         case 16: try { try decoder.decodeSingularStringField(value: &_storage._mistralApiKey) }()
         case 17: try { try decoder.decodeSingularStringField(value: &_storage._ollamaURL) }()
+        case 18: try { try decoder.decodeSingularStringField(value: &_storage._opencodeApiKey) }()
         default: break
         }
       }
@@ -1262,6 +1275,9 @@ extension Netclode_V1_SessionConfig: SwiftProtobuf.Message, SwiftProtobuf._Messa
       try { if let v = _storage._ollamaURL {
         try visitor.visitSingularStringField(value: v, fieldNumber: 17)
       } }()
+      try { if let v = _storage._opencodeApiKey {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 18)
+      } }()
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -1288,6 +1304,7 @@ extension Netclode_V1_SessionConfig: SwiftProtobuf.Message, SwiftProtobuf._Messa
         if _storage._reasoningEffort != rhs_storage._reasoningEffort {return false}
         if _storage._mistralApiKey != rhs_storage._mistralApiKey {return false}
         if _storage._ollamaURL != rhs_storage._ollamaURL {return false}
+        if _storage._opencodeApiKey != rhs_storage._opencodeApiKey {return false}
         return true
       }
       if !storagesAreEqual {return false}

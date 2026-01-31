@@ -42,6 +42,9 @@ type Config struct {
 
 	// Ollama local inference (optional)
 	OllamaURL string // URL for Ollama API (e.g., "http://ollama.netclode.svc.cluster.local:11434")
+
+	// OpenCode Zen (optional)
+	OpenCodeAPIKey string // OpenCode Zen API key (if empty, only free models available)
 }
 
 func Load() *Config {
@@ -76,6 +79,9 @@ func Load() *Config {
 
 		// Ollama local inference
 		OllamaURL: getEnv("OLLAMA_URL", ""),
+
+		// OpenCode Zen
+		OpenCodeAPIKey: getEnv("OPENCODE_API_KEY", ""),
 	}
 }
 
