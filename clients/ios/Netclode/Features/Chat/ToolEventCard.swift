@@ -1687,7 +1687,7 @@ private struct RepoCloneIconView: View {
     let stage: RepoCloneStage
     let color: Color
     
-    @State private var arrowOffset: CGFloat = 0
+    @State private var pulseScale: CGFloat = 1.0
     
     private var isInProgress: Bool {
         stage == .starting || stage == .cloning
@@ -1700,42 +1700,37 @@ private struct RepoCloneIconView: View {
                 .fill(color.opacity(0.15))
                 .frame(width: 24, height: 24)
             
-            // Icon with animation
-            if isInProgress {
-                // Animated download arrow
-                Image(systemName: "arrow.down")
-                    .font(.system(size: TypeScale.caption, weight: .bold))
-                    .foregroundStyle(color)
-                    .offset(y: arrowOffset)
-            } else {
-                // Static branch icon for completed states
-                Image(systemName: "arrow.triangle.branch")
-                    .font(.system(size: TypeScale.body, weight: .medium))
-                    .foregroundStyle(color)
-                    .transition(.scale.combined(with: .opacity))
-            }
+            // GitHub logo
+            Image("github-mark")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 14, height: 14)
+                .foregroundStyle(color)
+                .scaleEffect(isInProgress ? pulseScale : 1.0)
         }
         .animation(.bouncy, value: stage)
         .onAppear {
             if isInProgress {
-                startArrowAnimation()
+                startPulseAnimation()
             }
         }
         .onChange(of: stage) { _, newStage in
             if newStage == .starting || newStage == .cloning {
-                startArrowAnimation()
+                startPulseAnimation()
             } else {
-                arrowOffset = 0
+                withAnimation(.bouncy) {
+                    pulseScale = 1.0
+                }
             }
         }
     }
     
-    private func startArrowAnimation() {
+    private func startPulseAnimation() {
         withAnimation(
-            .easeInOut(duration: 0.6)
+            .easeInOut(duration: 0.8)
             .repeatForever(autoreverses: true)
         ) {
-            arrowOffset = 3
+            pulseScale = 0.85
         }
     }
 }
