@@ -4,6 +4,10 @@ import Foundation
 @Observable
 final class ChatStore {
     private(set) var messagesBySession: [String: [ChatMessage]] = [:]
+    
+    /// Track pending message IDs that haven't been synced to server yet
+    /// These will be preserved when loadMessages is called
+    private var pendingMessageIds: Set<UUID> = []
 
     private let persistenceKey = "netclode_chat_messages"
     private var saveTask: Task<Void, Never>?
@@ -25,6 +29,29 @@ final class ChatStore {
         messages.append(message)
         messagesBySession[sessionId] = messages
         scheduleSave()
+    }
+    
+    /// Append a message and mark it as pending (won't be wiped by loadMessages until cleared)
+    func appendPendingMessage(sessionId: String, message: ChatMessage) {
+        pendingMessageIds.insert(message.id)
+        appendMessage(sessionId: sessionId, message: message)
+    }
+    
+    /// Clear pending status for a message (called after server confirms receipt)
+    func clearPendingMessage(id: UUID) {
+        pendingMessageIds.remove(id)
+    }
+    
+    /// Clear all pending messages for a session
+    func clearPendingMessages(for sessionId: String) {
+        let sessionMessages = messagesBySession[sessionId] ?? []
+        let sessionMessageIds = Set(sessionMessages.map { $0.id })
+        pendingMessageIds = pendingMessageIds.subtracting(sessionMessageIds)
+    }
+    
+    /// Check if a message is pending (not yet synced to server)
+    func isMessagePending(_ messageId: UUID) -> Bool {
+        pendingMessageIds.contains(messageId)
     }
 
     /// Append partial content to an assistant message, creating a new one if messageId changes
@@ -81,8 +108,20 @@ final class ChatStore {
     }
 
     /// Load messages from server sync response
+    /// Only updates if server has more messages than local, preserving local state
     func loadMessages(sessionId: String, messages: [PersistedMessage]) {
-        messagesBySession[sessionId] = messages.map { $0.toChatMessage() }
+        let serverMessages = messages.map { $0.toChatMessage() }
+        let existingMessages = messagesBySession[sessionId] ?? []
+        
+        // If we have more local messages than server, keep local state
+        // (we likely have pending messages that haven't synced yet)
+        if existingMessages.count >= serverMessages.count && !existingMessages.isEmpty {
+            return
+        }
+        
+        // Server has more messages - use server state but preserve any pending local messages
+        let pendingMessages = existingMessages.filter { pendingMessageIds.contains($0.id) }
+        messagesBySession[sessionId] = serverMessages + pendingMessages
         scheduleSave()
     }
 

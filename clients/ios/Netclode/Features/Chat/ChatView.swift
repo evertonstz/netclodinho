@@ -62,6 +62,7 @@ struct ChatView: View {
     @Environment(SessionStore.self) private var sessionStore
     @Environment(ConnectService.self) private var connectService
     @Environment(SettingsStore.self) private var settingsStore
+    @Environment(AppStateCoordinator.self) private var coordinator
 
     @State private var inputText = ""
     @FocusState private var isInputFocused: Bool
@@ -98,6 +99,14 @@ struct ChatView: View {
     
     var session: Session? {
         sessionStore.sessions.first { $0.id == sessionId }
+    }
+    
+    var isConnectionUsable: Bool {
+        connectService.connectionState.isUsable
+    }
+    
+    var hasQueuedMessage: Bool {
+        coordinator.messageQueue.hasQueuedMessage(for: sessionId)
     }
     
     private var sessionReposSignature: String {
@@ -295,14 +304,20 @@ struct ChatView: View {
                 isProcessing: isProcessing,
                 isFocused: $isInputFocused,
                 onSend: sendMessage,
-                onInterrupt: interruptAgent
+                onInterrupt: interruptAgent,
+                isConnected: isConnectionUsable,
+                hasQueuedMessage: hasQueuedMessage
             )
         }
         .overlay(alignment: .top) {
-            if showStatusPill, let status = session?.status {
-                StatusPill(status: status)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                    .padding(.top, Theme.Spacing.sm)
+            if showStatusPill || !isConnectionUsable || hasQueuedMessage, let status = session?.status {
+                StatusPill(
+                    status: status,
+                    isOffline: !isConnectionUsable,
+                    hasQueuedMessage: hasQueuedMessage
+                )
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .padding(.top, Theme.Spacing.sm)
             }
         }
         .animation(.snappy, value: showStatusPill)
@@ -415,7 +430,8 @@ struct ChatView: View {
             // Compute isStreaming at render time to ensure it reflects current processing state
             let isLastAssistant = message.role == .assistant && message.id == messages.last?.id
             let currentlyStreaming = isLastAssistant && isProcessing
-            ChatMessageRow(message: message, isStreaming: currentlyStreaming, turnDuration: turnDuration)
+            let isPending = chatStore.isMessagePending(message.id)
+            ChatMessageRow(message: message, isStreaming: currentlyStreaming, turnDuration: turnDuration, isPending: isPending)
         case .event(let grouped):
             groupedEventView(grouped)
         }
@@ -554,11 +570,20 @@ struct ChatView: View {
             HapticFeedback.light()
         }
 
-        // Add user message locally
-        chatStore.appendMessage(
-            sessionId: sessionId,
-            message: ChatMessage(role: .user, content: text)
-        )
+        let userMessage = ChatMessage(role: .user, content: text)
+        
+        // Clear input first
+        inputText = ""
+
+        // If offline, queue the message for later and mark as pending
+        if !isConnectionUsable {
+            chatStore.appendPendingMessage(sessionId: sessionId, message: userMessage)
+            coordinator.queueMessage(sessionId: sessionId, content: text)
+            return
+        }
+        
+        // Add user message locally (online path)
+        chatStore.appendMessage(sessionId: sessionId, message: userMessage)
 
         // Mark as processing before sending
         sessionStore.setProcessing(for: sessionId, processing: true)
@@ -570,9 +595,6 @@ struct ChatView: View {
 
         // Send to server
         connectService.send(.prompt(sessionId: sessionId, text: text))
-
-        // Clear input
-        inputText = ""
     }
 
     private func interruptAgent() {
@@ -634,25 +656,53 @@ struct ScrollOffsetKey: PreferenceKey {
 
 struct StatusPill: View {
     let status: SessionStatus
+    var isOffline: Bool = false
+    var hasQueuedMessage: Bool = false
+    
+    private var displayColor: Color {
+        if isOffline || hasQueuedMessage {
+            return .orange
+        }
+        return status.tintColor.color
+    }
+    
+    private var displayText: String {
+        if hasQueuedMessage {
+            return "Queued"
+        }
+        if isOffline {
+            return "Offline"
+        }
+        return status.displayName
+    }
     
     var body: some View {
         HStack(spacing: 6) {
-            Circle()
-                .fill(status.tintColor.color)
-                .frame(width: 8, height: 8)
-                .pulsing(status == .running)
+            // Icon: wifi.slash when offline, otherwise status dot
+            if isOffline {
+                Image(systemName: "wifi.slash")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(displayColor)
+            } else {
+                Circle()
+                    .fill(displayColor)
+                    .frame(width: 8, height: 8)
+                    .pulsing(status == .running && !hasQueuedMessage)
+            }
             
-            Text(status.displayName)
+            Text(displayText)
                 .font(.system(size: 13, weight: .medium))
                 .contentTransition(.numericText())
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .glassEffect(
-            .regular.tint(status.tintColor.color.glassTint),
+            .regular.tint(displayColor.glassTint),
             in: Capsule()
         )
         .animation(.smooth, value: status)
+        .animation(.smooth, value: isOffline)
+        .animation(.smooth, value: hasQueuedMessage)
     }
 }
 

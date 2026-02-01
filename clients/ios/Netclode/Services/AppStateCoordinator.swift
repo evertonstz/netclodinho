@@ -41,6 +41,7 @@ final class AppStateCoordinator {
     private weak var connectService: ConnectService?
     private weak var sessionStore: SessionStore?
     private weak var settingsStore: SettingsStore?
+    private weak var chatStore: ChatStore?
     
     private var networkObserverTask: Task<Void, Never>?
     
@@ -64,10 +65,12 @@ final class AppStateCoordinator {
     func configure(
         connectService: ConnectService,
         sessionStore: SessionStore,
-        settingsStore: SettingsStore
+        settingsStore: SettingsStore,
+        chatStore: ChatStore
     ) {
         self.connectService = connectService
         self.sessionStore = sessionStore
+        self.chatStore = chatStore
         self.settingsStore = settingsStore
         
         // Inject network monitor into connect service
@@ -210,12 +213,24 @@ final class AppStateCoordinator {
             return
         }
         
-        let sent = await messageQueue.replay(for: currentSessionId) { sessionId, content in
+        let sent = await messageQueue.replay(for: currentSessionId) { (sessionId: String, content: String) in
+            // Mark as processing
+            sessionStore.setProcessing(for: sessionId, processing: true)
+            
+            // Resume session if paused (like normal sendMessage does)
+            if let session = sessionStore.sessions.first(where: { $0.id == sessionId }),
+               session.status == .paused {
+                connectService.send(.sessionResume(id: sessionId))
+            }
+            
+            // Send the prompt
             connectService.send(.prompt(sessionId: sessionId, text: content))
         }
         
         if sent > 0 {
             logger.info("Replayed \(sent) pending messages")
+            // Clear pending status from chat store since messages were sent
+            chatStore?.clearPendingMessages(for: currentSessionId)
         }
         
         status.pendingMessages = messageQueue.pendingCount

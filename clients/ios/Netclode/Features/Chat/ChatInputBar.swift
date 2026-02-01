@@ -9,14 +9,19 @@ struct ChatInputBar: View {
     
     /// Whether the connection is usable (if false, messages will be queued)
     var isConnected: Bool = true
-    /// Number of pending queued messages
-    var pendingCount: Int = 0
+    /// Whether there's already a queued message (only one allowed)
+    var hasQueuedMessage: Bool = false
 
     private let inputHeight: CGFloat = 44
     private let maxHeight: CGFloat = 100
 
     private var canSend: Bool {
-        !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let hasText = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        // Can't send if offline and already have a queued message
+        if !isConnected && hasQueuedMessage {
+            return false
+        }
+        return hasText
     }
     
     /// Whether the message will be queued (not sent immediately)
@@ -25,96 +30,64 @@ struct ChatInputBar: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Queue indicator
-            if pendingCount > 0 || willQueue {
-                queueIndicator
-            }
-            
-            HStack(alignment: .bottom, spacing: Theme.Spacing.xs) {
-                // Text input
-                ZStack(alignment: .leading) {
-                    if text.isEmpty {
-                        Text(willQueue ? "Queue message..." : "Reply...")
-                            .foregroundStyle(.secondary)
-                            .padding(.leading, 5)
-                            .allowsHitTesting(false)
-                    }
-                    
-                    TextEditor(text: $text)
-                        .focused(isFocused)
-                        .scrollContentBackground(.hidden)
-                        .tint(Theme.Colors.brand)
-                        .frame(minHeight: 28, maxHeight: maxHeight)
-                        .fixedSize(horizontal: false, vertical: true)
+        HStack(alignment: .bottom, spacing: Theme.Spacing.xs) {
+            // Text input
+            ZStack(alignment: .leading) {
+                if text.isEmpty {
+                    Text(willQueue ? "Reply (queue message)..." : "Reply...")
+                        .foregroundStyle(.secondary)
+                        .padding(.leading, 5)
+                        .allowsHitTesting(false)
                 }
-                .font(.netclodeBody)
-                .padding(.horizontal, Theme.Spacing.md)
-                .frame(minHeight: inputHeight)
-                .adaptiveGlassInteractive(in: Capsule())
+                
+                TextEditor(text: $text)
+                    .focused(isFocused)
+                    .scrollContentBackground(.hidden)
+                    .tint(Theme.Colors.brand)
+                    .frame(minHeight: 28, maxHeight: maxHeight)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .font(.netclodeBody)
+            .padding(.horizontal, Theme.Spacing.md)
+            .frame(minHeight: inputHeight)
+            .adaptiveGlassInteractive(in: Capsule())
 
-                // Send/Stop button
-                Group {
-                    if isProcessing {
-                        // Stop button
-                        Button {
-                            onInterrupt()
-                        } label: {
-                            Image(systemName: "stop.fill")
-                                .font(.system(size: TypeScale.body, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .frame(width: inputHeight, height: inputHeight)
-                                .adaptiveGlassInteractive(tint: Theme.Colors.error, in: Circle())
-                        }
-                        .transition(.scale.combined(with: .opacity))
-                    } else {
-                        // Send button (or queue button if offline)
-                        Button {
-                            onSend()
-                        } label: {
-                            Image(systemName: willQueue ? "clock.badge.questionmark" : "arrow.up")
-                                .font(.system(size: TypeScale.body, weight: .semibold))
-                                .foregroundStyle(canSend ? .white : .secondary)
-                                .frame(width: inputHeight, height: inputHeight)
-                                .adaptiveGlassInteractive(
-                                    tint: canSend ? (willQueue ? Color.orange : Theme.Colors.brand) : nil,
-                                    in: Circle()
-                                )
-                        }
-                        .disabled(!canSend)
-                        .transition(.scale.combined(with: .opacity))
+            // Send/Stop button
+            Group {
+                if isProcessing {
+                    // Stop button
+                    Button {
+                        onInterrupt()
+                    } label: {
+                        Image(systemName: "stop.fill")
+                            .font(.system(size: TypeScale.body, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: inputHeight, height: inputHeight)
+                            .adaptiveGlassInteractive(tint: Theme.Colors.error, in: Circle())
                     }
+                    .transition(.scale.combined(with: .opacity))
+                } else {
+                    // Send button
+                    Button {
+                        onSend()
+                    } label: {
+                        Image(systemName: "arrow.up")
+                            .font(.system(size: TypeScale.body, weight: .semibold))
+                            .foregroundStyle(canSend ? .white : .secondary)
+                            .frame(width: inputHeight, height: inputHeight)
+                            .adaptiveGlassInteractive(
+                                tint: canSend ? (willQueue ? Color.orange : Theme.Colors.brand) : nil,
+                                in: Circle()
+                            )
+                    }
+                    .disabled(!canSend)
+                    .transition(.scale.combined(with: .opacity))
                 }
-                .animation(.snappy, value: isProcessing)
             }
-            .padding(.horizontal, Theme.Spacing.sm)
-            .padding(.vertical, Theme.Spacing.xs)
+            .animation(.snappy, value: isProcessing)
         }
-    }
-    
-    @ViewBuilder
-    private var queueIndicator: some View {
-        HStack(spacing: Theme.Spacing.xs) {
-            Image(systemName: willQueue ? "wifi.slash" : "arrow.up.circle")
-                .font(.caption)
-                .foregroundStyle(willQueue ? .orange : .blue)
-            
-            if willQueue {
-                Text("Offline - messages will be queued")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else if pendingCount > 0 {
-                Text("\(pendingCount) message\(pendingCount == 1 ? "" : "s") pending")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            
-            Spacer()
-        }
-        .padding(.horizontal, Theme.Spacing.md)
-        .padding(.vertical, Theme.Spacing.xxs)
-        .background(willQueue ? Color.orange.opacity(0.1) : Color.blue.opacity(0.1))
-        .transition(.move(edge: .top).combined(with: .opacity))
+        .padding(.horizontal, Theme.Spacing.sm)
+        .padding(.vertical, Theme.Spacing.xs)
     }
 }
 

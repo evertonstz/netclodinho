@@ -18,7 +18,8 @@ struct PersistedMessage: Codable, Identifiable, Sendable {
         ChatMessage(
             role: role == .user ? .user : .assistant,
             content: content,
-            timestamp: timestamp
+            timestamp: timestamp,
+            serverMessageId: id
         )
     }
 }

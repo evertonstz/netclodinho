@@ -85,8 +85,14 @@ final class MessageQueue {
     
     // MARK: - Public Methods
     
-    /// Queue a message for later delivery
+    /// Queue a message for later delivery (only one message per session allowed)
     func enqueue(sessionId: String, content: String) {
+        // Only allow one queued message per session
+        if messages.contains(where: { $0.sessionId == sessionId }) {
+            logger.warning("Session \(sessionId) already has a queued message, ignoring")
+            return
+        }
+        
         guard messages.count < configuration.maxQueueSize else {
             logger.warning("Queue full, dropping oldest message")
             messages.removeFirst()
@@ -98,6 +104,11 @@ final class MessageQueue {
         
         logger.info("Queued message for session \(sessionId), queue size: \(self.messages.count)")
         saveToDisk()
+    }
+    
+    /// Check if a session has a queued message
+    func hasQueuedMessage(for sessionId: String) -> Bool {
+        messages.contains { $0.sessionId == sessionId }
     }
     
     /// Replay all queued messages for a session

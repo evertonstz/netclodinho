@@ -4,9 +4,14 @@ struct ChatMessageRow: View {
     let message: ChatMessage
     var isStreaming: Bool = false
     var turnDuration: TimeInterval? = nil
+    var isPending: Bool = false
 
     private var isUser: Bool {
         message.role == .user
+    }
+    
+    private var accentColor: Color {
+        isPending ? .orange : Theme.Colors.brand
     }
 
     var body: some View {
@@ -14,10 +19,19 @@ struct ChatMessageRow: View {
             HStack(alignment: .top, spacing: Theme.Spacing.sm) {
                 // Content
                 if isUser {
-                    Text(message.content)
-                        .font(.netclodeBody)
-                        .foregroundStyle(.primary)
-                        .textSelection(.enabled)
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(message.content)
+                            .font(.netclodeBody)
+                            .foregroundStyle(.primary)
+                            .textSelection(.enabled)
+                        
+                        // Pending indicator for queued messages
+                        if isPending {
+                            Text("Will send when online")
+                                .font(.system(size: TypeScale.tiny, weight: .medium))
+                                .foregroundStyle(.orange)
+                        }
+                    }
                 } else {
                     MessageContent(content: message.content, isStreaming: isStreaming)
                 }
@@ -36,12 +50,12 @@ struct ChatMessageRow: View {
         .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
         .background(
             isUser
-                ? Theme.Colors.brand.opacity(0.06)
+                ? accentColor.opacity(0.06)
                 : Color.clear
         )
         .overlay(
             Rectangle()
-                .fill(Theme.Colors.brand)
+                .fill(accentColor)
                 .frame(width: 2),
             alignment: isUser ? .trailing : .leading
         )

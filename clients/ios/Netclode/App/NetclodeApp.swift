@@ -90,7 +90,8 @@ struct NetclodeApp: App {
         coordinator.configure(
             connectService: connectService,
             sessionStore: sessionStore,
-            settingsStore: settingsStore
+            settingsStore: settingsStore,
+            chatStore: chatStore
         )
         
         // Connect if we have a server URL configured
