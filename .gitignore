@@ -53,3 +53,4 @@ Pods/
 secrets/
 
 .opencode/plans/
+.claude/skills/
