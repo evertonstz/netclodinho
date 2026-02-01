@@ -8,6 +8,7 @@ struct PreviewsView: View {
 
     @State private var showExposePortSheet = false
     @State private var portToExpose = ""
+    @State private var isContentVisible = false
 
     /// All port_exposed events for this session
     var portEvents: [PortExposedEvent] {
@@ -43,6 +44,14 @@ struct PreviewsView: View {
                 showExposePortSheet = true
             }
             .padding()
+        }
+        .opacity(isContentVisible ? 1 : 0)
+        .task(id: sessionId) {
+            isContentVisible = false
+            try? await Task.sleep(for: .milliseconds(50))
+            withAnimation(.easeOut(duration: 0.10)) {
+                isContentVisible = true
+            }
         }
         .sheet(isPresented: $showExposePortSheet) {
             ExposePortSheet(

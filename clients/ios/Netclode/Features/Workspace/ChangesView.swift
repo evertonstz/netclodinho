@@ -8,6 +8,7 @@ struct ChangesView: View {
     @Environment(ConnectService.self) private var connectService
     
     @State private var isRefreshing = false
+    @State private var isContentVisible = false
     
     private var files: [GitFileChange] {
         gitStore.files(for: sessionId)
@@ -128,8 +129,14 @@ struct ChangesView: View {
                 }
             }
         }
+        .opacity(isContentVisible ? 1 : 0)
         .background(Theme.Colors.background)
-        .onAppear {
+        .task(id: sessionId) {
+            isContentVisible = false
+            try? await Task.sleep(for: .milliseconds(50))
+            withAnimation(.easeOut(duration: 0.10)) {
+                isContentVisible = true
+            }
             requestGitStatus()
         }
         .onChange(of: isLoadingDiff) { _, isLoading in

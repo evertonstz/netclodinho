@@ -293,7 +293,7 @@ struct ChatView: View {
                     // Give layout a moment then scroll and show
                     try? await Task.sleep(for: .milliseconds(50))
                     proxy.scrollTo("bottom", anchor: .bottom)
-                    withAnimation(.easeOut(duration: 0.15)) {
+                    withAnimation(.easeOut(duration: 0.10)) {
                         isContentVisible = true
                     }
                 }

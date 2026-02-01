@@ -8,6 +8,8 @@ struct TerminalView: View {
 
     @Environment(\.colorScheme) private var colorScheme
     
+    @State private var isContentVisible = false
+    
     private var terminalBackgroundColor: Color {
         colorScheme == .dark
             ? Color(red: 0.1, green: 0.1, blue: 0.12)
@@ -23,7 +25,13 @@ struct TerminalView: View {
             .ignoresSafeArea(.keyboard)
             .background(terminalBackgroundColor)
             .focusEffectDisabled()
-            .onAppear {
+            .opacity(isContentVisible ? 1 : 0)
+            .task(id: sessionId) {
+                isContentVisible = false
+                try? await Task.sleep(for: .milliseconds(50))
+                withAnimation(.easeOut(duration: 0.10)) {
+                    isContentVisible = true
+                }
                 // Send initial terminal size to trigger PTY spawn
                 let bridge = terminalStore.bridge(for: sessionId)
                 if bridge.cols > 0 && bridge.rows > 0 {
