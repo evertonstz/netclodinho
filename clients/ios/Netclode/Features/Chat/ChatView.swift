@@ -84,6 +84,9 @@ struct ChatView: View {
     
     // Track scroll state - hide content until positioned
     @State private var isContentVisible = false
+    
+    // Scroll position binding for programmatic scrolling
+    @State private var scrollPosition = ScrollPosition(edge: .bottom)
 
     var messages: [ChatMessage] {
         chatStore.messages(for: sessionId)
@@ -244,95 +247,134 @@ struct ChatView: View {
     }
 
     var body: some View {
-        ScrollViewReader { proxy in
-            scrollContent
-                .opacity(isContentVisible ? 1 : 0)
-                .onChange(of: messages.count) {
-                    updateTimelineIfNeeded()
-                    withAnimation(.glassSpring) {
-                        proxy.scrollTo("bottom", anchor: .bottom)
-                    }
-                }
-                .onChange(of: messages.last?.content) {
-                    updateTimelineIfNeeded()
-                    withAnimation(.glassSpring) {
-                        proxy.scrollTo("bottom", anchor: .bottom)
-                    }
-                }
-                .onChange(of: events.count) {
-                    updateTimelineIfNeeded()
-                    withAnimation(.glassSpring) {
-                        proxy.scrollTo("bottom", anchor: .bottom)
-                    }
-                }
-                .onChange(of: thinkingContentLength) {
-                    updateTimelineIfNeeded()
-                    withAnimation(.glassSpring) {
-                        proxy.scrollTo("bottom", anchor: .bottom)
-                    }
-                }
-                .onChange(of: isProcessing) {
-                    updateTimelineIfNeeded()
-                    withAnimation(.glassSpring) {
-                        proxy.scrollTo("bottom", anchor: .bottom)
-                    }
-                }
-                .onChange(of: sessionReposSignature) {
-                    updateTimelineIfNeeded()
-                }
-                .onChange(of: toolInputContentLength) {
-                    updateTimelineIfNeeded()
-                    withAnimation(.glassSpring) {
-                        proxy.scrollTo("bottom", anchor: .bottom)
-                    }
-                }
-                .task(id: sessionId) {
-                    // Hide content, update timeline, scroll, then fade in
-                    isContentVisible = false
-                    updateTimelineIfNeeded()
-                    // Give layout a moment then scroll and show
-                    try? await Task.sleep(for: .milliseconds(50))
-                    proxy.scrollTo("bottom", anchor: .bottom)
-                    withAnimation(.easeOut(duration: 0.10)) {
-                        isContentVisible = true
-                    }
-                }
-        }
-        .safeAreaInset(edge: .bottom) {
-            ChatInputBar(
-                text: $inputText,
-                isProcessing: isProcessing,
-                isFocused: $isInputFocused,
-                onSend: sendMessage,
-                onInterrupt: interruptAgent,
-                isConnected: isConnectionUsable,
-                hasQueuedMessage: hasQueuedMessage
-            )
-        }
-        .overlay(alignment: .top) {
-            if showStatusPill || !isConnectionUsable || hasQueuedMessage, let status = session?.status {
-                StatusPill(
-                    status: status,
-                    isOffline: !isConnectionUsable,
+        mainContent
+            .safeAreaInset(edge: .bottom) {
+                ChatInputBar(
+                    text: $inputText,
+                    isProcessing: isProcessing,
+                    isFocused: $isInputFocused,
+                    onSend: sendMessage,
+                    onInterrupt: interruptAgent,
+                    isConnected: isConnectionUsable,
                     hasQueuedMessage: hasQueuedMessage
                 )
-                .transition(.move(edge: .top).combined(with: .opacity))
-                .padding(.top, Theme.Spacing.sm)
+            }
+            .overlay(alignment: .top) { statusPillOverlay }
+            .animation(.snappy, value: showStatusPill)
+            .onChange(of: session?.status) { _, newStatus in
+                handleStatusChange(newStatus)
+            }
+            .task(id: sessionId) {
+                await handleSessionAppear()
+            }
+            .onChange(of: isInputFocused) { _, focused in
+                handleInputFocusChange(focused)
+            }
+    }
+    
+    private var mainContent: some View {
+        scrollContent
+            .opacity(isContentVisible ? 1 : 0)
+            .onChange(of: messages.count) {
+                updateTimelineIfNeeded()
+                scrollToBottom()
+            }
+            .onChange(of: messages.last?.content) {
+                updateTimelineIfNeeded()
+                scrollToBottom()
+            }
+            .onChange(of: events.count) {
+                updateTimelineIfNeeded()
+                scrollToBottom()
+            }
+            .onChange(of: thinkingContentLength) {
+                updateTimelineIfNeeded()
+                scrollToBottom()
+            }
+            .onChange(of: isProcessing) {
+                updateTimelineIfNeeded()
+                scrollToBottom()
+            }
+            .onChange(of: sessionReposSignature) {
+                updateTimelineIfNeeded()
+            }
+            .onChange(of: toolInputContentLength) {
+                updateTimelineIfNeeded()
+                scrollToBottom()
+            }
+            .onChange(of: cachedTimeline.isEmpty) { _, isEmpty in
+                handleTimelineChange(isEmpty)
+            }
+            .task(id: sessionId) {
+                await handleSessionChange()
+            }
+    }
+    
+    @ViewBuilder
+    private var statusPillOverlay: some View {
+        if showStatusPill || !isConnectionUsable || hasQueuedMessage, let status = session?.status {
+            StatusPill(
+                status: status,
+                isOffline: !isConnectionUsable,
+                hasQueuedMessage: hasQueuedMessage
+            )
+            .transition(.move(edge: .top).combined(with: .opacity))
+            .padding(.top, Theme.Spacing.sm)
+        }
+    }
+    
+    private func handleTimelineChange(_ isEmpty: Bool) {
+        if !isEmpty && !isContentVisible {
+            scrollToBottom()
+            withAnimation(.easeOut(duration: 0.10)) {
+                isContentVisible = true
             }
         }
-        .animation(.snappy, value: showStatusPill)
-        .onChange(of: session?.status) { oldStatus, newStatus in
-            guard let newStatus, newStatus != lastKnownStatus else { return }
-            lastKnownStatus = newStatus
-            
-            // Show pill briefly on status change (even if not scrolling up)
+    }
+    
+    private func handleSessionChange() async {
+        isContentVisible = false
+        scrollPosition = ScrollPosition(edge: .bottom)
+        updateTimelineIfNeeded()
+        
+        if !cachedTimeline.isEmpty {
+            scrollToBottom()
+            withAnimation(.easeOut(duration: 0.10)) {
+                isContentVisible = true
+            }
+        }
+    }
+    
+    private func handleStatusChange(_ newStatus: SessionStatus?) {
+        guard let newStatus, newStatus != lastKnownStatus else { return }
+        lastKnownStatus = newStatus
+        
+        withAnimation {
+            showStatusPill = true
+        }
+        
+        hideStatusPillTask?.cancel()
+        if session?.status == .ready {
+            hideStatusPillTask = Task {
+                try? await Task.sleep(for: .seconds(2))
+                guard !Task.isCancelled else { return }
+                if !isScrollingUp {
+                    withAnimation {
+                        showStatusPill = false
+                    }
+                }
+            }
+        }
+    }
+    
+    private func handleSessionAppear() async {
+        lastKnownStatus = session?.status
+        if let status = session?.status {
             withAnimation {
                 showStatusPill = true
             }
-            
-            // Only auto-hide for .ready status - other statuses stay visible
             hideStatusPillTask?.cancel()
-            if session?.status == .ready {
+            if status == .ready {
                 hideStatusPillTask = Task {
                     try? await Task.sleep(for: .seconds(2))
                     guard !Task.isCancelled else { return }
@@ -344,41 +386,17 @@ struct ChatView: View {
                 }
             }
         }
-        .task(id: sessionId) {
-            // Use task(id:) instead of onAppear to ensure it fires on navigation
-            lastKnownStatus = session?.status
-            // Show pill on appear for any status
-            if let status = session?.status {
-                withAnimation {
-                    showStatusPill = true
-                }
-                // Only auto-hide for .ready status - other statuses stay visible
-                hideStatusPillTask?.cancel()
-                if status == .ready {
-                    hideStatusPillTask = Task {
-                        try? await Task.sleep(for: .seconds(2))
-                        guard !Task.isCancelled else { return }
-                        if !isScrollingUp {
-                            withAnimation {
-                                showStatusPill = false
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        .onChange(of: isInputFocused) { _, focused in
-            // Speculatively resume when user focuses input field
-            // This gives a head start while they type their message
-            if focused && session?.status == .paused {
-                connectService.send(.sessionResume(id: sessionId))
-            }
+    }
+    
+    private func handleInputFocusChange(_ focused: Bool) {
+        if focused && session?.status == .paused {
+            connectService.send(.sessionResume(id: sessionId))
         }
     }
     
     private var scrollContent: some View {
-        ScrollView {
-            LazyVStack(spacing: Theme.Spacing.sm) {
+        ScrollView(.vertical) {
+            VStack(spacing: Theme.Spacing.sm) {
                 // Scroll position tracker
                 GeometryReader { geo in
                     Color.clear
@@ -405,8 +423,11 @@ struct ChatView: View {
                     .frame(height: 1)
                     .id("bottom")
             }
+            .scrollTargetLayout()
             .padding()
         }
+        .scrollPosition($scrollPosition)
+        .defaultScrollAnchor(.bottom)
         .coordinateSpace(name: "scroll")
         .onPreferenceChange(ScrollOffsetKey.self) { offset in
             let scrollingUp = offset > lastScrollOffset
@@ -421,6 +442,12 @@ struct ChatView: View {
             lastScrollOffset = offset
         }
         .scrollDismissesKeyboard(.interactively)
+    }
+    
+    private func scrollToBottom() {
+        withAnimation(.glassSpring) {
+            scrollPosition.scrollTo(id: "bottom", anchor: .bottom)
+        }
     }
 
     @ViewBuilder
