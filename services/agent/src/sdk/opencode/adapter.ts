@@ -5,6 +5,8 @@
  */
 
 import { spawn, type ChildProcess } from "node:child_process";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
 import type { SDKAdapter, SDKConfig, PromptConfig, PromptEvent } from "../types.js";
 import {
   createTranslatorState,
@@ -13,6 +15,7 @@ import {
   type TranslatorState,
 } from "./translator.js";
 import { WORKSPACE_DIR } from "../../constants.js";
+import { buildSystemPromptText } from "../../utils/system-prompt.js";
 const OPENCODE_PORT = 4096;
 const OPENCODE_HOST = "127.0.0.1";
 
@@ -78,8 +81,8 @@ export class OpenCodeAdapter implements SDKAdapter {
     if (providerId === "ollama" && this.ollamaUrl) {
       console.log("[opencode-adapter] Configuring Ollama provider with URL:", this.ollamaUrl);
       // Ollama requires @ai-sdk/openai-compatible with /v1 endpoint
-      const ollamaBaseUrl = this.ollamaUrl.endsWith("/v1") 
-        ? this.ollamaUrl 
+      const ollamaBaseUrl = this.ollamaUrl.endsWith("/v1")
+        ? this.ollamaUrl
         : this.ollamaUrl.replace(/\/$/, "") + "/v1";
       providerConfig["ollama"] = {
         npm: "@ai-sdk/openai-compatible",
@@ -101,6 +104,8 @@ export class OpenCodeAdapter implements SDKAdapter {
     const opencodeConfig = {
       model,
       logLevel: "INFO",
+      // Reference our custom instructions file (written at executePrompt time)
+      instructions: [".netclode-instructions.md"],
       permission: {
         edit: "allow",
         bash: "allow",
@@ -198,6 +203,22 @@ export class OpenCodeAdapter implements SDKAdapter {
     console.log("[opencode-adapter] Server started at:", url);
   }
 
+  /**
+   * Write custom instructions file to workspace
+   * OpenCode reads this via the `instructions` config field
+   */
+  private async writeInstructionsFile(currentGitRepos: string[]): Promise<void> {
+    const systemPromptText = buildSystemPromptText({ currentGitRepos });
+    const instructionsPath = path.join(WORKSPACE_DIR, ".netclode-instructions.md");
+
+    try {
+      await fs.writeFile(instructionsPath, systemPromptText, "utf-8");
+      console.log("[opencode-adapter] Wrote .netclode-instructions.md with system prompt");
+    } catch (error) {
+      console.error("[opencode-adapter] Failed to write instructions file:", error);
+    }
+  }
+
   private async abortSession(sessionId: string | undefined): Promise<void> {
     if (!this.server || !sessionId) return;
 
@@ -225,6 +246,10 @@ export class OpenCodeAdapter implements SDKAdapter {
     console.log(
       `[opencode-adapter] ExecutePrompt (session=${sessionId}): "${text.slice(0, 100)}${text.length > 100 ? "..." : ""}"`
     );
+
+    // Write instructions file with system prompt (includes repo info when available)
+    const currentGitRepos = promptConfig?.repos?.filter(Boolean) ?? [];
+    await this.writeInstructionsFile(currentGitRepos);
 
     // Get or create OpenCode session
     let ocSessionId = openCodeSessionMap.get(sessionId);

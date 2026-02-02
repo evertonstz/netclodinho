@@ -32,6 +32,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
 import { WORKSPACE_DIR } from "../../constants.js";
+import { buildSystemPromptText } from "../../utils/system-prompt.js";
 
 // Codex session ID mapping (Netclode session ID -> Codex thread ID)
 const codexThreadMap = new Map<string, string>();
@@ -119,6 +120,24 @@ export class CodexAdapter implements SDKAdapter {
   }
 
   /**
+   * Write global AGENTS.md to ~/.codex/ with system prompt
+   * Codex reads this file for global instructions
+   */
+  private async writeGlobalAgentsMd(currentGitRepos: string[]): Promise<void> {
+    const systemPromptText = buildSystemPromptText({ currentGitRepos });
+    const codexHome = process.env.CODEX_HOME || path.join(os.homedir(), ".codex");
+
+    try {
+      await fs.mkdir(codexHome, { recursive: true });
+      const agentsMdPath = path.join(codexHome, "AGENTS.md");
+      await fs.writeFile(agentsMdPath, systemPromptText, "utf-8");
+      console.log("[codex-adapter] Wrote global AGENTS.md to", agentsMdPath);
+    } catch (error) {
+      console.error("[codex-adapter] Failed to write global AGENTS.md:", error);
+    }
+  }
+
+  /**
    * Write OAuth tokens to Codex auth file
    * The Codex CLI reads from ~/.codex/auth.json
    */
@@ -151,6 +170,10 @@ export class CodexAdapter implements SDKAdapter {
     console.log(
       `[codex-adapter] ExecutePrompt (session=${sessionId}): "${text.slice(0, 100)}${text.length > 100 ? "..." : ""}"`
     );
+
+    // Write global AGENTS.md with system prompt (includes repo info when available)
+    const currentGitRepos = promptConfig?.repos?.filter(Boolean) ?? [];
+    await this.writeGlobalAgentsMd(currentGitRepos);
 
     // Clear interrupt signal
     this.clearInterruptSignal();

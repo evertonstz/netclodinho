@@ -30,6 +30,7 @@ import {
   type CopilotEvent,
 } from "./translator.js";
 import { WORKSPACE_DIR } from "../../constants.js";
+import { buildSystemPromptText } from "../../utils/system-prompt.js";
 
 // Copilot session ID mapping (Netclode session ID -> Copilot session ID)
 const copilotSessionMap = new Map<string, string>();
@@ -89,8 +90,11 @@ export class CopilotAdapter implements SDKAdapter {
     // Reset translator state for new prompt
     resetTranslatorState(this.translatorState);
 
+    // Get repos from config for system prompt
+    const currentGitRepos = promptConfig?.repos?.filter(Boolean) ?? [];
+
     console.log(
-      `[copilot-adapter] ExecutePrompt (session=${sessionId}): "${text.slice(0, 100)}${text.length > 100 ? "..." : ""}"`
+      `[copilot-adapter] ExecutePrompt (session=${sessionId}): "${text.slice(0, 100)}${text.length > 100 ? "..." : "..."}"`
     );
 
     // Clear interrupt signal
@@ -134,11 +138,19 @@ export class CopilotAdapter implements SDKAdapter {
         console.log(`[copilot-adapter] Backend: ${this.backend}`);
         console.log(`[copilot-adapter] Model: ${model}`);
 
+        // Build system prompt with repo information
+        const systemPromptContent = buildSystemPromptText({ currentGitRepos });
+
         session = await this.client.createSession({
           model,
           streaming: true,
           // Auto-approve all permissions - we're in an isolated sandbox
           onPermissionRequest: async () => ({ kind: "approved" }),
+          // Append our custom system prompt to the default Copilot prompt
+          systemMessage: {
+            mode: "append",
+            content: systemPromptContent,
+          },
           ...(providerConfig && { provider: providerConfig }),
         });
 

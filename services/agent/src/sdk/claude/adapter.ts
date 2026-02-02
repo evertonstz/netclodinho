@@ -7,7 +7,7 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { SDKAdapter, SDKConfig, PromptConfig, PromptEvent } from "../types.js";
 import { getSdkSessionId, registerSession } from "../../services/session.js";
-import { buildSystemPrompt } from "../../utils/system-prompt.js";
+import { buildSystemPromptText, type SystemPromptConfig } from "../../utils/system-prompt.js";
 import {
   createTranslatorState,
   resetTranslatorState,
@@ -16,6 +16,21 @@ import {
   type ClaudeMessage,
 } from "./translator.js";
 import { WORKSPACE_DIR } from "../../constants.js";
+
+/**
+ * Build the system prompt in Claude Agent SDK preset format
+ */
+function buildSystemPrompt(config: SystemPromptConfig): {
+  type: "preset";
+  preset: "claude_code";
+  append: string;
+} {
+  return {
+    type: "preset",
+    preset: "claude_code",
+    append: buildSystemPromptText(config),
+  };
+}
 
 export class ClaudeSDKAdapter implements SDKAdapter {
   private config: SDKConfig | null = null;

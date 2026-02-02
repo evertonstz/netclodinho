@@ -1,5 +1,5 @@
 /**
- * System prompt builder - constructs the system prompt for Claude
+ * System prompt builder - constructs the system prompt for all SDK adapters
  */
 
 import { getRepoPath } from "../git.js";
@@ -10,13 +10,9 @@ export interface SystemPromptConfig {
 }
 
 /**
- * Build the system prompt for Claude Agent SDK
+ * Build the raw system prompt text (used by all SDKs)
  */
-export function buildSystemPrompt(config: SystemPromptConfig): {
-  type: "preset";
-  preset: "claude_code";
-  append: string;
-} {
+export function buildSystemPromptText(config: SystemPromptConfig): string {
   const lines = [
     "## Environment",
     "",
@@ -50,9 +46,5 @@ export function buildSystemPrompt(config: SystemPromptConfig): {
     });
   }
 
-  return {
-    type: "preset",
-    preset: "claude_code",
-    append: lines.join("\n"),
-  };
+  return lines.join("\n");
 }
