@@ -145,7 +145,13 @@ final class ChatStore {
         }.value
 
         if let decoded {
-            self.messagesBySession = decoded
+            // Only use disk data for sessions we don't already have from server
+            // This prevents race condition where disk load overwrites server data
+            for (sessionId, diskMessages) in decoded {
+                if messagesBySession[sessionId] == nil || messagesBySession[sessionId]!.isEmpty {
+                    messagesBySession[sessionId] = diskMessages
+                }
+            }
         }
     }
 
