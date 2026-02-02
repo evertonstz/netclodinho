@@ -158,6 +158,15 @@ func (m *Manager) handleAgentEvent(ctx context.Context, sessionID string, state 
 	var eventTimestamp time.Time
 
 	switch event.Kind {
+	case pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_START:
+		// Track when this tool started (for correct timestamp ordering of related events)
+		toolUseId := event.CorrelationId
+		if toolUseId != "" {
+			m.mu.Lock()
+			state.ToolStartTimes[toolUseId] = time.Now()
+			eventTimestamp = state.ToolStartTimes[toolUseId]
+			m.mu.Unlock()
+		}
 	case pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_INPUT,
 		pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_OUTPUT:
 		// Check if the payload indicates streaming
@@ -166,6 +175,26 @@ func (m *Manager) handleAgentEvent(ctx context.Context, sessionID string, state 
 		}
 		if event.GetToolOutput() != nil && event.GetToolOutput().Delta != nil {
 			partial = true
+		}
+		// Use the tool's start time for correct ordering
+		toolUseId := event.CorrelationId
+		if toolUseId != "" {
+			m.mu.RLock()
+			if startTime, exists := state.ToolStartTimes[toolUseId]; exists {
+				eventTimestamp = startTime
+			}
+			m.mu.RUnlock()
+		}
+	case pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_END:
+		// Use the tool's start time for correct ordering, then clean up
+		toolUseId := event.CorrelationId
+		if toolUseId != "" {
+			m.mu.Lock()
+			if startTime, exists := state.ToolStartTimes[toolUseId]; exists {
+				eventTimestamp = startTime
+			}
+			delete(state.ToolStartTimes, toolUseId)
+			m.mu.Unlock()
 		}
 	case pb.AgentEventKind_AGENT_EVENT_KIND_THINKING:
 		// Use the partial field from the proto - true for streaming deltas, false for final complete content
