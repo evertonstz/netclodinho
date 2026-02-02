@@ -152,6 +152,19 @@ func (m *Manager) handleAgentEvent(ctx context.Context, sessionID string, state 
 		return nil
 	}
 
+	// Debug: log tool_end events with result field
+	if event.Kind == pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_END {
+		if toolEnd := event.GetToolEnd(); toolEnd != nil {
+			slog.Info("handleAgentEvent: TOOL_END received",
+				"sessionID", sessionID,
+				"correlationId", event.CorrelationId,
+				"success", toolEnd.Success,
+				"hasResult", toolEnd.Result != nil,
+				"resultLen", len(toolEnd.GetResult()),
+			)
+		}
+	}
+
 	// Determine if this is a partial (streaming) event based on kind
 	// Tool input/output deltas are partial; start/end events are final
 	partial := false
