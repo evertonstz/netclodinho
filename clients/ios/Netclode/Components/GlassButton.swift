@@ -44,7 +44,7 @@ struct GlassButton: View {
             .foregroundStyle(.white)
             .padding(.horizontal, Theme.Spacing.lg)
             .padding(.vertical, Theme.Spacing.sm)
-            .adaptiveGlassInteractive(in: Capsule())
+            .adaptiveGlassInteractive(tint: tint ?? Theme.Colors.brand, in: Capsule())
         }
         .disabled(isLoading)
     }
