@@ -286,6 +286,16 @@ func (s *Sandbox) GetError() string {
 	return ""
 }
 
+// GetOriginalPodName returns the original pod name from the sandbox annotation.
+// This is used for warm pool mode where the sandbox is renamed when claimed,
+// but we need the original pod name to look up the warm agent connection.
+func (s *Sandbox) GetOriginalPodName() string {
+	if s.Annotations != nil {
+		return s.Annotations["agents.x-k8s.io/pod-name"]
+	}
+	return ""
+}
+
 // SandboxClaim CRD GVR (extensions API group)
 var SandboxClaimGVR = schema.GroupVersionResource{
 	Group:    "extensions.agents.x-k8s.io",

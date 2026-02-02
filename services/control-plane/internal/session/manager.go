@@ -606,12 +606,20 @@ func (m *Manager) createSandboxViaClaim(ctx context.Context, sessionID string, r
 	slog.Info("Claim bound to sandbox", "sessionID", sessionID, "sandbox", sandboxName)
 
 	// Try to push session to warm agent immediately (instant session start).
-	// The agent connects with pod name and waits for session assignment.
-	// If the agent hasn't connected yet, it will register normally when it does.
-	if m.AssignSessionToWarmAgent(sandboxName, sessionID) {
-		slog.Info("Session pushed to warm agent", "sessionID", sessionID, "sandbox", sandboxName)
+	// The agent connects with its original pod name, but the sandbox gets renamed when claimed.
+	// Get the original pod name from the sandbox annotation.
+	originalPodName := sandboxName // fallback
+	if sandbox, err := m.k8s.GetSandboxByName(ctx, sandboxName); err == nil && sandbox != nil {
+		if podName := sandbox.GetOriginalPodName(); podName != "" {
+			originalPodName = podName
+			slog.Info("Found original pod name from sandbox", "sessionID", sessionID, "originalPodName", originalPodName, "sandbox", sandboxName)
+		}
+	}
+
+	if m.AssignSessionToWarmAgent(originalPodName, sessionID) {
+		slog.Info("Session pushed to warm agent", "sessionID", sessionID, "podName", originalPodName)
 	} else {
-		slog.Debug("Warm agent not yet connected, will register normally", "sessionID", sessionID, "sandbox", sandboxName)
+		slog.Debug("Warm agent not yet connected, will register normally", "sessionID", sessionID, "podName", originalPodName)
 	}
 
 	// Label the sandbox so the informer can track it
