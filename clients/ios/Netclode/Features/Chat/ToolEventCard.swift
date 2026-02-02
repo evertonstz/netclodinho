@@ -1502,10 +1502,12 @@ struct ThinkingCard: View {
                         .fill(Theme.Colors.brandLight)
                         .frame(width: 6, height: 6)
                         .opacity(0.8)
+                        .transition(.opacity.combined(with: .scale))
                 }
 
                 Spacer()
             }
+            .animation(.smooth(duration: 0.3), value: event.partial)
 
             // Content with markdown rendering
             ThinkingMarkdownView(content: event.content)
@@ -1515,7 +1517,7 @@ struct ThinkingCard: View {
         .padding(.vertical, Theme.Spacing.xs)
         .background(Theme.Colors.brandLight.opacity(event.partial ? 0.15 : 0.1))
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
-        .animation(.easeInOut(duration: 0.2), value: event.partial)
+        .animation(.smooth(duration: 0.4), value: event.partial)
     }
 }
 

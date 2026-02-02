@@ -82,7 +82,8 @@ struct MessageContent: View {
 
     /// Process content for streaming - close incomplete markdown constructs
     private var processedContent: String {
-        guard isStreaming else { return content }
+        // Trim trailing whitespace for completed messages
+        guard isStreaming else { return content.trimmingCharacters(in: .whitespacesAndNewlines) }
 
         var result = content
 
