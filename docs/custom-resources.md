@@ -1,14 +1,13 @@
 # Custom VM Resources
 
-Sessions run in Kata Containers VMs with configurable CPU and memory.
+Sessions run in Kata VMs with configurable CPU and memory.
 
-## How It Works
+## How it works
 
-1. **iOS app** shows a "Custom Resources" toggle in the new session sheet
-2. User selects vCPUs (1/2/4/8) and memory (2/4/8/16 GB)
-3. **Control-plane** validates against server limits and creates the sandbox
-4. **Kata VM** receives full resources via annotations
-5. **K8s scheduler** sees reduced requests (overcommit) for better packing
+1. iOS app shows "Custom Resources" toggle in new session sheet
+2. Select vCPUs (1/2/4/8) and memory (2/4/8/16 GB)
+3. Control-plane validates against server limits
+4. Kata VM gets full resources, K8s scheduler sees reduced requests (overcommit)
 
 ## Resource Limits
 

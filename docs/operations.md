@@ -1,6 +1,6 @@
 # Operations
 
-Day-to-day management.
+Day-to-day commands and troubleshooting.
 
 ## Accessing the cluster
 
@@ -135,27 +135,23 @@ kubectl --context netclode -n netclode top pods
 
 ## Common issues
 
-**Session stuck in "creating"**: Sandbox VM failed to start
-
+**Session stuck in "creating"** - sandbox VM failed to start:
 ```bash
 kubectl --context netclode -n netclode describe sandbox sandbox-<session-id>
 ssh root@netclode journalctl -u k3s | grep kata
 ```
 
-**Agent not responding**: Check process
-
+**Agent not responding** - check process:
 ```bash
 kubectl --context netclode -n netclode exec -it <agent-pod> -- ps aux | grep node
 ```
 
-**Terminal not connecting**: Check control plane logs
-
+**Terminal not connecting** - check control plane logs:
 ```bash
 kubectl --context netclode -n netclode logs -l app=control-plane | grep terminal
 ```
 
-**Preview URLs not working**: Check sandbox Tailscale service
-
+**Preview URLs not working** - check sandbox Tailscale service:
 ```bash
 kubectl --context netclode -n netclode get svc | grep sandbox
 ```

@@ -1,60 +1,37 @@
-# Network Access Control
+# Network Access
 
-Netclode provides network access control for agent sandboxes using Kubernetes NetworkPolicies and Cilium CNI.
+Sandboxes use Kubernetes NetworkPolicies for network isolation.
 
-## Overview
+## Default access
 
-Agent sandboxes have:
-- **Internet access**: Can reach external services (required for LLM API calls)
-- **Control-plane access**: Can communicate with the Netclode control-plane
-- **DNS access**: Can resolve domain names via kube-system DNS
-- **No private network access**: Cannot reach private IP ranges (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)
-- **No Tailnet access** by default: Cannot reach Tailscale network (100.64.0.0/10)
+- **Internet** - can reach external services (needed for LLM APIs)
+- **Control-plane** - can talk to Netclode control-plane
+- **DNS** - can resolve domains
+- **No private networks** - blocked from 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+- **No Tailnet** by default - blocked from 100.64.0.0/10
 
-## Configuration Options
+## Tailnet access
 
-### Enable Tailnet Access (`--tailnet`)
-
-When creating a session with `--tailnet`, the sandbox can reach services on your Tailscale network:
+Enable with `--tailnet` to let the sandbox reach your Tailscale network:
 
 ```bash
-netclode sessions create --repo owner/repo --repo owner/other --tailnet
+netclode sessions create --repo owner/repo --tailnet
 ```
 
-Repeat `--repo` to clone multiple repositories into the same session.
+Useful for accessing internal APIs, databases, or package registries on your tailnet.
 
-**Allowed:**
-- Tailscale CGNAT range (100.64.0.0/10)
-- Everything allowed by default
+| Flags | Internet | Tailnet |
+|-------|----------|---------|
+| (default) | Allowed | Blocked |
+| `--tailnet` | Allowed | Allowed |
 
-**Use cases:**
-- Accessing internal APIs exposed via Tailscale
-- Connecting to databases on your tailnet
-- Using private package registries
-
-| Flags | Internet | Tailnet | Control-plane | DNS |
-|-------|----------|---------|---------------|-----|
-| (default) | Allowed | Blocked | Allowed | Allowed |
-| `--tailnet` | Allowed | Allowed | Allowed | Allowed |
-
-## Implementation Details
-
-### SandboxTemplate
-
-Network access is implemented using a single SandboxTemplate (`netclode-agent`) that provides:
-- DNS access (kube-system)
-- Control-plane access
-- Ingress from Tailscale namespace (for preview URLs)
-
-Internet access and Tailnet access are added dynamically via additional NetworkPolicies.
-
-### NetworkPolicies
+## How it works
 
 Each sandbox gets NetworkPolicies:
 
-1. **Base policy** (from template): DNS + control-plane access
-2. **Internet access** (always added): `sess-<id>-internet-access` - allows `0.0.0.0/0` except private ranges
-3. **Tailnet access** (if `--tailnet`): `sess-<id>-tailnet-access` - allows `100.64.0.0/10`
+1. **Base policy** - DNS + control-plane access
+2. **Internet access** - allows `0.0.0.0/0` except private ranges
+3. **Tailnet access** (if `--tailnet`) - allows `100.64.0.0/10`
 
 ```yaml
 # Internet access policy (always created)
@@ -87,44 +64,15 @@ spec:
             cidr: 100.64.0.0/10
 ```
 
-Since Kubernetes NetworkPolicies are additive (union), the tailnet policy allows Tailnet access alongside internet access.
+NetworkPolicies are additive, so the tailnet policy adds to the default internet access.
 
 ## Troubleshooting
-
-### Verify NetworkPolicies
 
 ```bash
 # List policies for a session
 kubectl --context netclode -n netclode get networkpolicies | grep <session-id>
-
-# Check policy details
-kubectl --context netclode -n netclode get networkpolicy sess-<id>-internet-access -o yaml
 ```
 
-### Test Connectivity from a Sandbox
+**Tailnet not accessible with `--tailnet`** - verify the `sess-<id>-tailnet-access` NetworkPolicy exists.
 
-```bash
-# Get the pod name
-CLAIM_UID=$(kubectl --context netclode -n netclode get sandboxclaim sess-<id> -o jsonpath='{.metadata.uid}')
-POD=$(kubectl --context netclode -n netclode get pods -l agents.x-k8s.io/claim-uid=$CLAIM_UID -o jsonpath='{.items[0].metadata.name}')
-
-# Test internet
-kubectl --context netclode -n netclode exec $POD -- curl -s --connect-timeout 5 https://httpbin.org/get
-
-# Test control-plane
-kubectl --context netclode -n netclode exec $POD -- curl -s http://control-plane.netclode.svc.cluster.local/health
-
-# Test Tailnet (replace with your Tailscale IP)
-kubectl --context netclode -n netclode exec $POD -- curl -s --connect-timeout 5 http://100.x.x.x:8123
-```
-
-### Common Issues
-
-**Tailnet not accessible with `--tailnet`:**
-- Verify the `sess-<id>-tailnet-access` NetworkPolicy exists
-- Ensure the target service is actually on the Tailscale network (100.64.0.0/10)
-- Check that the host has routes to Tailscale IPs (traffic is masqueraded through the host)
-
-**DNS not working:**
-- Check that kube-system namespace has the correct label: `kubernetes.io/metadata.name: kube-system`
-- Verify CoreDNS pods are running
+**DNS not working** - check CoreDNS pods are running in kube-system.

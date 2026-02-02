@@ -1,6 +1,6 @@
 # SDK Support
 
-Netclode supports multiple AI agent SDKs, allowing you to choose the best provider for your workflow. Each SDK has different capabilities, authentication methods, and model options.
+Netclode supports multiple coding agent SDKs. Pick the one that fits your workflow.
 
 ## Overview
 
@@ -13,23 +13,15 @@ Netclode supports multiple AI agent SDKs, allowing you to choose the best provid
 
 ## Claude Agent SDK (Default)
 
-The Claude Agent SDK provides direct integration with Anthropic's Claude models via `@anthropic-ai/claude-agent-sdk`.
+Direct integration with Anthropic's Claude via `@anthropic-ai/claude-agent-sdk`.
 
-### Authentication
+**Auth:** `ANTHROPIC_API_KEY`
 
-Requires `ANTHROPIC_API_KEY` environment variable.
+**Models:**
+- `claude-opus-4-5-20251101` (default) - most capable, extended thinking
+- `claude-sonnet-4-0` - balanced
 
-### Models
-
-- **claude-opus-4-5-20251101** (default) - Most capable, supports extended thinking
-- **claude-sonnet-4-0** - Balanced performance/cost
-
-### Features
-
-- Extended thinking with streaming
-- Native tool support (Read, Write, Edit, Bash, Glob, Grep, WebSearch, WebFetch)
-- Session persistence across pause/resume
-- Interrupt support with abort controller
+**Features:** Extended thinking, native tools, session persistence, interrupt support.
 
 ### Configuration
 
@@ -40,218 +32,86 @@ ANTHROPIC_API_KEY=sk-ant-api03-xxx
 
 ## OpenCode SDK
 
-OpenCode provides multi-provider support through the OpenCode CLI in server mode.
+Multi-provider support through the OpenCode CLI in server mode.
 
-### Authentication
-
-Supports multiple API keys depending on which provider you use:
-
+**Auth:** Set whichever API keys you need:
 ```bash
-# .env
-ANTHROPIC_API_KEY=sk-ant-xxx     # For Anthropic models
-OPENAI_API_KEY=sk-xxx            # For OpenAI models
-MISTRAL_API_KEY=xxx              # For Mistral models
+ANTHROPIC_API_KEY=sk-ant-xxx
+OPENAI_API_KEY=sk-xxx
+MISTRAL_API_KEY=xxx
 ```
 
-### Models
+**Models:** Format is `provider/model-name`:
+- `anthropic/claude-sonnet-4-0` (default)
+- `anthropic/claude-sonnet-4-5-20250514` (with thinking)
+- `openai/gpt-4o`
+- `mistral/mistral-large-latest`
 
-Model IDs use the format `provider/model-name`:
-
-| Model ID | Provider | Notes |
-|----------|----------|-------|
-| `anthropic/claude-sonnet-4-0` | Anthropic | Default |
-| `anthropic/claude-sonnet-4-5-20250514` | Anthropic | Supports thinking |
-| `openai/gpt-4o` | OpenAI | |
-| `mistral/mistral-large-latest` | Mistral | |
-
-### Features
-
-- Multi-provider support in a single SDK
-- Extended thinking for Claude models (configurable budget)
-- REST API + SSE event streaming
-- Session persistence
-
-### Thinking Configuration
-
-For Claude models, thinking can be enabled with budget levels:
-
-- **high** - 16,000 token budget
-- **max** - 32,000 token budget
+**Thinking budgets:** `high` (16k tokens), `max` (32k tokens)
 
 ## GitHub Copilot SDK
 
-The Copilot SDK uses `@github/copilot-sdk` with two backend options.
+Uses `@github/copilot-sdk` with two backend options.
 
 ### GitHub Backend
 
-Uses GitHub's Copilot API with your GitHub subscription.
-
-**Authentication:** Requires a GitHub Personal Access Token with the `copilot` scope.
-
-1. Go to https://github.com/settings/tokens?type=beta
-2. Create a fine-grained PAT with Account permissions > Copilot > Read-only
-3. Set the token in your environment:
+Uses your Copilot subscription. Create a fine-grained PAT at https://github.com/settings/tokens?type=beta with Copilot read-only permission.
 
 ```bash
-# .env
 GITHUB_COPILOT_TOKEN=github_pat_xxx
 ```
 
-**Features:**
-- Access to GitHub Copilot models (GPT-4o, Claude via Copilot)
-- Premium request quota tracking
-- Model billing multipliers (0.33x to 50x)
-- No separate API costs (uses Copilot subscription)
-
-**Model billing multipliers:**
-| Multiplier | Examples |
-|------------|----------|
-| 0.33x | Base models |
-| 1.0x | Standard models |
-| 3.0x | GPT-4o |
-| 50.0x | o1-pro |
+Includes quota tracking and billing multipliers (0.33x to 50x depending on model).
 
 ### Anthropic Backend (BYOK)
 
-Uses Anthropic API directly with your own API key. No GitHub subscription required.
-
-**Authentication:**
+Use Anthropic API directly without GitHub subscription:
 
 ```bash
-# .env
 ANTHROPIC_API_KEY=sk-ant-xxx
-```
-
-**Models:**
-- `claude-sonnet-4-20250514`
-- `claude-3-5-sonnet-20241022`
-- `claude-3-5-haiku-20241022`
-
-### Checking Copilot Status
-
-The `get_copilot_status` API returns authentication and quota information:
-
-```json
-{
-  "auth": {
-    "is_authenticated": true,
-    "auth_type": "user",
-    "login": "username"
-  },
-  "quota": {
-    "used": 15,
-    "limit": 300,
-    "remaining": 285,
-    "reset_at": "2025-02-01T00:00:00Z"
-  }
-}
 ```
 
 ## OpenAI Codex SDK
 
-The Codex SDK uses `@openai/codex-sdk` for OpenAI's coding agent.
+Uses `@openai/codex-sdk`.
 
 ### API Key Mode
 
-Standard OpenAI API authentication:
-
 ```bash
-# .env
 OPENAI_API_KEY=sk-xxx
 ```
 
 ### ChatGPT OAuth Mode
 
-Use your ChatGPT subscription instead of API credits. Authenticate using the CLI:
+Use your ChatGPT subscription instead of API credits:
 
 ```bash
 netclode auth codex
 ```
 
-This opens a browser flow and outputs tokens to add to your `.env`:
-
-```bash
-# .env (from auth codex output)
-CODEX_ACCESS_TOKEN=eyJ...
-CODEX_REFRESH_TOKEN=...
-CODEX_ID_TOKEN=eyJ...
-```
+Opens browser flow and outputs tokens for your `.env`.
 
 ### Models
 
-- `codex-mini-latest` - Fast, efficient
-- `gpt-5-codex` - Most capable
+- `codex-mini-latest` - fast
+- `gpt-5-codex` - most capable
 
 ### Reasoning Effort
 
-Codex supports configurable reasoning effort levels that control how much "thinking" the model does:
-
-| Level | Description |
-|-------|-------------|
-| `minimal` | Fastest, least reasoning |
-| `low` | Light reasoning |
-| `medium` | Balanced (default) |
-| `high` | More thorough reasoning |
-| `xhigh` | Maximum reasoning depth |
-
-Higher reasoning effort increases response quality but also latency and token usage.
-
-### Features
-
-- Thread-based conversation persistence
-- Structured item types (command_execution, file_change, reasoning)
-- Full sandbox access (`danger-full-access` mode)
-- Web search capability
-
-## Listing Available Models
-
-Use the `list_models` API to get available models for an SDK:
-
-```bash
-# Via CLI (not yet implemented)
-# Or via iOS app model picker
-```
-
-The response includes model metadata:
-
-```json
-{
-  "models": [
-    {
-      "id": "claude-sonnet-4-20250514",
-      "name": "Claude Sonnet 4",
-      "provider": "anthropic",
-      "capabilities": ["chat", "vision", "code"]
-    },
-    {
-      "id": "gpt-4o",
-      "name": "GPT-4o",
-      "billing_multiplier": 3.0,
-      "capabilities": ["chat", "vision"]
-    }
-  ]
-}
-```
+Controls how much "thinking" the model does: `minimal`, `low`, `medium` (default), `high`, `xhigh`. Higher = better quality but more latency.
 
 ## Session Configuration
 
-When creating a session, specify the SDK and model:
+Specify SDK and model when creating a session:
 
 ```bash
-# Claude (default)
 netclode sessions create --repo owner/repo --sdk claude
-
-# OpenCode with specific model
 netclode sessions create --repo owner/repo --sdk opencode --model anthropic/claude-sonnet-4-5-20250514
-
-# Copilot with GitHub backend
-netclode sessions create --repo owner/repo --sdk copilot --model claude-sonnet-4.5
-
-# Codex with reasoning effort
+netclode sessions create --repo owner/repo --sdk copilot
 netclode sessions create --repo owner/repo --sdk codex --model codex-mini-latest
 ```
 
-Use `--repo` multiple times to clone multiple repositories in a single session.
+Or use the iOS app model picker.
 
 ## Environment Variables Reference
 
@@ -267,80 +127,32 @@ Use `--repo` multiple times to clone multiple repositories in a single session.
 
 ## Local Models with Ollama
 
-Netclode supports running local LLMs via Ollama with GPU acceleration. This requires:
-1. NVIDIA GPU on the host
-2. Ollama deployment enabled in Ansible
+Run local LLMs with GPU acceleration. Requires NVIDIA GPU and Ollama deployment.
 
-### Infrastructure Setup
-
-See [infra/ansible/README.md](/infra/ansible/README.md#gpu-support-optional) for complete setup instructions including:
-- NVIDIA driver installation (with Secure Boot support)
-- Container toolkit and device plugin
-- Ollama deployment with GPU access
-
-Quick setup:
+### Setup
 
 ```bash
 cd infra/ansible
-
-# Enable GPU + Ollama
 DEPLOY_HOST=your-server NVIDIA_ENABLED=true OLLAMA_ENABLED=true \
   ansible-playbook playbooks/site.yaml
 ```
 
-### Pulling Models
+See [infra/ansible/README.md](/infra/ansible/README.md#gpu-support-optional) for full setup.
+
+### Usage
 
 ```bash
 # Pull a model
 kubectl --context netclode -n netclode exec -it deploy/ollama -- ollama pull qwen2.5-coder:32b
 
-# List available models
-kubectl --context netclode -n netclode exec -it deploy/ollama -- ollama list
-```
-
-### Using Ollama in Sessions
-
-Create sessions with the `opencode` SDK and `ollama/` model prefix:
-
-```bash
+# Use in session
 netclode sessions create --repo owner/repo --sdk opencode --model ollama/qwen2.5:7b-instruct
 ```
 
-Or via iOS app: Select "OpenCode" SDK and choose an Ollama model from the picker.
+Models show up in the iOS app picker once Ollama is running.
 
-### Available Models
+### Recommended models (16GB VRAM)
 
-Models are listed in the iOS app model picker once Ollama is enabled. The control-plane fetches available models from Ollama's `/api/tags` endpoint.
-
-Recommended models for 16GB VRAM:
-
-| Model | Command | Use Case |
-|-------|---------|----------|
-| Qwen 2.5 Coder 32B | `ollama pull qwen2.5-coder:32b-instruct-q4_K_M` | Best coding |
-| DeepSeek Coder V2 16B | `ollama pull deepseek-coder-v2:16b` | Fast coding |
-| Mistral 7B | `ollama pull mistral:7b-instruct` | Fast general |
-
-### Configuration
-
-Ollama is configured with:
-
-| Setting | Value | Description |
-|---------|-------|-------------|
-| `OLLAMA_NUM_CTX` | 32768 | Context window size |
-| `OLLAMA_KEEP_ALIVE` | 24h | Keep model loaded |
-| `OLLAMA_NUM_PARALLEL` | 1 | Concurrent requests |
-| `OLLAMA_FLASH_ATTENTION` | 1 | Enable flash attention |
-| `OLLAMA_KV_CACHE_TYPE` | q8_0 | KV cache quantization (~27% VRAM savings) |
-
-### GPU Monitoring
-
-```bash
-# Quick status
-ssh root@netclode-host nvidia-smi
-
-# Live monitoring
-ssh root@netclode-host nvidia-smi -l 1
-
-# Pretty TUI
-ssh root@netclode-host nvtop
-```
+- `qwen2.5-coder:32b-instruct-q4_K_M` - best coding
+- `deepseek-coder-v2:16b` - fast coding
+- `mistral:7b-instruct` - fast general

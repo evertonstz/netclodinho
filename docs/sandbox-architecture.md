@@ -1,12 +1,8 @@
 # Sandbox Architecture
 
-Netclode sandboxes provide isolated, persistent environments for AI agents to execute code. This document covers the architecture for operators deploying Netclode.
+Each session runs in an isolated sandbox with:
 
-## Overview
-
-Each session runs in a sandbox that provides:
-
-- **VM-level isolation** via Kata Containers (microVMs)
+- **VM isolation** via Kata Containers (microVMs)
 - **Persistent storage** via JuiceFS (copy-on-write, snapshots)
 - **Fast startup** via warm pool (pre-booted VMs)
 - **Network isolation** via Kubernetes NetworkPolicy
@@ -44,44 +40,13 @@ Each session runs in a sandbox that provides:
 
 ## Kata Containers
 
-Sandboxes use [Kata Containers](https://katacontainers.io/) to run each pod in a lightweight VM (microVM).
+Each sandbox runs in a [Kata Container](https://katacontainers.io/) - a lightweight VM using Cloud Hypervisor.
 
-### Why Kata?
+**Why Kata?** Strong isolation (separate VM, not just namespaces), agents can run arbitrary code safely, sudo without risking host, full Docker-in-Docker support.
 
-- **Strong isolation**: Each sandbox is a separate VM, not just a container
-- **Untrusted code**: Agents can run arbitrary code safely
-- **Root access**: Agents have sudo without risking the host
-- **Docker-in-Docker**: Full Docker support inside the VM
+**Requirements:** Node must support nested virtualization (DigitalOcean, Vultr work; Hetzner Cloud doesn't).
 
-### Requirements
-
-The Kubernetes node must support nested virtualization:
-- DigitalOcean droplets
-- Vultr VMs
-- Most cloud providers except Hetzner Cloud
-
-### Runtime Class
-
-Sandboxes use the `kata-clh` RuntimeClass:
-
-```yaml
-apiVersion: node.k8s.io/v1
-kind: RuntimeClass
-metadata:
-  name: kata-clh
-handler: kata-clh
-```
-
-The handler uses Cloud Hypervisor (CLH) as the VMM.
-
-### Resource Limits
-
-VM resources are configured in Kata settings:
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `KATA_VM_CPUS` | 4 | vCPUs per VM |
-| `KATA_VM_MEMORY_MB` | 4096 | RAM per VM |
+**Resources:** Default 4 vCPUs, 4GB RAM per VM (configurable via `KATA_VM_CPUS`, `KATA_VM_MEMORY_MB`).
 
 ## JuiceFS Storage
 
@@ -324,9 +289,7 @@ create ──► creating ──► ready ◄──► running
 
 ## PVC Preservation (Session Anchors)
 
-When a session is paused, the Sandbox CR is deleted. Without protection, the PVC would be garbage collected.
-
-**Solution**: A ConfigMap "anchor" acts as a second owner:
+When paused, the Sandbox CR is deleted but we need to keep the PVC. A ConfigMap "anchor" acts as a second owner:
 
 1. Session created → ConfigMap `session-anchor-<id>` created
 2. PVC gets two `ownerReferences`: Sandbox + ConfigMap

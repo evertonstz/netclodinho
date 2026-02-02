@@ -1,17 +1,17 @@
 # Deployment
 
-How to deploy Netclode on your own infra.
+Here's how to get Netclode running on your own server.
 
 ## Prerequisites
 
-- VPS with nested virtualization support - 2 vCPU, 8GB RAM minimum
+- VPS with nested virtualization (2 vCPU, 8GB RAM minimum)
 - S3-compatible storage
 - Tailscale account with OAuth client
 - Nix with flakes enabled
 - Anthropic API key
 
 > [!WARNING]
-> Hetzner Cloud doesn't support nested virtualization, so Kata Container microVMs won't work. Use DigitalOcean, Vultr, or another provider that supports it.
+> Hetzner Cloud doesn't support nested virtualization, so Kata microVMs won't work. Use DigitalOcean, Vultr, or similar.
 
 ## 1. Create your VPS
 
@@ -35,11 +35,11 @@ nix run github:nix-community/nixos-anywhere -- \
   root@<server-ip>
 ```
 
-This installs NixOS with k3s, Kata Containers, Tailscale, and JuiceFS CSI. The server will reboot.
+This installs NixOS with k3s, Kata Containers, Tailscale, and JuiceFS CSI. The server reboots after.
 
 ## 3. Configure Tailscale
 
-Add ACL tags in the [Tailscale admin console](https://login.tailscale.com/admin/acls):
+Add ACL tags in [Tailscale admin](https://login.tailscale.com/admin/acls):
 
 ```json
 {
@@ -50,13 +50,11 @@ Add ACL tags in the [Tailscale admin console](https://login.tailscale.com/admin/
 }
 ```
 
-Create an OAuth client at [Settings → OAuth clients](https://login.tailscale.com/admin/settings/oauth) with `tag:k8s-operator` permission.
-
-Enable MagicDNS in [DNS settings](https://login.tailscale.com/admin/dns).
+Create an OAuth client at [Settings → OAuth clients](https://login.tailscale.com/admin/settings/oauth) with `tag:k8s-operator` permission. Enable MagicDNS in [DNS settings](https://login.tailscale.com/admin/dns).
 
 ## 4. Configure secrets
 
-Create `.env` at the project root:
+Create `.env` at the repo root:
 
 ```bash
 # Anthropic
@@ -90,9 +88,7 @@ Create a bucket named `netclode-juicefs` with read/write credentials.
 kubectl --context netclode -n netclode get pods
 ```
 
-You should see `control-plane` and `redis-sessions` running.
-
-Test access from your tailnet:
+You should see `control-plane` and `redis-sessions` running. Test access from your tailnet:
 
 ```bash
 curl http://netclode/health
@@ -125,21 +121,18 @@ curl http://netclode/health
 
 ## Troubleshooting
 
-**Pods stuck in Pending**: Check warm pool
-
+**Pods stuck in Pending** - check warm pool:
 ```bash
 kubectl --context netclode -n netclode get sandboxclaim
 kubectl --context netclode -n netclode get sandbox
 ```
 
-**JuiceFS mount failures**: Check CSI driver
-
+**JuiceFS mount failures** - check CSI driver:
 ```bash
 kubectl --context netclode -n kube-system logs -l app=juicefs-csi-driver
 ```
 
-**Tailscale services not getting IPs**: Check operator
-
+**Tailscale services not getting IPs** - check operator:
 ```bash
 kubectl --context netclode -n tailscale logs -l app=operator
 ```

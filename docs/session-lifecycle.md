@@ -1,8 +1,8 @@
 # Session Lifecycle
 
-This document describes the session status lifecycle in Netclode's control-plane.
+How sessions move through different states.
 
-## Session Statuses
+## Statuses
 
 | Status | Meaning |
 |--------|---------|
@@ -76,7 +76,7 @@ CreateSession()
  └─────────┘  (crash/timeout)     └─────────────┘
 ```
 
-The user must acknowledge and decide: retry the prompt or continue.
+User must acknowledge and decide: retry or continue.
 
 ### Snapshot Restore
 
@@ -99,29 +99,15 @@ The user must acknowledge and decide: retry the prompt or continue.
 
 ## Sandbox Creation Paths
 
-There are two paths for creating a sandbox:
+| Path | When | Speed |
+|------|------|-------|
+| `createSandboxViaClaim` | New sessions (warm pool) | Fast (~seconds) |
+| `createSandboxDirect` | No warm pool or snapshot restore | Slower (~30-60s) |
 
-| Function | When Used | Speed |
-|----------|-----------|-------|
-| `createSandboxViaClaim` | New sessions (warm pool enabled) | Fast (~seconds) - sandbox already running |
-| `createSandboxDirect` | New sessions (no warm pool) OR snapshot restore | Slower (~30-60s) - creates from scratch |
+Snapshot restore uses `createSandboxDirect` because it needs to create a PVC from the VolumeSnapshot first.
 
-### Why snapshot restore uses `createSandboxDirect`
+## Code
 
-The warm pool sandboxes have their own PVCs. Snapshot restore needs to:
-1. Create a new PVC from the VolumeSnapshot
-2. Wait for the JuiceFS restore job to complete
-3. Attach the restored PVC to a new sandbox
-
-This cannot use the warm pool path because we need control over the PVC.
-
-## Code References
-
-- Session state definition: `services/control-plane/internal/session/state.go`
-- Session manager: `services/control-plane/internal/session/manager.go`
-  - `CreateSession()` - New session creation
-  - `Resume()` - Resume paused session
-  - `RestoreSnapshot()` - Restore from snapshot
-  - `createSandboxDirect()` - Direct sandbox creation (with optional snapshot restore)
-  - `createSandboxViaClaim()` - Warm pool sandbox allocation
-- Proto definition: `proto/netclode/v1/common.proto` (SessionStatus enum)
+- `services/control-plane/internal/session/state.go` - status definitions
+- `services/control-plane/internal/session/manager.go` - CreateSession, Resume, RestoreSnapshot
+- `proto/netclode/v1/common.proto` - SessionStatus enum
