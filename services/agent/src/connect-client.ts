@@ -5,6 +5,7 @@
  * establishing a bidirectional stream for all communication.
  */
 
+import { writeFileSync } from "fs";
 import { createClient } from "@connectrpc/connect";
 import { createGrpcTransport } from "@connectrpc/connect-node";
 import { create } from "@bufbuild/protobuf";
@@ -437,6 +438,14 @@ async function handleControlPlaneMessage(
     case "registered":
       if (msg.message.value.success) {
         console.log("[agent] Registered with control plane");
+        // Create ready file AFTER registration - this ensures the pod is only
+        // marked ready (and claimable by warm pool) after the gRPC connection is established
+        try {
+          writeFileSync("/tmp/agent-ready", "ready");
+          console.log("[agent] Ready file created");
+        } catch (e) {
+          console.warn("[agent] Could not create ready file:", e);
+        }
         if (connection && msg.message.value.config) {
           connection.sessionConfig = msg.message.value.config;
 
