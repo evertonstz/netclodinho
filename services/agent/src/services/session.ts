@@ -5,7 +5,7 @@
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 import { dirname } from "path";
-import { setupRepository, repoDirName } from "../git.js";
+import { setupRepository, getRepoPath } from "../git.js";
 import type { PromptEvent } from "../sdk/types.js";
 import { WORKSPACE_DIR } from "../constants.js";
 
@@ -110,11 +110,13 @@ export async function* initializeSessionRepos(
   console.log(`[session] Initializing session ${sessionId}`);
 
   const filteredRepos = repos.filter(Boolean);
+  const totalRepos = filteredRepos.length;
   for (const repo of filteredRepos) {
     yield { type: "repoClone", stage: "cloning", repo, message: "Cloning repository..." };
 
     try {
-      await setupRepository(repo, `${WORKSPACE_DIR}/${repoDirName(repo)}`, sessionId, githubToken);
+      const repoDir = getRepoPath(repo, totalRepos, WORKSPACE_DIR);
+      await setupRepository(repo, repoDir, sessionId, githubToken);
       yield { type: "repoClone", stage: "done", repo, message: "Repository cloned successfully" };
     } catch (error) {
       yield {

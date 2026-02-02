@@ -25,6 +25,30 @@ export function repoDirName(repoUrl: string): string {
   return name;
 }
 
+/**
+ * Get the directory path for a repo based on whether it's a single or multi-repo setup.
+ * Single repo: clones directly to workspaceDir
+ * Multi-repo: clones to workspaceDir/owner__repo
+ */
+export function getRepoPath(repoUrl: string, totalRepos: number, workspaceDir: string): string {
+  if (totalRepos === 1) {
+    return workspaceDir;
+  }
+  return `${workspaceDir}/${repoDirName(repoUrl)}`;
+}
+
+/**
+ * Get the prefix for a repo (used for path prefixing in git status/diff).
+ * Single repo: empty string (files are at workspace root)
+ * Multi-repo: owner__repo
+ */
+export function getRepoPrefix(repoUrl: string, totalRepos: number): string {
+  if (totalRepos === 1) {
+    return "";
+  }
+  return repoDirName(repoUrl);
+}
+
 interface CloneEventInput {
   repo: string;
   stage: "starting" | "cloning" | "done" | "error";

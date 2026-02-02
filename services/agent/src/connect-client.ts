@@ -44,7 +44,7 @@ import {
 // Import modular services
 import { handleTerminalInput, resizeTerminal, setTerminalOutputCallback } from "./services/terminal.js";
 import { generateTitle } from "./services/title.js";
-import { getGitStatus, getGitDiff, configureGitCredentials, repoDirName, type GitFileChange } from "./git.js";
+import { getGitStatus, getGitDiff, configureGitCredentials, getRepoPath, getRepoPrefix, type GitFileChange } from "./git.js";
 
 // Import SDK abstraction layer
 import {
@@ -300,9 +300,11 @@ let connection: AgentConnection | null = null;
 
 function getRepoConfigs(): Array<{ repo: string; dir: string; prefix: string }> {
   const repos = connection?.sessionConfig?.repos ?? [];
+  const totalRepos = repos.length;
   return repos.map((repo) => {
-    const prefix = repoDirName(repo);
-    return { repo, dir: `${WORKSPACE_DIR}/${prefix}`, prefix };
+    const prefix = getRepoPrefix(repo, totalRepos);
+    const dir = getRepoPath(repo, totalRepos, WORKSPACE_DIR);
+    return { repo, dir, prefix };
   });
 }
 

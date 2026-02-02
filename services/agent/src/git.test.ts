@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseGitStatus, repoDirName, type GitFileChange } from "./git.js";
+import { parseGitStatus, repoDirName, getRepoPath, getRepoPrefix, type GitFileChange } from "./git.js";
 
 describe("parseGitStatus", () => {
   it("parses unstaged modified files", () => {
@@ -128,5 +128,47 @@ describe("repoDirName", () => {
 
   it("derives a stable directory name from owner/repo", () => {
     expect(repoDirName("owner/repo")).toBe("owner__repo");
+  });
+});
+
+describe("getRepoPath", () => {
+  const WORKSPACE_DIR = "/agent/workspace";
+
+  it("returns workspace dir directly for single repo", () => {
+    expect(getRepoPath("https://github.com/owner/repo.git", 1, WORKSPACE_DIR)).toBe(WORKSPACE_DIR);
+  });
+
+  it("returns workspace dir directly for single repo regardless of repo URL", () => {
+    expect(getRepoPath("owner/repo", 1, WORKSPACE_DIR)).toBe(WORKSPACE_DIR);
+  });
+
+  it("returns subdirectory for multiple repos", () => {
+    expect(getRepoPath("https://github.com/owner/repo.git", 2, WORKSPACE_DIR)).toBe(`${WORKSPACE_DIR}/owner__repo`);
+  });
+
+  it("returns unique subdirectories for each repo in multi-repo setup", () => {
+    const repo1Path = getRepoPath("https://github.com/owner/repo1.git", 2, WORKSPACE_DIR);
+    const repo2Path = getRepoPath("https://github.com/owner/repo2.git", 2, WORKSPACE_DIR);
+    expect(repo1Path).toBe(`${WORKSPACE_DIR}/owner__repo1`);
+    expect(repo2Path).toBe(`${WORKSPACE_DIR}/owner__repo2`);
+    expect(repo1Path).not.toBe(repo2Path);
+  });
+});
+
+describe("getRepoPrefix", () => {
+  it("returns empty string for single repo", () => {
+    expect(getRepoPrefix("https://github.com/owner/repo.git", 1)).toBe("");
+  });
+
+  it("returns repo dir name for multiple repos", () => {
+    expect(getRepoPrefix("https://github.com/owner/repo.git", 2)).toBe("owner__repo");
+  });
+
+  it("returns unique prefixes for each repo in multi-repo setup", () => {
+    const prefix1 = getRepoPrefix("https://github.com/owner/repo1.git", 2);
+    const prefix2 = getRepoPrefix("https://github.com/owner/repo2.git", 2);
+    expect(prefix1).toBe("owner__repo1");
+    expect(prefix2).toBe("owner__repo2");
+    expect(prefix1).not.toBe(prefix2);
   });
 });

@@ -2,7 +2,7 @@
  * System prompt builder - constructs the system prompt for Claude
  */
 
-import { repoDirName } from "../git.js";
+import { getRepoPath } from "../git.js";
 import { WORKSPACE_DIR } from "../constants.js";
 
 export interface SystemPromptConfig {
@@ -41,11 +41,12 @@ export function buildSystemPrompt(config: SystemPromptConfig): {
   ];
 
   if (config.currentGitRepos.length > 0) {
+    const totalRepos = config.currentGitRepos.length;
     lines.push("", "## Repositories", "", "Repositories cloned under /agent/workspace:");
     config.currentGitRepos.forEach((repo, index) => {
-      const repoDir = repoDirName(repo);
+      const repoPath = getRepoPath(repo, totalRepos, WORKSPACE_DIR);
       const primary = index == 0 ? " (primary)" : "";
-      lines.push(`- ${repo}${primary} -> ${WORKSPACE_DIR}/${repoDir}`);
+      lines.push(`- ${repo}${primary} -> ${repoPath}`);
     });
   }
 
