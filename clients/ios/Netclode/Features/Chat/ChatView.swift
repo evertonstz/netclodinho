@@ -21,17 +21,6 @@ enum TimelineItem: Identifiable {
         }
     }
     
-    var isThinkingEvent: Bool {
-        if case .event(let grouped) = self,
-           case .thinking = grouped.event { return true }
-        return false
-    }
-    
-    var isAssistantMessage: Bool {
-        if case .message(let msg, _, _) = self,
-           msg.role == .assistant { return true }
-        return false
-    }
 }
 
 /// A grouped event combining start/end events, with optional nested children for Task/subagent hierarchies
@@ -198,9 +187,7 @@ struct ChatView: View {
 
         // Sort by timestamp with special handling:
         // 1. Repo clone events preserve session repo order
-        // 2. Thinking events sort before assistant messages in the same turn
-        //    (thinking may arrive after message starts due to SDK streaming order)
-        // 3. Use insertion order as tiebreaker for stable sorting when timestamps are equal
+        // 2. Use insertion order as tiebreaker for stable sorting when timestamps are equal
         let sorted = indexedItems.sorted { lhs, rhs in
             // Handle repo clone ordering
             if case .event(let lhsGrouped) = lhs.item,
@@ -212,20 +199,6 @@ struct ChatView: View {
                 if lhsIndex != rhsIndex {
                     return lhsIndex < rhsIndex
                 }
-            }
-            
-            // Ensure thinking events sort before assistant messages in same turn
-            // (within 60 seconds = same turn)
-            let timeDiff = abs(lhs.item.timestamp.timeIntervalSince(rhs.item.timestamp))
-            if timeDiff < 60 {
-                let lhsIsThinking = lhs.item.isThinkingEvent
-                let rhsIsThinking = rhs.item.isThinkingEvent
-                let lhsIsAssistantMsg = lhs.item.isAssistantMessage
-                let rhsIsAssistantMsg = rhs.item.isAssistantMessage
-                
-                // Thinking before assistant message
-                if lhsIsThinking && rhsIsAssistantMsg { return true }
-                if lhsIsAssistantMsg && rhsIsThinking { return false }
             }
             
             // Primary sort by timestamp, secondary by insertion order for stability
