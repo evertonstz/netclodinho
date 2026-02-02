@@ -1,6 +1,8 @@
 # Netclode
 
-![Netclode](docs/images/netclode.png)
+<p align="center">
+  <img src="clients/ios/Netclode/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png" alt="netclode" width="120" height="120">
+</p>
 
 Self-hosted cloud coding agent with microVM isolation, session persistence, and a native iOS app.
 
@@ -61,18 +63,18 @@ When pausing, the VM is deleted but JuiceFS keeps everything in S3 - workspace, 
 
 ## Stack
 
-| Layer             | Technology                         | Purpose                                   |
-| ----------------- | ---------------------------------- | ----------------------------------------- |
-| **Host**          | Linux VPS + Ansible                | Provisioned via playbooks                 |
-| **Orchestration** | k3s                                | Lightweight Kubernetes                    |
-| **Isolation**     | Kata Containers + Cloud Hypervisor | MicroVM per agent, separate kernel        |
-| **Storage**       | JuiceFS -> S3                      | POSIX filesystem backed by object storage |
-| **State**         | Redis                              | Session state, event persistence, pub/sub |
-| **Network**       | Tailscale Operator                 | Zero-config VPN, ingress, DNS             |
-| **API**           | Connect Protocol                   | gRPC-compatible, works over HTTP/1.1      |
-| **Control Plane** | Go                                 | Session orchestration, API server         |
-| **Agent**         | Node.js + Claude/OpenCode/Copilot/Codex SDK | AI agent runtime inside sandbox |
-| **Client**        | SwiftUI (iOS 26 Liquid Glass)      | Native iOS/macOS app                      |
+| Layer             | Technology                                  | Purpose                                   |
+| ----------------- | ------------------------------------------- | ----------------------------------------- |
+| **Host**          | Linux VPS + Ansible                         | Provisioned via playbooks                 |
+| **Orchestration** | k3s                                         | Lightweight Kubernetes                    |
+| **Isolation**     | Kata Containers + Cloud Hypervisor          | MicroVM per agent, separate kernel        |
+| **Storage**       | JuiceFS -> S3                               | POSIX filesystem backed by object storage |
+| **State**         | Redis                                       | Session state, event persistence, pub/sub |
+| **Network**       | Tailscale Operator                          | Zero-config VPN, ingress, DNS             |
+| **API**           | Connect Protocol                            | gRPC-compatible, works over HTTP/1.1      |
+| **Control Plane** | Go                                          | Session orchestration, API server         |
+| **Agent**         | Node.js + Claude/OpenCode/Copilot/Codex SDK | AI agent runtime inside sandbox           |
+| **Client**        | SwiftUI (iOS 26 Liquid Glass)               | Native iOS/macOS app                      |
 
 ## Project structure
 
