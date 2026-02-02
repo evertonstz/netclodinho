@@ -33,6 +33,8 @@ struct ProviderLogo: View {
                 return Image("xai-logo")
             } else if modelName.contains("mistral") || modelName.contains("codestral") || modelName.contains("devstral") || modelName.contains("ministral") || modelName.contains("magistral") || modelName.contains("mixtral") || modelName.contains("pixtral") {
                 return Image("mistral-logo")
+            } else if modelName.contains("llama") || modelName.contains("qwen") || modelName.contains("deepseek") || modelName.contains("phi") {
+                return Image("ollama-logo")
             }
         }
         
@@ -51,6 +53,10 @@ struct ProviderLogo: View {
             return Image("mistral-logo")
         case "github", "github copilot", "copilot":
             return Image("github-mark")
+        case "ollama":
+            return Image("ollama-logo")
+        case "opencode":
+            return Image("opencode-logo")
         default:
             // Check for partial matches in provider
             if provider.contains("anthropic") || provider.contains("claude") {
@@ -65,6 +71,10 @@ struct ProviderLogo: View {
                 return Image("mistral-logo")
             } else if provider.contains("github") || provider.contains("copilot") {
                 return Image("github-mark")
+            } else if provider.contains("ollama") {
+                return Image("ollama-logo")
+            } else if provider.contains("opencode") {
+                return Image("opencode-logo")
             }
             return nil
         }
@@ -100,6 +110,14 @@ struct ProviderLogo: View {
                 ProviderLogo(provider: "Mistral", size: 24)
                 Text("Mistral").font(.caption)
             }
+            VStack {
+                ProviderLogo(provider: "Ollama", size: 24)
+                Text("Ollama").font(.caption)
+            }
+            VStack {
+                ProviderLogo(provider: "OpenCode", size: 24)
+                Text("OpenCode").font(.caption)
+            }
         }
 
         HStack(spacing: 16) {
@@ -109,6 +127,8 @@ struct ProviderLogo: View {
             ProviderLogo(provider: "xAI", size: 16)
             ProviderLogo(provider: "GitHub", size: 16)
             ProviderLogo(provider: "Mistral", size: 16)
+            ProviderLogo(provider: "Ollama", size: 16)
+            ProviderLogo(provider: "OpenCode", size: 16)
         }
         .foregroundStyle(.secondary)
     }
