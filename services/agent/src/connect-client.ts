@@ -311,10 +311,12 @@ function getRepoConfigs(): Array<{ repo: string; dir: string; prefix: string }> 
 
 /**
  * Connect to the control plane and handle bidirectional communication.
+ * In warm pool mode (no sessionId), connects with podName and waits for SessionAssigned message.
  */
 export async function connectToControlPlane(
   controlPlaneUrl: string,
-  sessionId: string
+  sessionId: string | undefined,
+  podName: string | undefined
 ): Promise<void> {
   console.log(`[agent] Connecting to control plane at ${controlPlaneUrl}`);
 
@@ -337,15 +339,23 @@ export async function connectToControlPlane(
     }
   };
 
+  // Build registration message based on mode
+  const registerValue = sessionId
+    ? create(AgentRegisterSchema, {
+        sessionId,
+        version: "1.0.0",
+      })
+    : create(AgentRegisterSchema, {
+        podName: podName || "",
+        version: "1.0.0",
+      });
+
   async function* messageGenerator(): AsyncIterable<AgentMessage> {
-    // First, send registration
+    // First, send registration (with sessionId for direct mode, podName for warm pool mode)
     yield create(AgentMessageSchema, {
       message: {
         case: "register",
-        value: create(AgentRegisterSchema, {
-          sessionId,
-          version: "1.0.0",
-        }),
+        value: registerValue,
       },
     });
 
@@ -375,6 +385,9 @@ export async function connectToControlPlane(
     }
   });
 
+  // Track current session ID - may be assigned later in warm pool mode
+  let currentSessionId = sessionId;
+
   try {
     // Start bidirectional stream
     const stream = client.connect(messageGenerator());
@@ -386,7 +399,12 @@ export async function connectToControlPlane(
 
     // Handle incoming messages from control plane
     for await (const msg of stream) {
-      await handleControlPlaneMessage(sessionId, msg, sendMessage);
+      // sessionAssigned updates currentSessionId (warm pool mode)
+      if (msg.message.case === "sessionAssigned") {
+        currentSessionId = msg.message.value.sessionId;
+        console.log(`[agent] Session assigned via push: ${currentSessionId}`);
+      }
+      await handleControlPlaneMessage(currentSessionId || "", msg, sendMessage);
     }
   } finally {
     // Clear terminal output callback
@@ -503,6 +521,11 @@ async function handleControlPlaneMessage(
       await handleUpdateGitCredentials(msg.message.value);
       break;
 
+    case "sessionAssigned":
+      // Warm pool mode: session was assigned to us
+      await handleSessionAssigned(sessionId, msg.message.value, send);
+      break;
+
     default:
       console.warn("[agent] Unknown control plane message:", msg.message.case);
   }
@@ -521,6 +544,61 @@ async function handleUpdateGitCredentials(credentials: {
     console.log("[agent] Git credentials updated successfully");
   } catch (error) {
     console.error("[agent] Failed to update git credentials:", error);
+  }
+}
+
+/**
+ * Handle session assigned (warm pool mode) - initialize SDK with pushed config
+ */
+async function handleSessionAssigned(
+  _sessionId: string | undefined,
+  assigned: { sessionId: string; config?: SessionConfig },
+  _send: (msg: AgentMessage) => void
+): Promise<void> {
+  console.log("[agent] Session assigned via push:", assigned.sessionId);
+
+  if (!assigned.config) {
+    console.error("[agent] SessionAssigned missing config");
+    return;
+  }
+
+  const config = assigned.config;
+
+  // Update connection config
+  if (connection) {
+    connection.sessionConfig = config;
+  }
+
+  // Initialize SDK adapter based on session config
+  const sdkType = parseSdkTypeFromProto(config.sdkType);
+  const copilotBackend = parseCopilotBackendFromProto(config.copilotBackend);
+  console.log(`[agent] Initializing SDK adapter (warm pool): ${sdkType}, model: ${config.model || "(default)"}, copilotBackend: ${copilotBackend || "(auto)"}`);
+
+  try {
+    currentAdapter = await createSDKAdapter({
+      sdkType,
+      workspaceDir: WORKSPACE_DIR,
+      anthropicApiKey: process.env.ANTHROPIC_API_KEY || "",
+      githubCopilotToken: config.githubCopilotToken,
+      model: config.model,
+      copilotBackend,
+      // Codex credentials (API mode or OAuth mode)
+      openaiApiKey: config.openaiApiKey,
+      codexAccessToken: config.codexAccessToken,
+      codexIdToken: config.codexIdToken,
+      codexRefreshToken: config.codexRefreshToken,
+      reasoningEffort: config.reasoningEffort,
+      // Mistral API key for OpenCode SDK
+      mistralApiKey: config.mistralApiKey,
+      // Ollama URL for local inference
+      ollamaUrl: config.ollamaUrl,
+      // OpenCode Zen API key
+      openCodeApiKey: config.opencodeApiKey,
+    });
+    console.log("[agent] SDK adapter initialized (warm pool mode)");
+  } catch (err) {
+    console.error("[agent] Failed to initialize SDK adapter (warm pool):", err);
+    throw new Error(`SDK initialization failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 

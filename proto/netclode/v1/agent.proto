@@ -61,7 +61,17 @@ message ControlPlaneMessage {
     
     // Update git credentials (when repo access level changes)
     UpdateGitCredentials update_git_credentials = 8;
+    
+    // Session assigned (warm pool mode) - pushed when claim binds
+    SessionAssigned session_assigned = 9;
   }
+}
+
+// SessionAssigned is sent to warm pool agents when a session is bound.
+// This replaces the HTTP polling approach for instant session start.
+message SessionAssigned {
+  string session_id = 1;                     // The session ID this agent is now servicing
+  SessionConfig config = 2;                  // Full session configuration
 }
 
 // ============================================================================
@@ -70,8 +80,9 @@ message ControlPlaneMessage {
 
 // AgentRegister is sent first by the agent to identify itself.
 message AgentRegister {
-  string session_id = 1;                     // Session this agent is servicing
+  optional string session_id = 1;            // Session this agent is servicing (empty for warm pool mode)
   string version = 2;                        // Agent version for compatibility checking
+  optional string pod_name = 3;              // Pod name for warm pool mode (used to match agent to session)
 }
 
 // AgentStreamResponse contains streaming output during prompt execution.

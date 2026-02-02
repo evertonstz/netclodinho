@@ -61,6 +61,12 @@ type AgentConnection interface {
 	UpdateGitCredentials(token string, repoAccess pb.RepoAccess) error
 }
 
+// WarmAgentConnection extends AgentConnection with session assignment capability.
+type WarmAgentConnection interface {
+	AgentConnection
+	AssignSession(sessionID string, config *AgentSessionConfig) error
+}
+
 // Manager handles session lifecycle and agent communication.
 type Manager struct {
 	storage      storage.Storage
@@ -68,9 +74,10 @@ type Manager struct {
 	config       *config.Config
 	githubClient *github.Client
 
-	sessions map[string]*SessionState
-	agents   map[string]AgentConnection // sessionID -> agent connection
-	mu       sync.RWMutex
+	sessions   map[string]*SessionState
+	agents     map[string]AgentConnection     // sessionID -> agent connection
+	warmAgents map[string]WarmAgentConnection // podName -> warm agent connection (waiting for session)
+	mu         sync.RWMutex
 
 	// onSessionUpdated is called when a session is updated internally (e.g., auto-pause).
 	onSessionUpdated SessionUpdateCallback
@@ -86,6 +93,7 @@ func NewManager(store storage.Storage, k8sRuntime k8s.Runtime, cfg *config.Confi
 		githubClient: githubClient,
 		sessions:     make(map[string]*SessionState),
 		agents:       make(map[string]AgentConnection),
+		warmAgents:   make(map[string]WarmAgentConnection),
 	}
 }
 
@@ -596,6 +604,15 @@ func (m *Manager) createSandboxViaClaim(ctx context.Context, sessionID string, r
 	}
 
 	slog.Info("Claim bound to sandbox", "sessionID", sessionID, "sandbox", sandboxName)
+
+	// Try to push session to warm agent immediately (instant session start).
+	// The agent connects with pod name and waits for session assignment.
+	// If the agent hasn't connected yet, it will register normally when it does.
+	if m.AssignSessionToWarmAgent(sandboxName, sessionID) {
+		slog.Info("Session pushed to warm agent", "sessionID", sessionID, "sandbox", sandboxName)
+	} else {
+		slog.Debug("Warm agent not yet connected, will register normally", "sessionID", sessionID, "sandbox", sandboxName)
+	}
 
 	// Label the sandbox so the informer can track it
 	if err := m.k8s.LabelSandbox(ctx, sandboxName, sessionID); err != nil {
@@ -1904,6 +1921,74 @@ func (m *Manager) GetAgentConnection(sessionID string) AgentConnection {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.agents[sessionID]
+}
+
+// RegisterWarmAgentConnection registers a warm pool agent waiting for session assignment.
+// The agent is identified by pod name and will be assigned a session when a SandboxClaim binds.
+func (m *Manager) RegisterWarmAgentConnection(podName string, conn WarmAgentConnection) {
+	m.mu.Lock()
+	m.warmAgents[podName] = conn
+	m.mu.Unlock()
+
+	slog.Info("Warm agent connection registered", "podName", podName)
+}
+
+// UnregisterWarmAgentConnection unregisters a warm pool agent connection.
+func (m *Manager) UnregisterWarmAgentConnection(podName string) {
+	m.mu.Lock()
+	delete(m.warmAgents, podName)
+	m.mu.Unlock()
+
+	slog.Info("Warm agent connection unregistered", "podName", podName)
+}
+
+// GetWarmAgentConnection returns a warm agent connection by pod name (or nil if not found).
+func (m *Manager) GetWarmAgentConnection(podName string) WarmAgentConnection {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.warmAgents[podName]
+}
+
+// AssignSessionToWarmAgent assigns a session to a warm pool agent and moves it to the active agents map.
+// Returns true if the agent was found and assigned, false otherwise.
+func (m *Manager) AssignSessionToWarmAgent(podName, sessionID string) bool {
+	m.mu.Lock()
+	warmAgent, ok := m.warmAgents[podName]
+	if !ok {
+		m.mu.Unlock()
+		slog.Warn("Warm agent not found for session assignment", "podName", podName, "sessionID", sessionID)
+		return false
+	}
+
+	// Move from warm to active
+	delete(m.warmAgents, podName)
+	m.agents[sessionID] = warmAgent
+	m.mu.Unlock()
+
+	slog.Info("Warm agent assigned to session", "podName", podName, "sessionID", sessionID)
+
+	// Get session config and push to agent
+	ctx := context.Background()
+	config, err := m.GetSessionConfig(ctx, sessionID)
+	if err != nil {
+		slog.Error("Failed to get session config for warm agent", "sessionID", sessionID, "error", err)
+		// Remove from active agents since we couldn't get config
+		m.mu.Lock()
+		delete(m.agents, sessionID)
+		m.mu.Unlock()
+		return false
+	}
+
+	if err := warmAgent.AssignSession(sessionID, config); err != nil {
+		slog.Error("Failed to push session to warm agent", "podName", podName, "sessionID", sessionID, "error", err)
+		// Remove from active agents since assignment failed
+		m.mu.Lock()
+		delete(m.agents, sessionID)
+		m.mu.Unlock()
+		return false
+	}
+
+	return true
 }
 
 // ListModels returns available models for the specified SDK type.

@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file netclode/v1/agent.proto.
  */
 export const file_netclode_v1_agent: GenFile = /*@__PURE__*/
-  fileDesc("ChduZXRjbG9kZS92MS9hZ2VudC5wcm90bxILbmV0Y2xvZGUudjEiggMKDEFnZW50TWVzc2FnZRIuCghyZWdpc3RlchgBIAEoCzIaLm5ldGNsb2RlLnYxLkFnZW50UmVnaXN0ZXJIABI7Cg9wcm9tcHRfcmVzcG9uc2UYAiABKAsyIC5uZXRjbG9kZS52MS5BZ2VudFN0cmVhbVJlc3BvbnNlSAASOwoPdGVybWluYWxfb3V0cHV0GAMgASgLMiAubmV0Y2xvZGUudjEuQWdlbnRUZXJtaW5hbE91dHB1dEgAEjkKDnRpdGxlX3Jlc3BvbnNlGAQgASgLMh8ubmV0Y2xvZGUudjEuQWdlbnRUaXRsZVJlc3BvbnNlSAASQgoTZ2l0X3N0YXR1c19yZXNwb25zZRgFIAEoCzIjLm5ldGNsb2RlLnYxLkFnZW50R2l0U3RhdHVzUmVzcG9uc2VIABI+ChFnaXRfZGlmZl9yZXNwb25zZRgGIAEoCzIhLm5ldGNsb2RlLnYxLkFnZW50R2l0RGlmZlJlc3BvbnNlSABCCQoHbWVzc2FnZSL2AwoTQ29udHJvbFBsYW5lTWVzc2FnZRIyCgpyZWdpc3RlcmVkGAEgASgLMhwubmV0Y2xvZGUudjEuQWdlbnRSZWdpc3RlcmVkSAASOwoOZXhlY3V0ZV9wcm9tcHQYAiABKAsyIS5uZXRjbG9kZS52MS5FeGVjdXRlUHJvbXB0UmVxdWVzdEgAEjIKCWludGVycnVwdBgDIAEoCzIdLm5ldGNsb2RlLnYxLkludGVycnVwdFJlcXVlc3RIABI7Cg5nZW5lcmF0ZV90aXRsZRgEIAEoCzIhLm5ldGNsb2RlLnYxLkdlbmVyYXRlVGl0bGVSZXF1ZXN0SAASOgoOZ2V0X2dpdF9zdGF0dXMYBSABKAsyIC5uZXRjbG9kZS52MS5HZXRHaXRTdGF0dXNSZXF1ZXN0SAASNgoMZ2V0X2dpdF9kaWZmGAYgASgLMh4ubmV0Y2xvZGUudjEuR2V0R2l0RGlmZlJlcXVlc3RIABI5Cg50ZXJtaW5hbF9pbnB1dBgHIAEoCzIfLm5ldGNsb2RlLnYxLkFnZW50VGVybWluYWxJbnB1dEgAEkMKFnVwZGF0ZV9naXRfY3JlZGVudGlhbHMYCCABKAsyIS5uZXRjbG9kZS52MS5VcGRhdGVHaXRDcmVkZW50aWFsc0gAQgkKB21lc3NhZ2UiNAoNQWdlbnRSZWdpc3RlchISCgpzZXNzaW9uX2lkGAEgASgJEg8KB3ZlcnNpb24YAiABKAkijwIKE0FnZW50U3RyZWFtUmVzcG9uc2USMQoKdGV4dF9kZWx0YRgBIAEoCzIbLm5ldGNsb2RlLnYxLkFnZW50VGV4dERlbHRhSAASKAoFZXZlbnQYAiABKAsyFy5uZXRjbG9kZS52MS5BZ2VudEV2ZW50SAASOQoOc3lzdGVtX21lc3NhZ2UYAyABKAsyHy5uZXRjbG9kZS52MS5BZ2VudFN5c3RlbU1lc3NhZ2VIABIqCgZyZXN1bHQYBCABKAsyGC5uZXRjbG9kZS52MS5BZ2VudFJlc3VsdEgAEigKBWVycm9yGAUgASgLMhcubmV0Y2xvZGUudjEuQWdlbnRFcnJvckgAQgoKCHJlc3BvbnNlIkYKDkFnZW50VGV4dERlbHRhEg8KB2NvbnRlbnQYASABKAkSDwoHcGFydGlhbBgCIAEoCBISCgptZXNzYWdlX2lkGAMgASgJIiUKEkFnZW50U3lzdGVtTWVzc2FnZRIPCgdtZXNzYWdlGAEgASgJIk8KC0FnZW50UmVzdWx0EhQKDGlucHV0X3Rva2VucxgBIAEoBRIVCg1vdXRwdXRfdG9rZW5zGAIgASgFEhMKC3RvdGFsX3R1cm5zGAMgASgFIjAKCkFnZW50RXJyb3ISDwoHbWVzc2FnZRgBIAEoCRIRCglyZXRyeWFibGUYAiABKAgiIwoTQWdlbnRUZXJtaW5hbE91dHB1dBIMCgRkYXRhGAEgASgJIjcKEkFnZW50VGl0bGVSZXNwb25zZRISCgpyZXF1ZXN0X2lkGAEgASgJEg0KBXRpdGxlGAIgASgJIlcKFkFnZW50R2l0U3RhdHVzUmVzcG9uc2USEgoKcmVxdWVzdF9pZBgBIAEoCRIpCgVmaWxlcxgCIAMoCzIaLm5ldGNsb2RlLnYxLkdpdEZpbGVDaGFuZ2UiOAoUQWdlbnRHaXREaWZmUmVzcG9uc2USEgoKcmVxdWVzdF9pZBgBIAEoCRIMCgRkaWZmGAIgASgJInwKD0FnZW50UmVnaXN0ZXJlZBIPCgdzdWNjZXNzGAEgASgIEhIKBWVycm9yGAIgASgJSACIAQESLwoGY29uZmlnGAMgASgLMhoubmV0Y2xvZGUudjEuU2Vzc2lvbkNvbmZpZ0gBiAEBQggKBl9lcnJvckIJCgdfY29uZmlnIiQKFEV4ZWN1dGVQcm9tcHRSZXF1ZXN0EgwKBHRleHQYASABKAkiEgoQSW50ZXJydXB0UmVxdWVzdCI6ChRHZW5lcmF0ZVRpdGxlUmVxdWVzdBISCgpyZXF1ZXN0X2lkGAEgASgJEg4KBnByb21wdBgCIAEoCSIpChNHZXRHaXRTdGF0dXNSZXF1ZXN0EhIKCnJlcXVlc3RfaWQYASABKAkiQwoRR2V0R2l0RGlmZlJlcXVlc3QSEgoKcmVxdWVzdF9pZBgBIAEoCRIRCgRmaWxlGAIgASgJSACIAQFCBwoFX2ZpbGUiYQoSQWdlbnRUZXJtaW5hbElucHV0Eg4KBGRhdGEYASABKAlIABIyCgZyZXNpemUYAiABKAsyIC5uZXRjbG9kZS52MS5BZ2VudFRlcm1pbmFsUmVzaXplSABCBwoFaW5wdXQiMQoTQWdlbnRUZXJtaW5hbFJlc2l6ZRIMCgRjb2xzGAEgASgFEgwKBHJvd3MYAiABKAUiWgoUVXBkYXRlR2l0Q3JlZGVudGlhbHMSFAoMZ2l0aHViX3Rva2VuGAEgASgJEiwKC3JlcG9fYWNjZXNzGAIgASgOMhcubmV0Y2xvZGUudjEuUmVwb0FjY2VzczJaCgxBZ2VudFNlcnZpY2USSgoHQ29ubmVjdBIZLm5ldGNsb2RlLnYxLkFnZW50TWVzc2FnZRogLm5ldGNsb2RlLnYxLkNvbnRyb2xQbGFuZU1lc3NhZ2UoATABQrsBCg9jb20ubmV0Y2xvZGUudjFCCkFnZW50UHJvdG9QAVpPZ2l0aHViLmNvbS9hbmdyaXN0YW4vbmV0Y2xvZGUvc2VydmljZXMvY29udHJvbC1wbGFuZS9nZW4vbmV0Y2xvZGUvdjE7bmV0Y2xvZGV2MaICA05YWKoCC05ldGNsb2RlLlYxygILTmV0Y2xvZGVcVjHiAhdOZXRjbG9kZVxWMVxHUEJNZXRhZGF0YeoCDE5ldGNsb2RlOjpWMWIGcHJvdG8z", [file_netclode_v1_common, file_netclode_v1_events]);
+  fileDesc("ChduZXRjbG9kZS92MS9hZ2VudC5wcm90bxILbmV0Y2xvZGUudjEiggMKDEFnZW50TWVzc2FnZRIuCghyZWdpc3RlchgBIAEoCzIaLm5ldGNsb2RlLnYxLkFnZW50UmVnaXN0ZXJIABI7Cg9wcm9tcHRfcmVzcG9uc2UYAiABKAsyIC5uZXRjbG9kZS52MS5BZ2VudFN0cmVhbVJlc3BvbnNlSAASOwoPdGVybWluYWxfb3V0cHV0GAMgASgLMiAubmV0Y2xvZGUudjEuQWdlbnRUZXJtaW5hbE91dHB1dEgAEjkKDnRpdGxlX3Jlc3BvbnNlGAQgASgLMh8ubmV0Y2xvZGUudjEuQWdlbnRUaXRsZVJlc3BvbnNlSAASQgoTZ2l0X3N0YXR1c19yZXNwb25zZRgFIAEoCzIjLm5ldGNsb2RlLnYxLkFnZW50R2l0U3RhdHVzUmVzcG9uc2VIABI+ChFnaXRfZGlmZl9yZXNwb25zZRgGIAEoCzIhLm5ldGNsb2RlLnYxLkFnZW50R2l0RGlmZlJlc3BvbnNlSABCCQoHbWVzc2FnZSKwBAoTQ29udHJvbFBsYW5lTWVzc2FnZRIyCgpyZWdpc3RlcmVkGAEgASgLMhwubmV0Y2xvZGUudjEuQWdlbnRSZWdpc3RlcmVkSAASOwoOZXhlY3V0ZV9wcm9tcHQYAiABKAsyIS5uZXRjbG9kZS52MS5FeGVjdXRlUHJvbXB0UmVxdWVzdEgAEjIKCWludGVycnVwdBgDIAEoCzIdLm5ldGNsb2RlLnYxLkludGVycnVwdFJlcXVlc3RIABI7Cg5nZW5lcmF0ZV90aXRsZRgEIAEoCzIhLm5ldGNsb2RlLnYxLkdlbmVyYXRlVGl0bGVSZXF1ZXN0SAASOgoOZ2V0X2dpdF9zdGF0dXMYBSABKAsyIC5uZXRjbG9kZS52MS5HZXRHaXRTdGF0dXNSZXF1ZXN0SAASNgoMZ2V0X2dpdF9kaWZmGAYgASgLMh4ubmV0Y2xvZGUudjEuR2V0R2l0RGlmZlJlcXVlc3RIABI5Cg50ZXJtaW5hbF9pbnB1dBgHIAEoCzIfLm5ldGNsb2RlLnYxLkFnZW50VGVybWluYWxJbnB1dEgAEkMKFnVwZGF0ZV9naXRfY3JlZGVudGlhbHMYCCABKAsyIS5uZXRjbG9kZS52MS5VcGRhdGVHaXRDcmVkZW50aWFsc0gAEjgKEHNlc3Npb25fYXNzaWduZWQYCSABKAsyHC5uZXRjbG9kZS52MS5TZXNzaW9uQXNzaWduZWRIAEIJCgdtZXNzYWdlIlEKD1Nlc3Npb25Bc3NpZ25lZBISCgpzZXNzaW9uX2lkGAEgASgJEioKBmNvbmZpZxgCIAEoCzIaLm5ldGNsb2RlLnYxLlNlc3Npb25Db25maWcibAoNQWdlbnRSZWdpc3RlchIXCgpzZXNzaW9uX2lkGAEgASgJSACIAQESDwoHdmVyc2lvbhgCIAEoCRIVCghwb2RfbmFtZRgDIAEoCUgBiAEBQg0KC19zZXNzaW9uX2lkQgsKCV9wb2RfbmFtZSKPAgoTQWdlbnRTdHJlYW1SZXNwb25zZRIxCgp0ZXh0X2RlbHRhGAEgASgLMhsubmV0Y2xvZGUudjEuQWdlbnRUZXh0RGVsdGFIABIoCgVldmVudBgCIAEoCzIXLm5ldGNsb2RlLnYxLkFnZW50RXZlbnRIABI5Cg5zeXN0ZW1fbWVzc2FnZRgDIAEoCzIfLm5ldGNsb2RlLnYxLkFnZW50U3lzdGVtTWVzc2FnZUgAEioKBnJlc3VsdBgEIAEoCzIYLm5ldGNsb2RlLnYxLkFnZW50UmVzdWx0SAASKAoFZXJyb3IYBSABKAsyFy5uZXRjbG9kZS52MS5BZ2VudEVycm9ySABCCgoIcmVzcG9uc2UiRgoOQWdlbnRUZXh0RGVsdGESDwoHY29udGVudBgBIAEoCRIPCgdwYXJ0aWFsGAIgASgIEhIKCm1lc3NhZ2VfaWQYAyABKAkiJQoSQWdlbnRTeXN0ZW1NZXNzYWdlEg8KB21lc3NhZ2UYASABKAkiTwoLQWdlbnRSZXN1bHQSFAoMaW5wdXRfdG9rZW5zGAEgASgFEhUKDW91dHB1dF90b2tlbnMYAiABKAUSEwoLdG90YWxfdHVybnMYAyABKAUiMAoKQWdlbnRFcnJvchIPCgdtZXNzYWdlGAEgASgJEhEKCXJldHJ5YWJsZRgCIAEoCCIjChNBZ2VudFRlcm1pbmFsT3V0cHV0EgwKBGRhdGEYASABKAkiNwoSQWdlbnRUaXRsZVJlc3BvbnNlEhIKCnJlcXVlc3RfaWQYASABKAkSDQoFdGl0bGUYAiABKAkiVwoWQWdlbnRHaXRTdGF0dXNSZXNwb25zZRISCgpyZXF1ZXN0X2lkGAEgASgJEikKBWZpbGVzGAIgAygLMhoubmV0Y2xvZGUudjEuR2l0RmlsZUNoYW5nZSI4ChRBZ2VudEdpdERpZmZSZXNwb25zZRISCgpyZXF1ZXN0X2lkGAEgASgJEgwKBGRpZmYYAiABKAkifAoPQWdlbnRSZWdpc3RlcmVkEg8KB3N1Y2Nlc3MYASABKAgSEgoFZXJyb3IYAiABKAlIAIgBARIvCgZjb25maWcYAyABKAsyGi5uZXRjbG9kZS52MS5TZXNzaW9uQ29uZmlnSAGIAQFCCAoGX2Vycm9yQgkKB19jb25maWciJAoURXhlY3V0ZVByb21wdFJlcXVlc3QSDAoEdGV4dBgBIAEoCSISChBJbnRlcnJ1cHRSZXF1ZXN0IjoKFEdlbmVyYXRlVGl0bGVSZXF1ZXN0EhIKCnJlcXVlc3RfaWQYASABKAkSDgoGcHJvbXB0GAIgASgJIikKE0dldEdpdFN0YXR1c1JlcXVlc3QSEgoKcmVxdWVzdF9pZBgBIAEoCSJDChFHZXRHaXREaWZmUmVxdWVzdBISCgpyZXF1ZXN0X2lkGAEgASgJEhEKBGZpbGUYAiABKAlIAIgBAUIHCgVfZmlsZSJhChJBZ2VudFRlcm1pbmFsSW5wdXQSDgoEZGF0YRgBIAEoCUgAEjIKBnJlc2l6ZRgCIAEoCzIgLm5ldGNsb2RlLnYxLkFnZW50VGVybWluYWxSZXNpemVIAEIHCgVpbnB1dCIxChNBZ2VudFRlcm1pbmFsUmVzaXplEgwKBGNvbHMYASABKAUSDAoEcm93cxgCIAEoBSJaChRVcGRhdGVHaXRDcmVkZW50aWFscxIUCgxnaXRodWJfdG9rZW4YASABKAkSLAoLcmVwb19hY2Nlc3MYAiABKA4yFy5uZXRjbG9kZS52MS5SZXBvQWNjZXNzMloKDEFnZW50U2VydmljZRJKCgdDb25uZWN0EhkubmV0Y2xvZGUudjEuQWdlbnRNZXNzYWdlGiAubmV0Y2xvZGUudjEuQ29udHJvbFBsYW5lTWVzc2FnZSgBMAFCuwEKD2NvbS5uZXRjbG9kZS52MUIKQWdlbnRQcm90b1ABWk9naXRodWIuY29tL2FuZ3Jpc3Rhbi9uZXRjbG9kZS9zZXJ2aWNlcy9jb250cm9sLXBsYW5lL2dlbi9uZXRjbG9kZS92MTtuZXRjbG9kZXYxogIDTlhYqgILTmV0Y2xvZGUuVjHKAgtOZXRjbG9kZVxWMeICF05ldGNsb2RlXFYxXEdQQk1ldGFkYXRh6gIMTmV0Y2xvZGU6OlYxYgZwcm90bzM", [file_netclode_v1_common, file_netclode_v1_events]);
 
 /**
  * AgentMessage is sent from agent to control plane.
@@ -156,6 +156,14 @@ export type ControlPlaneMessage = Message<"netclode.v1.ControlPlaneMessage"> & {
      */
     value: UpdateGitCredentials;
     case: "updateGitCredentials";
+  } | {
+    /**
+     * Session assigned (warm pool mode) - pushed when claim binds
+     *
+     * @generated from field: netclode.v1.SessionAssigned session_assigned = 9;
+     */
+    value: SessionAssigned;
+    case: "sessionAssigned";
   } | { case: undefined; value?: undefined };
 };
 
@@ -167,17 +175,46 @@ export const ControlPlaneMessageSchema: GenMessage<ControlPlaneMessage> = /*@__P
   messageDesc(file_netclode_v1_agent, 1);
 
 /**
+ * SessionAssigned is sent to warm pool agents when a session is bound.
+ * This replaces the HTTP polling approach for instant session start.
+ *
+ * @generated from message netclode.v1.SessionAssigned
+ */
+export type SessionAssigned = Message<"netclode.v1.SessionAssigned"> & {
+  /**
+   * The session ID this agent is now servicing
+   *
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * Full session configuration
+   *
+   * @generated from field: netclode.v1.SessionConfig config = 2;
+   */
+  config?: SessionConfig;
+};
+
+/**
+ * Describes the message netclode.v1.SessionAssigned.
+ * Use `create(SessionAssignedSchema)` to create a new message.
+ */
+export const SessionAssignedSchema: GenMessage<SessionAssigned> = /*@__PURE__*/
+  messageDesc(file_netclode_v1_agent, 2);
+
+/**
  * AgentRegister is sent first by the agent to identify itself.
  *
  * @generated from message netclode.v1.AgentRegister
  */
 export type AgentRegister = Message<"netclode.v1.AgentRegister"> & {
   /**
-   * Session this agent is servicing
+   * Session this agent is servicing (empty for warm pool mode)
    *
-   * @generated from field: string session_id = 1;
+   * @generated from field: optional string session_id = 1;
    */
-  sessionId: string;
+  sessionId?: string;
 
   /**
    * Agent version for compatibility checking
@@ -185,6 +222,13 @@ export type AgentRegister = Message<"netclode.v1.AgentRegister"> & {
    * @generated from field: string version = 2;
    */
   version: string;
+
+  /**
+   * Pod name for warm pool mode (used to match agent to session)
+   *
+   * @generated from field: optional string pod_name = 3;
+   */
+  podName?: string;
 };
 
 /**
@@ -192,7 +236,7 @@ export type AgentRegister = Message<"netclode.v1.AgentRegister"> & {
  * Use `create(AgentRegisterSchema)` to create a new message.
  */
 export const AgentRegisterSchema: GenMessage<AgentRegister> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_agent, 2);
+  messageDesc(file_netclode_v1_agent, 3);
 
 /**
  * AgentStreamResponse contains streaming output during prompt execution.
@@ -251,7 +295,7 @@ export type AgentStreamResponse = Message<"netclode.v1.AgentStreamResponse"> & {
  * Use `create(AgentStreamResponseSchema)` to create a new message.
  */
 export const AgentStreamResponseSchema: GenMessage<AgentStreamResponse> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_agent, 3);
+  messageDesc(file_netclode_v1_agent, 4);
 
 /**
  * AgentTextDelta contains a chunk of streaming text output.
@@ -286,7 +330,7 @@ export type AgentTextDelta = Message<"netclode.v1.AgentTextDelta"> & {
  * Use `create(AgentTextDeltaSchema)` to create a new message.
  */
 export const AgentTextDeltaSchema: GenMessage<AgentTextDelta> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_agent, 4);
+  messageDesc(file_netclode_v1_agent, 5);
 
 /**
  * AgentSystemMessage contains system-level messages from the agent.
@@ -307,7 +351,7 @@ export type AgentSystemMessage = Message<"netclode.v1.AgentSystemMessage"> & {
  * Use `create(AgentSystemMessageSchema)` to create a new message.
  */
 export const AgentSystemMessageSchema: GenMessage<AgentSystemMessage> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_agent, 5);
+  messageDesc(file_netclode_v1_agent, 6);
 
 /**
  * AgentResult contains the final result after prompt completion.
@@ -342,7 +386,7 @@ export type AgentResult = Message<"netclode.v1.AgentResult"> & {
  * Use `create(AgentResultSchema)` to create a new message.
  */
 export const AgentResultSchema: GenMessage<AgentResult> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_agent, 6);
+  messageDesc(file_netclode_v1_agent, 7);
 
 /**
  * AgentError indicates an error during prompt execution.
@@ -370,7 +414,7 @@ export type AgentError = Message<"netclode.v1.AgentError"> & {
  * Use `create(AgentErrorSchema)` to create a new message.
  */
 export const AgentErrorSchema: GenMessage<AgentError> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_agent, 7);
+  messageDesc(file_netclode_v1_agent, 8);
 
 /**
  * AgentTerminalOutput contains terminal output from the agent.
@@ -391,7 +435,7 @@ export type AgentTerminalOutput = Message<"netclode.v1.AgentTerminalOutput"> & {
  * Use `create(AgentTerminalOutputSchema)` to create a new message.
  */
 export const AgentTerminalOutputSchema: GenMessage<AgentTerminalOutput> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_agent, 8);
+  messageDesc(file_netclode_v1_agent, 9);
 
 /**
  * AgentTitleResponse contains the generated session title.
@@ -419,7 +463,7 @@ export type AgentTitleResponse = Message<"netclode.v1.AgentTitleResponse"> & {
  * Use `create(AgentTitleResponseSchema)` to create a new message.
  */
 export const AgentTitleResponseSchema: GenMessage<AgentTitleResponse> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_agent, 9);
+  messageDesc(file_netclode_v1_agent, 10);
 
 /**
  * AgentGitStatusResponse contains git status results.
@@ -447,7 +491,7 @@ export type AgentGitStatusResponse = Message<"netclode.v1.AgentGitStatusResponse
  * Use `create(AgentGitStatusResponseSchema)` to create a new message.
  */
 export const AgentGitStatusResponseSchema: GenMessage<AgentGitStatusResponse> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_agent, 10);
+  messageDesc(file_netclode_v1_agent, 11);
 
 /**
  * AgentGitDiffResponse contains git diff results.
@@ -475,7 +519,7 @@ export type AgentGitDiffResponse = Message<"netclode.v1.AgentGitDiffResponse"> &
  * Use `create(AgentGitDiffResponseSchema)` to create a new message.
  */
 export const AgentGitDiffResponseSchema: GenMessage<AgentGitDiffResponse> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_agent, 11);
+  messageDesc(file_netclode_v1_agent, 12);
 
 /**
  * AgentRegistered is sent in response to AgentRegister.
@@ -510,7 +554,7 @@ export type AgentRegistered = Message<"netclode.v1.AgentRegistered"> & {
  * Use `create(AgentRegisteredSchema)` to create a new message.
  */
 export const AgentRegisteredSchema: GenMessage<AgentRegistered> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_agent, 12);
+  messageDesc(file_netclode_v1_agent, 13);
 
 /**
  * ExecutePromptRequest asks the agent to execute a prompt.
@@ -531,7 +575,7 @@ export type ExecutePromptRequest = Message<"netclode.v1.ExecutePromptRequest"> &
  * Use `create(ExecutePromptRequestSchema)` to create a new message.
  */
 export const ExecutePromptRequestSchema: GenMessage<ExecutePromptRequest> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_agent, 13);
+  messageDesc(file_netclode_v1_agent, 14);
 
 /**
  * InterruptRequest asks the agent to interrupt the current operation.
@@ -546,7 +590,7 @@ export type InterruptRequest = Message<"netclode.v1.InterruptRequest"> & {
  * Use `create(InterruptRequestSchema)` to create a new message.
  */
 export const InterruptRequestSchema: GenMessage<InterruptRequest> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_agent, 14);
+  messageDesc(file_netclode_v1_agent, 15);
 
 /**
  * GenerateTitleRequest asks the agent to generate a session title.
@@ -574,7 +618,7 @@ export type GenerateTitleRequest = Message<"netclode.v1.GenerateTitleRequest"> &
  * Use `create(GenerateTitleRequestSchema)` to create a new message.
  */
 export const GenerateTitleRequestSchema: GenMessage<GenerateTitleRequest> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_agent, 15);
+  messageDesc(file_netclode_v1_agent, 16);
 
 /**
  * GetGitStatusRequest asks the agent for git status.
@@ -595,7 +639,7 @@ export type GetGitStatusRequest = Message<"netclode.v1.GetGitStatusRequest"> & {
  * Use `create(GetGitStatusRequestSchema)` to create a new message.
  */
 export const GetGitStatusRequestSchema: GenMessage<GetGitStatusRequest> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_agent, 16);
+  messageDesc(file_netclode_v1_agent, 17);
 
 /**
  * GetGitDiffRequest asks the agent for git diff.
@@ -623,7 +667,7 @@ export type GetGitDiffRequest = Message<"netclode.v1.GetGitDiffRequest"> & {
  * Use `create(GetGitDiffRequestSchema)` to create a new message.
  */
 export const GetGitDiffRequestSchema: GenMessage<GetGitDiffRequest> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_agent, 17);
+  messageDesc(file_netclode_v1_agent, 18);
 
 /**
  * AgentTerminalInput contains terminal input for the agent.
@@ -658,7 +702,7 @@ export type AgentTerminalInput = Message<"netclode.v1.AgentTerminalInput"> & {
  * Use `create(AgentTerminalInputSchema)` to create a new message.
  */
 export const AgentTerminalInputSchema: GenMessage<AgentTerminalInput> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_agent, 18);
+  messageDesc(file_netclode_v1_agent, 19);
 
 /**
  * AgentTerminalResize contains terminal dimensions.
@@ -686,7 +730,7 @@ export type AgentTerminalResize = Message<"netclode.v1.AgentTerminalResize"> & {
  * Use `create(AgentTerminalResizeSchema)` to create a new message.
  */
 export const AgentTerminalResizeSchema: GenMessage<AgentTerminalResize> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_agent, 19);
+  messageDesc(file_netclode_v1_agent, 20);
 
 /**
  * UpdateGitCredentials tells the agent to update its git credentials.
@@ -715,7 +759,7 @@ export type UpdateGitCredentials = Message<"netclode.v1.UpdateGitCredentials"> &
  * Use `create(UpdateGitCredentialsSchema)` to create a new message.
  */
 export const UpdateGitCredentialsSchema: GenMessage<UpdateGitCredentials> = /*@__PURE__*/
-  messageDesc(file_netclode_v1_agent, 20);
+  messageDesc(file_netclode_v1_agent, 21);
 
 /**
  * AgentService handles bidirectional communication between agents and control plane.

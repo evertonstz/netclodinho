@@ -37,12 +37,16 @@ type AgentConnection struct {
 	manager   *session.Manager
 	server    *Server
 	sessionID string
+	podName   string // For warm pool mode
 
 	// For sending messages to agent
 	outbound chan *v1.ControlPlaneMessage
 	done     chan struct{}
 	writeMu  sync.Mutex
 }
+
+// Ensure AgentConnection implements WarmAgentConnection interface
+var _ session.WarmAgentConnection = (*AgentConnection)(nil)
 
 // Connect implements the bidirectional streaming RPC for agents.
 func (h *ConnectAgentServiceHandler) Connect(ctx context.Context, stream *connect.BidiStream[v1.AgentMessage, v1.ControlPlaneMessage]) error {
@@ -66,13 +70,64 @@ func (h *ConnectAgentServiceHandler) Connect(ctx context.Context, stream *connec
 		return errors.New("first message must be AgentRegister")
 	}
 
-	conn.sessionID = reg.SessionId
-	slog.Info("Agent connecting", "sessionID", conn.sessionID, "version", reg.Version)
+	// Determine registration mode based on session_id presence
+	sessionID := reg.GetSessionId()
+	podName := reg.GetPodName()
+
+	// Warm pool mode: no session_id, only pod_name
+	// Agent will wait for SessionAssigned message
+	if sessionID == "" && podName != "" {
+		slog.Info("Warm pool agent connecting", "podName", podName, "version", reg.Version)
+
+		conn.podName = podName
+
+		// Send registration success (no config yet - will be pushed via SessionAssigned)
+		if err := conn.send(&v1.ControlPlaneMessage{
+			Message: &v1.ControlPlaneMessage_Registered{
+				Registered: &v1.AgentRegistered{
+					Success: true,
+					// No config - agent waits for SessionAssigned
+				},
+			},
+		}); err != nil {
+			return err
+		}
+
+		// Register as warm agent - session will be assigned when claim binds
+		h.manager.RegisterWarmAgentConnection(podName, conn)
+		defer h.manager.UnregisterWarmAgentConnection(podName)
+
+		slog.Info("Warm pool agent registered, waiting for session assignment", "podName", podName)
+
+		// Start outbound message sender
+		go conn.sendLoop()
+
+		// Handle incoming messages (will wait for SessionAssigned to set sessionID)
+		err = conn.receiveLoop(ctx)
+
+		close(conn.done)
+		slog.Info("Warm pool agent disconnected", "podName", podName, "sessionID", conn.sessionID)
+
+		// If session was assigned, unregister from active agents
+		if conn.sessionID != "" {
+			h.manager.UnregisterAgentConnection(conn.sessionID)
+		}
+
+		return err
+	}
+
+	// Direct mode: session_id provided
+	if sessionID == "" {
+		return errors.New("session_id required (or pod_name for warm pool mode)")
+	}
+
+	conn.sessionID = sessionID
+	slog.Info("Agent connecting (direct mode)", "sessionID", sessionID, "version", reg.Version)
 
 	// Get session config
-	config, err := h.manager.GetSessionConfig(ctx, conn.sessionID)
+	config, err := h.manager.GetSessionConfig(ctx, sessionID)
 	if err != nil {
-		slog.Warn("Agent registration failed - session not found", "sessionID", conn.sessionID, "error", err)
+		slog.Warn("Agent registration failed - session not found", "sessionID", sessionID, "error", err)
 		conn.send(&v1.ControlPlaneMessage{
 			Message: &v1.ControlPlaneMessage_Registered{
 				Registered: &v1.AgentRegistered{
@@ -86,7 +141,7 @@ func (h *ConnectAgentServiceHandler) Connect(ctx context.Context, stream *connec
 
 	// Send registration success with config
 	sessionConfig := &v1.SessionConfig{
-		SessionId:       conn.sessionID,
+		SessionId:       sessionID,
 		WorkspaceDir:    "/workspace",
 		ControlPlaneUrl: "http://control-plane.netclode.svc.cluster.local",
 		SdkType:         config.SdkType,
@@ -144,10 +199,10 @@ func (h *ConnectAgentServiceHandler) Connect(ctx context.Context, stream *connec
 	}
 
 	// Register this agent connection with the session manager
-	h.manager.RegisterAgentConnection(conn.sessionID, conn)
-	defer h.manager.UnregisterAgentConnection(conn.sessionID)
+	h.manager.RegisterAgentConnection(sessionID, conn)
+	defer h.manager.UnregisterAgentConnection(sessionID)
 
-	slog.Info("Agent registered", "sessionID", conn.sessionID)
+	slog.Info("Agent registered (direct mode)", "sessionID", sessionID)
 
 	// Start outbound message sender
 	go conn.sendLoop()
@@ -356,6 +411,71 @@ func (c *AgentConnection) UpdateGitCredentials(token string, repoAccess v1.RepoA
 			UpdateGitCredentials: &v1.UpdateGitCredentials{
 				GithubToken: token,
 				RepoAccess:  repoAccess,
+			},
+		},
+	})
+}
+
+// AssignSession assigns a session to a warm pool agent (implements WarmAgentConnection).
+// This pushes the SessionAssigned message to the agent for instant session start.
+func (c *AgentConnection) AssignSession(sessionID string, config *session.AgentSessionConfig) error {
+	c.sessionID = sessionID
+
+	// Build session config proto
+	sessionConfig := &v1.SessionConfig{
+		SessionId:       sessionID,
+		WorkspaceDir:    "/workspace",
+		ControlPlaneUrl: "http://control-plane.netclode.svc.cluster.local",
+		SdkType:         config.SdkType,
+		CopilotBackend:  config.CopilotBackend,
+	}
+	if len(config.Repos) > 0 {
+		sessionConfig.Repos = config.Repos
+	}
+	if config.RepoAccess != nil {
+		sessionConfig.RepoAccess = config.RepoAccess
+	}
+	if config.GitHubToken != "" {
+		sessionConfig.GithubToken = &config.GitHubToken
+	}
+	if config.GitHubCopilotToken != "" {
+		sessionConfig.GithubCopilotToken = &config.GitHubCopilotToken
+	}
+	if config.Model != "" {
+		sessionConfig.Model = &config.Model
+	}
+	if config.CodexAccessToken != "" {
+		sessionConfig.CodexAccessToken = &config.CodexAccessToken
+	}
+	if config.CodexIdToken != "" {
+		sessionConfig.CodexIdToken = &config.CodexIdToken
+	}
+	if config.CodexRefreshToken != "" {
+		sessionConfig.CodexRefreshToken = &config.CodexRefreshToken
+	}
+	if config.OpenAIAPIKey != "" {
+		sessionConfig.OpenaiApiKey = &config.OpenAIAPIKey
+	}
+	if config.MistralAPIKey != "" {
+		sessionConfig.MistralApiKey = &config.MistralAPIKey
+	}
+	if config.ReasoningEffort != "" {
+		sessionConfig.ReasoningEffort = &config.ReasoningEffort
+	}
+	if config.OllamaURL != "" {
+		sessionConfig.OllamaUrl = &config.OllamaURL
+	}
+	if config.OpenCodeAPIKey != "" {
+		sessionConfig.OpencodeApiKey = &config.OpenCodeAPIKey
+	}
+
+	slog.Info("Pushing session assignment to warm agent", "sessionID", sessionID, "podName", c.podName)
+
+	return c.Send(&v1.ControlPlaneMessage{
+		Message: &v1.ControlPlaneMessage_SessionAssigned{
+			SessionAssigned: &v1.SessionAssigned{
+				SessionId: sessionID,
+				Config:    sessionConfig,
 			},
 		},
 	})

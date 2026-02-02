@@ -569,3 +569,194 @@ func TestEnforceActiveLimit_OnStartup(t *testing.T) {
 		t.Errorf("Expected at most 2 active sessions, got %d", activeCount)
 	}
 }
+
+// mockWarmAgentConnection implements WarmAgentConnection for testing
+type mockWarmAgentConnection struct {
+	assignedSessionID string
+	assignedConfig    *AgentSessionConfig
+	assignCalled      bool
+	assignError       error
+}
+
+func (m *mockWarmAgentConnection) ExecutePrompt(text string) error {
+	return nil
+}
+
+func (m *mockWarmAgentConnection) Interrupt() error {
+	return nil
+}
+
+func (m *mockWarmAgentConnection) GenerateTitle(requestID, prompt string) error {
+	return nil
+}
+
+func (m *mockWarmAgentConnection) GetGitStatus(requestID string) error {
+	return nil
+}
+
+func (m *mockWarmAgentConnection) GetGitDiff(requestID string, file *string) error {
+	return nil
+}
+
+func (m *mockWarmAgentConnection) SendTerminalInput(data string) error {
+	return nil
+}
+
+func (m *mockWarmAgentConnection) ResizeTerminal(cols, rows int) error {
+	return nil
+}
+
+func (m *mockWarmAgentConnection) UpdateGitCredentials(token string, repoAccess pb.RepoAccess) error {
+	return nil
+}
+
+func (m *mockWarmAgentConnection) AssignSession(sessionID string, config *AgentSessionConfig) error {
+	m.assignCalled = true
+	m.assignedSessionID = sessionID
+	m.assignedConfig = config
+	return m.assignError
+}
+
+func TestRegisterWarmAgentConnection(t *testing.T) {
+	manager, _, _ := newTestManager(3)
+
+	conn := &mockWarmAgentConnection{}
+	manager.RegisterWarmAgentConnection("pod-1", conn)
+
+	// Verify the connection was registered
+	if got := manager.GetWarmAgentConnection("pod-1"); got != conn {
+		t.Errorf("Expected warm agent to be registered, got %v", got)
+	}
+}
+
+func TestUnregisterWarmAgentConnection(t *testing.T) {
+	manager, _, _ := newTestManager(3)
+
+	conn := &mockWarmAgentConnection{}
+	manager.RegisterWarmAgentConnection("pod-1", conn)
+	manager.UnregisterWarmAgentConnection("pod-1")
+
+	// Verify the connection was removed
+	if got := manager.GetWarmAgentConnection("pod-1"); got != nil {
+		t.Errorf("Expected warm agent to be unregistered, got %v", got)
+	}
+}
+
+func TestAssignSessionToWarmAgent_Success(t *testing.T) {
+	manager, _, _ := newTestManager(3)
+
+	// Create a session first
+	now := time.Now()
+	addSession(manager, "sess-123", pb.SessionStatus_SESSION_STATUS_CREATING, now)
+
+	// Register a warm agent
+	conn := &mockWarmAgentConnection{}
+	manager.RegisterWarmAgentConnection("pod-1", conn)
+
+	// Assign the session
+	result := manager.AssignSessionToWarmAgent("pod-1", "sess-123")
+
+	if !result {
+		t.Error("Expected AssignSessionToWarmAgent to return true")
+	}
+
+	if !conn.assignCalled {
+		t.Error("Expected AssignSession to be called on the connection")
+	}
+
+	if conn.assignedSessionID != "sess-123" {
+		t.Errorf("Expected assigned session ID to be 'sess-123', got %s", conn.assignedSessionID)
+	}
+
+	// Verify the connection was moved from warmAgents to agents
+	if got := manager.GetWarmAgentConnection("pod-1"); got != nil {
+		t.Error("Expected warm agent to be removed from warmAgents map")
+	}
+
+	if got := manager.GetAgentConnection("sess-123"); got != conn {
+		t.Errorf("Expected agent to be in agents map, got %v", got)
+	}
+}
+
+func TestAssignSessionToWarmAgent_NotFound(t *testing.T) {
+	manager, _, _ := newTestManager(3)
+
+	// Try to assign to a non-existent warm agent
+	result := manager.AssignSessionToWarmAgent("nonexistent-pod", "sess-123")
+
+	if result {
+		t.Error("Expected AssignSessionToWarmAgent to return false for non-existent pod")
+	}
+}
+
+func TestAssignSessionToWarmAgent_SessionNotFound(t *testing.T) {
+	manager, _, _ := newTestManager(3)
+
+	// Register a warm agent but don't create the session
+	conn := &mockWarmAgentConnection{}
+	manager.RegisterWarmAgentConnection("pod-1", conn)
+
+	// Try to assign a non-existent session
+	result := manager.AssignSessionToWarmAgent("pod-1", "nonexistent-session")
+
+	// Should fail because GetSessionConfig will fail
+	if result {
+		t.Error("Expected AssignSessionToWarmAgent to return false for non-existent session")
+	}
+
+	// The warm agent should have been removed from warmAgents but not added to agents
+	// since the assignment failed
+	if got := manager.GetAgentConnection("nonexistent-session"); got != nil {
+		t.Error("Expected agent to NOT be in agents map after failed assignment")
+	}
+}
+
+func TestMultipleWarmAgents(t *testing.T) {
+	manager, _, _ := newTestManager(3)
+
+	// Register multiple warm agents
+	conn1 := &mockWarmAgentConnection{}
+	conn2 := &mockWarmAgentConnection{}
+	conn3 := &mockWarmAgentConnection{}
+
+	manager.RegisterWarmAgentConnection("pod-1", conn1)
+	manager.RegisterWarmAgentConnection("pod-2", conn2)
+	manager.RegisterWarmAgentConnection("pod-3", conn3)
+
+	// Verify all are registered
+	if manager.GetWarmAgentConnection("pod-1") != conn1 {
+		t.Error("pod-1 not registered")
+	}
+	if manager.GetWarmAgentConnection("pod-2") != conn2 {
+		t.Error("pod-2 not registered")
+	}
+	if manager.GetWarmAgentConnection("pod-3") != conn3 {
+		t.Error("pod-3 not registered")
+	}
+
+	// Create sessions and assign
+	now := time.Now()
+	addSession(manager, "sess-a", pb.SessionStatus_SESSION_STATUS_CREATING, now)
+	addSession(manager, "sess-b", pb.SessionStatus_SESSION_STATUS_CREATING, now)
+
+	manager.AssignSessionToWarmAgent("pod-1", "sess-a")
+	manager.AssignSessionToWarmAgent("pod-2", "sess-b")
+
+	// pod-1 and pod-2 should be assigned, pod-3 still waiting
+	if manager.GetWarmAgentConnection("pod-1") != nil {
+		t.Error("pod-1 should not be in warmAgents after assignment")
+	}
+	if manager.GetWarmAgentConnection("pod-2") != nil {
+		t.Error("pod-2 should not be in warmAgents after assignment")
+	}
+	if manager.GetWarmAgentConnection("pod-3") != conn3 {
+		t.Error("pod-3 should still be in warmAgents")
+	}
+
+	if manager.GetAgentConnection("sess-a") != conn1 {
+		t.Error("sess-a should be assigned to conn1")
+	}
+	if manager.GetAgentConnection("sess-b") != conn2 {
+		t.Error("sess-b should be assigned to conn2")
+	}
+}

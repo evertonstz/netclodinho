@@ -183,6 +183,15 @@ public struct Netclode_V1_ControlPlaneMessage: Sendable {
     set {message = .updateGitCredentials(newValue)}
   }
 
+  /// Session assigned (warm pool mode) - pushed when claim binds
+  public var sessionAssigned: Netclode_V1_SessionAssigned {
+    get {
+      if case .sessionAssigned(let v)? = message {return v}
+      return Netclode_V1_SessionAssigned()
+    }
+    set {message = .sessionAssigned(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Message: Equatable, Sendable {
@@ -202,10 +211,39 @@ public struct Netclode_V1_ControlPlaneMessage: Sendable {
     case terminalInput(Netclode_V1_AgentTerminalInput)
     /// Update git credentials (when repo access level changes)
     case updateGitCredentials(Netclode_V1_UpdateGitCredentials)
+    /// Session assigned (warm pool mode) - pushed when claim binds
+    case sessionAssigned(Netclode_V1_SessionAssigned)
 
   }
 
   public init() {}
+}
+
+/// SessionAssigned is sent to warm pool agents when a session is bound.
+/// This replaces the HTTP polling approach for instant session start.
+public struct Netclode_V1_SessionAssigned: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The session ID this agent is now servicing
+  public var sessionID: String = String()
+
+  /// Full session configuration
+  public var config: Netclode_V1_SessionConfig {
+    get {return _config ?? Netclode_V1_SessionConfig()}
+    set {_config = newValue}
+  }
+  /// Returns true if `config` has been explicitly set.
+  public var hasConfig: Bool {return self._config != nil}
+  /// Clears the value of `config`. Subsequent reads from it will return its default value.
+  public mutating func clearConfig() {self._config = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _config: Netclode_V1_SessionConfig? = nil
 }
 
 /// AgentRegister is sent first by the agent to identify itself.
@@ -214,15 +252,35 @@ public struct Netclode_V1_AgentRegister: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// Session this agent is servicing
-  public var sessionID: String = String()
+  /// Session this agent is servicing (empty for warm pool mode)
+  public var sessionID: String {
+    get {return _sessionID ?? String()}
+    set {_sessionID = newValue}
+  }
+  /// Returns true if `sessionID` has been explicitly set.
+  public var hasSessionID: Bool {return self._sessionID != nil}
+  /// Clears the value of `sessionID`. Subsequent reads from it will return its default value.
+  public mutating func clearSessionID() {self._sessionID = nil}
 
   /// Agent version for compatibility checking
   public var version: String = String()
 
+  /// Pod name for warm pool mode (used to match agent to session)
+  public var podName: String {
+    get {return _podName ?? String()}
+    set {_podName = newValue}
+  }
+  /// Returns true if `podName` has been explicitly set.
+  public var hasPodName: Bool {return self._podName != nil}
+  /// Clears the value of `podName`. Subsequent reads from it will return its default value.
+  public mutating func clearPodName() {self._podName = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
+
+  fileprivate var _sessionID: String? = nil
+  fileprivate var _podName: String? = nil
 }
 
 /// AgentStreamResponse contains streaming output during prompt execution.
@@ -767,7 +825,7 @@ extension Netclode_V1_AgentMessage: SwiftProtobuf.Message, SwiftProtobuf._Messag
 
 extension Netclode_V1_ControlPlaneMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ControlPlaneMessage"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}registered\0\u{3}execute_prompt\0\u{1}interrupt\0\u{3}generate_title\0\u{3}get_git_status\0\u{3}get_git_diff\0\u{3}terminal_input\0\u{3}update_git_credentials\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}registered\0\u{3}execute_prompt\0\u{1}interrupt\0\u{3}generate_title\0\u{3}get_git_status\0\u{3}get_git_diff\0\u{3}terminal_input\0\u{3}update_git_credentials\0\u{3}session_assigned\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -879,6 +937,19 @@ extension Netclode_V1_ControlPlaneMessage: SwiftProtobuf.Message, SwiftProtobuf.
           self.message = .updateGitCredentials(v)
         }
       }()
+      case 9: try {
+        var v: Netclode_V1_SessionAssigned?
+        var hadOneofValue = false
+        if let current = self.message {
+          hadOneofValue = true
+          if case .sessionAssigned(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.message = .sessionAssigned(v)
+        }
+      }()
       default: break
       }
     }
@@ -922,6 +993,10 @@ extension Netclode_V1_ControlPlaneMessage: SwiftProtobuf.Message, SwiftProtobuf.
       guard case .updateGitCredentials(let v)? = self.message else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
     }()
+    case .sessionAssigned?: try {
+      guard case .sessionAssigned(let v)? = self.message else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
+    }()
     case nil: break
     }
     try unknownFields.traverse(visitor: &visitor)
@@ -934,9 +1009,9 @@ extension Netclode_V1_ControlPlaneMessage: SwiftProtobuf.Message, SwiftProtobuf.
   }
 }
 
-extension Netclode_V1_AgentRegister: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".AgentRegister"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_id\0\u{1}version\0")
+extension Netclode_V1_SessionAssigned: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SessionAssigned"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_id\0\u{1}config\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -945,25 +1020,73 @@ extension Netclode_V1_AgentRegister: SwiftProtobuf.Message, SwiftProtobuf._Messa
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.sessionID) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self.version) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._config) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
     if !self.sessionID.isEmpty {
       try visitor.visitSingularStringField(value: self.sessionID, fieldNumber: 1)
     }
+    try { if let v = self._config {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Netclode_V1_SessionAssigned, rhs: Netclode_V1_SessionAssigned) -> Bool {
+    if lhs.sessionID != rhs.sessionID {return false}
+    if lhs._config != rhs._config {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Netclode_V1_AgentRegister: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".AgentRegister"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_id\0\u{1}version\0\u{3}pod_name\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self._sessionID) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.version) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self._podName) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._sessionID {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 1)
+    } }()
     if !self.version.isEmpty {
       try visitor.visitSingularStringField(value: self.version, fieldNumber: 2)
     }
+    try { if let v = self._podName {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 3)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Netclode_V1_AgentRegister, rhs: Netclode_V1_AgentRegister) -> Bool {
-    if lhs.sessionID != rhs.sessionID {return false}
+    if lhs._sessionID != rhs._sessionID {return false}
     if lhs.version != rhs.version {return false}
+    if lhs._podName != rhs._podName {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

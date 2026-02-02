@@ -187,6 +187,7 @@ type ControlPlaneMessage struct {
 	//	*ControlPlaneMessage_GetGitDiff
 	//	*ControlPlaneMessage_TerminalInput
 	//	*ControlPlaneMessage_UpdateGitCredentials
+	//	*ControlPlaneMessage_SessionAssigned
 	Message       isControlPlaneMessage_Message `protobuf_oneof:"message"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -301,6 +302,15 @@ func (x *ControlPlaneMessage) GetUpdateGitCredentials() *UpdateGitCredentials {
 	return nil
 }
 
+func (x *ControlPlaneMessage) GetSessionAssigned() *SessionAssigned {
+	if x != nil {
+		if x, ok := x.Message.(*ControlPlaneMessage_SessionAssigned); ok {
+			return x.SessionAssigned
+		}
+	}
+	return nil
+}
+
 type isControlPlaneMessage_Message interface {
 	isControlPlaneMessage_Message()
 }
@@ -345,6 +355,11 @@ type ControlPlaneMessage_UpdateGitCredentials struct {
 	UpdateGitCredentials *UpdateGitCredentials `protobuf:"bytes,8,opt,name=update_git_credentials,json=updateGitCredentials,proto3,oneof"`
 }
 
+type ControlPlaneMessage_SessionAssigned struct {
+	// Session assigned (warm pool mode) - pushed when claim binds
+	SessionAssigned *SessionAssigned `protobuf:"bytes,9,opt,name=session_assigned,json=sessionAssigned,proto3,oneof"`
+}
+
 func (*ControlPlaneMessage_Registered) isControlPlaneMessage_Message() {}
 
 func (*ControlPlaneMessage_ExecutePrompt) isControlPlaneMessage_Message() {}
@@ -361,18 +376,75 @@ func (*ControlPlaneMessage_TerminalInput) isControlPlaneMessage_Message() {}
 
 func (*ControlPlaneMessage_UpdateGitCredentials) isControlPlaneMessage_Message() {}
 
+func (*ControlPlaneMessage_SessionAssigned) isControlPlaneMessage_Message() {}
+
+// SessionAssigned is sent to warm pool agents when a session is bound.
+// This replaces the HTTP polling approach for instant session start.
+type SessionAssigned struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"` // The session ID this agent is now servicing
+	Config        *SessionConfig         `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`                        // Full session configuration
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SessionAssigned) Reset() {
+	*x = SessionAssigned{}
+	mi := &file_netclode_v1_agent_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SessionAssigned) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SessionAssigned) ProtoMessage() {}
+
+func (x *SessionAssigned) ProtoReflect() protoreflect.Message {
+	mi := &file_netclode_v1_agent_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SessionAssigned.ProtoReflect.Descriptor instead.
+func (*SessionAssigned) Descriptor() ([]byte, []int) {
+	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *SessionAssigned) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *SessionAssigned) GetConfig() *SessionConfig {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
 // AgentRegister is sent first by the agent to identify itself.
 type AgentRegister struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"` // Session this agent is servicing
-	Version       string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`                      // Agent version for compatibility checking
+	SessionId     *string                `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3,oneof" json:"session_id,omitempty"` // Session this agent is servicing (empty for warm pool mode)
+	Version       string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`                            // Agent version for compatibility checking
+	PodName       *string                `protobuf:"bytes,3,opt,name=pod_name,json=podName,proto3,oneof" json:"pod_name,omitempty"`       // Pod name for warm pool mode (used to match agent to session)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AgentRegister) Reset() {
 	*x = AgentRegister{}
-	mi := &file_netclode_v1_agent_proto_msgTypes[2]
+	mi := &file_netclode_v1_agent_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -384,7 +456,7 @@ func (x *AgentRegister) String() string {
 func (*AgentRegister) ProtoMessage() {}
 
 func (x *AgentRegister) ProtoReflect() protoreflect.Message {
-	mi := &file_netclode_v1_agent_proto_msgTypes[2]
+	mi := &file_netclode_v1_agent_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -397,12 +469,12 @@ func (x *AgentRegister) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentRegister.ProtoReflect.Descriptor instead.
 func (*AgentRegister) Descriptor() ([]byte, []int) {
-	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{2}
+	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *AgentRegister) GetSessionId() string {
-	if x != nil {
-		return x.SessionId
+	if x != nil && x.SessionId != nil {
+		return *x.SessionId
 	}
 	return ""
 }
@@ -410,6 +482,13 @@ func (x *AgentRegister) GetSessionId() string {
 func (x *AgentRegister) GetVersion() string {
 	if x != nil {
 		return x.Version
+	}
+	return ""
+}
+
+func (x *AgentRegister) GetPodName() string {
+	if x != nil && x.PodName != nil {
+		return *x.PodName
 	}
 	return ""
 }
@@ -431,7 +510,7 @@ type AgentStreamResponse struct {
 
 func (x *AgentStreamResponse) Reset() {
 	*x = AgentStreamResponse{}
-	mi := &file_netclode_v1_agent_proto_msgTypes[3]
+	mi := &file_netclode_v1_agent_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -443,7 +522,7 @@ func (x *AgentStreamResponse) String() string {
 func (*AgentStreamResponse) ProtoMessage() {}
 
 func (x *AgentStreamResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_netclode_v1_agent_proto_msgTypes[3]
+	mi := &file_netclode_v1_agent_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -456,7 +535,7 @@ func (x *AgentStreamResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentStreamResponse.ProtoReflect.Descriptor instead.
 func (*AgentStreamResponse) Descriptor() ([]byte, []int) {
-	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{3}
+	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *AgentStreamResponse) GetResponse() isAgentStreamResponse_Response {
@@ -557,7 +636,7 @@ type AgentTextDelta struct {
 
 func (x *AgentTextDelta) Reset() {
 	*x = AgentTextDelta{}
-	mi := &file_netclode_v1_agent_proto_msgTypes[4]
+	mi := &file_netclode_v1_agent_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -569,7 +648,7 @@ func (x *AgentTextDelta) String() string {
 func (*AgentTextDelta) ProtoMessage() {}
 
 func (x *AgentTextDelta) ProtoReflect() protoreflect.Message {
-	mi := &file_netclode_v1_agent_proto_msgTypes[4]
+	mi := &file_netclode_v1_agent_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -582,7 +661,7 @@ func (x *AgentTextDelta) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentTextDelta.ProtoReflect.Descriptor instead.
 func (*AgentTextDelta) Descriptor() ([]byte, []int) {
-	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{4}
+	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *AgentTextDelta) GetContent() string {
@@ -616,7 +695,7 @@ type AgentSystemMessage struct {
 
 func (x *AgentSystemMessage) Reset() {
 	*x = AgentSystemMessage{}
-	mi := &file_netclode_v1_agent_proto_msgTypes[5]
+	mi := &file_netclode_v1_agent_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -628,7 +707,7 @@ func (x *AgentSystemMessage) String() string {
 func (*AgentSystemMessage) ProtoMessage() {}
 
 func (x *AgentSystemMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_netclode_v1_agent_proto_msgTypes[5]
+	mi := &file_netclode_v1_agent_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -641,7 +720,7 @@ func (x *AgentSystemMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentSystemMessage.ProtoReflect.Descriptor instead.
 func (*AgentSystemMessage) Descriptor() ([]byte, []int) {
-	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{5}
+	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *AgentSystemMessage) GetMessage() string {
@@ -663,7 +742,7 @@ type AgentResult struct {
 
 func (x *AgentResult) Reset() {
 	*x = AgentResult{}
-	mi := &file_netclode_v1_agent_proto_msgTypes[6]
+	mi := &file_netclode_v1_agent_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -675,7 +754,7 @@ func (x *AgentResult) String() string {
 func (*AgentResult) ProtoMessage() {}
 
 func (x *AgentResult) ProtoReflect() protoreflect.Message {
-	mi := &file_netclode_v1_agent_proto_msgTypes[6]
+	mi := &file_netclode_v1_agent_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -688,7 +767,7 @@ func (x *AgentResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentResult.ProtoReflect.Descriptor instead.
 func (*AgentResult) Descriptor() ([]byte, []int) {
-	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{6}
+	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *AgentResult) GetInputTokens() int32 {
@@ -723,7 +802,7 @@ type AgentError struct {
 
 func (x *AgentError) Reset() {
 	*x = AgentError{}
-	mi := &file_netclode_v1_agent_proto_msgTypes[7]
+	mi := &file_netclode_v1_agent_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -735,7 +814,7 @@ func (x *AgentError) String() string {
 func (*AgentError) ProtoMessage() {}
 
 func (x *AgentError) ProtoReflect() protoreflect.Message {
-	mi := &file_netclode_v1_agent_proto_msgTypes[7]
+	mi := &file_netclode_v1_agent_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -748,7 +827,7 @@ func (x *AgentError) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentError.ProtoReflect.Descriptor instead.
 func (*AgentError) Descriptor() ([]byte, []int) {
-	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{7}
+	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *AgentError) GetMessage() string {
@@ -775,7 +854,7 @@ type AgentTerminalOutput struct {
 
 func (x *AgentTerminalOutput) Reset() {
 	*x = AgentTerminalOutput{}
-	mi := &file_netclode_v1_agent_proto_msgTypes[8]
+	mi := &file_netclode_v1_agent_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -787,7 +866,7 @@ func (x *AgentTerminalOutput) String() string {
 func (*AgentTerminalOutput) ProtoMessage() {}
 
 func (x *AgentTerminalOutput) ProtoReflect() protoreflect.Message {
-	mi := &file_netclode_v1_agent_proto_msgTypes[8]
+	mi := &file_netclode_v1_agent_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -800,7 +879,7 @@ func (x *AgentTerminalOutput) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentTerminalOutput.ProtoReflect.Descriptor instead.
 func (*AgentTerminalOutput) Descriptor() ([]byte, []int) {
-	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{8}
+	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *AgentTerminalOutput) GetData() string {
@@ -821,7 +900,7 @@ type AgentTitleResponse struct {
 
 func (x *AgentTitleResponse) Reset() {
 	*x = AgentTitleResponse{}
-	mi := &file_netclode_v1_agent_proto_msgTypes[9]
+	mi := &file_netclode_v1_agent_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -833,7 +912,7 @@ func (x *AgentTitleResponse) String() string {
 func (*AgentTitleResponse) ProtoMessage() {}
 
 func (x *AgentTitleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_netclode_v1_agent_proto_msgTypes[9]
+	mi := &file_netclode_v1_agent_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -846,7 +925,7 @@ func (x *AgentTitleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentTitleResponse.ProtoReflect.Descriptor instead.
 func (*AgentTitleResponse) Descriptor() ([]byte, []int) {
-	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{9}
+	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *AgentTitleResponse) GetRequestId() string {
@@ -874,7 +953,7 @@ type AgentGitStatusResponse struct {
 
 func (x *AgentGitStatusResponse) Reset() {
 	*x = AgentGitStatusResponse{}
-	mi := &file_netclode_v1_agent_proto_msgTypes[10]
+	mi := &file_netclode_v1_agent_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -886,7 +965,7 @@ func (x *AgentGitStatusResponse) String() string {
 func (*AgentGitStatusResponse) ProtoMessage() {}
 
 func (x *AgentGitStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_netclode_v1_agent_proto_msgTypes[10]
+	mi := &file_netclode_v1_agent_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -899,7 +978,7 @@ func (x *AgentGitStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentGitStatusResponse.ProtoReflect.Descriptor instead.
 func (*AgentGitStatusResponse) Descriptor() ([]byte, []int) {
-	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{10}
+	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *AgentGitStatusResponse) GetRequestId() string {
@@ -927,7 +1006,7 @@ type AgentGitDiffResponse struct {
 
 func (x *AgentGitDiffResponse) Reset() {
 	*x = AgentGitDiffResponse{}
-	mi := &file_netclode_v1_agent_proto_msgTypes[11]
+	mi := &file_netclode_v1_agent_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -939,7 +1018,7 @@ func (x *AgentGitDiffResponse) String() string {
 func (*AgentGitDiffResponse) ProtoMessage() {}
 
 func (x *AgentGitDiffResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_netclode_v1_agent_proto_msgTypes[11]
+	mi := &file_netclode_v1_agent_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -952,7 +1031,7 @@ func (x *AgentGitDiffResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentGitDiffResponse.ProtoReflect.Descriptor instead.
 func (*AgentGitDiffResponse) Descriptor() ([]byte, []int) {
-	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{11}
+	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *AgentGitDiffResponse) GetRequestId() string {
@@ -981,7 +1060,7 @@ type AgentRegistered struct {
 
 func (x *AgentRegistered) Reset() {
 	*x = AgentRegistered{}
-	mi := &file_netclode_v1_agent_proto_msgTypes[12]
+	mi := &file_netclode_v1_agent_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -993,7 +1072,7 @@ func (x *AgentRegistered) String() string {
 func (*AgentRegistered) ProtoMessage() {}
 
 func (x *AgentRegistered) ProtoReflect() protoreflect.Message {
-	mi := &file_netclode_v1_agent_proto_msgTypes[12]
+	mi := &file_netclode_v1_agent_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1006,7 +1085,7 @@ func (x *AgentRegistered) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentRegistered.ProtoReflect.Descriptor instead.
 func (*AgentRegistered) Descriptor() ([]byte, []int) {
-	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{12}
+	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *AgentRegistered) GetSuccess() bool {
@@ -1040,7 +1119,7 @@ type ExecutePromptRequest struct {
 
 func (x *ExecutePromptRequest) Reset() {
 	*x = ExecutePromptRequest{}
-	mi := &file_netclode_v1_agent_proto_msgTypes[13]
+	mi := &file_netclode_v1_agent_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1052,7 +1131,7 @@ func (x *ExecutePromptRequest) String() string {
 func (*ExecutePromptRequest) ProtoMessage() {}
 
 func (x *ExecutePromptRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_netclode_v1_agent_proto_msgTypes[13]
+	mi := &file_netclode_v1_agent_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1065,7 +1144,7 @@ func (x *ExecutePromptRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecutePromptRequest.ProtoReflect.Descriptor instead.
 func (*ExecutePromptRequest) Descriptor() ([]byte, []int) {
-	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{13}
+	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ExecutePromptRequest) GetText() string {
@@ -1084,7 +1163,7 @@ type InterruptRequest struct {
 
 func (x *InterruptRequest) Reset() {
 	*x = InterruptRequest{}
-	mi := &file_netclode_v1_agent_proto_msgTypes[14]
+	mi := &file_netclode_v1_agent_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1096,7 +1175,7 @@ func (x *InterruptRequest) String() string {
 func (*InterruptRequest) ProtoMessage() {}
 
 func (x *InterruptRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_netclode_v1_agent_proto_msgTypes[14]
+	mi := &file_netclode_v1_agent_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1109,7 +1188,7 @@ func (x *InterruptRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InterruptRequest.ProtoReflect.Descriptor instead.
 func (*InterruptRequest) Descriptor() ([]byte, []int) {
-	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{14}
+	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{15}
 }
 
 // GenerateTitleRequest asks the agent to generate a session title.
@@ -1123,7 +1202,7 @@ type GenerateTitleRequest struct {
 
 func (x *GenerateTitleRequest) Reset() {
 	*x = GenerateTitleRequest{}
-	mi := &file_netclode_v1_agent_proto_msgTypes[15]
+	mi := &file_netclode_v1_agent_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1135,7 +1214,7 @@ func (x *GenerateTitleRequest) String() string {
 func (*GenerateTitleRequest) ProtoMessage() {}
 
 func (x *GenerateTitleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_netclode_v1_agent_proto_msgTypes[15]
+	mi := &file_netclode_v1_agent_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1148,7 +1227,7 @@ func (x *GenerateTitleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateTitleRequest.ProtoReflect.Descriptor instead.
 func (*GenerateTitleRequest) Descriptor() ([]byte, []int) {
-	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{15}
+	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *GenerateTitleRequest) GetRequestId() string {
@@ -1175,7 +1254,7 @@ type GetGitStatusRequest struct {
 
 func (x *GetGitStatusRequest) Reset() {
 	*x = GetGitStatusRequest{}
-	mi := &file_netclode_v1_agent_proto_msgTypes[16]
+	mi := &file_netclode_v1_agent_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1187,7 +1266,7 @@ func (x *GetGitStatusRequest) String() string {
 func (*GetGitStatusRequest) ProtoMessage() {}
 
 func (x *GetGitStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_netclode_v1_agent_proto_msgTypes[16]
+	mi := &file_netclode_v1_agent_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1200,7 +1279,7 @@ func (x *GetGitStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGitStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetGitStatusRequest) Descriptor() ([]byte, []int) {
-	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{16}
+	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *GetGitStatusRequest) GetRequestId() string {
@@ -1221,7 +1300,7 @@ type GetGitDiffRequest struct {
 
 func (x *GetGitDiffRequest) Reset() {
 	*x = GetGitDiffRequest{}
-	mi := &file_netclode_v1_agent_proto_msgTypes[17]
+	mi := &file_netclode_v1_agent_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1233,7 +1312,7 @@ func (x *GetGitDiffRequest) String() string {
 func (*GetGitDiffRequest) ProtoMessage() {}
 
 func (x *GetGitDiffRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_netclode_v1_agent_proto_msgTypes[17]
+	mi := &file_netclode_v1_agent_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1246,7 +1325,7 @@ func (x *GetGitDiffRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGitDiffRequest.ProtoReflect.Descriptor instead.
 func (*GetGitDiffRequest) Descriptor() ([]byte, []int) {
-	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{17}
+	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *GetGitDiffRequest) GetRequestId() string {
@@ -1277,7 +1356,7 @@ type AgentTerminalInput struct {
 
 func (x *AgentTerminalInput) Reset() {
 	*x = AgentTerminalInput{}
-	mi := &file_netclode_v1_agent_proto_msgTypes[18]
+	mi := &file_netclode_v1_agent_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1289,7 +1368,7 @@ func (x *AgentTerminalInput) String() string {
 func (*AgentTerminalInput) ProtoMessage() {}
 
 func (x *AgentTerminalInput) ProtoReflect() protoreflect.Message {
-	mi := &file_netclode_v1_agent_proto_msgTypes[18]
+	mi := &file_netclode_v1_agent_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1302,7 +1381,7 @@ func (x *AgentTerminalInput) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentTerminalInput.ProtoReflect.Descriptor instead.
 func (*AgentTerminalInput) Descriptor() ([]byte, []int) {
-	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{18}
+	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *AgentTerminalInput) GetInput() isAgentTerminalInput_Input {
@@ -1357,7 +1436,7 @@ type AgentTerminalResize struct {
 
 func (x *AgentTerminalResize) Reset() {
 	*x = AgentTerminalResize{}
-	mi := &file_netclode_v1_agent_proto_msgTypes[19]
+	mi := &file_netclode_v1_agent_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1369,7 +1448,7 @@ func (x *AgentTerminalResize) String() string {
 func (*AgentTerminalResize) ProtoMessage() {}
 
 func (x *AgentTerminalResize) ProtoReflect() protoreflect.Message {
-	mi := &file_netclode_v1_agent_proto_msgTypes[19]
+	mi := &file_netclode_v1_agent_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1382,7 +1461,7 @@ func (x *AgentTerminalResize) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentTerminalResize.ProtoReflect.Descriptor instead.
 func (*AgentTerminalResize) Descriptor() ([]byte, []int) {
-	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{19}
+	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *AgentTerminalResize) GetCols() int32 {
@@ -1411,7 +1490,7 @@ type UpdateGitCredentials struct {
 
 func (x *UpdateGitCredentials) Reset() {
 	*x = UpdateGitCredentials{}
-	mi := &file_netclode_v1_agent_proto_msgTypes[20]
+	mi := &file_netclode_v1_agent_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1423,7 +1502,7 @@ func (x *UpdateGitCredentials) String() string {
 func (*UpdateGitCredentials) ProtoMessage() {}
 
 func (x *UpdateGitCredentials) ProtoReflect() protoreflect.Message {
-	mi := &file_netclode_v1_agent_proto_msgTypes[20]
+	mi := &file_netclode_v1_agent_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1436,7 +1515,7 @@ func (x *UpdateGitCredentials) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateGitCredentials.ProtoReflect.Descriptor instead.
 func (*UpdateGitCredentials) Descriptor() ([]byte, []int) {
-	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{20}
+	return file_netclode_v1_agent_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *UpdateGitCredentials) GetGithubToken() string {
@@ -1465,7 +1544,7 @@ const file_netclode_v1_agent_proto_rawDesc = "" +
 	"\x0etitle_response\x18\x04 \x01(\v2\x1f.netclode.v1.AgentTitleResponseH\x00R\rtitleResponse\x12U\n" +
 	"\x13git_status_response\x18\x05 \x01(\v2#.netclode.v1.AgentGitStatusResponseH\x00R\x11gitStatusResponse\x12O\n" +
 	"\x11git_diff_response\x18\x06 \x01(\v2!.netclode.v1.AgentGitDiffResponseH\x00R\x0fgitDiffResponseB\t\n" +
-	"\amessage\"\xea\x04\n" +
+	"\amessage\"\xb5\x05\n" +
 	"\x13ControlPlaneMessage\x12>\n" +
 	"\n" +
 	"registered\x18\x01 \x01(\v2\x1c.netclode.v1.AgentRegisteredH\x00R\n" +
@@ -1477,12 +1556,20 @@ const file_netclode_v1_agent_proto_rawDesc = "" +
 	"\fget_git_diff\x18\x06 \x01(\v2\x1e.netclode.v1.GetGitDiffRequestH\x00R\n" +
 	"getGitDiff\x12H\n" +
 	"\x0eterminal_input\x18\a \x01(\v2\x1f.netclode.v1.AgentTerminalInputH\x00R\rterminalInput\x12Y\n" +
-	"\x16update_git_credentials\x18\b \x01(\v2!.netclode.v1.UpdateGitCredentialsH\x00R\x14updateGitCredentialsB\t\n" +
-	"\amessage\"H\n" +
-	"\rAgentRegister\x12\x1d\n" +
+	"\x16update_git_credentials\x18\b \x01(\v2!.netclode.v1.UpdateGitCredentialsH\x00R\x14updateGitCredentials\x12I\n" +
+	"\x10session_assigned\x18\t \x01(\v2\x1c.netclode.v1.SessionAssignedH\x00R\x0fsessionAssignedB\t\n" +
+	"\amessage\"d\n" +
+	"\x0fSessionAssigned\x12\x1d\n" +
 	"\n" +
-	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x18\n" +
-	"\aversion\x18\x02 \x01(\tR\aversion\"\xbf\x02\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x122\n" +
+	"\x06config\x18\x02 \x01(\v2\x1a.netclode.v1.SessionConfigR\x06config\"\x89\x01\n" +
+	"\rAgentRegister\x12\"\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tH\x00R\tsessionId\x88\x01\x01\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\tR\aversion\x12\x1e\n" +
+	"\bpod_name\x18\x03 \x01(\tH\x01R\apodName\x88\x01\x01B\r\n" +
+	"\v_session_idB\v\n" +
+	"\t_pod_name\"\xbf\x02\n" +
 	"\x13AgentStreamResponse\x12<\n" +
 	"\n" +
 	"text_delta\x18\x01 \x01(\v2\x1b.netclode.v1.AgentTextDeltaH\x00R\ttextDelta\x12/\n" +
@@ -1571,65 +1658,68 @@ func file_netclode_v1_agent_proto_rawDescGZIP() []byte {
 	return file_netclode_v1_agent_proto_rawDescData
 }
 
-var file_netclode_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
+var file_netclode_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_netclode_v1_agent_proto_goTypes = []any{
 	(*AgentMessage)(nil),           // 0: netclode.v1.AgentMessage
 	(*ControlPlaneMessage)(nil),    // 1: netclode.v1.ControlPlaneMessage
-	(*AgentRegister)(nil),          // 2: netclode.v1.AgentRegister
-	(*AgentStreamResponse)(nil),    // 3: netclode.v1.AgentStreamResponse
-	(*AgentTextDelta)(nil),         // 4: netclode.v1.AgentTextDelta
-	(*AgentSystemMessage)(nil),     // 5: netclode.v1.AgentSystemMessage
-	(*AgentResult)(nil),            // 6: netclode.v1.AgentResult
-	(*AgentError)(nil),             // 7: netclode.v1.AgentError
-	(*AgentTerminalOutput)(nil),    // 8: netclode.v1.AgentTerminalOutput
-	(*AgentTitleResponse)(nil),     // 9: netclode.v1.AgentTitleResponse
-	(*AgentGitStatusResponse)(nil), // 10: netclode.v1.AgentGitStatusResponse
-	(*AgentGitDiffResponse)(nil),   // 11: netclode.v1.AgentGitDiffResponse
-	(*AgentRegistered)(nil),        // 12: netclode.v1.AgentRegistered
-	(*ExecutePromptRequest)(nil),   // 13: netclode.v1.ExecutePromptRequest
-	(*InterruptRequest)(nil),       // 14: netclode.v1.InterruptRequest
-	(*GenerateTitleRequest)(nil),   // 15: netclode.v1.GenerateTitleRequest
-	(*GetGitStatusRequest)(nil),    // 16: netclode.v1.GetGitStatusRequest
-	(*GetGitDiffRequest)(nil),      // 17: netclode.v1.GetGitDiffRequest
-	(*AgentTerminalInput)(nil),     // 18: netclode.v1.AgentTerminalInput
-	(*AgentTerminalResize)(nil),    // 19: netclode.v1.AgentTerminalResize
-	(*UpdateGitCredentials)(nil),   // 20: netclode.v1.UpdateGitCredentials
-	(*AgentEvent)(nil),             // 21: netclode.v1.AgentEvent
-	(*GitFileChange)(nil),          // 22: netclode.v1.GitFileChange
-	(*SessionConfig)(nil),          // 23: netclode.v1.SessionConfig
-	(RepoAccess)(0),                // 24: netclode.v1.RepoAccess
+	(*SessionAssigned)(nil),        // 2: netclode.v1.SessionAssigned
+	(*AgentRegister)(nil),          // 3: netclode.v1.AgentRegister
+	(*AgentStreamResponse)(nil),    // 4: netclode.v1.AgentStreamResponse
+	(*AgentTextDelta)(nil),         // 5: netclode.v1.AgentTextDelta
+	(*AgentSystemMessage)(nil),     // 6: netclode.v1.AgentSystemMessage
+	(*AgentResult)(nil),            // 7: netclode.v1.AgentResult
+	(*AgentError)(nil),             // 8: netclode.v1.AgentError
+	(*AgentTerminalOutput)(nil),    // 9: netclode.v1.AgentTerminalOutput
+	(*AgentTitleResponse)(nil),     // 10: netclode.v1.AgentTitleResponse
+	(*AgentGitStatusResponse)(nil), // 11: netclode.v1.AgentGitStatusResponse
+	(*AgentGitDiffResponse)(nil),   // 12: netclode.v1.AgentGitDiffResponse
+	(*AgentRegistered)(nil),        // 13: netclode.v1.AgentRegistered
+	(*ExecutePromptRequest)(nil),   // 14: netclode.v1.ExecutePromptRequest
+	(*InterruptRequest)(nil),       // 15: netclode.v1.InterruptRequest
+	(*GenerateTitleRequest)(nil),   // 16: netclode.v1.GenerateTitleRequest
+	(*GetGitStatusRequest)(nil),    // 17: netclode.v1.GetGitStatusRequest
+	(*GetGitDiffRequest)(nil),      // 18: netclode.v1.GetGitDiffRequest
+	(*AgentTerminalInput)(nil),     // 19: netclode.v1.AgentTerminalInput
+	(*AgentTerminalResize)(nil),    // 20: netclode.v1.AgentTerminalResize
+	(*UpdateGitCredentials)(nil),   // 21: netclode.v1.UpdateGitCredentials
+	(*SessionConfig)(nil),          // 22: netclode.v1.SessionConfig
+	(*AgentEvent)(nil),             // 23: netclode.v1.AgentEvent
+	(*GitFileChange)(nil),          // 24: netclode.v1.GitFileChange
+	(RepoAccess)(0),                // 25: netclode.v1.RepoAccess
 }
 var file_netclode_v1_agent_proto_depIdxs = []int32{
-	2,  // 0: netclode.v1.AgentMessage.register:type_name -> netclode.v1.AgentRegister
-	3,  // 1: netclode.v1.AgentMessage.prompt_response:type_name -> netclode.v1.AgentStreamResponse
-	8,  // 2: netclode.v1.AgentMessage.terminal_output:type_name -> netclode.v1.AgentTerminalOutput
-	9,  // 3: netclode.v1.AgentMessage.title_response:type_name -> netclode.v1.AgentTitleResponse
-	10, // 4: netclode.v1.AgentMessage.git_status_response:type_name -> netclode.v1.AgentGitStatusResponse
-	11, // 5: netclode.v1.AgentMessage.git_diff_response:type_name -> netclode.v1.AgentGitDiffResponse
-	12, // 6: netclode.v1.ControlPlaneMessage.registered:type_name -> netclode.v1.AgentRegistered
-	13, // 7: netclode.v1.ControlPlaneMessage.execute_prompt:type_name -> netclode.v1.ExecutePromptRequest
-	14, // 8: netclode.v1.ControlPlaneMessage.interrupt:type_name -> netclode.v1.InterruptRequest
-	15, // 9: netclode.v1.ControlPlaneMessage.generate_title:type_name -> netclode.v1.GenerateTitleRequest
-	16, // 10: netclode.v1.ControlPlaneMessage.get_git_status:type_name -> netclode.v1.GetGitStatusRequest
-	17, // 11: netclode.v1.ControlPlaneMessage.get_git_diff:type_name -> netclode.v1.GetGitDiffRequest
-	18, // 12: netclode.v1.ControlPlaneMessage.terminal_input:type_name -> netclode.v1.AgentTerminalInput
-	20, // 13: netclode.v1.ControlPlaneMessage.update_git_credentials:type_name -> netclode.v1.UpdateGitCredentials
-	4,  // 14: netclode.v1.AgentStreamResponse.text_delta:type_name -> netclode.v1.AgentTextDelta
-	21, // 15: netclode.v1.AgentStreamResponse.event:type_name -> netclode.v1.AgentEvent
-	5,  // 16: netclode.v1.AgentStreamResponse.system_message:type_name -> netclode.v1.AgentSystemMessage
-	6,  // 17: netclode.v1.AgentStreamResponse.result:type_name -> netclode.v1.AgentResult
-	7,  // 18: netclode.v1.AgentStreamResponse.error:type_name -> netclode.v1.AgentError
-	22, // 19: netclode.v1.AgentGitStatusResponse.files:type_name -> netclode.v1.GitFileChange
-	23, // 20: netclode.v1.AgentRegistered.config:type_name -> netclode.v1.SessionConfig
-	19, // 21: netclode.v1.AgentTerminalInput.resize:type_name -> netclode.v1.AgentTerminalResize
-	24, // 22: netclode.v1.UpdateGitCredentials.repo_access:type_name -> netclode.v1.RepoAccess
-	0,  // 23: netclode.v1.AgentService.Connect:input_type -> netclode.v1.AgentMessage
-	1,  // 24: netclode.v1.AgentService.Connect:output_type -> netclode.v1.ControlPlaneMessage
-	24, // [24:25] is the sub-list for method output_type
-	23, // [23:24] is the sub-list for method input_type
-	23, // [23:23] is the sub-list for extension type_name
-	23, // [23:23] is the sub-list for extension extendee
-	0,  // [0:23] is the sub-list for field type_name
+	3,  // 0: netclode.v1.AgentMessage.register:type_name -> netclode.v1.AgentRegister
+	4,  // 1: netclode.v1.AgentMessage.prompt_response:type_name -> netclode.v1.AgentStreamResponse
+	9,  // 2: netclode.v1.AgentMessage.terminal_output:type_name -> netclode.v1.AgentTerminalOutput
+	10, // 3: netclode.v1.AgentMessage.title_response:type_name -> netclode.v1.AgentTitleResponse
+	11, // 4: netclode.v1.AgentMessage.git_status_response:type_name -> netclode.v1.AgentGitStatusResponse
+	12, // 5: netclode.v1.AgentMessage.git_diff_response:type_name -> netclode.v1.AgentGitDiffResponse
+	13, // 6: netclode.v1.ControlPlaneMessage.registered:type_name -> netclode.v1.AgentRegistered
+	14, // 7: netclode.v1.ControlPlaneMessage.execute_prompt:type_name -> netclode.v1.ExecutePromptRequest
+	15, // 8: netclode.v1.ControlPlaneMessage.interrupt:type_name -> netclode.v1.InterruptRequest
+	16, // 9: netclode.v1.ControlPlaneMessage.generate_title:type_name -> netclode.v1.GenerateTitleRequest
+	17, // 10: netclode.v1.ControlPlaneMessage.get_git_status:type_name -> netclode.v1.GetGitStatusRequest
+	18, // 11: netclode.v1.ControlPlaneMessage.get_git_diff:type_name -> netclode.v1.GetGitDiffRequest
+	19, // 12: netclode.v1.ControlPlaneMessage.terminal_input:type_name -> netclode.v1.AgentTerminalInput
+	21, // 13: netclode.v1.ControlPlaneMessage.update_git_credentials:type_name -> netclode.v1.UpdateGitCredentials
+	2,  // 14: netclode.v1.ControlPlaneMessage.session_assigned:type_name -> netclode.v1.SessionAssigned
+	22, // 15: netclode.v1.SessionAssigned.config:type_name -> netclode.v1.SessionConfig
+	5,  // 16: netclode.v1.AgentStreamResponse.text_delta:type_name -> netclode.v1.AgentTextDelta
+	23, // 17: netclode.v1.AgentStreamResponse.event:type_name -> netclode.v1.AgentEvent
+	6,  // 18: netclode.v1.AgentStreamResponse.system_message:type_name -> netclode.v1.AgentSystemMessage
+	7,  // 19: netclode.v1.AgentStreamResponse.result:type_name -> netclode.v1.AgentResult
+	8,  // 20: netclode.v1.AgentStreamResponse.error:type_name -> netclode.v1.AgentError
+	24, // 21: netclode.v1.AgentGitStatusResponse.files:type_name -> netclode.v1.GitFileChange
+	22, // 22: netclode.v1.AgentRegistered.config:type_name -> netclode.v1.SessionConfig
+	20, // 23: netclode.v1.AgentTerminalInput.resize:type_name -> netclode.v1.AgentTerminalResize
+	25, // 24: netclode.v1.UpdateGitCredentials.repo_access:type_name -> netclode.v1.RepoAccess
+	0,  // 25: netclode.v1.AgentService.Connect:input_type -> netclode.v1.AgentMessage
+	1,  // 26: netclode.v1.AgentService.Connect:output_type -> netclode.v1.ControlPlaneMessage
+	26, // [26:27] is the sub-list for method output_type
+	25, // [25:26] is the sub-list for method input_type
+	25, // [25:25] is the sub-list for extension type_name
+	25, // [25:25] is the sub-list for extension extendee
+	0,  // [0:25] is the sub-list for field type_name
 }
 
 func init() { file_netclode_v1_agent_proto_init() }
@@ -1656,17 +1746,19 @@ func file_netclode_v1_agent_proto_init() {
 		(*ControlPlaneMessage_GetGitDiff)(nil),
 		(*ControlPlaneMessage_TerminalInput)(nil),
 		(*ControlPlaneMessage_UpdateGitCredentials)(nil),
+		(*ControlPlaneMessage_SessionAssigned)(nil),
 	}
-	file_netclode_v1_agent_proto_msgTypes[3].OneofWrappers = []any{
+	file_netclode_v1_agent_proto_msgTypes[3].OneofWrappers = []any{}
+	file_netclode_v1_agent_proto_msgTypes[4].OneofWrappers = []any{
 		(*AgentStreamResponse_TextDelta)(nil),
 		(*AgentStreamResponse_Event)(nil),
 		(*AgentStreamResponse_SystemMessage)(nil),
 		(*AgentStreamResponse_Result)(nil),
 		(*AgentStreamResponse_Error)(nil),
 	}
-	file_netclode_v1_agent_proto_msgTypes[12].OneofWrappers = []any{}
-	file_netclode_v1_agent_proto_msgTypes[17].OneofWrappers = []any{}
-	file_netclode_v1_agent_proto_msgTypes[18].OneofWrappers = []any{
+	file_netclode_v1_agent_proto_msgTypes[13].OneofWrappers = []any{}
+	file_netclode_v1_agent_proto_msgTypes[18].OneofWrappers = []any{}
+	file_netclode_v1_agent_proto_msgTypes[19].OneofWrappers = []any{
 		(*AgentTerminalInput_Data)(nil),
 		(*AgentTerminalInput_Resize)(nil),
 	}
@@ -1676,7 +1768,7 @@ func file_netclode_v1_agent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_netclode_v1_agent_proto_rawDesc), len(file_netclode_v1_agent_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   21,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
