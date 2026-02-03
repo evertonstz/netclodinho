@@ -3,8 +3,10 @@ package api
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
+	"strings"
 	"sync"
 
 	"connectrpc.com/connect"
@@ -70,29 +72,41 @@ func (h *ConnectAgentServiceHandler) Connect(ctx context.Context, stream *connec
 		return errors.New("first message must be AgentRegister")
 	}
 
-	// Determine registration mode based on session_id presence
+	// All agents must provide k8s_token for identity verification
 	sessionID := reg.GetSessionId()
 	k8sToken := reg.GetK8SToken()
 
-	// Warm pool mode: no session_id, must have k8s_token for identity verification
-	// Agent will wait for SessionAssigned message
-	if sessionID == "" && k8sToken != "" {
-		// Verify the agent's identity using Kubernetes TokenReview API
-		// This prevents rogue agents from impersonating legitimate ones
-		podName, err := h.manager.VerifyAgentToken(ctx, k8sToken)
-		if err != nil {
-			slog.Warn("Agent token verification failed", "error", err, "version", reg.Version)
-			conn.send(&v1.ControlPlaneMessage{
-				Message: &v1.ControlPlaneMessage_Registered{
-					Registered: &v1.AgentRegistered{
-						Success: false,
-						Error:   strPtr("token verification failed: " + err.Error()),
-					},
+	if k8sToken == "" {
+		slog.Warn("Agent registration failed - no k8s_token", "version", reg.Version)
+		conn.send(&v1.ControlPlaneMessage{
+			Message: &v1.ControlPlaneMessage_Registered{
+				Registered: &v1.AgentRegistered{
+					Success: false,
+					Error:   strPtr("k8s_token required for authentication"),
 				},
-			})
-			return err
-		}
+			},
+		})
+		return errors.New("k8s_token required for authentication")
+	}
 
+	// Verify the agent's identity using Kubernetes TokenReview API
+	// This prevents rogue agents from impersonating legitimate ones
+	podName, err := h.manager.VerifyAgentToken(ctx, k8sToken)
+	if err != nil {
+		slog.Warn("Agent token verification failed", "error", err, "version", reg.Version)
+		conn.send(&v1.ControlPlaneMessage{
+			Message: &v1.ControlPlaneMessage_Registered{
+				Registered: &v1.AgentRegistered{
+					Success: false,
+					Error:   strPtr("token verification failed: " + err.Error()),
+				},
+			},
+		})
+		return err
+	}
+
+	// Warm pool mode: no session_id, agent waits for SessionAssigned message
+	if sessionID == "" {
 		slog.Info("Warm pool agent connecting (verified)", "podName", podName, "version", reg.Version)
 
 		conn.podName = podName
@@ -133,12 +147,25 @@ func (h *ConnectAgentServiceHandler) Connect(ctx context.Context, stream *connec
 	}
 
 	// Direct mode: session_id provided
-	if sessionID == "" {
-		return errors.New("session_id required (or k8s_token for warm pool mode)")
+	// Verify the pod name matches the expected pattern for this session
+	// Direct mode pods are named "sess-<sessionID>" or "sess-<sessionID>-<suffix>"
+	expectedPrefix := "sess-" + sessionID
+	if !strings.HasPrefix(podName, expectedPrefix) {
+		err := fmt.Errorf("pod name %q doesn't match session %q (expected prefix %q)", podName, sessionID, expectedPrefix)
+		slog.Warn("Agent session verification failed", "error", err, "podName", podName, "sessionID", sessionID)
+		conn.send(&v1.ControlPlaneMessage{
+			Message: &v1.ControlPlaneMessage_Registered{
+				Registered: &v1.AgentRegistered{
+					Success: false,
+					Error:   strPtr(err.Error()),
+				},
+			},
+		})
+		return err
 	}
 
 	conn.sessionID = sessionID
-	slog.Info("Agent connecting (direct mode)", "sessionID", sessionID, "version", reg.Version)
+	slog.Info("Agent connecting (direct mode, verified)", "sessionID", sessionID, "podName", podName, "version", reg.Version)
 
 	// Get session config
 	config, err := h.manager.GetSessionConfig(ctx, sessionID)

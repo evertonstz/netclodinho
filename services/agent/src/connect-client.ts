@@ -340,39 +340,33 @@ export async function connectToControlPlane(
     }
   };
 
-  // Build registration message based on mode
-  let registerValue: AgentRegister;
-  if (sessionId) {
-    // Direct mode: use session ID
-    registerValue = create(AgentRegisterSchema, {
-      sessionId,
-      version: "1.0.0",
-    });
+  // Read Kubernetes ServiceAccount token for authentication (required for all modes)
+  const k8sTokenPath = "/var/run/secrets/kubernetes.io/serviceaccount/token";
+  let k8sToken: string | undefined;
+
+  if (existsSync(k8sTokenPath)) {
+    try {
+      k8sToken = readFileSync(k8sTokenPath, "utf-8").trim();
+      console.log("[agent] Read Kubernetes ServiceAccount token for authentication");
+    } catch (err) {
+      console.error("[agent] Failed to read Kubernetes token:", err);
+    }
   } else {
-    // Warm pool mode: use Kubernetes ServiceAccount token for identity verification
-    const k8sTokenPath = "/var/run/secrets/kubernetes.io/serviceaccount/token";
-    let k8sToken: string | undefined;
-
-    if (existsSync(k8sTokenPath)) {
-      try {
-        k8sToken = readFileSync(k8sTokenPath, "utf-8").trim();
-        console.log("[agent] Read Kubernetes ServiceAccount token for authentication");
-      } catch (err) {
-        console.error("[agent] Failed to read Kubernetes token:", err);
-      }
-    } else {
-      console.warn("[agent] Kubernetes token not found at", k8sTokenPath);
-    }
-
-    if (!k8sToken) {
-      throw new Error("Kubernetes ServiceAccount token required for warm pool mode");
-    }
-
-    registerValue = create(AgentRegisterSchema, {
-      k8sToken,
-      version: "1.0.0",
-    });
+    console.warn("[agent] Kubernetes token not found at", k8sTokenPath);
   }
+
+  if (!k8sToken) {
+    throw new Error("Kubernetes ServiceAccount token required for authentication");
+  }
+
+  // Build registration message
+  // - Direct mode: include sessionId + k8sToken
+  // - Warm pool mode: only k8sToken (session assigned later via gRPC push)
+  const registerValue: AgentRegister = create(AgentRegisterSchema, {
+    k8sToken,
+    version: "1.0.0",
+    ...(sessionId && { sessionId }),
+  });
 
   async function* messageGenerator(): AsyncIterable<AgentMessage> {
     // First, send registration (with sessionId for direct mode, podName for warm pool mode)
