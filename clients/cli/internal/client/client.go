@@ -377,6 +377,39 @@ func (c *Client) ResumeSession(ctx context.Context, sessionID string) (*pb.Sessi
 	return nil, fmt.Errorf("unexpected response type: %T", msg.GetMessage())
 }
 
+// ListModels returns available models for the specified SDK type.
+func (c *Client) ListModels(ctx context.Context, sdkType pb.SdkType, copilotBackend *pb.CopilotBackend) ([]*pb.ModelInfo, error) {
+	stream := c.client.Connect(ctx)
+	defer func() { _ = stream.CloseRequest() }()
+
+	req := &pb.ListModelsRequest{
+		SdkType:        sdkType,
+		CopilotBackend: copilotBackend,
+	}
+
+	if err := stream.Send(&pb.ClientMessage{
+		Message: &pb.ClientMessage_ListModels{
+			ListModels: req,
+		},
+	}); err != nil {
+		return nil, fmt.Errorf("send request: %w", err)
+	}
+
+	msg, err := stream.Receive()
+	if err != nil {
+		return nil, fmt.Errorf("receive response: %w", err)
+	}
+
+	if resp := msg.GetModels(); resp != nil {
+		return resp.Models, nil
+	}
+	if errResp := msg.GetError(); errResp != nil {
+		return nil, fmt.Errorf("%s: %s", errResp.Error.Code, errResp.Error.Message)
+	}
+
+	return nil, fmt.Errorf("unexpected response type: %T", msg.GetMessage())
+}
+
 // RestoreSnapshot restores a session to a snapshot.
 func (c *Client) RestoreSnapshot(ctx context.Context, sessionID, snapshotID string) error {
 	stream := c.client.Connect(ctx)
