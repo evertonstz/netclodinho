@@ -21,6 +21,7 @@ import {
   AgentTerminalOutputSchema,
   AgentRegisterSchema,
   type AgentMessage,
+  type AgentRegister,
   type ControlPlaneMessage,
   type AgentStreamResponse,
 } from "../gen/netclode/v1/agent_pb.js";
@@ -340,7 +341,7 @@ export async function connectToControlPlane(
   };
 
   // Build registration message based on mode
-  let registerValue;
+  let registerValue: AgentRegister;
   if (sessionId) {
     // Direct mode: use session ID
     registerValue = create(AgentRegisterSchema, {
