@@ -39,6 +39,22 @@ else
 	echo "[entrypoint] Docker daemon ready"
 fi
 
+# Setup iptables redirect for secret-proxy AFTER Docker starts
+# Docker overwrites iptables rules, so we must add ours after dockerd is ready
+# Redirect HTTP (80) and HTTPS (443) to proxy on port 8080
+# Exclude traffic from proxy user (UID 65534/nobody) to prevent loops
+if [ -f "$PROXY_CA" ]; then
+	echo "[entrypoint] Setting up iptables redirect for secret-proxy..."
+	# Use iptables-legacy if available (Kata VM kernel may not support nftables)
+	IPTABLES="iptables"
+	if command -v iptables-legacy &>/dev/null; then
+		IPTABLES="iptables-legacy"
+	fi
+	$IPTABLES -t nat -A OUTPUT -p tcp --dport 80 -m owner ! --uid-owner 65534 -j REDIRECT --to-port 8080 || true
+	$IPTABLES -t nat -A OUTPUT -p tcp --dport 443 -m owner ! --uid-owner 65534 -j REDIRECT --to-port 8080 || true
+	echo "[entrypoint] iptables redirect configured"
+fi
+
 # Configure git credentials if GitHub token is provided
 # This is done as root so the credential file is set up before switching to agent user
 if [ -n "$GITHUB_TOKEN" ]; then
