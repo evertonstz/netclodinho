@@ -30,7 +30,7 @@ ENV PATH="/root/.local/bin:/root/.local/share/mise/shims:${PATH}"
 # =============================================================================
 # Go Builder (for auth-proxy)
 # =============================================================================
-FROM golang:1.24-bookworm AS go-builder
+FROM golang:1.25-bookworm AS go-builder
 
 WORKDIR /build
 COPY services/agent/auth-proxy ./auth-proxy
