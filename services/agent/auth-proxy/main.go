@@ -16,6 +16,7 @@ package main
 import (
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -50,17 +51,15 @@ func main() {
 		}
 	}()
 
-	// Create HTTP client for upstream (no proxy - direct connection)
-	transport := &http.Transport{
-		MaxIdleConns:        100,
-		IdleConnTimeout:     90 * time.Second,
-		DisableKeepAlives:   false,
-		MaxIdleConnsPerHost: 10,
+	// Create dialer for upstream connections
+	dialer := &net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
 	}
 
 	handler := &proxyHandler{
-		upstream:  upstreamProxy,
-		transport: transport,
+		upstream: upstreamProxy,
+		dialer:   dialer,
 	}
 
 	server := &http.Server{
@@ -95,8 +94,8 @@ func getToken() string {
 }
 
 type proxyHandler struct {
-	upstream  string
-	transport *http.Transport
+	upstream string
+	dialer   *net.Dialer
 }
 
 func (h *proxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -179,7 +178,7 @@ func (h *proxyHandler) handleConnect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Connect to upstream proxy
-	upstreamConn, err := h.transport.DialContext(r.Context(), "tcp", strings.TrimPrefix(h.upstream, "http://"))
+	upstreamConn, err := h.dialer.DialContext(r.Context(), "tcp", strings.TrimPrefix(h.upstream, "http://"))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
