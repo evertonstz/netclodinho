@@ -237,6 +237,11 @@ func (m *mockRuntime) VerifyAgentToken(ctx context.Context, token string) (strin
 	return "mock-pod-" + token[:8], nil
 }
 
+func (m *mockRuntime) GetSessionIDByPodIP(ctx context.Context, podIP string) (string, error) {
+	// Mock implementation - return a fake session ID for testing
+	return "mock-session-" + podIP, nil
+}
+
 func (m *mockRuntime) Close() {
 }
 

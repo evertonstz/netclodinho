@@ -107,6 +107,12 @@
     definition: "{{ lookup('template', 'control-plane.yaml.j2') | from_yaml_all }}"
     kubeconfig: "{{ k3s_kubeconfig }}"
 
+- name: Deploy secret-proxy
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'secret-proxy.yaml.j2') | from_yaml_all }}"
+    kubeconfig: "{{ k3s_kubeconfig }}"
+
 - name: Deploy control-plane ingress
   kubernetes.core.k8s:
     state: present

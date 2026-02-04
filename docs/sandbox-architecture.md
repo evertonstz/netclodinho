@@ -220,12 +220,14 @@ Sandboxes are network-isolated via Kubernetes NetworkPolicy.
 ### Default Policy
 
 Sandboxes can:
-- Access the internet (external IPs)
-- Reach the control-plane (for config, health)
+- Reach the control-plane (for config, events)
+- Reach the secret-proxy (for API requests)
+- Resolve DNS
 
 Sandboxes cannot:
+- Access the internet directly (must go through secret-proxy)
 - Reach other pods (10.42.0.0/16)
-- Reach services (10.43.0.0/16)
+- Reach services (10.43.0.0/16) except control-plane and secret-proxy
 - Reach private networks (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)
 - Reach Tailnet (100.64.0.0/10) by default
 
@@ -251,6 +253,71 @@ ingress:
       - ipBlock:
           cidr: 100.64.0.0/10  # Tailscale range
 ```
+
+## Secret Protection
+
+API keys (Anthropic, OpenAI, etc.) are protected using a two-tier proxy architecture. **Real secrets never enter the sandbox microVM.**
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           KATA MICROVM (Sandbox)                            │
+│                                                                             │
+│  ┌─────────┐    HTTP_PROXY     ┌─────────────┐                              │
+│  │   SDK   │ ───────────────── │ auth-proxy  │                              │
+│  │ (Claude)│   localhost:8080  │             │                              │
+│  └─────────┘                   └──────┬──────┘                              │
+│       │                               │                                     │
+│       │ ANTHROPIC_API_KEY=            │ Adds: Proxy-Authorization           │
+│       │ NETCLODE_PLACEHOLDER_xxx      │       Bearer <SA token>             │
+│       │                               │                                     │
+│       │ (NO real secrets)             │ (NO real secrets)                   │
+└───────┼───────────────────────────────┼─────────────────────────────────────┘
+        │                               │
+        │                               ▼
+        │               ┌───────────────────────────────┐
+        │               │     secret-proxy Service      │
+        │               │   (OUTSIDE the microVM)       │
+        │               │                               │
+        │               │  1. Validate token with       │
+        │               │     control-plane             │
+        │               │  2. Check SDK type → hosts    │
+        │               │  3. Replace placeholder       │
+        │               │     with real secret          │
+        │               │                               │
+        │               │  (HAS real secrets)           │
+        │               └───────────────┬───────────────┘
+        │                               │
+        │                               ▼
+        │                       ┌───────────────┐
+        │                       │   Internet    │
+        │                       └───────────────┘
+```
+
+### How It Works
+
+1. **Placeholder injection**: Agent sees `ANTHROPIC_API_KEY=NETCLODE_PLACEHOLDER_anthropic`
+2. **Local proxy**: `HTTP_PROXY=localhost:8080` routes traffic through auth-proxy
+3. **Token auth**: auth-proxy reads mounted ServiceAccount token, adds to request
+4. **Validation**: secret-proxy validates token with control-plane (token → pod → session → SDK type)
+5. **Secret injection**: If target host is allowed for SDK type, placeholder is replaced with real secret
+
+### SDK to Host Mapping
+
+| SDK Type | Allowed API Hosts |
+|----------|-------------------|
+| Claude | `api.anthropic.com` |
+| OpenCode | `api.anthropic.com`, `api.openai.com`, `api.mistral.ai`, `openrouter.ai` |
+| Copilot | `api.github.com`, `copilot-proxy.githubusercontent.com`, `api.anthropic.com` |
+| Codex | `api.openai.com` |
+
+### Security Properties
+
+- **No secret exfiltration**: Even with RCE, attacker only sees placeholder values
+- **Host restriction**: Secrets only sent to allowlisted API endpoints
+- **Per-session authorization**: Claude session can't use OpenAI key
+- **Cryptographic identity**: Token-based auth via K8s TokenReview API
+
+For detailed documentation, see [Secret Proxy Architecture](secret-proxy.md).
 
 ## Session Lifecycle
 

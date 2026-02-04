@@ -32,6 +32,7 @@ type Runtime interface {
 	WaitForClaimBound(ctx context.Context, sessionID string, timeout time.Duration) (sandboxName string, err error)
 	GetSandboxByName(ctx context.Context, name string) (*Sandbox, error)
 	GetSessionIDByPodName(ctx context.Context, podName string) (string, error)
+	GetSessionIDByPodIP(ctx context.Context, podIP string) (string, error)
 	LabelSandbox(ctx context.Context, sandboxName string, sessionID string) error
 	DeleteSandboxClaim(ctx context.Context, sessionID string) error
 	ListSandboxClaims(ctx context.Context) ([]SandboxClaimInfo, error)

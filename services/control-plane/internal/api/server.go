@@ -83,6 +83,7 @@ func (s *Server) ListenAndServe(ctx context.Context, httpAddr string) error {
 	mux.HandleFunc("GET /health", s.handleHealth)
 	mux.HandleFunc("GET /internal/session-config", s.handleSessionConfig)
 	mux.HandleFunc("POST /internal/session/{sessionID}/event", s.handleInternalEvent)
+	mux.HandleFunc("POST /internal/validate-proxy-auth", s.handleValidateProxyAuth)
 
 	// Connect services (ClientService for iOS, AgentService for agents)
 	clientHandler := NewConnectClientServiceHandler(s.manager, s)
@@ -223,6 +224,59 @@ func extractSessionIDFromPodName(podName string) string {
 		return strings.TrimPrefix(podName, "sess-")
 	}
 	return ""
+}
+
+// validateProxyAuthRequest is the request body for proxy auth validation.
+type validateProxyAuthRequest struct {
+	Token      string `json:"token"`
+	TargetHost string `json:"target_host"`
+}
+
+// validateProxyAuthResponse is the response for proxy auth validation.
+type validateProxyAuthResponse struct {
+	Allowed     bool   `json:"allowed"`
+	SecretKey   string `json:"secret_key,omitempty"`
+	Placeholder string `json:"placeholder,omitempty"`
+	SessionID   string `json:"session_id,omitempty"`
+	Error       string `json:"error,omitempty"`
+}
+
+// handleValidateProxyAuth validates proxy authentication requests from the secret-proxy.
+// POST /internal/validate-proxy-auth
+// Body: {"token": "<k8s-sa-token>", "target_host": "api.anthropic.com"}
+// Returns: {"allowed": true, "secret_key": "anthropic", "placeholder": "NETCLODE_PLACEHOLDER_anthropic"}
+func (s *Server) handleValidateProxyAuth(w http.ResponseWriter, r *http.Request) {
+	var req validateProxyAuthRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(validateProxyAuthResponse{Error: "invalid request body"})
+		return
+	}
+
+	if req.Token == "" || req.TargetHost == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(validateProxyAuthResponse{Error: "token and target_host required"})
+		return
+	}
+
+	result, err := s.manager.ValidateProxyAuth(r.Context(), req.Token, req.TargetHost)
+	if err != nil {
+		slog.Debug("Proxy auth validation failed", "targetHost", req.TargetHost, "error", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(validateProxyAuthResponse{Allowed: false, Error: err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(validateProxyAuthResponse{
+		Allowed:     result.Allowed,
+		SecretKey:   result.SecretKey,
+		Placeholder: result.Placeholder,
+		SessionID:   result.SessionID,
+	})
 }
 
 // handleInternalEvent receives events from sandbox entrypoints/agents.

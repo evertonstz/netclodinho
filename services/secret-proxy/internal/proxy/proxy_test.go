@@ -1,80 +1,95 @@
 package proxy
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
-func TestHostAllowed(t *testing.T) {
-	p := &Proxy{}
-
-	tests := []struct {
-		name         string
-		host         string
-		allowedHosts []string
-		want         bool
-	}{
-		{
-			name:         "exact match",
-			host:         "api.anthropic.com",
-			allowedHosts: []string{"api.anthropic.com"},
-			want:         true,
-		},
-		{
-			name:         "exact match case insensitive",
-			host:         "API.Anthropic.COM",
-			allowedHosts: []string{"api.anthropic.com"},
-			want:         true,
-		},
-		{
-			name:         "no match",
-			host:         "evil.com",
-			allowedHosts: []string{"api.anthropic.com"},
-			want:         false,
-		},
-		{
-			name:         "wildcard match",
-			host:         "api.github.com",
-			allowedHosts: []string{"*.github.com"},
-			want:         true,
-		},
-		{
-			name:         "wildcard match subdomain",
-			host:         "raw.githubusercontent.com",
-			allowedHosts: []string{"*.githubusercontent.com"},
-			want:         true,
-		},
-		{
-			name:         "wildcard no match root domain",
-			host:         "github.com",
-			allowedHosts: []string{"*.github.com"},
-			want:         false,
-		},
-		{
-			name:         "multiple hosts first match",
-			host:         "api.openai.com",
-			allowedHosts: []string{"api.openai.com", "api.anthropic.com"},
-			want:         true,
-		},
-		{
-			name:         "multiple hosts second match",
-			host:         "api.anthropic.com",
-			allowedHosts: []string{"api.openai.com", "api.anthropic.com"},
-			want:         true,
-		},
-		{
-			name:         "empty allowlist",
-			host:         "api.anthropic.com",
-			allowedHosts: []string{},
-			want:         false,
-		},
+func TestValidateProxyAuthResponse(t *testing.T) {
+	// Test that the response structure matches what we expect
+	response := validateProxyAuthResponse{
+		Allowed:     true,
+		SecretKey:   "anthropic",
+		Placeholder: "NETCLODE_PLACEHOLDER_anthropic",
+		SessionID:   "test-session-123",
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := p.hostAllowed(tt.host, tt.allowedHosts)
-			if got != tt.want {
-				t.Errorf("hostAllowed(%q, %v) = %v, want %v", tt.host, tt.allowedHosts, got, tt.want)
-			}
-		})
+	data, err := json.Marshal(response)
+	if err != nil {
+		t.Fatalf("Failed to marshal response: %v", err)
+	}
+
+	var decoded validateProxyAuthResponse
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	if decoded.Allowed != response.Allowed {
+		t.Errorf("Allowed = %v, want %v", decoded.Allowed, response.Allowed)
+	}
+	if decoded.SecretKey != response.SecretKey {
+		t.Errorf("SecretKey = %v, want %v", decoded.SecretKey, response.SecretKey)
+	}
+	if decoded.Placeholder != response.Placeholder {
+		t.Errorf("Placeholder = %v, want %v", decoded.Placeholder, response.Placeholder)
+	}
+	if decoded.SessionID != response.SessionID {
+		t.Errorf("SessionID = %v, want %v", decoded.SessionID, response.SessionID)
+	}
+}
+
+func TestValidateWithControlPlane(t *testing.T) {
+	// Create a mock control-plane server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/internal/validate-proxy-auth" {
+			t.Errorf("Unexpected path: %s", r.URL.Path)
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+
+		var req validateProxyAuthRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		// Mock response based on input
+		resp := validateProxyAuthResponse{
+			Allowed:     req.TargetHost == "api.anthropic.com",
+			SecretKey:   "anthropic",
+			Placeholder: "NETCLODE_PLACEHOLDER_anthropic",
+			SessionID:   "test-session",
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	p := &Proxy{
+		config: Config{
+			ControlPlaneURL: server.URL,
+		},
+		httpClient: http.DefaultClient,
+	}
+
+	// Test allowed host
+	result, err := p.validateWithControlPlane("test-token", "api.anthropic.com")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if !result.Allowed {
+		t.Error("Expected allowed=true for api.anthropic.com")
+	}
+
+	// Test disallowed host
+	result, err = p.validateWithControlPlane("test-token", "evil.com")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if result.Allowed {
+		t.Error("Expected allowed=false for evil.com")
 	}
 }

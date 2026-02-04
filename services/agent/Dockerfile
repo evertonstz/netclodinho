@@ -28,6 +28,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV PATH="/root/.local/bin:/root/.local/share/mise/shims:${PATH}"
 
 # =============================================================================
+# Go Builder (for auth-proxy)
+# =============================================================================
+FROM golang:1.24-bookworm AS go-builder
+
+WORKDIR /build
+COPY services/agent/auth-proxy ./auth-proxy
+WORKDIR /build/auth-proxy
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o auth-proxy .
+
+# =============================================================================
 # Builder
 # =============================================================================
 FROM base AS builder
@@ -123,6 +133,9 @@ COPY --from=builder --chown=agent:agent /build/services/agent/node_modules /opt/
 # Copy OpenCode and GitHub CLI binaries from builder
 COPY --from=builder /usr/local/bin/opencode /usr/local/bin/opencode
 COPY --from=builder /usr/local/bin/gh /usr/local/bin/gh
+
+# Copy auth-proxy binary (adds SA token to proxy requests)
+COPY --from=go-builder /build/auth-proxy/auth-proxy /usr/local/bin/auth-proxy
 
 # Copy mise binary to /opt (NOT /agent which is a volume mount)
 # mise binary needs to be in a persistent location for on-demand tooling

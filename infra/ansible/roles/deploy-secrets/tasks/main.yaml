@@ -110,23 +110,39 @@
     - env_file_stat.stat.exists
     - deploy_k8s_secrets | default(false)
   block:
-    # Build secrets-json for secret-proxy
-    # Maps placeholders to real secrets with allowed hosts
-    - name: Build secrets-json
+    # Build secrets.json for secret-proxy (simple secretKey -> secretValue mapping)
+    # Control-plane tells the proxy which key to use, proxy looks up the value
+    - name: Build proxy secrets dict
       ansible.builtin.set_fact:
-        secrets_json_dict: >-
+        proxy_secrets_dict: >-
           {{
             {}
-            | combine({'NETCLODE_PLACEHOLDER_anthropic': {'secret': anthropic_api_key, 'hosts': ['api.anthropic.com']}} if anthropic_api_key | length > 0 else {})
-            | combine({'NETCLODE_PLACEHOLDER_openai': {'secret': openai_api_key, 'hosts': ['api.openai.com']}} if openai_api_key | length > 0 else {})
-            | combine({'NETCLODE_PLACEHOLDER_mistral': {'secret': mistral_api_key, 'hosts': ['api.mistral.ai']}} if mistral_api_key | length > 0 else {})
-            | combine({'NETCLODE_PLACEHOLDER_opencode': {'secret': opencode_api_key, 'hosts': ['api.opencode.ai', 'openrouter.ai']}} if opencode_api_key | length > 0 else {})
-            | combine({'NETCLODE_PLACEHOLDER_zai': {'secret': zai_api_key, 'hosts': ['api.zai.ai']}} if zai_api_key | length > 0 else {})
-            | combine({'NETCLODE_PLACEHOLDER_github_copilot': {'secret': github_copilot_token, 'hosts': ['api.github.com', '*.githubusercontent.com', 'copilot-proxy.githubusercontent.com']}} if github_copilot_token | length > 0 else {})
-            | combine({'NETCLODE_PLACEHOLDER_codex_access': {'secret': codex_access_token, 'hosts': ['api.openai.com']}} if codex_access_token | length > 0 else {})
-            | combine({'NETCLODE_PLACEHOLDER_codex_id': {'secret': codex_id_token, 'hosts': ['api.openai.com']}} if codex_id_token | length > 0 else {})
-            | combine({'NETCLODE_PLACEHOLDER_codex_refresh': {'secret': codex_refresh_token, 'hosts': ['api.openai.com']}} if codex_refresh_token | length > 0 else {})
+            | combine({'anthropic': anthropic_api_key} if anthropic_api_key | length > 0 else {})
+            | combine({'openai': openai_api_key} if openai_api_key | length > 0 else {})
+            | combine({'mistral': mistral_api_key} if mistral_api_key | length > 0 else {})
+            | combine({'opencode': opencode_api_key} if opencode_api_key | length > 0 else {})
+            | combine({'zai': zai_api_key} if zai_api_key | length > 0 else {})
+            | combine({'github_copilot': github_copilot_token} if github_copilot_token | length > 0 else {})
+            | combine({'codex_access': codex_access_token} if codex_access_token | length > 0 else {})
+            | combine({'codex_id': codex_id_token} if codex_id_token | length > 0 else {})
+            | combine({'codex_refresh': codex_refresh_token} if codex_refresh_token | length > 0 else {})
           }}
+
+    # Create secret-proxy-secrets for the proxy (contains real API keys)
+    # This secret is mounted ONLY in the secret-proxy pod, NOT in sandboxes
+    - name: Create secret-proxy-secrets Kubernetes secret
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ k3s_kubeconfig }}"
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: secret-proxy-secrets
+            namespace: netclode
+          type: Opaque
+          stringData:
+            secrets.json: "{{ proxy_secrets_dict | to_json }}"
 
     - name: Create netclode-secrets Kubernetes secret
       kubernetes.core.k8s:
@@ -140,7 +156,17 @@
             namespace: netclode
           type: Opaque
           stringData:
-            # Placeholders for agent (real secrets never enter sandbox)
+            # Real API keys for control-plane (used for model listing, quota checks, etc.)
+            anthropic-api-key: "{{ anthropic_api_key }}"
+            openai-api-key: "{{ openai_api_key }}"
+            mistral-api-key: "{{ mistral_api_key }}"
+            opencode-api-key: "{{ opencode_api_key }}"
+            zai-api-key: "{{ zai_api_key }}"
+            github-copilot-token: "{{ github_copilot_token }}"
+            codex-access-token: "{{ codex_access_token }}"
+            codex-id-token: "{{ codex_id_token }}"
+            codex-refresh-token: "{{ codex_refresh_token }}"
+            # Placeholders for sandbox (agent sees these, proxy replaces them)
             anthropic-api-key-placeholder: "NETCLODE_PLACEHOLDER_anthropic"
             openai-api-key-placeholder: "NETCLODE_PLACEHOLDER_openai"
             mistral-api-key-placeholder: "NETCLODE_PLACEHOLDER_mistral"
@@ -150,12 +176,10 @@
             codex-access-token-placeholder: "NETCLODE_PLACEHOLDER_codex_access"
             codex-id-token-placeholder: "NETCLODE_PLACEHOLDER_codex_id"
             codex-refresh-token-placeholder: "NETCLODE_PLACEHOLDER_codex_refresh"
-            # JSON config for secret-proxy (maps placeholders to real secrets + allowed hosts)
-            secrets-json: "{{ secrets_json_dict | to_json }}"
             # Non-proxied secrets (used directly, not through proxy)
             # GITHUB_TOKEN is for git operations (clone/push) - uses credential helper, not HTTP headers
             github-token: "{{ github_token }}"
-            # Control-plane secrets
+            # Control-plane GitHub App integration
             github-app-id: "{{ github_app_id }}"
             github-app-private-key: "{{ github_app_private_key_b64 | b64decode }}"
             github-installation-id: "{{ github_installation_id }}"

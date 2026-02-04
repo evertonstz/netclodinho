@@ -2007,6 +2007,130 @@ func (m *Manager) VerifyAgentToken(ctx context.Context, token string) (string, e
 	return m.k8s.VerifyAgentToken(ctx, token)
 }
 
+// ProxyAuthResult contains the result of proxy authentication validation.
+type ProxyAuthResult struct {
+	Allowed     bool   // Whether the request is allowed
+	SecretKey   string // Which secret to inject (e.g., "anthropic", "openai")
+	SessionID   string // The session ID for logging
+	Placeholder string // The placeholder value to look for (e.g., "NETCLODE_PLACEHOLDER_anthropic")
+}
+
+// ValidateProxyAuth validates a proxy authentication request.
+// It validates the Kubernetes ServiceAccount token and checks if the target host is allowed.
+// The token is cryptographically verified via TokenReview API.
+func (m *Manager) ValidateProxyAuth(ctx context.Context, token, targetHost string) (*ProxyAuthResult, error) {
+	// Verify the ServiceAccount token and get the pod name
+	podName, err := m.k8s.VerifyAgentToken(ctx, token)
+	if err != nil {
+		return nil, fmt.Errorf("token verification failed: %w", err)
+	}
+
+	// Look up session by pod name
+	sessionID, err := m.k8s.GetSessionIDByPodName(ctx, podName)
+	if err != nil {
+		return nil, fmt.Errorf("session not found for pod %s: %w", podName, err)
+	}
+
+	// Get session state to determine SDK type
+	state := m.getState(sessionID)
+	if state == nil {
+		// Try loading from storage
+		session, err := m.storage.GetSession(ctx, sessionID)
+		if err != nil {
+			return nil, fmt.Errorf("session %s not found: %w", sessionID, err)
+		}
+		state = &SessionState{Session: session}
+	}
+
+	// Get allowed hosts based on SDK type
+	sdkType := pb.SdkType_SDK_TYPE_CLAUDE // default
+	if state.Session.SdkType != nil {
+		sdkType = *state.Session.SdkType
+	}
+
+	// Check if target host is allowed and get the secret key
+	secretKey, placeholder := m.getAllowedSecretForHost(sdkType, targetHost)
+	if secretKey == "" {
+		return &ProxyAuthResult{
+			Allowed:   false,
+			SessionID: sessionID,
+		}, nil
+	}
+
+	return &ProxyAuthResult{
+		Allowed:     true,
+		SecretKey:   secretKey,
+		SessionID:   sessionID,
+		Placeholder: placeholder,
+	}, nil
+}
+
+// getAllowedSecretForHost returns the secret key and placeholder for a given SDK type and host.
+// Returns empty strings if the host is not allowed.
+func (m *Manager) getAllowedSecretForHost(sdkType pb.SdkType, host string) (secretKey, placeholder string) {
+	// Define allowed hosts per SDK type
+	// Returns (secretKey, placeholder) where secretKey maps to the actual secret
+	type hostMapping struct {
+		hosts       []string
+		secretKey   string
+		placeholder string
+	}
+
+	var allowedMappings []hostMapping
+
+	switch sdkType {
+	case pb.SdkType_SDK_TYPE_CLAUDE:
+		allowedMappings = []hostMapping{
+			{hosts: []string{"api.anthropic.com"}, secretKey: "anthropic", placeholder: "NETCLODE_PLACEHOLDER_anthropic"},
+		}
+
+	case pb.SdkType_SDK_TYPE_OPENCODE:
+		allowedMappings = []hostMapping{
+			{hosts: []string{"api.anthropic.com"}, secretKey: "anthropic", placeholder: "NETCLODE_PLACEHOLDER_anthropic"},
+			{hosts: []string{"api.openai.com"}, secretKey: "openai", placeholder: "NETCLODE_PLACEHOLDER_openai"},
+			{hosts: []string{"api.mistral.ai"}, secretKey: "mistral", placeholder: "NETCLODE_PLACEHOLDER_mistral"},
+			{hosts: []string{"openrouter.ai", "api.openrouter.ai"}, secretKey: "opencode", placeholder: "NETCLODE_PLACEHOLDER_opencode"},
+			{hosts: []string{"api.opencode.ai"}, secretKey: "opencode", placeholder: "NETCLODE_PLACEHOLDER_opencode"},
+			{hosts: []string{"open.bigmodel.cn"}, secretKey: "zai", placeholder: "NETCLODE_PLACEHOLDER_zai"},
+		}
+
+	case pb.SdkType_SDK_TYPE_COPILOT:
+		allowedMappings = []hostMapping{
+			{hosts: []string{"api.github.com", "copilot-proxy.githubusercontent.com"}, secretKey: "github_copilot", placeholder: "NETCLODE_PLACEHOLDER_github_copilot"},
+			{hosts: []string{"api.anthropic.com"}, secretKey: "anthropic", placeholder: "NETCLODE_PLACEHOLDER_anthropic"},
+		}
+
+	case pb.SdkType_SDK_TYPE_CODEX:
+		allowedMappings = []hostMapping{
+			{hosts: []string{"api.openai.com"}, secretKey: "codex_access", placeholder: "NETCLODE_PLACEHOLDER_codex_access"},
+		}
+
+	default:
+		// Default to Claude behavior
+		allowedMappings = []hostMapping{
+			{hosts: []string{"api.anthropic.com"}, secretKey: "anthropic", placeholder: "NETCLODE_PLACEHOLDER_anthropic"},
+		}
+	}
+
+	// Check if the target host matches any allowed host
+	for _, mapping := range allowedMappings {
+		for _, allowedHost := range mapping.hosts {
+			if host == allowedHost {
+				return mapping.secretKey, mapping.placeholder
+			}
+			// Support wildcard subdomains (e.g., *.githubusercontent.com)
+			if strings.HasPrefix(allowedHost, "*.") {
+				suffix := allowedHost[1:] // Remove the *
+				if strings.HasSuffix(host, suffix) {
+					return mapping.secretKey, mapping.placeholder
+				}
+			}
+		}
+	}
+
+	return "", ""
+}
+
 // ListModels returns available models for the specified SDK type.
 // For Copilot SDK, returns a combined list of GitHub Copilot and Anthropic (BYOK) models.
 // For Codex SDK, returns OpenAI models with "gpt-codex" family.

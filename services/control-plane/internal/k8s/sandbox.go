@@ -1472,6 +1472,34 @@ func (r *k8sRuntime) GetSessionIDByPodName(ctx context.Context, podName string) 
 	return "", fmt.Errorf("no sandbox found for pod %s", podName)
 }
 
+// GetSessionIDByPodIP finds the session ID for a sandbox by its pod IP.
+// This is used by the secret-proxy to validate requests from sandbox pods.
+// Security: NetworkPolicy ensures only sandbox pods can reach the secret-proxy,
+// but we still validate that the IP belongs to a known session.
+func (r *k8sRuntime) GetSessionIDByPodIP(ctx context.Context, podIP string) (string, error) {
+	// List all pods in our namespace
+	pods, err := r.clientset.CoreV1().Pods(r.namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return "", fmt.Errorf("list pods: %w", err)
+	}
+
+	// Find the pod with matching IP
+	var podName string
+	for _, pod := range pods.Items {
+		if pod.Status.PodIP == podIP {
+			podName = pod.Name
+			break
+		}
+	}
+
+	if podName == "" {
+		return "", fmt.Errorf("no pod found with IP %s", podIP)
+	}
+
+	// Now use the existing method to get the session ID from the pod name
+	return r.GetSessionIDByPodName(ctx, podName)
+}
+
 // LabelSandbox adds the netclode.io/session label to a sandbox so the informer can track it.
 func (r *k8sRuntime) LabelSandbox(ctx context.Context, sandboxName string, sessionID string) error {
 	patch := []byte(fmt.Sprintf(`{"metadata":{"labels":{"netclode.io/session":"%s"}}}`, sessionID))

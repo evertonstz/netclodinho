@@ -31,12 +31,14 @@ func run(logger *slog.Logger) error {
 	cfg := config.Load()
 	logger.Info("Configuration loaded",
 		"listenAddr", cfg.ListenAddr,
+		"controlPlaneURL", cfg.ControlPlaneURL,
 		"caPath", cfg.CAPath,
+		"secretsPath", cfg.SecretsPath,
 		"verbose", cfg.Verbose,
 	)
 
-	// Parse secrets from JSON
-	secrets, err := config.ParseSecrets(cfg.SecretsJSON)
+	// Load secrets from file (not env var - prevents /proc/*/environ exposure)
+	secrets, err := config.LoadSecrets(cfg.SecretsPath)
 	if err != nil {
 		return err
 	}
@@ -51,10 +53,11 @@ func run(logger *slog.Logger) error {
 
 	// Create and start proxy
 	p := proxy.New(proxy.Config{
-		ListenAddr: cfg.ListenAddr,
-		Secrets:    secrets,
-		CA:         ca,
-		Verbose:    cfg.Verbose,
+		ListenAddr:      cfg.ListenAddr,
+		ControlPlaneURL: cfg.ControlPlaneURL,
+		Secrets:         secrets,
+		CA:              ca,
+		Verbose:         cfg.Verbose,
 	}, logger)
 
 	return p.ListenAndServe()
