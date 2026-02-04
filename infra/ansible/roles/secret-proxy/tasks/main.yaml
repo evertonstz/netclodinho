@@ -4,7 +4,6 @@
 # This role:
 # 1. Generates a CA certificate for the MITM proxy (if not exists)
 # 2. Creates the secret-proxy-ca ConfigMap
-# 3. Updates netclode-secrets with placeholders and secrets-json
 
 - name: Check if secret-proxy-ca ConfigMap exists
   kubernetes.core.k8s_info:
@@ -26,30 +25,16 @@
       delegate_to: localhost
       become: no
 
-    - name: Generate EC private key
-      community.crypto.openssl_privatekey:
-        path: "{{ ca_temp_dir.path }}/ca.key"
-        type: ECC
-        curve: secp256r1
-      delegate_to: localhost
-      become: no
-
-    - name: Generate CA certificate
-      community.crypto.x509_certificate:
-        path: "{{ ca_temp_dir.path }}/ca.crt"
-        privatekey_path: "{{ ca_temp_dir.path }}/ca.key"
-        provider: selfsigned
-        selfsigned_not_after: "+365d"
-        subject:
-          O: Netclode Secret Proxy
-          CN: Netclode Secret Proxy CA
-        basic_constraints:
-          - CA:TRUE
-        basic_constraints_critical: yes
-        key_usage:
-          - keyCertSign
-          - cRLSign
-        key_usage_critical: yes
+    - name: Generate EC private key and self-signed CA certificate
+      ansible.builtin.command:
+        cmd: >
+          openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1
+          -keyout {{ ca_temp_dir.path }}/ca.key
+          -out {{ ca_temp_dir.path }}/ca.crt
+          -days 3650 -nodes
+          -subj "/O=Netclode Secret Proxy/CN=Netclode Secret Proxy CA"
+          -addext "basicConstraints=critical,CA:TRUE"
+          -addext "keyUsage=critical,keyCertSign,cRLSign"
       delegate_to: localhost
       become: no
 
