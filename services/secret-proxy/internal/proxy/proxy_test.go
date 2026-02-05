@@ -144,3 +144,63 @@ func TestNoInjectionOverHTTP(t *testing.T) {
 		t.Fatalf("unexpected injection over HTTP: %q", got)
 	}
 }
+
+func TestHostHeaderMismatchBlocksInjection(t *testing.T) {
+	p := &Proxy{
+		config: Config{
+			Secrets: map[string]string{
+				"anthropic": "REAL_SECRET",
+			},
+		},
+		logger: slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{
+			Level: slog.LevelDebug,
+		})),
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "https://evil.example/v1/foo", nil)
+	req.Host = "api.anthropic.com"
+	req.Header.Set("Authorization", "Bearer NETCLODE_PLACEHOLDER_anthropic")
+	ctx := &goproxy.ProxyCtx{
+		Req:      req,
+		UserData: "Bearer test-token",
+	}
+
+	_, resp := p.handleRequest(req, ctx)
+	if resp == nil || resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected forbidden response on host mismatch, got %+v", resp)
+	}
+	if got := req.Header.Get("Authorization"); got != "Bearer NETCLODE_PLACEHOLDER_anthropic" {
+		t.Fatalf("unexpected injection on host mismatch: %q", got)
+	}
+}
+
+func TestConnectHostMismatchBlocksInjection(t *testing.T) {
+	p := &Proxy{
+		config: Config{
+			Secrets: map[string]string{
+				"anthropic": "REAL_SECRET",
+			},
+		},
+		logger: slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{
+			Level: slog.LevelDebug,
+		})),
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "https://evil.example/v1/foo", nil)
+	req.Header.Set("Authorization", "Bearer NETCLODE_PLACEHOLDER_anthropic")
+	ctx := &goproxy.ProxyCtx{
+		Req: req,
+		UserData: connectMeta{
+			proxyAuth:   "Bearer test-token",
+			connectHost: "api.anthropic.com",
+		},
+	}
+
+	_, resp := p.handleRequest(req, ctx)
+	if resp == nil || resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected forbidden response on connect host mismatch, got %+v", resp)
+	}
+	if got := req.Header.Get("Authorization"); got != "Bearer NETCLODE_PLACEHOLDER_anthropic" {
+		t.Fatalf("unexpected injection on connect host mismatch: %q", got)
+	}
+}

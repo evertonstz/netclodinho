@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -67,6 +68,32 @@ type Proxy struct {
 	httpClient *http.Client
 }
 
+type connectMeta struct {
+	proxyAuth   string
+	connectHost string
+}
+
+func canonicalHost(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+
+	host := raw
+	if strings.HasPrefix(host, "[") {
+		if h, _, err := net.SplitHostPort(host); err == nil {
+			host = h
+		} else {
+			host = strings.Trim(host, "[]")
+		}
+	} else if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+
+	host = strings.TrimSuffix(host, ".")
+	return strings.ToLower(host)
+}
+
 // New creates a new secret injection proxy.
 func New(cfg Config, logger *slog.Logger) *Proxy {
 	proxy := goproxy.NewProxyHttpServer()
@@ -91,14 +118,18 @@ func New(cfg Config, logger *slog.Logger) *Proxy {
 	// This is important because after MITM the request handler sees requests inside
 	// the TLS tunnel, which don't have the original CONNECT headers.
 	proxy.OnRequest().HandleConnectFunc(func(host string, ctx *goproxy.ProxyCtx) (*goproxy.ConnectAction, string) {
+		meta := connectMeta{
+			connectHost: canonicalHost(host),
+		}
 		// Extract Proxy-Authorization from CONNECT request
 		if ctx.Req != nil {
 			proxyAuth := ctx.Req.Header.Get("Proxy-Authorization")
 			if proxyAuth != "" {
-				ctx.UserData = proxyAuth
+				meta.proxyAuth = proxyAuth
 				logger.Debug("Captured Proxy-Authorization from CONNECT", "host", host)
 			}
 		}
+		ctx.UserData = meta
 		// Continue with MITM
 		return goproxy.MitmConnect, host
 	})
@@ -111,9 +142,9 @@ func New(cfg Config, logger *slog.Logger) *Proxy {
 
 // handleRequest processes each request and injects secrets where appropriate.
 func (p *Proxy) handleRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.Response) {
-	host := req.Host
-	if host == "" {
-		host = req.URL.Host
+	rawHost := req.Host
+	if rawHost == "" && req.URL != nil {
+		rawHost = req.URL.Host
 	}
 
 	scheme := ""
@@ -126,40 +157,74 @@ func (p *Proxy) handleRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.R
 	if scheme != "https" {
 		// Never inject secrets into plain HTTP requests.
 		p.logger.Debug("Non-HTTPS request, skipping secret injection",
-			"host", host,
+			"host", rawHost,
 			"scheme", scheme,
 		)
 		return req, nil
 	}
 
-	// Strip port from host for matching
-	hostWithoutPort := host
-	if colonIdx := strings.LastIndex(host, ":"); colonIdx != -1 {
-		hostWithoutPort = host[:colonIdx]
+	urlHost := ""
+	if req.URL != nil {
+		urlHost = canonicalHost(req.URL.Host)
+	}
+	reqHost := canonicalHost(req.Host)
+	targetHost := urlHost
+	if targetHost == "" {
+		targetHost = reqHost
+	}
+	if targetHost == "" {
+		p.logger.Debug("Missing host, skipping secret injection")
+		return req, nil
+	}
+	if urlHost != "" && reqHost != "" && urlHost != reqHost {
+		p.logger.Warn("Host header mismatch",
+			"urlHost", urlHost,
+			"reqHost", reqHost,
+		)
+		return req, goproxy.NewResponse(req, goproxy.ContentTypeText, http.StatusForbidden, "host mismatch")
 	}
 
 	// Extract Proxy-Authorization header
 	// First try ctx.UserData (captured from CONNECT request for HTTPS)
 	// Fall back to request header (for plain HTTP proxying)
-	var proxyAuth string
+	var (
+		proxyAuth   string
+		connectHost string
+	)
 	if ctx.UserData != nil {
-		if auth, ok := ctx.UserData.(string); ok {
-			proxyAuth = auth
+		switch meta := ctx.UserData.(type) {
+		case connectMeta:
+			proxyAuth = meta.proxyAuth
+			connectHost = meta.connectHost
+		case *connectMeta:
+			if meta != nil {
+				proxyAuth = meta.proxyAuth
+				connectHost = meta.connectHost
+			}
+		case string:
+			proxyAuth = meta
 		}
+	}
+	if connectHost != "" && connectHost != targetHost {
+		p.logger.Warn("CONNECT host mismatch",
+			"connectHost", connectHost,
+			"targetHost", targetHost,
+		)
+		return req, goproxy.NewResponse(req, goproxy.ContentTypeText, http.StatusForbidden, "connect host mismatch")
 	}
 	if proxyAuth == "" {
 		proxyAuth = req.Header.Get("Proxy-Authorization")
 	}
 	if proxyAuth == "" {
 		// No auth header - pass through without injection
-		p.logger.Debug("No Proxy-Authorization header, passing through", "host", hostWithoutPort)
+		p.logger.Debug("No Proxy-Authorization header, passing through", "host", targetHost)
 		return req, nil
 	}
 
 	// Remove the "Bearer " prefix
 	token := strings.TrimPrefix(proxyAuth, "Bearer ")
 	if token == proxyAuth {
-		p.logger.Debug("Invalid Proxy-Authorization format (expected Bearer)", "host", hostWithoutPort)
+		p.logger.Debug("Invalid Proxy-Authorization format (expected Bearer)", "host", targetHost)
 		return req, nil
 	}
 
@@ -167,15 +232,15 @@ func (p *Proxy) handleRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.R
 	req.Header.Del("Proxy-Authorization")
 
 	// Validate with control-plane using token
-	authResult, err := p.validateWithControlPlane(token, hostWithoutPort)
+	authResult, err := p.validateWithControlPlane(token, targetHost)
 	if err != nil {
-		p.logger.Warn("Control-plane validation failed", "host", hostWithoutPort, "error", err)
+		p.logger.Warn("Control-plane validation failed", "host", targetHost, "error", err)
 		return req, nil // Pass through without injection on error
 	}
 
 	if !authResult.Allowed {
 		p.logger.Debug("Request not allowed for secret injection",
-			"host", hostWithoutPort,
+			"host", targetHost,
 			"sessionID", authResult.SessionID,
 		)
 		return req, nil
@@ -186,7 +251,7 @@ func (p *Proxy) handleRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.R
 	if !ok {
 		p.logger.Warn("Secret key not found in config",
 			"secretKey", authResult.SecretKey,
-			"host", hostWithoutPort,
+			"host", targetHost,
 		)
 		return req, nil
 	}
@@ -204,7 +269,7 @@ func (p *Proxy) handleRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.R
 
 	if injected {
 		p.logger.Info("Injected secret into request",
-			"host", hostWithoutPort,
+			"host", targetHost,
 			"secretKey", authResult.SecretKey,
 			"sessionID", authResult.SessionID,
 		)
