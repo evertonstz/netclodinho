@@ -1924,12 +1924,13 @@ func mustParseQuantity(s string) corev1.ResourceList {
 // VerifyAgentToken validates a Kubernetes ServiceAccount token and returns the pod name.
 // This is used to verify the identity of agents connecting to the control plane,
 // preventing rogue agents from impersonating legitimate ones.
-func (r *k8sRuntime) VerifyAgentToken(ctx context.Context, token string) (string, error) {
+// If audiences is non-empty, the token is validated against those specific audiences.
+// If audiences is empty/nil, the token is validated against the default API server audiences.
+func (r *k8sRuntime) VerifyAgentToken(ctx context.Context, token string, audiences []string) (string, error) {
 	review := &authenticationv1.TokenReview{
 		Spec: authenticationv1.TokenReviewSpec{
-			Token: token,
-			// The projected token uses "secret-proxy" audience for proxy authentication
-			Audiences: []string{"secret-proxy"},
+			Token:     token,
+			Audiences: audiences, // nil/empty means use default K8s audiences
 		},
 	}
 

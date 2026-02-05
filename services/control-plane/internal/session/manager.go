@@ -2003,8 +2003,9 @@ func (m *Manager) AssignSessionToWarmAgent(podName, sessionID string) bool {
 
 // VerifyAgentToken validates a Kubernetes ServiceAccount token and returns the verified pod name.
 // This is used to authenticate agents connecting to the control plane, preventing impersonation attacks.
+// Uses default K8s audiences (for standard agent-to-control-plane authentication).
 func (m *Manager) VerifyAgentToken(ctx context.Context, token string) (string, error) {
-	return m.k8s.VerifyAgentToken(ctx, token)
+	return m.k8s.VerifyAgentToken(ctx, token, nil) // nil = default K8s audiences
 }
 
 // ProxyAuthResult contains the result of proxy authentication validation.
@@ -2019,8 +2020,9 @@ type ProxyAuthResult struct {
 // It validates the Kubernetes ServiceAccount token and checks if the target host is allowed.
 // The token is cryptographically verified via TokenReview API.
 func (m *Manager) ValidateProxyAuth(ctx context.Context, token, targetHost string) (*ProxyAuthResult, error) {
-	// Verify the ServiceAccount token and get the pod name
-	podName, err := m.k8s.VerifyAgentToken(ctx, token)
+	// Verify the ServiceAccount token with "secret-proxy" audience
+	// The proxy-auth projected token uses this specific audience
+	podName, err := m.k8s.VerifyAgentToken(ctx, token, []string{"secret-proxy"})
 	if err != nil {
 		return nil, fmt.Errorf("token verification failed: %w", err)
 	}

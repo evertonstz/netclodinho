@@ -61,7 +61,9 @@ type Runtime interface {
 	// Agent authentication
 	// VerifyAgentToken validates a Kubernetes ServiceAccount token and returns the pod name.
 	// This is used to verify the identity of agents connecting to the control plane.
-	VerifyAgentToken(ctx context.Context, token string) (podName string, err error)
+	// If audiences is non-empty, the token is validated against those specific audiences.
+	// If audiences is empty/nil, the token is validated against the default API server audiences.
+	VerifyAgentToken(ctx context.Context, token string, audiences []string) (podName string, err error)
 
 	Close()
 }
