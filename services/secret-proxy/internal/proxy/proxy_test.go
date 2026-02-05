@@ -2,9 +2,13 @@ package proxy
 
 import (
 	"encoding/json"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/elazarl/goproxy"
 )
 
 func TestValidateProxyAuthResponse(t *testing.T) {
@@ -91,5 +95,52 @@ func TestValidateWithControlPlane(t *testing.T) {
 	}
 	if result.Allowed {
 		t.Error("Expected allowed=false for evil.com")
+	}
+}
+
+func TestNoInjectionOverHTTP(t *testing.T) {
+	// Mock control-plane that always allows api.anthropic.com.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req validateProxyAuthRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		resp := validateProxyAuthResponse{
+			Allowed:     req.TargetHost == "api.anthropic.com",
+			SecretKey:   "anthropic",
+			Placeholder: "NETCLODE_PLACEHOLDER_anthropic",
+			SessionID:   "test-session",
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	p := &Proxy{
+		config: Config{
+			ControlPlaneURL: server.URL,
+			Secrets: map[string]string{
+				"anthropic": "REAL_SECRET",
+			},
+		},
+		httpClient: http.DefaultClient,
+		logger: slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{
+			Level: slog.LevelDebug,
+		})),
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "http://api.anthropic.com/v1/foo", nil)
+	req.Header.Set("Authorization", "Bearer NETCLODE_PLACEHOLDER_anthropic")
+	ctx := &goproxy.ProxyCtx{
+		Req:      req,
+		UserData: "Bearer test-token",
+	}
+
+	outReq, _ := p.handleRequest(req, ctx)
+	if got := outReq.Header.Get("Authorization"); got != "Bearer NETCLODE_PLACEHOLDER_anthropic" {
+		t.Fatalf("unexpected injection over HTTP: %q", got)
 	}
 }

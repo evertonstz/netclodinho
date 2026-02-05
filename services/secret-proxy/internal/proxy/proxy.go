@@ -116,6 +116,22 @@ func (p *Proxy) handleRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.R
 		host = req.URL.Host
 	}
 
+	scheme := ""
+	if req.URL != nil {
+		scheme = strings.ToLower(req.URL.Scheme)
+	}
+	if scheme == "" && req.TLS != nil {
+		scheme = "https"
+	}
+	if scheme != "https" {
+		// Never inject secrets into plain HTTP requests.
+		p.logger.Debug("Non-HTTPS request, skipping secret injection",
+			"host", host,
+			"scheme", scheme,
+		)
+		return req, nil
+	}
+
 	// Strip port from host for matching
 	hostWithoutPort := host
 	if colonIdx := strings.LastIndex(host, ":"); colonIdx != -1 {
