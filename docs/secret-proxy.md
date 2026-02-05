@@ -286,10 +286,14 @@ control-plane checks SDK type: `SDK_TYPE_CLAUDE`. `api.openai.com` not in Claude
    - Created by Ansible from `.env` file
 
 3. **secret-proxy-ca ConfigMap**
-   - Contains CA certificate for MITM
+   - Contains CA certificate for MITM (public)
    - Mounted in both secret-proxy and sandboxes
 
-4. **Sandbox template** (`infra/k8s/sandbox-template.yaml`)
+4. **secret-proxy-ca-key Secret**
+   - Contains CA private key
+   - Mounted only in secret-proxy
+
+5. **Sandbox template** (`infra/k8s/sandbox-template.yaml`)
    - Sets `HTTP_PROXY`/`HTTPS_PROXY` to localhost:8080
    - Mounts projected SA token with `secret-proxy` audience
    - Mounts CA cert for trust

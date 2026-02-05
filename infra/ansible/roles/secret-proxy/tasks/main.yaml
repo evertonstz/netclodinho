@@ -3,7 +3,8 @@
 #
 # This role:
 # 1. Generates a CA certificate for the MITM proxy (if not exists)
-# 2. Creates the secret-proxy-ca ConfigMap
+# 2. Creates the secret-proxy-ca ConfigMap (public cert)
+# 3. Creates the secret-proxy-ca-key Secret (private key)
 
 - name: Check if secret-proxy-ca ConfigMap exists
   kubernetes.core.k8s_info:
@@ -14,8 +15,79 @@
     kubeconfig: "{{ k3s_kubeconfig }}"
   register: existing_ca_configmap
 
+- name: Check if secret-proxy-ca-key Secret exists
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    name: secret-proxy-ca-key
+    namespace: netclode
+    kubeconfig: "{{ k3s_kubeconfig }}"
+  register: existing_ca_secret
+
+- name: Initialize existing CA data
+  ansible.builtin.set_fact:
+    existing_ca_crt: ""
+    existing_ca_key: ""
+
+- name: Read existing CA data from ConfigMap
+  ansible.builtin.set_fact:
+    existing_ca_crt: "{{ existing_ca_configmap.resources[0].data['ca.crt'] | default('') }}"
+    existing_ca_key: "{{ existing_ca_configmap.resources[0].data['ca.key'] | default('') }}"
+  when: existing_ca_configmap.resources | length > 0
+
+- name: Abort if CA key Secret exists but ConfigMap is missing
+  ansible.builtin.fail:
+    msg: "secret-proxy-ca ConfigMap is missing while secret-proxy-ca-key exists; refuse to rotate CA automatically."
+  when:
+    - existing_ca_configmap.resources | length == 0
+    - existing_ca_secret.resources | length > 0
+
+- name: Abort if CA key Secret is missing and ConfigMap has no key
+  ansible.builtin.fail:
+    msg: "secret-proxy-ca-key missing and secret-proxy-ca ConfigMap has no ca.key; cannot migrate without rotating CA."
+  when:
+    - existing_ca_configmap.resources | length > 0
+    - existing_ca_secret.resources | length == 0
+    - existing_ca_key | length == 0
+
+- name: Migrate CA key from ConfigMap to Secret
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ k3s_kubeconfig }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: secret-proxy-ca-key
+        namespace: netclode
+      type: Opaque
+      stringData:
+        ca.key: "{{ existing_ca_key }}"
+  when:
+    - existing_ca_configmap.resources | length > 0
+    - existing_ca_secret.resources | length == 0
+    - existing_ca_key | length > 0
+
+- name: Ensure secret-proxy-ca ConfigMap only contains ca.crt
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ k3s_kubeconfig }}"
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: secret-proxy-ca
+        namespace: netclode
+      data:
+        ca.crt: "{{ existing_ca_crt }}"
+  when:
+    - existing_ca_configmap.resources | length > 0
+    - existing_ca_crt | length > 0
+
 - name: Generate CA certificate
-  when: existing_ca_configmap.resources | length == 0
+  when:
+    - existing_ca_configmap.resources | length == 0
+    - existing_ca_secret.resources | length == 0
   block:
     - name: Create temp directory for CA generation
       ansible.builtin.tempfile:
@@ -52,7 +124,7 @@
       delegate_to: localhost
       become: no
 
-    - name: Create secret-proxy-ca ConfigMap
+    - name: Create secret-proxy-ca ConfigMap (public cert)
       kubernetes.core.k8s:
         state: present
         kubeconfig: "{{ k3s_kubeconfig }}"
@@ -64,6 +136,19 @@
             namespace: netclode
           data:
             ca.crt: "{{ ca_cert_content.content | b64decode }}"
+
+    - name: Create secret-proxy-ca-key Secret (private key)
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ k3s_kubeconfig }}"
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: secret-proxy-ca-key
+            namespace: netclode
+          type: Opaque
+          stringData:
             ca.key: "{{ ca_key_content.content | b64decode }}"
 
     - name: Clean up temp directory
@@ -75,4 +160,4 @@
 
 - name: Log CA ConfigMap status
   ansible.builtin.debug:
-    msg: "secret-proxy-ca ConfigMap {{ 'already exists' if existing_ca_configmap.resources | length > 0 else 'created' }}"
+    msg: "secret-proxy CA artifacts {{ 'already exist' if existing_ca_configmap.resources | length > 0 else 'created' }}"
