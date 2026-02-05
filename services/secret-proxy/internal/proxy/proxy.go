@@ -68,11 +68,15 @@ type Proxy struct {
 	httpClient *http.Client
 }
 
+// connectMeta carries data from the CONNECT request into MITM'd requests.
+// This lets us enforce "CONNECT host must match request host".
 type connectMeta struct {
 	proxyAuth   string
 	connectHost string
 }
 
+// canonicalHost normalizes a host for policy checks:
+// lower-case, no port, no trailing dot, IPv6-safe.
 func canonicalHost(raw string) string {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
@@ -118,6 +122,7 @@ func New(cfg Config, logger *slog.Logger) *Proxy {
 	// This is important because after MITM the request handler sees requests inside
 	// the TLS tunnel, which don't have the original CONNECT headers.
 	proxy.OnRequest().HandleConnectFunc(func(host string, ctx *goproxy.ProxyCtx) (*goproxy.ConnectAction, string) {
+		// Preserve CONNECT target host and auth for use in handleRequest.
 		meta := connectMeta{
 			connectHost: canonicalHost(host),
 		}
@@ -176,6 +181,7 @@ func (p *Proxy) handleRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.R
 		p.logger.Debug("Missing host, skipping secret injection")
 		return req, nil
 	}
+	// Guard against Host header spoofing: it must match the actual target host.
 	if urlHost != "" && reqHost != "" && urlHost != reqHost {
 		p.logger.Warn("Host header mismatch",
 			"urlHost", urlHost,
@@ -205,6 +211,7 @@ func (p *Proxy) handleRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.R
 			proxyAuth = meta
 		}
 	}
+	// Enforce that HTTPS requests stay within the CONNECT target host.
 	if connectHost != "" && connectHost != targetHost {
 		p.logger.Warn("CONNECT host mismatch",
 			"connectHost", connectHost,
