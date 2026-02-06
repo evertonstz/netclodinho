@@ -280,7 +280,7 @@ When `WARM_POOL_ENABLED=true`, the control plane creates `SandboxClaim` resource
 
 Pre-booted VMs are already running and have their JuiceFS PVC mounted, so session start is nearly instant (~1s vs ~30s cold start).
 
-Since warm pool pods are created before we know which session they'll serve, they can't receive per-session env vars at boot. Instead, the agent calls `GET /internal/session-config?pod=<podName>` to fetch its configuration (session ID, API key, git repos) after startup.
+Since warm pool pods are created before we know which session they'll serve, they can't receive per-session env vars at boot. Instead, the agent receives its configuration via the gRPC bidirectional stream (`SessionAssigned` message) after the control plane binds a session to the pod.
 
 ## Development
 

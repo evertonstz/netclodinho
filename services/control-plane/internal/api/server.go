@@ -7,7 +7,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -81,7 +80,6 @@ func (s *Server) ListenAndServe(ctx context.Context, httpAddr string) error {
 
 	// HTTP endpoints
 	mux.HandleFunc("GET /health", s.handleHealth)
-	mux.HandleFunc("GET /internal/session-config", s.handleSessionConfig)
 	mux.HandleFunc("POST /internal/session/{sessionID}/event", s.handleInternalEvent)
 	mux.HandleFunc("POST /internal/validate-proxy-auth", s.handleValidateProxyAuth)
 
@@ -169,66 +167,6 @@ func (s *Server) gracefulShutdown() error {
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("ok"))
-}
-
-// handleSessionConfig returns session configuration for agents.
-// GET /internal/session-config?session=<sessionID> OR ?pod=<podName>
-func (s *Server) handleSessionConfig(w http.ResponseWriter, r *http.Request) {
-	sessionID := r.URL.Query().Get("session")
-
-	// If no session ID, try to derive from pod name
-	if sessionID == "" {
-		podName := r.URL.Query().Get("pod")
-		if podName != "" {
-			// First try to extract from pod name pattern (sess-<sessionID>-*)
-			sessionID = extractSessionIDFromPodName(podName)
-
-			// If that doesn't work (warm pool pods have different names),
-			// query K8s to find the sandbox with this pod name
-			if sessionID == "" {
-				var err error
-				sessionID, err = s.manager.GetSessionIDByPodName(r.Context(), podName)
-				if err != nil {
-					slog.Debug("No session found for pod", "podName", podName, "error", err)
-					// Return empty response - agent will retry
-					http.Error(w, "no session assigned yet", http.StatusNotFound)
-					return
-				}
-			}
-		}
-	}
-
-	if sessionID == "" {
-		http.Error(w, "session or pod parameter required", http.StatusBadRequest)
-		return
-	}
-
-	config, err := s.manager.GetSessionConfig(r.Context(), sessionID)
-	if err != nil {
-		slog.Warn("Failed to get session config", "sessionID", sessionID, "error", err)
-		http.Error(w, err.Error(), http.StatusNotFound)
-		return
-	}
-
-	config.CodexAccessToken = ""
-	config.CodexIdToken = ""
-	config.CodexRefreshToken = ""
-	config.GitHubToken = ""
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(config)
-}
-
-// extractSessionIDFromPodName extracts session ID from pod name format.
-// Pod names follow pattern: sess-<sessionID> where sessionID is <uuid>-<suffix> (e.g. sess-56375225-4de)
-func extractSessionIDFromPodName(podName string) string {
-	// Handle direct session format: sess-<sessionID>
-	// Session IDs are formatted as <uuid>-<suffix>, so full pod name is sess-<uuid>-<suffix>
-	if strings.HasPrefix(podName, "sess-") {
-		// Remove "sess-" prefix to get the session ID
-		return strings.TrimPrefix(podName, "sess-")
-	}
-	return ""
 }
 
 // validateProxyAuthRequest is the request body for proxy auth validation.

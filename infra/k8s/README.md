@@ -337,10 +337,8 @@ kubectl $CTX scale deployment coredns -n kube-system --replicas=2
 - Check controller logs: `kubectl logs -n agent-sandbox-system agent-sandbox-controller-0`
 - Verify warm pool has available pods: `kubectl get pods -n netclode -l agents.x-k8s.io/pool`
 
-**Agent not getting session config:**
+**Agent not connecting:**
 - Verify agent can reach control-plane: `curl http://control-plane.netclode.svc.cluster.local:3000/health`
-- Check session exists: `curl http://control-plane:3000/internal/session-config?session=<id>`
-- Check pod name extraction works for the naming pattern
 
 ## Control Plane Exposure
 
