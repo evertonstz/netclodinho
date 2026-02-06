@@ -28,14 +28,12 @@ import {
   type TranslatorState,
   type CodexEvent,
 } from "./translator.js";
+import { getSdkSessionId, registerSession } from "../../services/session.js";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
 import { WORKSPACE_DIR } from "../../constants.js";
 import { buildSystemPromptText } from "../../utils/system-prompt.js";
-
-// Codex session ID mapping (Netclode session ID -> Codex thread ID)
-const codexThreadMap = new Map<string, string>();
 
 export class CodexAdapter implements SDKAdapter {
   private config: SDKConfig | null = null;
@@ -178,8 +176,8 @@ export class CodexAdapter implements SDKAdapter {
     // Clear interrupt signal
     this.clearInterruptSignal();
 
-    // Get or create Codex thread
-    const existingThreadId = codexThreadMap.get(sessionId);
+    // Get or create Codex thread (persisted mapping survives pod restarts)
+    const existingThreadId = getSdkSessionId(sessionId);
 
     try {
       if (existingThreadId) {
@@ -223,9 +221,9 @@ export class CodexAdapter implements SDKAdapter {
           return;
         }
 
-        // Capture thread ID from first event
+        // Capture thread ID from first event and persist the mapping
         if (event.type === "thread.started" && this.thread.id) {
-          codexThreadMap.set(sessionId, this.thread.id);
+          registerSession(sessionId, this.thread.id);
         }
 
         // Track usage from turn.completed
@@ -277,7 +275,6 @@ export class CodexAdapter implements SDKAdapter {
     console.log("[codex-adapter] Shutting down...");
     this.thread = null;
     this.codex = null;
-    codexThreadMap.clear();
     resetTranslatorState(this.translatorState);
   }
 }

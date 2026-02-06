@@ -14,6 +14,7 @@ import {
   translateEvent,
   type TranslatorState,
 } from "./translator.js";
+import { getSdkSessionId, registerSession } from "../../services/session.js";
 import { WORKSPACE_DIR } from "../../constants.js";
 import { buildSystemPromptText } from "../../utils/system-prompt.js";
 const OPENCODE_PORT = 4096;
@@ -23,9 +24,6 @@ interface OpenCodeServer {
   url: string;
   process: ChildProcess;
 }
-
-// OpenCode session ID mapping (Netclode session ID -> OpenCode session ID)
-const openCodeSessionMap = new Map<string, string>();
 
 export class OpenCodeAdapter implements SDKAdapter {
   private config: SDKConfig | null = null;
@@ -253,8 +251,8 @@ export class OpenCodeAdapter implements SDKAdapter {
     const currentGitRepos = promptConfig?.repos?.filter(Boolean) ?? [];
     await this.writeInstructionsFile(currentGitRepos);
 
-    // Get or create OpenCode session
-    let ocSessionId = openCodeSessionMap.get(sessionId);
+    // Get or create OpenCode session (persisted mapping survives pod restarts)
+    let ocSessionId = getSdkSessionId(sessionId);
 
     if (!ocSessionId) {
       const createResponse = await fetch(`${this.server.url}/session`, {
@@ -273,7 +271,7 @@ export class OpenCodeAdapter implements SDKAdapter {
 
       const sessionData = (await createResponse.json()) as { id: string };
       ocSessionId = sessionData.id;
-      openCodeSessionMap.set(sessionId, ocSessionId);
+      registerSession(sessionId, ocSessionId);
       console.log(`[opencode-adapter] Created OpenCode session: ${ocSessionId}`);
     } else {
       console.log(`[opencode-adapter] Reusing OpenCode session: ${ocSessionId}`);
@@ -432,7 +430,6 @@ export class OpenCodeAdapter implements SDKAdapter {
       this.server = null;
     }
 
-    openCodeSessionMap.clear();
     resetTranslatorState(this.translatorState);
   }
 }

@@ -1,6 +1,6 @@
 /**
- * Session management - maps control-plane session IDs to Claude SDK session IDs
- * and persists the mapping to survive pod restarts.
+ * Session management - maps control-plane session IDs to SDK session IDs
+ * (Claude, Codex, OpenCode, Copilot) and persists the mapping to survive pod restarts.
  */
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";

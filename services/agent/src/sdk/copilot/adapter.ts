@@ -29,11 +29,9 @@ import {
   type TranslatorState,
   type CopilotEvent,
 } from "./translator.js";
+import { getSdkSessionId, registerSession } from "../../services/session.js";
 import { WORKSPACE_DIR } from "../../constants.js";
 import { buildSystemPromptText } from "../../utils/system-prompt.js";
-
-// Copilot session ID mapping (Netclode session ID -> Copilot session ID)
-const copilotSessionMap = new Map<string, string>();
 
 export class CopilotAdapter implements SDKAdapter {
   private config: SDKConfig | null = null;
@@ -100,9 +98,9 @@ export class CopilotAdapter implements SDKAdapter {
     // Clear interrupt signal
     this.clearInterruptSignal();
 
-    // Get or create Copilot session
+    // Get or create Copilot session (persisted mapping survives pod restarts)
     let session: CopilotSession;
-    const existingSessionId = copilotSessionMap.get(sessionId);
+    const existingSessionId = getSdkSessionId(sessionId);
 
     try {
       if (existingSessionId) {
@@ -155,11 +153,11 @@ export class CopilotAdapter implements SDKAdapter {
         });
 
         // Get the session ID from the first event or session object
-        // The session ID is available after creation
+        // The session ID is available after creation, persist it to survive pod restarts
         const sessionInfo = await session.getMessages();
         const startEvent = sessionInfo.find((e) => e.type === "session.start" || e.type === "session.resume");
         if (startEvent && "sessionId" in startEvent) {
-          copilotSessionMap.set(sessionId, (startEvent as { sessionId: string }).sessionId);
+          registerSession(sessionId, (startEvent as { sessionId: string }).sessionId);
         }
       }
     } catch (error) {
@@ -285,7 +283,6 @@ export class CopilotAdapter implements SDKAdapter {
       this.client = null;
     }
 
-    copilotSessionMap.clear();
     resetTranslatorState(this.translatorState);
   }
 }
