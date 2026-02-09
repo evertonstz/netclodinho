@@ -3,11 +3,13 @@
 <p align="center">
   <img src="clients/ios/Netclode/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png" alt="netclode" width="120" height="120">
 </p>
-
-Self-hosted coding agent with microVM sandboxes and a native iOS app.
+<p align="center">
+Self-hosted coding agent with microVM sandboxes and a native iOS and macOS app.
+</p>
 
 <p align="center">
   <img src="docs/images/ios-netclode.png" alt="Netclode iOS App" height="500">
+  <img src="docs/images/macos-netclode.png" alt="Netclode macOS App" height="520">
 </p>
 
 ## Why I built this
@@ -135,6 +137,42 @@ Quick version:
 - [Agent](services/agent/README.md)
 - [Infrastructure](infra/k8s/README.md)
 
-## License
+## Demo
 
-MIT
+All videos from the [blog post](https://stanislas.blog/2026/02/netclode-self-hosted-cloud-coding-agent/):
+
+#### Warm pool instant start
+
+No cold start, sandboxes are pre-booted
+
+<p align="center"><video src="https://github.com/user-attachments/assets/66bd86fb-5ffc-483a-bca2-ddbe6c9b3058" controls muted loop></video></p>
+
+#### Session pause & resume
+
+Older sessions are automatically paused to save resources. Resume brings everything back instantly
+
+<p align="center"><video src="https://github.com/user-attachments/assets/1900d2a0-cc6a-4d7c-a27e-10e528ded2e3" controls muted loop></video></p>
+
+#### Local inference with Ollama
+
+Run models on your own GPU
+
+<p align="center"><video src="https://github.com/user-attachments/assets/6104b384-c337-41d1-8f06-de0e9bd98377" controls muted loop></video></p>
+
+#### CLI shell
+
+Instant sandbox access from the terminal, inspired by [sprites.dev](https://sprites.dev)
+
+<p align="center"><video src="https://github.com/user-attachments/assets/5538604d-c74e-43f0-800a-cd3a65f57a54" controls muted loop></video></p>
+
+<table>
+<tr>
+<td align="center"><strong>Git diff view</strong><br>Diff view with multi-repo support<br><br><video src="https://github.com/user-attachments/assets/ab712aad-a25e-49b0-a04a-a766535949c3" controls muted loop></video></td>
+<td align="center"><strong>Live terminal</strong><br>Drop into the sandbox shell from iOS<br><br><video src="https://github.com/user-attachments/assets/de2572e1-cf8d-4c5c-9ff3-56d690546848" controls muted loop></video></td>
+</tr>
+<tr>
+<td align="center"><strong>Speech input</strong><br>Speech recognition for prompts<br><br><video src="https://github.com/user-attachments/assets/8d21c5fd-19e3-4680-8581-27048dd229d0" controls muted loop></video></td>
+<td align="center"><strong>Tailscale port preview</strong><br>Expose sandbox ports to the tailnet<br><br><video src="https://github.com/user-attachments/assets/6b7ca00f-83fe-4365-be2a-686b553b3a91" controls muted loop></video></td>
+</tr>
+</table>
+
