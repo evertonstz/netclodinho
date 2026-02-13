@@ -54,9 +54,9 @@ spec:
       labels:
         app: ollama
     spec:
-      # Use regular runtime (not Kata) for GPU access
-      # GPU passthrough to Kata VMs requires VFIO which is complex
-      runtimeClassName: runc
+      # Use nvidia runtime for GPU access via CDI device injection.
+      # GPU passthrough to Kata VMs requires VFIO which is complex.
+      runtimeClassName: nvidia
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000

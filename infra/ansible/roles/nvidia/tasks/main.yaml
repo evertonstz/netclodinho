@@ -61,12 +61,52 @@
     msg: "Secure Boot: {{ 'ENABLED' if secure_boot_enabled else 'DISABLED' }}"
 
 # =============================================================================
+# Nouveau conflict handling
+# =============================================================================
+
+- name: Check if nouveau is loaded
+  ansible.builtin.shell: lsmod | grep -q nouveau
+  register: nouveau_loaded
+  failed_when: false
+  changed_when: false
+
+- name: Ensure nouveau blacklist is active
+  ansible.builtin.copy:
+    content: |
+      # Managed by Ansible - blacklist nouveau to prevent it from claiming the GPU
+      blacklist nouveau
+      options nvidia-drm modeset=1
+      options nvidia NVreg_TemporaryFilePath=/var/tmp
+      options nvidia NVreg_EnableS0ixPowerManagement=1
+      options nvidia NVreg_PreserveVideoMemoryAllocations=1
+    dest: /etc/modprobe.d/nvidia.conf
+    mode: "0644"
+  register: nvidia_modprobe_conf
+
+- name: Remove stale .dpkg-new blacklist file
+  ansible.builtin.file:
+    path: /etc/modprobe.d/nvidia.conf.dpkg-new
+    state: absent
+
+- name: Rebuild initramfs if blacklist changed
+  ansible.builtin.command: update-initramfs -u
+  changed_when: true
+  when: nvidia_modprobe_conf is changed
+
+- name: Fail if nouveau is loaded (reboot required)
+  ansible.builtin.fail:
+    msg: >
+      nouveau is loaded and holding the GPU. The blacklist has been configured
+      and initramfs rebuilt. Please reboot the server and re-run this playbook.
+  when: nouveau_loaded.rc == 0
+
+# =============================================================================
 # Check if driver is already working
 # =============================================================================
 
 - name: Check if nvidia kernel module is loaded and working
   ansible.builtin.shell: |
-    modprobe nvidia 2>/dev/null || true
+    timeout 10 modprobe nvidia 2>/dev/null || true
     cat /proc/driver/nvidia/version 2>/dev/null | grep -oP 'NVRM version: NVIDIA UNIX.*\K[0-9]+\.[0-9]+\.[0-9]+' | head -1
   register: nvidia_module_version
   failed_when: false
@@ -177,6 +217,11 @@
     state: present
   when: not driver_working
   register: driver_installed
+
+- name: Rebuild initramfs after driver install
+  ansible.builtin.command: update-initramfs -u
+  changed_when: true
+  when: driver_installed is changed
 
 # =============================================================================
 # Secure Boot: MOK Enrollment Handling
@@ -321,8 +366,31 @@
     update_cache: yes
 
 # =============================================================================
-# Configure K3s containerd for NVIDIA runtime
+# Configure NVIDIA Container Runtime and K3s containerd
 # =============================================================================
+
+# Use CDI mode for nvidia-container-runtime. The default "auto" mode and
+# "legacy" mode both invoke nvidia-container-cli's prestart hook which fails
+# with "nvml error: unknown error" on host-installed drivers (590.48.01+).
+# CDI mode uses a pre-generated device spec file instead, which is more
+# reliable and the direction NVIDIA is heading.
+- name: Set nvidia-container-runtime to CDI mode
+  ansible.builtin.lineinfile:
+    path: /etc/nvidia-container-runtime/config.toml
+    regexp: '^mode\s*='
+    line: 'mode = "cdi"'
+
+# Generate CDI spec so the runtime knows how to inject GPU devices.
+# Must be regenerated if the driver version changes.
+- name: Create CDI spec directory
+  ansible.builtin.file:
+    path: /etc/cdi
+    state: directory
+    mode: "0755"
+
+- name: Generate CDI device spec
+  ansible.builtin.command: nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml
+  changed_when: true
 
 - name: Symlink K3s runc to system PATH for nvidia-container-runtime
   ansible.builtin.file:
@@ -333,6 +401,21 @@
 
 # NOTE: GPU Operator's toolkit DaemonSet will handle containerd configuration
 # We keep our template for reference but GPU Operator will manage the runtime config
+
+# =============================================================================
+# NVIDIA RuntimeClass (maps to containerd nvidia handler)
+# =============================================================================
+
+- name: Create nvidia RuntimeClass
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ k3s_kubeconfig }}"
+    definition:
+      apiVersion: node.k8s.io/v1
+      kind: RuntimeClass
+      metadata:
+        name: nvidia
+      handler: nvidia
 
 # =============================================================================
 # NVIDIA GPU Operator
@@ -361,12 +444,21 @@
       toolkit:
         enabled: false
 
+      # Disable CDI - requires the toolkit DaemonSet to configure CDI on the node.
+      # Since toolkit is disabled (we configure containerd in k3s role directly),
+      # CDI is not available. Without this, the operator injects CDI env vars
+      # (DEVICE_LIST_STRATEGY=cdi-annotations,cdi-cri) that override our ConfigMap
+      # and cause the device plugin to crash.
+      cdi:
+        enabled: false
+
       # Operator configuration
       operator:
-        # Use runc runtime for operator pods (not nvidia)
-        # to avoid chicken-and-egg NVML initialization issue where
-        # nvidia runtime tries to initialize NVML before GPU access is available
-        runtimeClass: "runc"
+        # Use nvidia runtime so device-plugin/GFD daemonsets get NVML access.
+        # The nvidia-container-runtime injects /dev/nvidia* and libnvidia-ml.so
+        # into containers. The operator controller pod itself doesn't need GPU
+        # access but nvidia runtime falls back gracefully for non-GPU workloads.
+        runtimeClass: "nvidia"
 
       # Validator disabled - designed for GPU Operator managed drivers/toolkit
       # We verify GPU via kubectl command instead (see end of role)
@@ -374,8 +466,21 @@
         enabled: false
 
       # Enable device plugin
+      # Use NVML discovery (not "auto" which fails with host-installed drivers)
+      # CDI device-list-strategy requires the toolkit, so use legacy envvar listing
       devicePlugin:
         enabled: true
+        config:
+          create: true
+          name: "device-plugin-config"
+          default: "host-driver"
+          data:
+            host-driver: |-
+              version: v1
+              flags:
+                migStrategy: none
+                deviceDiscoveryStrategy: nvml
+                deviceListStrategy: envvar
 
       # Disable components we don't need
       migManager:
@@ -391,26 +496,26 @@
       nfd:
         enabled: true
 
-# Toolkit is disabled - we configure containerd in k3s role directly
-# Create validation files for GPU Operator components that expect them
+# Toolkit is disabled - we configure containerd in k3s role directly.
+# Create validation files for GPU Operator components that expect them.
+# /run is a tmpfs, so we use systemd-tmpfiles to recreate them on every boot.
 
-- name: Ensure validation directory exists
-  ansible.builtin.file:
-    path: /run/nvidia/validations
-    state: directory
-    mode: "0755"
-
-- name: Create driver-ready validation file (for pre-installed drivers)
+- name: Install tmpfiles.d rule for nvidia validation files
   ansible.builtin.copy:
-    content: "DRIVER_READY=true\n"
-    dest: /run/nvidia/validations/.driver-ctr-ready
+    content: |
+      # Create GPU Operator validation files on boot (toolkit/driver disabled, host-installed)
+      d /run/nvidia/validations 0755 root root -
+      f /run/nvidia/validations/.driver-ctr-ready 0644 root root - DRIVER_READY=true
+      f /run/nvidia/validations/driver-ready 0644 root root - DRIVER_READY=true
+      f /run/nvidia/validations/toolkit-ready 0644 root root - TOOLKIT_READY=true
+    dest: /etc/tmpfiles.d/nvidia-validations.conf
     mode: "0644"
+  register: nvidia_tmpfiles
 
-- name: Create toolkit-ready validation file
-  ansible.builtin.copy:
-    content: "TOOLKIT_READY=true\n"
-    dest: /run/nvidia/validations/toolkit-ready
-    mode: "0644"
+- name: Apply tmpfiles.d rule now
+  ansible.builtin.command: systemd-tmpfiles --create /etc/tmpfiles.d/nvidia-validations.conf
+  changed_when: true
+  when: nvidia_tmpfiles.changed
 
 # Disable validator via node label - it fails with pre-installed drivers
 # and we already verify GPU via kubectl command
@@ -435,8 +540,8 @@
     kubeconfig: "{{ k3s_kubeconfig }}"
   register: device_plugin_status
   until: device_plugin_status.resources[0].status.numberReady | default(0) > 0
-  retries: 60
-  delay: 10
+  retries: 30
+  delay: 1
 
 - name: Verify GPU is visible to Kubernetes
   ansible.builtin.shell: |
