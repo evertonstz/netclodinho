@@ -19,6 +19,18 @@
     kubeconfig: "{{ k3s_kubeconfig }}"
   when: juicefs_csi_sts.resources | default([]) | length == 0
 
+- name: Scale JuiceFS CSI controller to 1 replica (single-node cluster)
+  kubernetes.core.k8s:
+    api_version: apps/v1
+    kind: StatefulSet
+    name: juicefs-csi-controller
+    namespace: kube-system
+    kubeconfig: "{{ k3s_kubeconfig }}"
+    state: present
+    definition:
+      spec:
+        replicas: 1
+
 - name: Wait for JuiceFS CSI controller to be ready
   kubernetes.core.k8s_info:
     api_version: apps/v1
