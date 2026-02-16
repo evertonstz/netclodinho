@@ -44,7 +44,7 @@ type CommentContext struct {
 func BuildPRMentionPrompt(ctx PRMentionContext) string {
 	var b strings.Builder
 
-	b.WriteString("You are assisting with a pull request on GitHub.\n\n")
+	fmt.Fprintf(&b, "You were mentioned on a GitHub pull request. A user is asking you to do something — do it.\n\n")
 
 	fmt.Fprintf(&b, "## Repository\n%s/%s\n\n", ctx.Owner, ctx.Repo)
 
@@ -77,12 +77,14 @@ func BuildPRMentionPrompt(ctx PRMentionContext) string {
 	fmt.Fprintf(&b, "## User Request\n%s\n\n", ctx.UserRequest)
 
 	b.WriteString("---\n\n")
-	b.WriteString("## Instructions\n")
+	b.WriteString("## Rules\n")
 	fmt.Fprintf(&b, "- The repository `%s/%s` is cloned in your workspace.\n", ctx.Owner, ctx.Repo)
 	fmt.Fprintf(&b, "- The PR branch `%s` needs to be checked out first. Run: `git fetch origin %s && git checkout %s`\n", ctx.HeadRef, ctx.HeadRef, ctx.HeadRef)
-	b.WriteString("- Answer the user's request. If they ask for code changes, make them and describe what you did.\n")
-	b.WriteString("- If the user asks you to push changes, you can `git add`, `git commit`, and `git push`.\n")
-	b.WriteString("- Be concise. Your response will be posted as a GitHub comment.\n")
+	b.WriteString("- Do the work. Do NOT ask clarifying questions, do NOT ask what the user wants, do NOT present options. Just do what they asked.\n")
+	b.WriteString("- If the request is ambiguous, use your best judgment and explain what you did.\n")
+	b.WriteString("- If they ask for code changes, make them. If they ask for a review, review the code thoroughly.\n")
+	b.WriteString("- If they ask you to push changes, you can `git add`, `git commit`, and `git push`.\n")
+	b.WriteString("- Your response will be posted as a single GitHub comment. Be direct and substantive.\n")
 	b.WriteString("- Format your response in GitHub-flavored markdown.\n")
 	b.WriteString("- Do NOT include the instructions or context sections in your response.\n")
 
@@ -93,7 +95,7 @@ func BuildPRMentionPrompt(ctx PRMentionContext) string {
 func BuildIssueMentionPrompt(ctx IssueMentionContext) string {
 	var b strings.Builder
 
-	b.WriteString("You are assisting with a GitHub issue.\n\n")
+	fmt.Fprintf(&b, "You were mentioned on a GitHub issue. A user is asking you to do something — do it.\n\n")
 
 	fmt.Fprintf(&b, "## Repository\n%s/%s\n\n", ctx.Owner, ctx.Repo)
 
@@ -120,10 +122,12 @@ func BuildIssueMentionPrompt(ctx IssueMentionContext) string {
 	fmt.Fprintf(&b, "## User Request\n%s\n\n", ctx.UserRequest)
 
 	b.WriteString("---\n\n")
-	b.WriteString("## Instructions\n")
+	b.WriteString("## Rules\n")
 	fmt.Fprintf(&b, "- The repository `%s/%s` is cloned in your workspace on the default branch.\n", ctx.Owner, ctx.Repo)
-	b.WriteString("- Answer the user's question or implement what they ask for.\n")
-	b.WriteString("- Be concise. Your response will be posted as a GitHub issue comment.\n")
+	b.WriteString("- Do the work. Do NOT ask clarifying questions, do NOT ask what the user wants, do NOT present options. Just do what they asked.\n")
+	b.WriteString("- If the request is ambiguous, use your best judgment and explain what you did.\n")
+	b.WriteString("- If they ask for code changes, make them. If they ask for investigation, investigate thoroughly.\n")
+	b.WriteString("- Your response will be posted as a single GitHub comment. Be direct and substantive.\n")
 	b.WriteString("- Format your response in GitHub-flavored markdown.\n")
 	b.WriteString("- Do NOT include the instructions or context sections in your response.\n")
 

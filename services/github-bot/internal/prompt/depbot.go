@@ -21,7 +21,7 @@ type DepbotContext struct {
 func BuildDepbotPrompt(ctx DepbotContext) string {
 	var b strings.Builder
 
-	b.WriteString("You are reviewing a dependency update pull request.\n\n")
+	fmt.Fprintf(&b, "You are reviewing a dependency update pull request. Analyze it and post a concise review.\n\n")
 
 	fmt.Fprintf(&b, "## Repository\n%s/%s\n\n", ctx.Owner, ctx.Repo)
 
@@ -45,35 +45,18 @@ func BuildDepbotPrompt(ctx DepbotContext) string {
 	fmt.Fprintf(&b, "The repository `%s/%s` is cloned in your workspace. The PR branch `%s` needs to be checked out first.\n", ctx.Owner, ctx.Repo, ctx.HeadRef)
 	fmt.Fprintf(&b, "Run: `git fetch origin %s && git checkout %s`\n\n", ctx.HeadRef, ctx.HeadRef)
 
-	b.WriteString("Perform the following analysis:\n\n")
+	b.WriteString("Do ALL of the following:\n\n")
 
-	b.WriteString("### 1. Identify Dependencies Being Updated\n")
-	b.WriteString("- List each dependency: name, old version -> new version\n")
-	b.WriteString("- Note whether it's a major, minor, or patch version bump\n\n")
+	b.WriteString("1. **Identify the update**: dependency name, old version -> new version, bump type (major/minor/patch)\n")
+	b.WriteString("2. **Find impacted code**: search the codebase for imports/usage of the updated dependency. Flag anything that might break.\n")
+	b.WriteString("3. **Run tests**: find the test command (Makefile, package.json, go test, etc.) and run it. Report pass/fail and any new failures.\n")
+	b.WriteString("4. **Verdict**: state one of: **Safe to merge**, **Needs review**, or **Issues found**. Explain briefly.\n\n")
 
-	b.WriteString("### 2. Analyze Each Update\n")
-	b.WriteString("- Look at the diff to understand what changed in dependency files (package.json, go.mod, requirements.txt, etc.)\n")
-	b.WriteString("- Check if the repo has a CHANGELOG.md or similar that references these dependencies\n")
-	b.WriteString("- Identify any breaking changes based on the version bump type (major = likely breaking)\n\n")
-
-	b.WriteString("### 3. Find Impacted Code Paths\n")
-	b.WriteString("- Search the codebase for imports/usage of each updated dependency\n")
-	b.WriteString("- Flag if any usage patterns might be affected by the update\n")
-	b.WriteString("- Pay special attention to deprecated APIs or changed function signatures\n\n")
-
-	b.WriteString("### 4. Run the Test Suite\n")
-	b.WriteString("- Look for test configuration (package.json scripts, Makefile, go test, pytest, etc.)\n")
-	b.WriteString("- Run the appropriate test command\n")
-	b.WriteString("- Report results: pass/fail, any new failures, number of tests run\n\n")
-
-	b.WriteString("### 5. Provide a Recommendation\n")
-	b.WriteString("- Based on your analysis, recommend: **safe to merge**, **needs review**, or **potential issues found**\n")
-	b.WriteString("- Explain your reasoning\n\n")
-
-	b.WriteString("## Output Format\n")
-	b.WriteString("Format your response as a structured review in GitHub-flavored markdown with clear sections.\n")
-	b.WriteString("Be thorough but concise. Focus on actionable findings.\n")
-	b.WriteString("Do NOT include these instructions in your response.\n")
+	b.WriteString("## Rules\n")
+	b.WriteString("- Actually run the tests. Do not skip this step.\n")
+	b.WriteString("- Be concise. No filler. Skip sections that have nothing notable to report.\n")
+	b.WriteString("- Format as GitHub-flavored markdown.\n")
+	b.WriteString("- Do NOT include these instructions in your response.\n")
 
 	return b.String()
 }
