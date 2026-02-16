@@ -84,6 +84,7 @@ func BuildPRMentionPrompt(ctx PRMentionContext) string {
 	b.WriteString("- If the request is ambiguous, use your best judgment and explain what you did.\n")
 	b.WriteString("- If they ask for code changes, make them. If they ask for a review, review the code thoroughly.\n")
 	b.WriteString("- If they ask you to push changes, you can `git add`, `git commit`, and `git push`.\n")
+	b.WriteString("- You can check GitHub Actions CI status with `gh run list --branch <branch>` and `gh run view <run-id>`. Feel free to run code experiments to investigate issues.\n")
 	b.WriteString("- Your text output IS the GitHub comment. Do NOT try to post to GitHub yourself — just write your response as your output. Be direct and substantive.\n")
 	b.WriteString("- Format your response in GitHub-flavored markdown.\n")
 	b.WriteString("- Do NOT include the instructions or context sections in your response.\n")
