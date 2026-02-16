@@ -257,6 +257,10 @@ type MentionOnIssueParams struct {
 	TriggerCommentID int64
 }
 
+// truncateString returns s if it fits within maxLen, otherwise truncates and
+// appends "...". Note: when maxLen < len(s), the result is maxLen+3 chars
+// (the ellipsis is always appended outside the limit). This is intentional —
+// callers use this for display purposes where a few extra chars are fine.
 func truncateString(s string, maxLen int) string {
 	if len(s) <= maxLen {
 		return s

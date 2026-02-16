@@ -40,16 +40,18 @@ func postThinkingComment(ctx context.Context, gh *ghclient.Client, owner, repo s
 	return commentID, nil
 }
 
-// updateComment edits an existing comment with the final response.
-func updateComment(ctx context.Context, gh *ghclient.Client, owner, repo string, commentID int64, deliveryID, body string) error {
-	// Truncate if too long
+// formatCommentBody truncates the body if it exceeds maxCommentSize and
+// prepends a delivery ID marker for idempotency.
+func formatCommentBody(deliveryID, body string) string {
 	if len(body) > maxCommentSize {
 		body = body[:maxCommentSize] + "\n\n---\n*Response truncated (exceeded GitHub comment size limit).*"
 	}
+	return fmt.Sprintf("<!-- netclode:%s -->\n%s", deliveryID, body)
+}
 
-	// Prepend delivery marker for idempotency
-	body = fmt.Sprintf("<!-- netclode:%s -->\n%s", deliveryID, body)
-
+// updateComment edits an existing comment with the final response.
+func updateComment(ctx context.Context, gh *ghclient.Client, owner, repo string, commentID int64, deliveryID, body string) error {
+	body = formatCommentBody(deliveryID, body)
 	if err := gh.EditComment(ctx, owner, repo, commentID, body); err != nil {
 		return fmt.Errorf("edit comment: %w", err)
 	}
