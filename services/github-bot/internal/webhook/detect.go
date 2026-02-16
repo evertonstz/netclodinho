@@ -37,6 +37,11 @@ func ExtractMentionText(text string) string {
 	return strings.TrimSpace(result)
 }
 
+// HasCommand checks if the mention text starts with a specific /command.
+func HasCommand(mentionText, command string) bool {
+	return strings.HasPrefix(strings.TrimSpace(mentionText), command)
+}
+
 // IsBotComment checks if a comment was made by the bot itself.
 func IsBotComment(login string) bool {
 	return login == "netclode[bot]"

@@ -128,17 +128,38 @@ func (h *Handler) handleIssueComment(deliveryID string, payload []byte) {
 	triggerCommentID := comment.GetID()
 
 	if event.GetIssue().IsPullRequest() {
-		// PR mention
-		h.runAsync(deliveryID, func(ctx context.Context) {
-			workflow.MentionOnPR(ctx, h.deps, workflow.MentionOnPRParams{
-				Owner:            owner,
-				Repo:             repo,
-				PRNumber:         number,
-				DeliveryID:       deliveryID,
-				UserRequest:      userRequest,
-				TriggerCommentID: triggerCommentID,
+		if HasCommand(userRequest, "/review-dep-bump") {
+			// Dependency review command
+			h.runAsync(deliveryID, func(ctx context.Context) {
+				pr, err := h.deps.GH.GetPR(ctx, owner, repo, number)
+				if err != nil {
+					slog.Error("Failed to fetch PR for /review-dep-bump", "error", err, "owner", owner, "repo", repo, "pr", number)
+					return
+				}
+				workflow.DepbotReview(ctx, h.deps, workflow.DepbotReviewParams{
+					Owner:      owner,
+					Repo:       repo,
+					PRNumber:   number,
+					PRTitle:    pr.GetTitle(),
+					PRBody:     pr.GetBody(),
+					PRAuthor:   pr.GetUser().GetLogin(),
+					HeadRef:    pr.GetHead().GetRef(),
+					DeliveryID: deliveryID,
+				})
 			})
-		})
+		} else {
+			// Generic PR mention
+			h.runAsync(deliveryID, func(ctx context.Context) {
+				workflow.MentionOnPR(ctx, h.deps, workflow.MentionOnPRParams{
+					Owner:            owner,
+					Repo:             repo,
+					PRNumber:         number,
+					DeliveryID:       deliveryID,
+					UserRequest:      userRequest,
+					TriggerCommentID: triggerCommentID,
+				})
+			})
+		}
 	} else {
 		// Issue mention
 		h.runAsync(deliveryID, func(ctx context.Context) {
