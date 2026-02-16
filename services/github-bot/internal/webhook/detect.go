@@ -20,17 +20,9 @@ func IsRenovatePR(pr *github.PullRequest) bool {
 	return login == "renovate[bot]" || login == "renovate"
 }
 
-// IsDependencyPR checks if a PR is a dependency update (by author or label).
+// IsDependencyPR checks if a PR is a dependency update (by bot author only).
 func IsDependencyPR(pr *github.PullRequest) bool {
-	if IsDependabotPR(pr) || IsRenovatePR(pr) {
-		return true
-	}
-	for _, label := range pr.Labels {
-		if label.GetName() == "dependencies" {
-			return true
-		}
-	}
-	return false
+	return IsDependabotPR(pr) || IsRenovatePR(pr)
 }
 
 // ContainsMention checks if text contains an @netclode mention.
