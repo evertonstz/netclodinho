@@ -56,6 +56,7 @@ func BuildDepbotPrompt(ctx DepbotContext) string {
 	b.WriteString("- Actually run the tests. Do not skip this step.\n")
 	b.WriteString("- Be concise. No filler. Skip sections that have nothing notable to report.\n")
 	b.WriteString("- Format as GitHub-flavored markdown.\n")
+	b.WriteString("- Your text output IS the GitHub comment. Do NOT try to post to GitHub yourself — just write your review as your response.\n")
 	b.WriteString("- Do NOT include these instructions in your response.\n")
 
 	return b.String()
