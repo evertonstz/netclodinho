@@ -56,10 +56,6 @@ func main() {
 		Model:   cfg.Model,
 	}
 
-	// Recover in-flight sessions from previous run
-	slog.Info("Checking for in-flight sessions to recover...")
-	workflow.RecoverInFlight(context.Background(), deps)
-
 	// Create webhook handler
 	handler := webhook.NewHandler(cfg.WebhookSecret, st, deps, cfg.MaxConcurrent, cfg.SessionTimeout)
 
@@ -81,6 +77,10 @@ func main() {
 			os.Exit(1)
 		}
 	}()
+
+	// Recover in-flight sessions in the background so the health endpoint
+	// is reachable immediately and liveness probes don't kill the pod.
+	go workflow.RecoverInFlight(context.Background(), deps)
 
 	// Graceful shutdown
 	stop := make(chan os.Signal, 1)
