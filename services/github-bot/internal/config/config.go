@@ -28,7 +28,7 @@ func Load() (*Config, error) {
 	cfg := &Config{
 		Port:    envOrDefault("PORT", "8080"),
 		SdkType: envOrDefault("SDK_TYPE", "claude"),
-		Model:   envOrDefault("MODEL", "claude-sonnet-4-20250514"),
+		Model:   envOrDefault("MODEL", "claude-opus-4-6"),
 	}
 
 	// Required

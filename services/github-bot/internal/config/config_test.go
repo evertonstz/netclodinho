@@ -72,8 +72,8 @@ func TestLoad_Defaults(t *testing.T) {
 	if cfg.SdkType != "claude" {
 		t.Errorf("SdkType = %q, want claude", cfg.SdkType)
 	}
-	if cfg.Model != "claude-sonnet-4-20250514" {
-		t.Errorf("Model = %q, want claude-sonnet-4-20250514", cfg.Model)
+	if cfg.Model != "claude-opus-4-6" {
+		t.Errorf("Model = %q, want claude-opus-4-6", cfg.Model)
 	}
 	if cfg.SessionTimeout.Minutes() != 10 {
 		t.Errorf("SessionTimeout = %v, want 10m", cfg.SessionTimeout)
