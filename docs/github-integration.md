@@ -29,11 +29,12 @@ Write access is always scoped to the selected repos only - you can't accidentall
 2. Fill in:
    - **Name**: `Netclode`
    - **Homepage URL**: `https://github.com/angristan/netclode`
-   - **Webhook**: Uncheck "Active"
+   - **Webhook**: Check "Active" if using the [GitHub Bot](github-bot.md), otherwise uncheck
 3. Set permissions:
    - Contents: **Read and write**
    - Metadata: **Read-only**
    - Pull requests: **Read and write** (optional)
+   - Issues: **Read and write** (required for [GitHub Bot](github-bot.md))
 4. Install scope: **Only on this account** (or Any account for multiple orgs)
 5. Click **Create GitHub App**
 
