@@ -114,7 +114,7 @@ func New(cfg Config, logger *slog.Logger) *Proxy {
 		server: proxy,
 		logger: logger,
 		httpClient: &http.Client{
-			Timeout: 5 * time.Second,
+			Timeout: 10 * time.Second,
 		},
 	}
 
@@ -298,33 +298,56 @@ func (p *Proxy) validateWithControlPlane(token, targetHost string) (*validatePro
 	}
 
 	url := strings.TrimSuffix(p.config.ControlPlaneURL, "/") + "/internal/validate-proxy-auth"
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(jsonBody))
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := p.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("http request: %w", err)
-	}
-	defer resp.Body.Close()
+	// Retry up to 3 times with backoff for transient failures (K8s API timeouts, etc.).
+	// Without retries, a single K8s API hiccup causes the placeholder key to leak to Anthropic.
+	const maxRetries = 3
+	var lastErr error
+	for attempt := range maxRetries {
+		if attempt > 0 {
+			backoff := time.Duration(attempt) * 500 * time.Millisecond
+			p.logger.Debug("Retrying control-plane validation", "attempt", attempt+1, "backoff", backoff, "host", targetHost)
+			time.Sleep(backoff)
+		}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read response: %w", err)
+		req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(jsonBody))
+		if err != nil {
+			return nil, fmt.Errorf("create request: %w", err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := p.httpClient.Do(req)
+		if err != nil {
+			lastErr = fmt.Errorf("http request: %w", err)
+			continue // Retry on network/timeout errors
+		}
+
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			lastErr = fmt.Errorf("read response: %w", err)
+			continue
+		}
+
+		// 5xx = control-plane overloaded, retry
+		if resp.StatusCode >= 500 {
+			lastErr = fmt.Errorf("server error %d: %s", resp.StatusCode, string(body))
+			continue
+		}
+
+		var result validateProxyAuthResponse
+		if err := json.Unmarshal(body, &result); err != nil {
+			return nil, fmt.Errorf("unmarshal response: %w", err)
+		}
+
+		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusUnauthorized {
+			return nil, fmt.Errorf("unexpected status %d: %s", resp.StatusCode, result.Error)
+		}
+
+		return &result, nil
 	}
 
-	var result validateProxyAuthResponse
-	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, fmt.Errorf("unmarshal response: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusUnauthorized {
-		return nil, fmt.Errorf("unexpected status %d: %s", resp.StatusCode, result.Error)
-	}
-
-	return &result, nil
+	return nil, lastErr
 }
 
 // ListenAndServe starts the proxy server.
