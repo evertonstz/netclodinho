@@ -145,7 +145,8 @@ For iOS, see [clients/ios/README.md](/clients/ios/README.md).
 | `K8S_NAMESPACE`       | `netclode`                  | Kubernetes namespace    |
 | `REDIS_URL`           | `redis://redis-sessions...` | Redis URL               |
 | `WARM_POOL_ENABLED`   | `true`                      | Use warm pool           |
-| `MAX_ACTIVE_SESSIONS` | `2`                         | Max concurrent sessions |
+| `MAX_ACTIVE_SESSIONS` | `5`                         | Max concurrent sessions |
+| `IDLE_TIMEOUT_MINUTES` | `0` (disabled)             | Auto-pause sessions after N minutes of inactivity |
 
 ### Agent
 

@@ -341,6 +341,8 @@ create ──► creating ──► ready ◄──► running
 
 ### Paused
 
+Triggered manually, by capacity limit (`MAX_ACTIVE_SESSIONS`), or by idle timeout (`IDLE_TIMEOUT_MINUTES`):
+
 1. Control-plane deletes Sandbox (VM stops)
 2. Session anchor ConfigMap preserves PVC
 3. PVC retains workspace data

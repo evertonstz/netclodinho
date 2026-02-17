@@ -54,6 +54,7 @@
         zai_api_key: "{{ (env_content_raw | regex_search('(?m)^ZAI_API_KEY=(.*)$', '\\1') or [''])[0] }}"
         github_webhook_secret: "{{ (env_content_raw | regex_search('(?m)^GITHUB_WEBHOOK_SECRET=(.*)$', '\\1') or [''])[0] }}"
         max_active_sessions: "{{ env_content_raw | regex_search('(?m)^MAX_ACTIVE_SESSIONS=(.*)$', '\\1') | first | default('5') }}"
+        idle_timeout_minutes: "{{ env_content_raw | regex_search('(?m)^IDLE_TIMEOUT_MINUTES=(.*)$', '\\1') | first | default('0') }}"
 
 # Host secrets - skip if only deploying k8s secrets
 - name: Deploy host secrets

@@ -37,6 +37,7 @@ services/control-plane/
 | `REDIS_URL` | `redis://redis-sessions...` | Redis URL |
 | `WARM_POOL_ENABLED` | `true` | Use warm pool |
 | `MAX_ACTIVE_SESSIONS` | `5` | Max concurrent sessions |
+| `IDLE_TIMEOUT_MINUTES` | `0` (disabled) | Auto-pause sessions after N minutes of inactivity |
 | `HOST_CPUS` | `16` | Total host CPUs (for 50% limit validation) |
 | `HOST_MEMORY_MB` | `32768` | Total host memory in MB (for 50% limit) |
 | `DEFAULT_CPUS` | `4` | Default vCPUs per session |
@@ -270,7 +271,10 @@ create → creating → running ↔ paused
 
 ### Auto-pause
 
-When `MAX_ACTIVE_SESSIONS` is reached and a new session needs to run, the control plane automatically pauses the oldest inactive session. "Inactive" means no prompt currently running.
+Sessions are auto-paused in two scenarios:
+
+1. **Capacity limit**: When `MAX_ACTIVE_SESSIONS` is reached and a new session needs to run, the oldest session (by `LastActiveAt`) is paused to make room.
+2. **Idle timeout**: When `IDLE_TIMEOUT_MINUTES` is set (default `0` = disabled), a background reaper checks every minute and pauses any active session that has been idle longer than the configured duration.
 
 Many paused sessions (cheap, just S3 storage), limited concurrent VMs (expensive, memory/CPU).
 

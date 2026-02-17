@@ -54,7 +54,7 @@ CreateSession()
 ```
  ┌─────────┐  sandbox deleted     ┌─────────┐
  │ READY   │ -------------------> │ PAUSED  │
- └─────────┘  (idle timeout)      └────┬────┘
+ └─────────┘  (manual/auto)       └────┬────┘
                                        |
                                        | Resume() called
                                        v
@@ -67,6 +67,11 @@ CreateSession()
                                  │ READY   │
                                  └─────────┘
 ```
+
+A session can be paused manually or automatically by two triggers:
+
+- **Capacity limit** (`MAX_ACTIVE_SESSIONS`): When the limit is reached and a new session needs to run, the oldest session (by `LastActiveAt`) is paused to make room.
+- **Idle timeout** (`IDLE_TIMEOUT_MINUTES`): When set (default `0` = disabled), a background reaper checks every minute and pauses any active session idle longer than the configured duration.
 
 ### Agent Disconnect (while running)
 

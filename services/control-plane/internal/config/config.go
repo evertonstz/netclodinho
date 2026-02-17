@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"os"
 	"strconv"
+	"time"
 )
 
 type Config struct {
@@ -20,6 +21,7 @@ type Config struct {
 	RedisURL           string
 	UseWarmPool        bool
 	MaxActiveSessions  int
+	IdleTimeout        time.Duration // Auto-pause sessions after this duration of inactivity (0 = disabled)
 
 	// Host resource limits for per-session resource validation
 	HostCPUs     int // Total CPUs on the host (for 50% limit validation)
@@ -65,10 +67,11 @@ func Load() *Config {
 		RedisURL:              getEnv("REDIS_URL", "redis://redis-sessions.netclode.svc.cluster.local:6379"),
 		UseWarmPool:           getEnvBool("WARM_POOL_ENABLED", true),
 		MaxActiveSessions:     getEnvInt("MAX_ACTIVE_SESSIONS", 5),
-		HostCPUs:              getEnvInt("HOST_CPUS", 16),              // Default assumes 16-core host
-		HostMemoryMB:          getEnvInt("HOST_MEMORY_MB", 32768),      // Default assumes 32GB host
-		CPUOvercommitRatio:    getEnvInt("CPU_OVERCOMMIT_RATIO", 1),    // 1 = no overcommit
-		MemoryOvercommitRatio: getEnvInt("MEMORY_OVERCOMMIT_RATIO", 1), // 1 = no overcommit
+		IdleTimeout:           time.Duration(getEnvInt("IDLE_TIMEOUT_MINUTES", 0)) * time.Minute, // 0 = disabled
+		HostCPUs:              getEnvInt("HOST_CPUS", 16),                                        // Default assumes 16-core host
+		HostMemoryMB:          getEnvInt("HOST_MEMORY_MB", 32768),                                // Default assumes 32GB host
+		CPUOvercommitRatio:    getEnvInt("CPU_OVERCOMMIT_RATIO", 1),                              // 1 = no overcommit
+		MemoryOvercommitRatio: getEnvInt("MEMORY_OVERCOMMIT_RATIO", 1),                           // 1 = no overcommit
 
 		// Codex OAuth tokens
 		CodexAccessToken:  getEnv("CODEX_ACCESS_TOKEN", ""),

@@ -116,6 +116,8 @@ spec:
               value: "true"
             - name: MAX_ACTIVE_SESSIONS
               value: "{{ max_active_sessions | default('5') }}"
+            - name: IDLE_TIMEOUT_MINUTES
+              value: "{{ idle_timeout_minutes | default('0') }}"
             # Host resources (used to derive per-session limits: CPU 50%, Memory 25%)
             - name: HOST_CPUS
               value: "{{ ansible_processor_vcpus }}"

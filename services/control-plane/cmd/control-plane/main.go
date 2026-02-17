@@ -40,6 +40,7 @@ func run() error {
 		"namespace", cfg.K8sNamespace,
 		"agentImage", cfg.AgentImage,
 		"redisURL", storage.ParseRedisURL(cfg.RedisURL),
+		"idleTimeout", cfg.IdleTimeout,
 	)
 
 	// Initialize Redis storage

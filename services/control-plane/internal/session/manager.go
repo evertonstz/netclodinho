@@ -77,6 +77,9 @@ type Manager struct {
 
 	// onSessionUpdated is called when a session is updated internally (e.g., auto-pause).
 	onSessionUpdated SessionUpdateCallback
+
+	// idle reaper
+	stopIdleReaper chan struct{}
 }
 
 // NewManager creates a new session manager.
@@ -240,11 +243,16 @@ func (m *Manager) Initialize(ctx context.Context) error {
 	// Enforce active session limit on startup
 	m.enforceActiveLimit(ctx)
 
+	// Start idle session reaper (if configured)
+	m.startIdleReaper()
+
 	return nil
 }
 
-// Close closes all session states.
+// Close closes all session states and stops background goroutines.
 func (m *Manager) Close() {
+	m.stopIdleReaperIfRunning()
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -1456,6 +1464,81 @@ func (m *Manager) enforceActiveLimit(ctx context.Context) {
 		if _, err := m.Pause(ctx, oldestID); err != nil {
 			slog.Error("Failed to pause session during limit enforcement", "sessionID", oldestID, "error", err)
 			return
+		}
+	}
+}
+
+// startIdleReaper starts a background goroutine that periodically checks for
+// idle sessions and pauses them. Does nothing if IdleTimeout is 0.
+func (m *Manager) startIdleReaper() {
+	timeout := m.config.IdleTimeout
+	if timeout <= 0 {
+		return
+	}
+
+	m.stopIdleReaper = make(chan struct{})
+
+	slog.Info("Starting idle session reaper", "timeout", timeout)
+
+	go func() {
+		ticker := time.NewTicker(time.Minute)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				m.reapIdleSessions(timeout)
+			case <-m.stopIdleReaper:
+				slog.Info("Idle session reaper stopped")
+				return
+			}
+		}
+	}()
+}
+
+// stopIdleReaperIfRunning stops the idle reaper goroutine if it's running.
+func (m *Manager) stopIdleReaperIfRunning() {
+	if m.stopIdleReaper != nil {
+		close(m.stopIdleReaper)
+	}
+}
+
+// reapIdleSessions finds active sessions that have been idle longer than the
+// given timeout and pauses them.
+func (m *Manager) reapIdleSessions(timeout time.Duration) {
+	now := time.Now()
+
+	m.mu.RLock()
+	var toReap []string
+	for id, state := range m.sessions {
+		if !isActiveStatus(state.Session.Status) {
+			continue
+		}
+		if state.Session.LastActiveAt == nil {
+			continue
+		}
+		idle := now.Sub(state.Session.LastActiveAt.AsTime())
+		if idle > timeout {
+			toReap = append(toReap, id)
+			slog.Info("Session idle timeout exceeded",
+				"sessionID", id,
+				"idle", idle.Round(time.Second),
+				"timeout", timeout,
+			)
+		}
+	}
+	m.mu.RUnlock()
+
+	for _, id := range toReap {
+		ctx := context.Background()
+		slog.Info("Auto-pausing idle session", "sessionID", id)
+		pausedSession, err := m.Pause(ctx, id)
+		if err != nil {
+			slog.Error("Failed to auto-pause idle session", "sessionID", id, "error", err)
+			continue
+		}
+		if m.onSessionUpdated != nil && pausedSession != nil {
+			m.onSessionUpdated(pausedSession)
 		}
 	}
 }

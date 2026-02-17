@@ -80,6 +80,10 @@ GITHUB_INSTALLATION_ID=12345678
 # GitHub Bot webhook (required if using github-bot)
 GITHUB_WEBHOOK_SECRET=your-webhook-secret
 
+# Session limits (optional)
+# MAX_ACTIVE_SESSIONS=5
+# IDLE_TIMEOUT_MINUTES=30
+
 # Kata VM Resources (optional - defaults shown)
 KATA_VM_CPUS=4
 KATA_VM_MEMORY_MB=4096
