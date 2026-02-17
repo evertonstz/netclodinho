@@ -28,6 +28,19 @@ func DepbotReview(ctx context.Context, deps *Deps, params DepbotReviewParams) {
 	logger := slog.With("owner", params.Owner, "repo", params.Repo, "pr", params.PRNumber, "author", params.PRAuthor, "deliveryID", params.DeliveryID)
 	logger.Info("Processing dependency review")
 
+	// Check if the bot already commented on this PR (avoid reprocessing on PR updates).
+	existing, err := deps.GH.ListIssueComments(ctx, params.Owner, params.Repo, params.PRNumber, 50)
+	if err != nil {
+		logger.Warn("Failed to list existing comments, proceeding anyway", "error", err)
+	} else {
+		for _, c := range existing {
+			if c.GetUser().GetLogin() == "netclode[bot]" {
+				logger.Info("Bot already commented on this PR, skipping")
+				return
+			}
+		}
+	}
+
 	// 1. Post thinking comment
 	commentID, err := postThinkingComment(ctx, deps.GH, params.Owner, params.Repo, params.PRNumber, params.DeliveryID)
 	if err != nil {
