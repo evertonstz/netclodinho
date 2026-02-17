@@ -11,6 +11,26 @@
   vars_files:
     - ../group_vars/all.yaml
 
+  pre_tasks:
+    # Read operational config from .env so templates get correct values
+    # (without this, template variables like max_active_sessions fall back to defaults)
+    - name: Read .env for config vars
+      block:
+        - name: Read .env file
+          ansible.builtin.set_fact:
+            env_content_raw: "{{ lookup('file', (playbook_dir + '/../../..') | realpath + '/.env') }}"
+          delegate_to: localhost
+          become: no
+
+        - name: Extract config vars from .env
+          ansible.builtin.set_fact:
+            max_active_sessions: "{{ env_content_raw | regex_search('(?m)^MAX_ACTIVE_SESSIONS=(.*)$', '\\1') | first | default('5') }}"
+            idle_timeout_minutes: "{{ env_content_raw | regex_search('(?m)^IDLE_TIMEOUT_MINUTES=(.*)$', '\\1') | first | default('0') }}"
+      rescue:
+        - name: .env not found, using defaults
+          ansible.builtin.debug:
+            msg: "No .env file found, using template defaults"
+
   roles:
     - role: k8s-manifests
       tags: [k8s-manifests, workloads]
