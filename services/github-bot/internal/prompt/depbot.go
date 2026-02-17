@@ -54,6 +54,7 @@ func BuildDepbotPrompt(ctx DepbotContext) string {
 	b.WriteString("5. **Verdict**: state one of: **Safe to merge**, **Needs review**, or **Issues found**. Explain briefly.\n\n")
 
 	b.WriteString("## Rules\n")
+	b.WriteString("- Use web search whenever you need information beyond what's in the repo — release notes, changelogs, CVE details, migration guides, etc. Don't guess when you can look it up.\n")
 	b.WriteString("- Be concise. No filler. Skip sections that have nothing notable to report.\n")
 	b.WriteString("- Format as GitHub-flavored markdown.\n")
 	b.WriteString("- Your text output IS the GitHub comment. Do NOT try to post to GitHub yourself — just write your review as your response.\n")

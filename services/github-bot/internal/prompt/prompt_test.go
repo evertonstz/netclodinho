@@ -31,6 +31,7 @@ func TestBuildPRMentionPrompt(t *testing.T) {
 		"**alice**: looks good",
 		"git fetch origin feature-x && git checkout feature-x",
 		"Do the work",
+		"web search",
 		"Do NOT try to post to GitHub yourself",
 	}
 	for _, s := range mustContain {
@@ -110,6 +111,7 @@ func TestBuildIssueMentionPrompt(t *testing.T) {
 		"**bob**: can confirm",
 		"fix this",
 		"Do the work",
+		"web search",
 		"Do NOT try to post to GitHub yourself",
 	}
 	for _, s := range mustContain {
@@ -157,6 +159,7 @@ func TestBuildDepbotPrompt(t *testing.T) {
 		"Check CI",
 		"gh run list",
 		"Safe to merge",
+		"web search",
 		"Do NOT try to post to GitHub yourself",
 	}
 	for _, s := range mustContain {
