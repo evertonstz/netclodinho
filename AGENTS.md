@@ -42,6 +42,9 @@ make rollout-control-plane
 
 # Rollout agent (drains warm pool to pick up new image)
 make rollout-agent
+
+# Rollout github-bot
+make rollout-github-bot
 ```
 
 ### Manual kubectl access
@@ -127,6 +130,7 @@ See [docs/secret-proxy.md](docs/secret-proxy.md) for full architecture.
 
 - `netclode-host` - The server itself
 - `netclode-control-plane-ingress` - Control plane HTTPS endpoint (via Tailscale Ingress)
+- `netclode-github-bot-ingress` - GitHub Bot webhook endpoint (via Tailscale Funnel, public)
 
 ## Debugging Sessions with CLI
 
