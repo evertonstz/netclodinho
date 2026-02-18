@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	pb "github.com/angristan/netclode/services/control-plane/gen/netclode/v1"
 	"github.com/angristan/netclode/services/github-bot/internal/controlplane"
@@ -18,7 +19,16 @@ const (
 	maxCommentSize = 60000
 	// thinkingMessage is the initial comment posted while the bot is working.
 	thinkingMessage = "🫡 Looking into it..."
+	// postTimeout is the timeout for GitHub API calls after session completion.
+	// Uses a fresh context so that posting succeeds even if the session context expired.
+	postTimeout = 30 * time.Second
 )
+
+// postContext returns a fresh context for GitHub API calls that should
+// succeed even if the session context has expired.
+func postContext() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), postTimeout)
+}
 
 // Deps holds shared dependencies for all workflows.
 type Deps struct {
@@ -64,6 +74,30 @@ func updateCommentWithError(ctx context.Context, gh *ghclient.Client, owner, rep
 	if updateErr := updateComment(ctx, gh, owner, repo, commentID, deliveryID, body); updateErr != nil {
 		slog.Error("Failed to update comment with error", "error", updateErr, "originalError", err)
 	}
+}
+
+// recoverResponse attempts to fetch the agent's response from the control plane
+// after a timeout. The session may have completed server-side even though the
+// client stream was torn down. Returns the response text, or "" if recovery fails.
+func recoverResponse(cp *controlplane.Client, sessionID string) string {
+	if sessionID == "" {
+		return ""
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	result, err := cp.RecoverSession(ctx, sessionID)
+	if err != nil {
+		slog.Warn("Failed to recover session response after timeout", "sessionID", sessionID, "error", err)
+		if result != nil && result.Response != "" {
+			return result.Response
+		}
+		return ""
+	}
+	if result.Response != "" {
+		slog.Info("Recovered session response after timeout", "sessionID", sessionID, "responseLen", len(result.Response))
+	}
+	return result.Response
 }
 
 // deleteSession cleans up a session in the background.

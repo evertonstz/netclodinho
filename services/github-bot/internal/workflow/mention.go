@@ -102,16 +102,31 @@ func MentionOnPR(ctx context.Context, deps *Deps, params MentionOnPRParams) {
 	if result != nil && result.SessionID != "" {
 		defer func() { go deleteSession(deps.CP, result.SessionID) }()
 	}
+
+	// Use a fresh context for all GitHub API calls from here on, because the
+	// session context may have expired (the session can take close to the timeout).
+	postCtx, postCancel := postContext()
+	defer postCancel()
+
 	if err != nil {
 		logger.Error("Session failed", "error", err)
+
+		// If we have no response but have a session ID, the agent may have finished
+		// server-side after our stream timed out. Try to recover the response.
+		if result != nil && result.Response == "" && result.SessionID != "" {
+			if recovered := recoverResponse(deps.CP, result.SessionID); recovered != "" {
+				result.Response = recovered
+			}
+		}
+
 		if result != nil && result.Response != "" {
 			response := result.Response + "\n\n---\n*Note: Session timed out or encountered an error. The above is a partial response.*"
-			if updateErr := updateComment(ctx, deps.GH, params.Owner, params.Repo, commentID, params.DeliveryID, response); updateErr != nil {
+			if updateErr := updateComment(postCtx, deps.GH, params.Owner, params.Repo, commentID, params.DeliveryID, response); updateErr != nil {
 				logger.Error("Failed to update comment with partial response", "error", updateErr)
 			}
 			return
 		}
-		updateCommentWithError(ctx, deps.GH, params.Owner, params.Repo, commentID, params.DeliveryID, err)
+		updateCommentWithError(postCtx, deps.GH, params.Owner, params.Repo, commentID, params.DeliveryID, err)
 		return
 	}
 
@@ -119,7 +134,7 @@ func MentionOnPR(ctx context.Context, deps *Deps, params MentionOnPRParams) {
 	if result.Response == "" {
 		result.Response = "*No response from agent.*"
 	}
-	if err := updateComment(ctx, deps.GH, params.Owner, params.Repo, commentID, params.DeliveryID, result.Response); err != nil {
+	if err := updateComment(postCtx, deps.GH, params.Owner, params.Repo, commentID, params.DeliveryID, result.Response); err != nil {
 		logger.Error("Failed to update comment with response", "error", err)
 	}
 	logger.Info("PR mention completed", "responseLen", len(result.Response))
@@ -214,16 +229,31 @@ func MentionOnIssue(ctx context.Context, deps *Deps, params MentionOnIssueParams
 	if result != nil && result.SessionID != "" {
 		defer func() { go deleteSession(deps.CP, result.SessionID) }()
 	}
+
+	// Use a fresh context for all GitHub API calls from here on, because the
+	// session context may have expired (the session can take close to the timeout).
+	postCtx, postCancel := postContext()
+	defer postCancel()
+
 	if err != nil {
 		logger.Error("Session failed", "error", err)
+
+		// If we have no response but have a session ID, the agent may have finished
+		// server-side after our stream timed out. Try to recover the response.
+		if result != nil && result.Response == "" && result.SessionID != "" {
+			if recovered := recoverResponse(deps.CP, result.SessionID); recovered != "" {
+				result.Response = recovered
+			}
+		}
+
 		if result != nil && result.Response != "" {
 			response := result.Response + "\n\n---\n*Note: Session timed out or encountered an error. The above is a partial response.*"
-			if updateErr := updateComment(ctx, deps.GH, params.Owner, params.Repo, commentID, params.DeliveryID, response); updateErr != nil {
+			if updateErr := updateComment(postCtx, deps.GH, params.Owner, params.Repo, commentID, params.DeliveryID, response); updateErr != nil {
 				logger.Error("Failed to update comment with partial response", "error", updateErr)
 			}
 			return
 		}
-		updateCommentWithError(ctx, deps.GH, params.Owner, params.Repo, commentID, params.DeliveryID, err)
+		updateCommentWithError(postCtx, deps.GH, params.Owner, params.Repo, commentID, params.DeliveryID, err)
 		return
 	}
 
@@ -231,7 +261,7 @@ func MentionOnIssue(ctx context.Context, deps *Deps, params MentionOnIssueParams
 	if result.Response == "" {
 		result.Response = "*No response from agent.*"
 	}
-	if err := updateComment(ctx, deps.GH, params.Owner, params.Repo, commentID, params.DeliveryID, result.Response); err != nil {
+	if err := updateComment(postCtx, deps.GH, params.Owner, params.Repo, commentID, params.DeliveryID, result.Response); err != nil {
 		logger.Error("Failed to update comment with response", "error", err)
 	}
 	logger.Info("Issue mention completed", "responseLen", len(result.Response))

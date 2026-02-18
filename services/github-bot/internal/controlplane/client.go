@@ -105,12 +105,10 @@ func (c *Client) RunSession(ctx context.Context, opts RunSessionOpts) (*RunSessi
 
 		msg, err := stream.Receive()
 		if err != nil {
-			// Stream closed — return whatever we have
-			if responseBuilder.Len() > 0 {
-				result.Response = responseBuilder.String()
-				return result, nil
-			}
-			return nil, fmt.Errorf("receive: %w", err)
+			// Stream closed or context cancelled — return accumulated response
+			// alongside the error so the caller knows the session was interrupted.
+			result.Response = responseBuilder.String()
+			return result, fmt.Errorf("receive: %w", err)
 		}
 
 		switch m := msg.GetMessage().(type) {
