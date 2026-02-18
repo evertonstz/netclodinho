@@ -45,6 +45,7 @@ var (
 		"command_end":         color.New(color.FgMagenta),
 		"thinking":            color.New(color.FgHiBlack, color.Italic),
 		"port_exposed":        color.New(color.FgCyan),
+		"port_unexposed":      color.New(color.FgYellow),
 		"repo_clone":          color.New(color.FgYellow),
 	}
 )

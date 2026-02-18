@@ -112,6 +112,7 @@ Thinking content streams in chunks. Accumulate content for the same `thinking_id
 |------|-------------|
 | `REPO_CLONE` | Repository clone progress (STARTING/CLONING/DONE/ERROR) |
 | `PORT_EXPOSED` | Port exposed for preview (port, preview_url) |
+| `PORT_UNEXPOSED` | Port exposure removed (port) |
 | `AGENT_DISCONNECTED` | Agent lost connection |
 | `AGENT_RECONNECTED` | Agent reconnected |
 

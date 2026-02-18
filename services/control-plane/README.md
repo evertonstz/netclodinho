@@ -99,6 +99,7 @@ rpc Connect(stream ClientMessage) returns (stream ServerMessage);
 | `agent_error` | Error |
 | `user_message` | User prompt (cross-client sync) |
 | `port_exposed` | Port exposed with `preview_url` |
+| `port_unexposed` | Port exposure removed |
 | `port_error` | Port exposure failed |
 | `terminal_output` | Terminal output |
 | `github_repos` | Available GitHub repos |
@@ -128,6 +129,7 @@ Delivered via `agent_event`:
 | `command_end` | Shell command completed |
 | `thinking` | Agent reasoning |
 | `port_exposed` | Port exposed |
+| `port_unexposed` | Port exposure removed |
 | `repo_clone` | Repository clone progress |
 
 ## HTTP
@@ -259,6 +261,8 @@ sandbox-{sessionId}.tailnet-name.ts.net:{port}
 ```
 
 The sandbox pod gets its own Tailscale identity, so preview URLs are accessible from any device on your tailnet. Each sandbox can expose multiple ports on the same hostname.
+
+When a client sends `unexpose_port`, the control plane removes the port from the Tailscale Service and the sandbox NetworkPolicy ingress rules, then returns `port_unexposed`. Exposed port state is persisted as events, so pause/resume correctly restores only ports that haven't been unexposed.
 
 ## Session lifecycle
 

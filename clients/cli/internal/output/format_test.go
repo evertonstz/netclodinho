@@ -209,6 +209,7 @@ func TestEventKindColor(t *testing.T) {
 		{"command_end", true},
 		{"thinking", true},
 		{"port_exposed", true},
+		{"port_unexposed", true},
 		{"repo_clone", true},
 		{"unknown_kind", true}, // Falls back to MutedColor
 	}

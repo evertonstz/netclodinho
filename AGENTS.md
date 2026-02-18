@@ -220,6 +220,7 @@ go run ./clients/cli events <session-id> --json
 - `thinking` - Agent reasoning content
 - `repo_clone` - Repository clone progress
 - `port_exposed` - Port exposed for preview
+- `port_unexposed` - Port exposure removed
 
 ## GPU Setup (Ollama)
 

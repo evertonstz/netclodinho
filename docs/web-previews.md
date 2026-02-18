@@ -20,12 +20,20 @@ Your Device → Tailscale (MagicDNS) → Sandbox Pod → Your App
 
 Preview URL format: `http://sandbox-<session-id>.YOUR-TAILNET.ts.net:<port>`
 
+## Removing a port
+
+**iOS App:** Previews tab → long-press or menu on a port → Remove Port
+
+**CLI:** `netclode port unexpose <session-id> <port>`
+
+Unexposing removes the port from the Tailscale Service and revokes network ingress. The preview URL stops working immediately.
+
 ## Notes
 
 - **Tailnet only** - URLs only work from devices on your Tailnet
 - **HTTP only** - no HTTPS (Tailnet traffic is already encrypted by WireGuard)
 - **Multiple ports** - same hostname, different ports
-- **Not persistent** - URLs change on pause/resume
+- **Survives reconnects** - exposed/unexposed state is persisted and restored on resume
 
 ## How it works internally
 

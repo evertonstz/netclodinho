@@ -200,6 +200,7 @@ Available event kinds:
 - `command_start`, `command_end`
 - `thinking`
 - `port_exposed`
+- `port_unexposed`
 - `repo_clone`
 
 ### Stream events in real-time

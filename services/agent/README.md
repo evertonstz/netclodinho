@@ -392,6 +392,8 @@ When a client sends `port.expose`, the control plane creates a Tailscale Service
 
 The preview URL is then `http://sandbox-abc123.tailnet-name.ts.net:3000`. Accessible from any device on your tailnet.
 
+Ports can be removed via `port.unexpose`, which deletes the port from the Tailscale Service and NetworkPolicy.
+
 ## Development
 
 ```bash
@@ -424,6 +426,8 @@ Events streamed during prompt execution:
 | `file_change` | File created/edited/deleted | `path`, `action`, `linesAdded?`, `linesRemoved?` |
 | `command_start` | Shell command started | `command`, `cwd` |
 | `command_end` | Shell command completed | `command`, `exitCode`, `output` |
+| `port_exposed` | Port exposed for preview | `port`, `process?`, `previewUrl?` |
+| `port_unexposed` | Port exposure removed | `port` |
 | `repo_clone` | Repository clone progress | `repo`, `stage`, `message` |
 
 All events include a `timestamp` field.
