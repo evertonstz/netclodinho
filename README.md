@@ -27,6 +27,7 @@ I wrote a blog post about how it works: [Building a self-hosted cloud coding age
 - **Live terminal access** - Drop into the sandbox shell from the app
 - **Session history** - Auto-snapshots after each turn. Roll back workspace and chat to any previous point
 - **GitHub integration** - Clone private repos, push commits, create PRs. Per-repo scoped tokens generated on demand via a GitHub App
+- **GitHub Bot** - @mention on PRs/issues to spin up a sandbox and get a response as a comment. Auto-reviews dependency update PRs from Dependabot/Renovate
 - **Multiple SDKs & providers** - Claude Code, OpenCode, Copilot, Codex SDKs with Anthropic, OpenAI, Mistral, Ollama, and more
 - **Secrets can't be stolen** - API keys never enter the sandbox. A proxy injects them on the fly for allowed hosts
 
@@ -41,6 +42,7 @@ flowchart LR
     subgraph VPS["VPS - k3s"]
         TS["Tailscale Ingress<br/><sub>TLS - HTTP/2</sub>"]
         CP["Control Plane<br/><sub>Go</sub>"]
+        BOT["GitHub Bot<br/><sub>Go</sub>"]
         REDIS[("Redis<br/><sub>Sessions</sub>")]
         POOL["agent-sandbox<br/><sub>Warm Pool</sub>"]
         JFS[("JuiceFS")]
@@ -51,11 +53,14 @@ flowchart LR
         end
     end
 
+    GH["GitHub Webhooks"]
     S3[("S3")]
     LLM["LLM APIs"]
 
     APP <-->|"Connect RPC<br/>HTTPS/H2"| TS
     TS <-->|"Connect RPC<br/>h2c"| CP
+    GH -->|"Webhooks"| BOT
+    BOT <-->|"Connect RPC<br/>h2c"| CP
     CP <-->|"Redis Streams"| REDIS
     CP <-->|"Connect RPC<br/>gRPC/h2c"| AGENT
     POOL -.->|"allocate"| SANDBOX
@@ -81,6 +86,7 @@ When pausing, the VM is deleted but JuiceFS keeps everything in S3: workspace, i
 | **API**           | Protobuf + Connect RPC             | Type-safe, gRPC-like, streams                |
 | **Control Plane** | Go                                 | Session and sandbox orchestration            |
 | **Agent**         | TypeScript/Node.js                 | SDK runner inside sandbox                    |
+| **GitHub Bot**    | Go                                 | Webhook-driven bot for @mentions and dep reviews |
 | **Secret Proxy**  | Go                                 | Injects API keys outside the sandbox         |
 | **Local LLM**     | Ollama                             | Optional, local models on GPU                |
 | **Client**        | SwiftUI (iOS 26)                   | Native iOS/macOS app                         |
@@ -97,6 +103,7 @@ netclode/
 │   ├── control-plane/    # Session orchestration (Go)
 │   ├── agent/            # SDK runner (Node.js)
 │   │   └── auth-proxy/   # Adds SA token to requests (Go)
+│   ├── github-bot/       # GitHub webhook bot (Go)
 │   └── secret-proxy/     # Injects real API keys (Go)
 ├── proto/                # Protobuf definitions
 ├── infra/
@@ -125,6 +132,7 @@ Quick version:
 - [Session Lifecycle](docs/session-lifecycle.md) - How sessions work
 - [Session History](docs/session-history.md) - Snapshots and rollback
 - [GitHub Integration](docs/github-integration.md) - Clone repos and push commits
+- [GitHub Bot](docs/github-bot.md) - @mention bot and dependency review automation
 - [Network Access](docs/network-access.md) - Internet and Tailnet access control
 - [Secret Proxy](docs/secret-proxy.md) - API key protection architecture
 - [Web Previews](docs/web-previews.md) - Port exposure via Tailscale
