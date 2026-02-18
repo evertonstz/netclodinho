@@ -248,16 +248,15 @@ func (p *Proxy) handleRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.R
 	}
 
 	if !authResult.Allowed {
-		p.logger.Warn("Request not allowed for secret injection",
+		// Host is not in the allowlist — no secret to inject, pass through.
+		// This is safe: placeholders only exist in headers sent to allowlisted API hosts
+		// (e.g., Anthropic, OpenAI). Requests to non-allowlisted hosts (npm registry,
+		// GitHub, etc.) don't carry placeholders and should reach the internet normally.
+		p.logger.Debug("Host not in allowlist, passing through without injection",
 			"host", targetHost,
 			"sessionID", authResult.SessionID,
-			"error", authResult.Error,
 		)
-		// Block the request instead of passing through with the placeholder key.
-		// Passing through would send the placeholder (e.g., NETCLODE_PLACEHOLDER_anthropic)
-		// to the upstream API, which sees it as an invalid API key.
-		return req, goproxy.NewResponse(req, goproxy.ContentTypeText, http.StatusProxyAuthRequired,
-			fmt.Sprintf("secret-proxy: request not allowed (session=%s, error=%s)", authResult.SessionID, authResult.Error))
+		return req, nil
 	}
 
 	// Get the actual secret value
