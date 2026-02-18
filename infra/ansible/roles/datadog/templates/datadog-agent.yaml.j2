@@ -1,0 +1,69 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+  namespace: datadog
+spec:
+  global:
+    site: "{{ dd_site | default('datadoghq.com') }}"
+    clusterName: netclode
+    credentials:
+      apiSecret:
+        secretName: datadog-secret
+        keyName: api-key
+      appSecret:
+        secretName: datadog-secret
+        keyName: app-key
+    tags:
+      - "env:production"
+      - "team:netclode"
+    podLabelsAsTags:
+      app: kube_app
+
+  features:
+    # APM (traces)
+    apm:
+      enabled: true
+      hostPortConfig:
+        enabled: true
+        hostPort: 8126
+      unixDomainSocketConfig:
+        enabled: true
+        path: /var/run/datadog/apm.socket
+
+    # Log collection
+    logCollection:
+      enabled: true
+      containerCollectAll: true
+
+    # DogStatsD for custom metrics
+    dogstatsd:
+      hostPortConfig:
+        enabled: true
+        hostPort: 8125
+      unixDomainSocketConfig:
+        enabled: true
+        path: /var/run/datadog/dsd.socket
+
+    # Live processes
+    liveProcessCollection:
+      enabled: true
+
+    # Kubernetes events
+    eventCollection:
+      collectKubernetesEvents: true
+
+    # Cluster checks
+    clusterChecks:
+      enabled: true
+
+    # Admission controller (for library injection, future use)
+    admissionController:
+      enabled: true
+      mutateUnlabelled: false
+
+  override:
+    # Node Agent tolerations (single-node cluster, schedule everywhere)
+    nodeAgent:
+      tolerations:
+        - operator: Exists

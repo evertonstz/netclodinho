@@ -8,20 +8,47 @@ import (
 	"os/signal"
 	"syscall"
 
+	slogtrace "github.com/DataDog/dd-trace-go/contrib/log/slog/v2"
+	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
+	"github.com/DataDog/dd-trace-go/v2/profiler"
+
 	"github.com/angristan/netclode/services/control-plane/internal/api"
 	"github.com/angristan/netclode/services/control-plane/internal/config"
 	"github.com/angristan/netclode/services/control-plane/internal/github"
 	"github.com/angristan/netclode/services/control-plane/internal/k8s"
+	"github.com/angristan/netclode/services/control-plane/internal/metrics"
 	"github.com/angristan/netclode/services/control-plane/internal/session"
 	"github.com/angristan/netclode/services/control-plane/internal/storage"
 )
 
 func main() {
-	// Configure structured logging
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+	// Start Datadog tracer (reads DD_SERVICE, DD_ENV, DD_VERSION from env)
+	tracer.Start(tracer.WithRuntimeMetrics())
+	defer tracer.Stop()
+
+	// Start continuous profiler
+	if err := profiler.Start(
+		profiler.WithProfileTypes(
+			profiler.CPUProfile,
+			profiler.HeapProfile,
+			profiler.GoroutineProfile,
+		),
+	); err != nil {
+		slog.Warn("Failed to start profiler", "error", err)
+	}
+	defer profiler.Stop()
+
+	// Configure structured logging with Datadog trace correlation
+	logger := slog.New(slogtrace.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 	}))
 	slog.SetDefault(logger)
+
+	// Initialize DogStatsD metrics client
+	if err := metrics.Init(); err != nil {
+		slog.Warn("Failed to init metrics client", "error", err)
+	}
+	defer metrics.Close()
 
 	if err := run(); err != nil {
 		slog.Error("Fatal error", "error", err)

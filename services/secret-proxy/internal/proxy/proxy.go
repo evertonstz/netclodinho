@@ -23,6 +23,10 @@ import (
 	"strings"
 	"time"
 
+	httptrace "github.com/DataDog/dd-trace-go/contrib/net/http/v2"
+	"github.com/DataDog/dd-trace-go/v2/ddtrace/ext"
+	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
+	"github.com/angristan/netclode/services/secret-proxy/internal/metrics"
 	"github.com/elazarl/goproxy"
 )
 
@@ -113,9 +117,9 @@ func New(cfg Config, logger *slog.Logger) *Proxy {
 		config: cfg,
 		server: proxy,
 		logger: logger,
-		httpClient: &http.Client{
+		httpClient: httptrace.WrapClient(&http.Client{
 			Timeout: 10 * time.Second,
-		},
+		}, httptrace.WithService("control-plane-validation")),
 	}
 
 	// Custom CONNECT handler to capture Proxy-Authorization header from CONNECT request
@@ -147,6 +151,15 @@ func New(cfg Config, logger *slog.Logger) *Proxy {
 
 // handleRequest processes each request and injects secrets where appropriate.
 func (p *Proxy) handleRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.Response) {
+	span, spanCtx := tracer.StartSpanFromContext(req.Context(), "secret-proxy.handle",
+		tracer.SpanType(ext.SpanTypeWeb),
+		tracer.Tag("target.host", req.Host),
+	)
+	defer span.Finish()
+	req = req.WithContext(spanCtx)
+
+	metrics.Incr("proxy.requests", []string{"host:" + canonicalHost(req.Host)})
+
 	rawHost := req.Host
 	if rawHost == "" && req.URL != nil {
 		rawHost = req.URL.Host
@@ -161,7 +174,7 @@ func (p *Proxy) handleRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.R
 	}
 	if scheme != "https" {
 		// Never inject secrets into plain HTTP requests.
-		p.logger.Debug("Non-HTTPS request, skipping secret injection",
+		p.logger.DebugContext(spanCtx, "Non-HTTPS request, skipping secret injection",
 			"host", rawHost,
 			"scheme", scheme,
 		)
@@ -178,12 +191,12 @@ func (p *Proxy) handleRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.R
 		targetHost = reqHost
 	}
 	if targetHost == "" {
-		p.logger.Debug("Missing host, skipping secret injection")
+		p.logger.DebugContext(spanCtx, "Missing host, skipping secret injection")
 		return req, nil
 	}
 	// Guard against Host header spoofing: it must match the actual target host.
 	if urlHost != "" && reqHost != "" && urlHost != reqHost {
-		p.logger.Warn("Host header mismatch",
+		p.logger.WarnContext(spanCtx, "Host header mismatch",
 			"urlHost", urlHost,
 			"reqHost", reqHost,
 		)
@@ -213,7 +226,7 @@ func (p *Proxy) handleRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.R
 	}
 	// Enforce that HTTPS requests stay within the CONNECT target host.
 	if connectHost != "" && connectHost != targetHost {
-		p.logger.Warn("CONNECT host mismatch",
+		p.logger.WarnContext(spanCtx, "CONNECT host mismatch",
 			"connectHost", connectHost,
 			"targetHost", targetHost,
 		)
@@ -224,14 +237,14 @@ func (p *Proxy) handleRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.R
 	}
 	if proxyAuth == "" {
 		// No auth header - pass through without injection
-		p.logger.Debug("No Proxy-Authorization header, passing through", "host", targetHost)
+		p.logger.DebugContext(spanCtx, "No Proxy-Authorization header, passing through", "host", targetHost)
 		return req, nil
 	}
 
 	// Remove the "Bearer " prefix
 	token := strings.TrimPrefix(proxyAuth, "Bearer ")
 	if token == proxyAuth {
-		p.logger.Debug("Invalid Proxy-Authorization format (expected Bearer)", "host", targetHost)
+		p.logger.DebugContext(spanCtx, "Invalid Proxy-Authorization format (expected Bearer)", "host", targetHost)
 		return req, nil
 	}
 
@@ -239,9 +252,12 @@ func (p *Proxy) handleRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.R
 	req.Header.Del("Proxy-Authorization")
 
 	// Validate with control-plane using token
+	authStart := time.Now()
 	authResult, err := p.validateWithControlPlane(token, targetHost)
+	metrics.Distribution("proxy.auth.duration_ms", float64(time.Since(authStart).Milliseconds()), []string{"host:" + targetHost})
 	if err != nil {
-		p.logger.Error("Control-plane validation failed", "host", targetHost, "error", err)
+		p.logger.ErrorContext(spanCtx, "Control-plane validation failed", "host", targetHost, "error", err)
+		metrics.Incr("proxy.auth.errors", []string{"host:" + targetHost})
 		// Block the request — passing through would leak the placeholder key upstream.
 		return req, goproxy.NewResponse(req, goproxy.ContentTypeText, http.StatusProxyAuthRequired,
 			fmt.Sprintf("secret-proxy: validation failed (%v)", err))
@@ -252,7 +268,7 @@ func (p *Proxy) handleRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.R
 		// This is safe: placeholders only exist in headers sent to allowlisted API hosts
 		// (e.g., Anthropic, OpenAI). Requests to non-allowlisted hosts (npm registry,
 		// GitHub, etc.) don't carry placeholders and should reach the internet normally.
-		p.logger.Debug("Host not in allowlist, passing through without injection",
+		p.logger.DebugContext(spanCtx, "Host not in allowlist, passing through without injection",
 			"host", targetHost,
 			"sessionID", authResult.SessionID,
 		)
@@ -262,7 +278,7 @@ func (p *Proxy) handleRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.R
 	// Get the actual secret value
 	secretValue, ok := p.config.Secrets[authResult.SecretKey]
 	if !ok {
-		p.logger.Error("Secret key not found in config",
+		p.logger.ErrorContext(spanCtx, "Secret key not found in config",
 			"secretKey", authResult.SecretKey,
 			"host", targetHost,
 			"sessionID", authResult.SessionID,
@@ -284,11 +300,12 @@ func (p *Proxy) handleRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.R
 	}
 
 	if injected {
-		p.logger.Info("Injected secret into request",
+		p.logger.InfoContext(spanCtx, "Injected secret into request",
 			"host", targetHost,
 			"secretKey", authResult.SecretKey,
 			"sessionID", authResult.SessionID,
 		)
+		metrics.Incr("proxy.secrets.injected", []string{"secret_key:" + authResult.SecretKey, "host:" + targetHost})
 	}
 
 	return req, nil
@@ -361,6 +378,6 @@ func (p *Proxy) validateWithControlPlane(token, targetHost string) (*validatePro
 
 // ListenAndServe starts the proxy server.
 func (p *Proxy) ListenAndServe() error {
-	p.logger.Info("Starting secret proxy", "addr", p.config.ListenAddr)
+	slog.Info("Starting secret proxy", "addr", p.config.ListenAddr)
 	return http.ListenAndServe(p.config.ListenAddr, p.server)
 }

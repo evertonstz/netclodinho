@@ -14,6 +14,7 @@ import (
 	"github.com/angristan/netclode/services/control-plane/internal/config"
 	"github.com/angristan/netclode/services/control-plane/internal/github"
 	"github.com/angristan/netclode/services/control-plane/internal/k8s"
+	"github.com/angristan/netclode/services/control-plane/internal/metrics"
 	"github.com/angristan/netclode/services/control-plane/internal/storage"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -101,7 +102,7 @@ func NewManager(store storage.Storage, k8sRuntime k8s.Runtime, cfg *config.Confi
 // Returns empty string if GitHub App is not configured.
 func (m *Manager) createRepoToken(ctx context.Context, repos []string, access *pb.RepoAccess) string {
 	if m.githubClient == nil {
-		slog.Warn("GitHub App not configured, cannot create repo-scoped token")
+		slog.WarnContext(ctx, "GitHub App not configured, cannot create repo-scoped token")
 		return ""
 	}
 	if len(repos) == 0 {
@@ -116,7 +117,7 @@ func (m *Manager) createRepoToken(ctx context.Context, repos []string, access *p
 
 	token, err := m.githubClient.CreateRepoToken(ctx, repos, ghAccess)
 	if err != nil {
-		slog.Error("Failed to create repo-scoped token", "repos", repos, "access", access, "error", err)
+		slog.ErrorContext(ctx, "Failed to create repo-scoped token", "repos", repos, "access", access, "error", err)
 		return ""
 	}
 
@@ -154,7 +155,7 @@ func (m *Manager) SetOnSessionUpdated(cb SessionUpdateCallback) {
 
 // Initialize loads sessions from storage and reconciles with K8s state.
 func (m *Manager) Initialize(ctx context.Context) error {
-	slog.Info("Initializing session manager")
+	slog.InfoContext(ctx, "Initializing session manager")
 
 	// Load all sessions from storage
 	sessions, err := m.storage.GetAllSessions(ctx)
@@ -162,7 +163,7 @@ func (m *Manager) Initialize(ctx context.Context) error {
 		return fmt.Errorf("load sessions: %w", err)
 	}
 
-	slog.Info("Loaded sessions from storage", "count", len(sessions))
+	slog.InfoContext(ctx, "Loaded sessions from storage", "count", len(sessions))
 
 	// Load into memory with channel-based state
 	for _, s := range sessions {
@@ -170,7 +171,7 @@ func (m *Manager) Initialize(ctx context.Context) error {
 		// Load persisted restore snapshot ID if any
 		if restoreID, err := m.storage.GetRestoreSnapshotID(ctx, s.Id); err == nil && restoreID != "" {
 			state.RestoreSnapshotID = restoreID
-			slog.Info("Loaded restore snapshot ID", "sessionID", s.Id, "snapshotID", restoreID)
+			slog.InfoContext(ctx, "Loaded restore snapshot ID", "sessionID", s.Id, "snapshotID", restoreID)
 		}
 		m.sessions[s.Id] = state
 	}
@@ -178,7 +179,7 @@ func (m *Manager) Initialize(ctx context.Context) error {
 	// Reconcile with K8s
 	sandboxes, err := m.k8s.ListSandboxes(ctx)
 	if err != nil {
-		slog.Warn("Failed to list sandboxes, skipping reconciliation", "error", err)
+		slog.WarnContext(ctx, "Failed to list sandboxes, skipping reconciliation", "error", err)
 		return nil
 	}
 
@@ -193,20 +194,20 @@ func (m *Manager) Initialize(ctx context.Context) error {
 		if !exists {
 			// No sandbox exists - clean up Tailscale service and mark as paused
 			if state.Session.Status == pb.SessionStatus_SESSION_STATUS_RUNNING || state.Session.Status == pb.SessionStatus_SESSION_STATUS_CREATING {
-				slog.Info("Session has no sandbox, marking as paused", "sessionID", id)
+				slog.InfoContext(ctx, "Session has no sandbox, marking as paused", "sessionID", id)
 				state.Session.Status = pb.SessionStatus_SESSION_STATUS_PAUSED
 				_ = m.storage.UpdateSessionStatus(ctx, id, pb.SessionStatus_SESSION_STATUS_PAUSED)
 			}
 			// Delete orphaned Tailscale service (if any)
 			if err := m.k8s.DeleteSandboxService(ctx, id); err != nil {
-				slog.Warn("Failed to delete orphaned sandbox service", "sessionID", id, "error", err)
+				slog.WarnContext(ctx, "Failed to delete orphaned sandbox service", "sessionID", id, "error", err)
 			}
 		} else if sb.Ready {
 			state.ServiceFQDN = sb.ServiceFQDN
 			// If session was running, mark as interrupted (agent was processing when we lost connection)
 			// If session was creating, mark as ready (sandbox is ready to accept prompts)
 			if state.Session.Status == pb.SessionStatus_SESSION_STATUS_RUNNING {
-				slog.Info("Session was running on restart, marking as interrupted", "sessionID", id)
+				slog.InfoContext(ctx, "Session was running on restart, marking as interrupted", "sessionID", id)
 				state.Session.Status = pb.SessionStatus_SESSION_STATUS_INTERRUPTED
 				_ = m.storage.UpdateSessionStatus(ctx, id, pb.SessionStatus_SESSION_STATUS_INTERRUPTED)
 			} else if state.Session.Status == pb.SessionStatus_SESSION_STATUS_CREATING {
@@ -216,7 +217,7 @@ func (m *Manager) Initialize(ctx context.Context) error {
 		} else {
 			// Sandbox exists but is not ready - mark as paused since we can't communicate with it
 			if state.Session.Status == pb.SessionStatus_SESSION_STATUS_RUNNING || state.Session.Status == pb.SessionStatus_SESSION_STATUS_READY {
-				slog.Info("Session sandbox exists but is not ready, marking as paused", "sessionID", id)
+				slog.InfoContext(ctx, "Session sandbox exists but is not ready, marking as paused", "sessionID", id)
 				state.Session.Status = pb.SessionStatus_SESSION_STATUS_PAUSED
 				state.ServiceFQDN = "" // Clear any stale FQDN
 				_ = m.storage.UpdateSessionStatus(ctx, id, pb.SessionStatus_SESSION_STATUS_PAUSED)
@@ -224,17 +225,17 @@ func (m *Manager) Initialize(ctx context.Context) error {
 		}
 	}
 
-	slog.Info("Session manager initialized", "sessions", len(m.sessions), "sandboxes", len(sandboxes))
+	slog.InfoContext(ctx, "Session manager initialized", "sessions", len(m.sessions), "sandboxes", len(sandboxes))
 
 	// Clean up orphaned Tailscale services (services without sessions in storage)
 	if tsServices, err := m.k8s.ListTailscaleServices(ctx); err != nil {
-		slog.Warn("Failed to list Tailscale services, skipping orphan cleanup", "error", err)
+		slog.WarnContext(ctx, "Failed to list Tailscale services, skipping orphan cleanup", "error", err)
 	} else {
 		for _, sessionID := range tsServices {
 			if _, exists := m.sessions[sessionID]; !exists {
-				slog.Info("Deleting orphaned Tailscale service", "sessionID", sessionID)
+				slog.InfoContext(ctx, "Deleting orphaned Tailscale service", "sessionID", sessionID)
 				if err := m.k8s.DeleteSandboxService(ctx, sessionID); err != nil {
-					slog.Warn("Failed to delete orphaned Tailscale service", "sessionID", sessionID, "error", err)
+					slog.WarnContext(ctx, "Failed to delete orphaned Tailscale service", "sessionID", sessionID, "error", err)
 				}
 			}
 		}
@@ -310,6 +311,17 @@ func (m *Manager) Create(ctx context.Context, name string, repos []string, repoA
 	m.sessions[id] = state
 	m.mu.Unlock()
 
+	// Emit metrics
+	sdkTag := "sdk_type:unknown"
+	if sdkType != nil {
+		sdkTag = "sdk_type:" + sdkType.String()
+	}
+	metrics.Incr("sessions.created", []string{sdkTag})
+	m.mu.RLock()
+	activeCount := m.countActiveSessionsLocked("")
+	m.mu.RUnlock()
+	metrics.Gauge("sessions.active", float64(activeCount), nil)
+
 	// Determine tailnet setting (default: disabled)
 	tailnetEnabled := false
 	if tailnetAccess != nil {
@@ -347,7 +359,7 @@ func (m *Manager) validateResources(resources *pb.SandboxResources) error {
 func (m *Manager) createSandbox(ctx context.Context, sessionID string, repos []string, repoAccess *pb.RepoAccess, tailnetEnabled bool, resources *pb.SandboxResources) {
 	// If custom resources are requested, bypass warm pool and create directly
 	if resources != nil {
-		slog.Info("Creating sandbox with custom resources (bypassing warm pool)", "sessionID", sessionID, "vcpus", resources.Vcpus, "memoryMB", resources.MemoryMb)
+		slog.InfoContext(ctx, "Creating sandbox with custom resources (bypassing warm pool)", "sessionID", sessionID, "vcpus", resources.Vcpus, "memoryMB", resources.MemoryMb)
 		m.createSandboxDirect(ctx, sessionID, repos, repoAccess, tailnetEnabled, resources)
 		return
 	}
@@ -369,6 +381,11 @@ type createSandboxDirectOptions struct {
 // If opts.restoreSnapshotID is provided, the PVC is restored from that snapshot BEFORE creating the sandbox.
 // If opts.resources is provided, the sandbox is created with custom VM resources.
 func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, repos []string, repoAccess *pb.RepoAccess, tailnetEnabled bool, resources *pb.SandboxResources, restoreSnapshotID ...string) {
+	sandboxStart := time.Now()
+	defer func() {
+		metrics.Distribution("sandbox.create.duration_ms", float64(time.Since(sandboxStart).Milliseconds()), []string{"mode:direct"})
+	}()
+
 	var snapID string
 	if len(restoreSnapshotID) > 0 {
 		snapID = restoreSnapshotID[0]
@@ -381,12 +398,12 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 	// If restoring from snapshot, create the PVC first and wait for restore to complete
 	// BEFORE creating the sandbox. This ensures the restore job finishes before the pod mounts.
 	if snapID != "" {
-		slog.Info("Creating PVC from snapshot before sandbox", "sessionID", sessionID, "snapshotID", snapID)
+		slog.InfoContext(ctx, "Creating PVC from snapshot before sandbox", "sessionID", sessionID, "snapshotID", snapID)
 
 		// Create standalone PVC from snapshot
 		pvcName, err := m.k8s.CreatePVCFromSnapshot(ctx, sessionID, snapID)
 		if err != nil {
-			slog.Error("Failed to create PVC from snapshot", "sessionID", sessionID, "error", err)
+			slog.ErrorContext(ctx, "Failed to create PVC from snapshot", "sessionID", sessionID, "error", err)
 			m.updateSessionStatus(ctx, sessionID, pb.SessionStatus_SESSION_STATUS_ERROR)
 			m.emitSessionError(ctx, sessionID, fmt.Sprintf("failed to create PVC from snapshot: %v", err))
 			return
@@ -395,25 +412,25 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 		// Wait for JuiceFS restore job to complete BEFORE creating sandbox.
 		// We must wait because the pod will fail with I/O errors if it tries to access
 		// the filesystem before the restore completes.
-		slog.Info("Waiting for snapshot restore job", "sessionID", sessionID, "snapshotID", snapID)
+		slog.InfoContext(ctx, "Waiting for snapshot restore job", "sessionID", sessionID, "snapshotID", snapID)
 		if err := m.k8s.WaitForRestoreJob(ctx, sessionID, snapID, 5*time.Minute); err != nil {
-			slog.Error("Snapshot restore job failed", "sessionID", sessionID, "error", err)
+			slog.ErrorContext(ctx, "Snapshot restore job failed", "sessionID", sessionID, "error", err)
 			// Cleanup: delete the PVC we created
 			if delErr := m.k8s.DeletePVC(ctx, sessionID); delErr != nil {
-				slog.Error("Failed to cleanup PVC after restore failure", "sessionID", sessionID, "error", delErr)
+				slog.ErrorContext(ctx, "Failed to cleanup PVC after restore failure", "sessionID", sessionID, "error", delErr)
 			}
 			m.updateSessionStatus(ctx, sessionID, pb.SessionStatus_SESSION_STATUS_ERROR)
 			m.emitSessionError(ctx, sessionID, fmt.Sprintf("snapshot restore failed: %v", err))
 			return
 		}
-		slog.Info("Snapshot restore completed, creating sandbox with existing PVC", "sessionID", sessionID, "pvc", pvcName)
+		slog.InfoContext(ctx, "Snapshot restore completed, creating sandbox with existing PVC", "sessionID", sessionID, "pvc", pvcName)
 
 		// Ensure the session anchor ConfigMap exists and owns the new PVC.
 		// This prevents the PVC from being garbage-collected if the sandbox fails or is paused.
 		if err := m.k8s.EnsureSessionAnchor(ctx, sessionID); err != nil {
-			slog.Warn("Failed to create session anchor", "sessionID", sessionID, "error", err)
+			slog.WarnContext(ctx, "Failed to create session anchor", "sessionID", sessionID, "error", err)
 		} else if err := m.k8s.AddSessionAnchorToPVC(ctx, sessionID, pvcName); err != nil {
-			slog.Warn("Failed to add session anchor to PVC", "sessionID", sessionID, "pvc", pvcName, "error", err)
+			slog.WarnContext(ctx, "Failed to add session anchor to PVC", "sessionID", sessionID, "pvc", pvcName, "error", err)
 		}
 
 		// Delete the old orphaned PVC in background (non-blocking)
@@ -422,12 +439,12 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 			bgCtx := context.Background()
 			if oldPVCName, err := m.storage.GetOldPVCName(bgCtx, sessionID); err == nil && oldPVCName != "" {
 				if oldPVCName == newPVCName {
-					slog.Info("Skipping old PVC deletion (same as new PVC)", "sessionID", sessionID, "pvc", oldPVCName)
+					slog.InfoContext(bgCtx, "Skipping old PVC deletion (same as new PVC)", "sessionID", sessionID, "pvc", oldPVCName)
 				} else {
 					if err := m.k8s.DeletePVCByName(bgCtx, oldPVCName); err != nil {
-						slog.Warn("Failed to delete old PVC after restore", "sessionID", sessionID, "pvc", oldPVCName, "error", err)
+						slog.WarnContext(bgCtx, "Failed to delete old PVC after restore", "sessionID", sessionID, "pvc", oldPVCName, "error", err)
 					} else {
-						slog.Info("Deleted old PVC after restore", "sessionID", sessionID, "pvc", oldPVCName)
+						slog.InfoContext(bgCtx, "Deleted old PVC after restore", "sessionID", sessionID, "pvc", oldPVCName)
 					}
 				}
 				_ = m.storage.ClearOldPVCName(bgCtx, sessionID)
@@ -439,7 +456,7 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 	} else {
 		// Not restoring from snapshot - check if we have an existing PVC (resume after pause)
 		if existingPVC, err := m.storage.GetPVCName(ctx, sessionID); err == nil && existingPVC != "" {
-			slog.Info("Resuming with existing PVC", "sessionID", sessionID, "pvc", existingPVC)
+			slog.InfoContext(ctx, "Resuming with existing PVC", "sessionID", sessionID, "pvc", existingPVC)
 			env[k8s.ExistingPVCEnvKey] = existingPVC
 		}
 	}
@@ -455,7 +472,7 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 		if reposJSON, err := json.Marshal(normalizedRepos); err == nil {
 			env["GIT_REPOS"] = string(reposJSON)
 		} else {
-			slog.Warn("Failed to encode repo list for sandbox env", "sessionID", sessionID, "error", err)
+			slog.WarnContext(ctx, "Failed to encode repo list for sandbox env", "sessionID", sessionID, "error", err)
 		}
 
 		// Generate repo-scoped token via GitHub App for git credentials
@@ -475,7 +492,7 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 
 	// Create sandbox
 	if err := m.k8s.CreateSandbox(ctx, sessionID, env, k8sResources); err != nil {
-		slog.Error("Failed to create sandbox", "sessionID", sessionID, "error", err)
+		slog.ErrorContext(ctx, "Failed to create sandbox", "sessionID", sessionID, "error", err)
 		m.updateSessionStatus(ctx, sessionID, pb.SessionStatus_SESSION_STATUS_ERROR)
 		m.emitSessionError(ctx, sessionID, err.Error())
 		return
@@ -484,12 +501,12 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 	// Wait for ready using informer-based watching
 	fqdn, err := m.k8s.WaitForReady(ctx, sessionID, sandboxReadyTimeout)
 	if err != nil {
-		slog.Error("Sandbox failed to become ready", "sessionID", sessionID, "error", err)
+		slog.ErrorContext(ctx, "Sandbox failed to become ready", "sessionID", sessionID, "error", err)
 		// Cleanup: delete the sandbox to avoid resource leak
 		if delErr := m.k8s.DeleteSandbox(ctx, sessionID); delErr != nil {
-			slog.Error("Failed to cleanup sandbox after timeout", "sessionID", sessionID, "error", delErr)
+			slog.ErrorContext(ctx, "Failed to cleanup sandbox after timeout", "sessionID", sessionID, "error", delErr)
 		} else {
-			slog.Info("Cleaned up sandbox after timeout", "sessionID", sessionID)
+			slog.InfoContext(ctx, "Cleaned up sandbox after timeout", "sessionID", sessionID)
 		}
 		m.updateSessionStatus(ctx, sessionID, pb.SessionStatus_SESSION_STATUS_ERROR)
 		m.emitSessionError(ctx, sessionID, err.Error())
@@ -499,23 +516,23 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 	// Apply network policies
 	// Always enable internet access (required for LLM API calls)
 	if err := m.k8s.ConfigureNetwork(ctx, sessionID, true); err != nil {
-		slog.Error("Failed to apply internet access policy", "sessionID", sessionID, "error", err)
+		slog.ErrorContext(ctx, "Failed to apply internet access policy", "sessionID", sessionID, "error", err)
 		// Non-fatal: continue with sandbox creation, but log the error
 	} else {
-		slog.Info("Applied internet access policy", "sessionID", sessionID)
+		slog.InfoContext(ctx, "Applied internet access policy", "sessionID", sessionID)
 	}
 	if tailnetEnabled {
 		if err := m.k8s.ConfigureTailnetAccess(ctx, sessionID, true); err != nil {
-			slog.Error("Failed to apply tailnet access policy", "sessionID", sessionID, "error", err)
+			slog.ErrorContext(ctx, "Failed to apply tailnet access policy", "sessionID", sessionID, "error", err)
 			// Non-fatal: continue with sandbox creation, but log the error
 		} else {
-			slog.Info("Applied tailnet access policy", "sessionID", sessionID)
+			slog.InfoContext(ctx, "Applied tailnet access policy", "sessionID", sessionID)
 		}
 	}
 
 	// Create Tailscale-exposed service for preview URLs
 	if err := m.k8s.CreateSandboxService(ctx, sessionID); err != nil {
-		slog.Warn("Failed to create sandbox service", "sessionID", sessionID, "error", err)
+		slog.WarnContext(ctx, "Failed to create sandbox service", "sessionID", sessionID, "error", err)
 		// Non-fatal: sandbox still works, just no preview URLs
 	}
 
@@ -525,17 +542,17 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 	// Store PVC name for resume after pause
 	if pvcName, err := m.k8s.GetPVCName(ctx, sessionID); err == nil {
 		if err := m.storage.SetPVCName(ctx, sessionID, pvcName); err != nil {
-			slog.Warn("Failed to store PVC name", "sessionID", sessionID, "pvc", pvcName, "error", err)
+			slog.WarnContext(ctx, "Failed to store PVC name", "sessionID", sessionID, "pvc", pvcName, "error", err)
 		} else {
-			slog.Info("Stored PVC name", "sessionID", sessionID, "pvc", pvcName)
+			slog.InfoContext(ctx, "Stored PVC name", "sessionID", sessionID, "pvc", pvcName)
 		}
 
 		// Ensure the session anchor ConfigMap exists and owns the PVC.
 		// This prevents the PVC from being garbage-collected when the Sandbox is deleted (during pause).
 		if err := m.k8s.EnsureSessionAnchor(ctx, sessionID); err != nil {
-			slog.Warn("Failed to create session anchor", "sessionID", sessionID, "error", err)
+			slog.WarnContext(ctx, "Failed to create session anchor", "sessionID", sessionID, "error", err)
 		} else if err := m.k8s.AddSessionAnchorToPVC(ctx, sessionID, pvcName); err != nil {
-			slog.Warn("Failed to add session anchor to PVC", "sessionID", sessionID, "pvc", pvcName, "error", err)
+			slog.WarnContext(ctx, "Failed to add session anchor to PVC", "sessionID", sessionID, "pvc", pvcName, "error", err)
 		}
 	}
 
@@ -560,7 +577,7 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 		newStatus = pb.SessionStatus_SESSION_STATUS_RUNNING
 	}
 	if err := m.storage.UpdateSessionStatus(ctx, sessionID, newStatus); err != nil {
-		slog.Error("Failed to update session status", "sessionID", sessionID, "error", err)
+		slog.ErrorContext(ctx, "Failed to update session status", "sessionID", sessionID, "error", err)
 	}
 
 	// Emit update
@@ -570,24 +587,29 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 
 	// Process pending prompt if any
 	if pendingPrompt != "" {
-		slog.Info("Processing pending prompt", "sessionID", sessionID)
+		slog.InfoContext(ctx, "Processing pending prompt", "sessionID", sessionID)
 		if err := m.SendPrompt(ctx, sessionID, pendingPrompt); err != nil {
-			slog.Error("Failed to send pending prompt", "sessionID", sessionID, "error", err)
+			slog.ErrorContext(ctx, "Failed to send pending prompt", "sessionID", sessionID, "error", err)
 		}
 	}
 
-	slog.Info("Session sandbox ready", "sessionID", sessionID, "fqdn", fqdn, "status", newStatus)
+	slog.InfoContext(ctx, "Session sandbox ready", "sessionID", sessionID, "fqdn", fqdn, "status", newStatus)
 }
 
 // createSandboxViaClaim uses SandboxClaim for warm pool allocation
 func (m *Manager) createSandboxViaClaim(ctx context.Context, sessionID string, repos []string, repoAccess *pb.RepoAccess, tailnetEnabled bool) {
+	sandboxStart := time.Now()
+	defer func() {
+		metrics.Distribution("sandbox.create.duration_ms", float64(time.Since(sandboxStart).Milliseconds()), []string{"mode:warmpool"})
+	}()
+
 	// Always use the same template to leverage the warm pool
 	// Network restrictions are applied via ConfigureNetwork() after claiming
 	templateName := m.config.SandboxTemplate
 
 	// Create SandboxClaim to request from warm pool
 	if err := m.k8s.CreateSandboxClaim(ctx, sessionID, templateName); err != nil {
-		slog.Error("Failed to create sandbox claim", "sessionID", sessionID, "error", err)
+		slog.ErrorContext(ctx, "Failed to create sandbox claim", "sessionID", sessionID, "error", err)
 		m.updateSessionStatus(ctx, sessionID, pb.SessionStatus_SESSION_STATUS_ERROR)
 		m.emitSessionError(ctx, sessionID, err.Error())
 		return
@@ -596,19 +618,19 @@ func (m *Manager) createSandboxViaClaim(ctx context.Context, sessionID string, r
 	// Wait for claim to be bound
 	sandboxName, err := m.k8s.WaitForClaimBound(ctx, sessionID, sandboxReadyTimeout)
 	if err != nil {
-		slog.Error("Claim failed to bind", "sessionID", sessionID, "error", err)
+		slog.ErrorContext(ctx, "Claim failed to bind", "sessionID", sessionID, "error", err)
 		// Cleanup: delete the SandboxClaim
 		if delErr := m.k8s.DeleteSandboxClaim(ctx, sessionID); delErr != nil {
-			slog.Error("Failed to cleanup sandbox claim after timeout", "sessionID", sessionID, "error", delErr)
+			slog.ErrorContext(ctx, "Failed to cleanup sandbox claim after timeout", "sessionID", sessionID, "error", delErr)
 		} else {
-			slog.Info("Cleaned up sandbox claim after timeout", "sessionID", sessionID)
+			slog.InfoContext(ctx, "Cleaned up sandbox claim after timeout", "sessionID", sessionID)
 		}
 		m.updateSessionStatus(ctx, sessionID, pb.SessionStatus_SESSION_STATUS_ERROR)
 		m.emitSessionError(ctx, sessionID, err.Error())
 		return
 	}
 
-	slog.Info("Claim bound to sandbox", "sessionID", sessionID, "sandbox", sandboxName)
+	slog.InfoContext(ctx, "Claim bound to sandbox", "sessionID", sessionID, "sandbox", sandboxName)
 
 	// The agent connects with its original pod name, but the sandbox gets renamed when claimed.
 	// Get the original pod name from the sandbox annotation.
@@ -616,7 +638,7 @@ func (m *Manager) createSandboxViaClaim(ctx context.Context, sessionID string, r
 	if sandbox, err := m.k8s.GetSandboxByName(ctx, sandboxName); err == nil && sandbox != nil {
 		if podName := sandbox.GetOriginalPodName(); podName != "" {
 			originalPodName = podName
-			slog.Info("Found original pod name from sandbox", "sessionID", sessionID, "originalPodName", originalPodName, "sandbox", sandboxName)
+			slog.InfoContext(ctx, "Found original pod name from sandbox", "sessionID", sessionID, "originalPodName", originalPodName, "sandbox", sandboxName)
 		}
 	}
 
@@ -625,13 +647,13 @@ func (m *Manager) createSandboxViaClaim(ctx context.Context, sessionID string, r
 	// If we assign first, the agent can make API calls before the label exists,
 	// causing the secret-proxy to pass through the placeholder key to Anthropic (401).
 	if err := m.k8s.LabelSandbox(ctx, sandboxName, sessionID); err != nil {
-		slog.Error("Failed to label sandbox", "sessionID", sessionID, "sandbox", sandboxName, "error", err)
+		slog.ErrorContext(ctx, "Failed to label sandbox", "sessionID", sessionID, "sandbox", sandboxName, "error", err)
 		// Cleanup: delete the claim and sandbox - without label we can't manage it
 		if delErr := m.k8s.DeleteSandboxClaim(ctx, sessionID); delErr != nil {
-			slog.Error("Failed to cleanup sandbox claim", "sessionID", sessionID, "error", delErr)
+			slog.ErrorContext(ctx, "Failed to cleanup sandbox claim", "sessionID", sessionID, "error", delErr)
 		}
 		if delErr := m.k8s.DeleteSandbox(ctx, sessionID); delErr != nil {
-			slog.Error("Failed to cleanup sandbox", "sessionID", sessionID, "error", delErr)
+			slog.ErrorContext(ctx, "Failed to cleanup sandbox", "sessionID", sessionID, "error", delErr)
 		}
 		m.updateSessionStatus(ctx, sessionID, pb.SessionStatus_SESSION_STATUS_ERROR)
 		m.emitSessionError(ctx, sessionID, "failed to label sandbox")
@@ -641,13 +663,13 @@ func (m *Manager) createSandboxViaClaim(ctx context.Context, sessionID string, r
 	// Get sandbox to retrieve serviceFQDN
 	sandbox, err := m.k8s.GetSandboxByName(ctx, sandboxName)
 	if err != nil {
-		slog.Error("Failed to get bound sandbox", "sessionID", sessionID, "sandbox", sandboxName, "error", err)
+		slog.ErrorContext(ctx, "Failed to get bound sandbox", "sessionID", sessionID, "sandbox", sandboxName, "error", err)
 		// Cleanup: delete the claim and sandbox
 		if delErr := m.k8s.DeleteSandboxClaim(ctx, sessionID); delErr != nil {
-			slog.Error("Failed to cleanup sandbox claim", "sessionID", sessionID, "error", delErr)
+			slog.ErrorContext(ctx, "Failed to cleanup sandbox claim", "sessionID", sessionID, "error", delErr)
 		}
 		if delErr := m.k8s.DeleteSandbox(ctx, sessionID); delErr != nil {
-			slog.Error("Failed to cleanup sandbox", "sessionID", sessionID, "error", delErr)
+			slog.ErrorContext(ctx, "Failed to cleanup sandbox", "sessionID", sessionID, "error", delErr)
 		}
 		m.updateSessionStatus(ctx, sessionID, pb.SessionStatus_SESSION_STATUS_ERROR)
 		m.emitSessionError(ctx, sessionID, err.Error())
@@ -660,24 +682,24 @@ func (m *Manager) createSandboxViaClaim(ctx context.Context, sessionID string, r
 	// The warm pool controller doesn't populate serviceFQDN in sandbox status.
 	if fqdn == "" && sandbox.IsReady() {
 		fqdn = fmt.Sprintf("%s.%s.svc.cluster.local", sandboxName, m.config.K8sNamespace)
-		slog.Info("Constructed serviceFQDN", "sessionID", sessionID, "fqdn", fqdn)
+		slog.InfoContext(ctx, "Constructed serviceFQDN", "sessionID", sessionID, "fqdn", fqdn)
 	}
 
 	// Warm pool sandboxes should already be Ready, but verify
 	if !sandbox.IsReady() {
 		// Wait for sandbox to become ready (shouldn't happen with warm pool)
-		slog.Warn("Bound sandbox not ready yet, waiting", "sessionID", sessionID, "sandbox", sandboxName)
+		slog.WarnContext(ctx, "Bound sandbox not ready yet, waiting", "sessionID", sessionID, "sandbox", sandboxName)
 		fqdn, err = m.k8s.WaitForReady(ctx, sessionID, sandboxReadyTimeout)
 		if err != nil {
-			slog.Error("Sandbox not ready", "sessionID", sessionID, "error", err)
+			slog.ErrorContext(ctx, "Sandbox not ready", "sessionID", sessionID, "error", err)
 			// Cleanup: delete the claim and sandbox to avoid resource leak
 			if delErr := m.k8s.DeleteSandboxClaim(ctx, sessionID); delErr != nil {
-				slog.Error("Failed to cleanup sandbox claim after timeout", "sessionID", sessionID, "error", delErr)
+				slog.ErrorContext(ctx, "Failed to cleanup sandbox claim after timeout", "sessionID", sessionID, "error", delErr)
 			}
 			if delErr := m.k8s.DeleteSandbox(ctx, sessionID); delErr != nil {
-				slog.Error("Failed to cleanup sandbox after timeout", "sessionID", sessionID, "error", delErr)
+				slog.ErrorContext(ctx, "Failed to cleanup sandbox after timeout", "sessionID", sessionID, "error", delErr)
 			} else {
-				slog.Info("Cleaned up sandbox after timeout", "sessionID", sessionID)
+				slog.InfoContext(ctx, "Cleaned up sandbox after timeout", "sessionID", sessionID)
 			}
 			m.updateSessionStatus(ctx, sessionID, pb.SessionStatus_SESSION_STATUS_ERROR)
 			m.emitSessionError(ctx, sessionID, err.Error())
@@ -688,23 +710,23 @@ func (m *Manager) createSandboxViaClaim(ctx context.Context, sessionID string, r
 	// Apply network policies AFTER sandbox is ready
 	// Always enable internet access (required for LLM API calls)
 	if err := m.k8s.ConfigureNetwork(ctx, sessionID, true); err != nil {
-		slog.Error("Failed to apply internet access policy", "sessionID", sessionID, "error", err)
+		slog.ErrorContext(ctx, "Failed to apply internet access policy", "sessionID", sessionID, "error", err)
 		// Non-fatal: continue with sandbox creation, but log the error
 	} else {
-		slog.Info("Applied internet access policy", "sessionID", sessionID)
+		slog.InfoContext(ctx, "Applied internet access policy", "sessionID", sessionID)
 	}
 	if tailnetEnabled {
 		if err := m.k8s.ConfigureTailnetAccess(ctx, sessionID, true); err != nil {
-			slog.Error("Failed to apply tailnet access policy", "sessionID", sessionID, "error", err)
+			slog.ErrorContext(ctx, "Failed to apply tailnet access policy", "sessionID", sessionID, "error", err)
 			// Non-fatal: continue with sandbox creation, but log the error
 		} else {
-			slog.Info("Applied tailnet access policy", "sessionID", sessionID)
+			slog.InfoContext(ctx, "Applied tailnet access policy", "sessionID", sessionID)
 		}
 	}
 
 	// Create Tailscale-exposed service for preview URLs
 	if err := m.k8s.CreateSandboxService(ctx, sessionID); err != nil {
-		slog.Warn("Failed to create sandbox service", "sessionID", sessionID, "error", err)
+		slog.WarnContext(ctx, "Failed to create sandbox service", "sessionID", sessionID, "error", err)
 		// Non-fatal: sandbox still works, just no preview URLs
 	}
 
@@ -715,17 +737,17 @@ func (m *Manager) createSandboxViaClaim(ctx context.Context, sessionID string, r
 	// Use GetPVCName which handles warm pool correctly (reads pod-name annotation)
 	if pvcName, err := m.k8s.GetPVCName(ctx, sessionID); err == nil {
 		if err := m.storage.SetPVCName(ctx, sessionID, pvcName); err != nil {
-			slog.Warn("Failed to store PVC name", "sessionID", sessionID, "pvc", pvcName, "error", err)
+			slog.WarnContext(ctx, "Failed to store PVC name", "sessionID", sessionID, "pvc", pvcName, "error", err)
 		} else {
-			slog.Info("Stored PVC name", "sessionID", sessionID, "pvc", pvcName)
+			slog.InfoContext(ctx, "Stored PVC name", "sessionID", sessionID, "pvc", pvcName)
 		}
 
 		// Ensure the session anchor ConfigMap exists and owns the PVC.
 		// This prevents the PVC from being garbage-collected when the Sandbox is deleted (during pause).
 		if err := m.k8s.EnsureSessionAnchor(ctx, sessionID); err != nil {
-			slog.Warn("Failed to create session anchor", "sessionID", sessionID, "error", err)
+			slog.WarnContext(ctx, "Failed to create session anchor", "sessionID", sessionID, "error", err)
 		} else if err := m.k8s.AddSessionAnchorToPVC(ctx, sessionID, pvcName); err != nil {
-			slog.Warn("Failed to add session anchor to PVC", "sessionID", sessionID, "pvc", pvcName, "error", err)
+			slog.WarnContext(ctx, "Failed to add session anchor to PVC", "sessionID", sessionID, "pvc", pvcName, "error", err)
 		}
 	}
 
@@ -755,7 +777,7 @@ func (m *Manager) createSandboxViaClaim(ctx context.Context, sessionID string, r
 		newStatus = pb.SessionStatus_SESSION_STATUS_RUNNING
 	}
 	if err := m.storage.UpdateSessionStatus(ctx, sessionID, newStatus); err != nil {
-		slog.Error("Failed to update session status", "sessionID", sessionID, "error", err)
+		slog.ErrorContext(ctx, "Failed to update session status", "sessionID", sessionID, "error", err)
 	}
 
 	// Emit update
@@ -765,13 +787,13 @@ func (m *Manager) createSandboxViaClaim(ctx context.Context, sessionID string, r
 
 	// Process pending prompt if any
 	if pendingPrompt != "" {
-		slog.Info("Processing pending prompt (warm pool)", "sessionID", sessionID)
+		slog.InfoContext(ctx, "Processing pending prompt (warm pool)", "sessionID", sessionID)
 		if err := m.SendPrompt(ctx, sessionID, pendingPrompt); err != nil {
-			slog.Error("Failed to send pending prompt", "sessionID", sessionID, "error", err)
+			slog.ErrorContext(ctx, "Failed to send pending prompt", "sessionID", sessionID, "error", err)
 		}
 	}
 
-	slog.Info("Session sandbox ready (warm pool)", "sessionID", sessionID, "fqdn", fqdn, "status", newStatus)
+	slog.InfoContext(ctx, "Session sandbox ready (warm pool)", "sessionID", sessionID, "fqdn", fqdn, "status", newStatus)
 }
 
 func (m *Manager) updateSessionStatus(ctx context.Context, sessionID string, status pb.SessionStatus) {
@@ -831,7 +853,7 @@ func (m *Manager) updateLastActiveAt(ctx context.Context, sessionID string) {
 func (m *Manager) waitForSandbox(ctx context.Context, sessionID string) {
 	fqdn, err := m.k8s.WaitForReady(ctx, sessionID, sandboxReadyTimeout)
 	if err != nil {
-		slog.Error("Sandbox failed to become ready", "sessionID", sessionID, "error", err)
+		slog.ErrorContext(ctx, "Sandbox failed to become ready", "sessionID", sessionID, "error", err)
 		m.updateSessionStatus(ctx, sessionID, pb.SessionStatus_SESSION_STATUS_ERROR)
 		m.emitSessionError(ctx, sessionID, err.Error())
 		return
@@ -849,7 +871,7 @@ func (m *Manager) waitForSandbox(ctx context.Context, sessionID string) {
 	m.mu.Unlock()
 
 	if err := m.storage.UpdateSessionStatus(ctx, sessionID, pb.SessionStatus_SESSION_STATUS_READY); err != nil {
-		slog.Error("Failed to update session status", "sessionID", sessionID, "error", err)
+		slog.ErrorContext(ctx, "Failed to update session status", "sessionID", sessionID, "error", err)
 	}
 
 	// Emit update
@@ -859,13 +881,13 @@ func (m *Manager) waitForSandbox(ctx context.Context, sessionID string) {
 
 	// Process pending prompt if any
 	if pendingPrompt != "" {
-		slog.Info("Processing pending prompt (waitForSandbox)", "sessionID", sessionID)
+		slog.InfoContext(ctx, "Processing pending prompt (waitForSandbox)", "sessionID", sessionID)
 		if err := m.SendPrompt(ctx, sessionID, pendingPrompt); err != nil {
-			slog.Error("Failed to send pending prompt", "sessionID", sessionID, "error", err)
+			slog.ErrorContext(ctx, "Failed to send pending prompt", "sessionID", sessionID, "error", err)
 		}
 	}
 
-	slog.Info("Sandbox ready", "sessionID", sessionID, "fqdn", fqdn)
+	slog.InfoContext(ctx, "Sandbox ready", "sessionID", sessionID, "fqdn", fqdn)
 }
 
 // Resume resumes a paused session.
@@ -881,7 +903,7 @@ func (m *Manager) Resume(ctx context.Context, id string) (*pb.Session, error) {
 	// Don't start another one - just return and let the caller queue the prompt.
 	if state.Session.Status == pb.SessionStatus_SESSION_STATUS_CREATING ||
 		state.Session.Status == pb.SessionStatus_SESSION_STATUS_RESUMING {
-		slog.Info("Session already creating/resuming, skipping Resume", "sessionID", id, "status", state.Session.Status.String())
+		slog.InfoContext(ctx, "Session already creating/resuming, skipping Resume", "sessionID", id, "status", state.Session.Status.String())
 		m.mu.Unlock()
 		return state.Session, nil
 	}
@@ -946,11 +968,11 @@ func (m *Manager) Resume(ctx context.Context, id string) (*pb.Session, error) {
 	// Note: Resume always uses default tailnetEnabled=false since we don't store network config
 	// Note: Resume doesn't support custom resources - uses nil to get default resources
 	if restoreSnapshotID != "" {
-		slog.Info("Resuming with snapshot restore", "sessionID", id, "snapshotID", restoreSnapshotID)
+		slog.InfoContext(ctx, "Resuming with snapshot restore", "sessionID", id, "snapshotID", restoreSnapshotID)
 		_ = m.storage.ClearRestoreSnapshotID(ctx, id) // Clear from storage
 		go m.createSandboxDirect(context.Background(), id, state.Session.Repos, state.Session.RepoAccess, false, nil, restoreSnapshotID)
 	} else {
-		slog.Info("Resuming session", "sessionID", id)
+		slog.InfoContext(ctx, "Resuming session", "sessionID", id)
 		go m.createSandboxDirect(context.Background(), id, state.Session.Repos, state.Session.RepoAccess, false, nil)
 	}
 
@@ -967,29 +989,29 @@ func (m *Manager) Pause(ctx context.Context, id string) (*pb.Session, error) {
 	// Delete claim if using warm pool
 	if m.config.UseWarmPool {
 		if err := m.k8s.DeleteSandboxClaim(ctx, id); err != nil {
-			slog.Warn("Failed to delete sandbox claim", "sessionID", id, "error", err)
+			slog.WarnContext(ctx, "Failed to delete sandbox claim", "sessionID", id, "error", err)
 		}
 	}
 
 	// Delete Tailscale service
 	if err := m.k8s.DeleteSandboxService(ctx, id); err != nil {
-		slog.Warn("Failed to delete sandbox service", "sessionID", id, "error", err)
+		slog.WarnContext(ctx, "Failed to delete sandbox service", "sessionID", id, "error", err)
 	}
 
 	// Delete network restriction policy if any
 	if err := m.k8s.DeleteNetworkRestriction(ctx, id); err != nil {
-		slog.Warn("Failed to delete network restriction policy", "sessionID", id, "error", err)
+		slog.WarnContext(ctx, "Failed to delete network restriction policy", "sessionID", id, "error", err)
 	}
 
 	// Delete sandbox - PVC survives because it has the session anchor ConfigMap as a second owner
 	if err := m.k8s.DeleteSandbox(ctx, id); err != nil {
-		slog.Warn("Failed to delete sandbox", "sessionID", id, "error", err)
+		slog.WarnContext(ctx, "Failed to delete sandbox", "sessionID", id, "error", err)
 	}
 
 	// Delete secret (only in direct mode - warm pool uses shared secret)
 	if !m.config.UseWarmPool {
 		if err := m.k8s.DeleteSecret(ctx, id); err != nil {
-			slog.Warn("Failed to delete secret", "sessionID", id, "error", err)
+			slog.WarnContext(ctx, "Failed to delete secret", "sessionID", id, "error", err)
 		}
 	}
 
@@ -997,9 +1019,20 @@ func (m *Manager) Pause(ctx context.Context, id string) (*pb.Session, error) {
 	m.mu.Lock()
 	state.ServiceFQDN = ""
 	state.Session.Status = pb.SessionStatus_SESSION_STATUS_PAUSED
+	activeCount := 0
+	for _, s := range m.sessions {
+		if s.Session.Status == pb.SessionStatus_SESSION_STATUS_READY ||
+			s.Session.Status == pb.SessionStatus_SESSION_STATUS_RUNNING ||
+			s.Session.Status == pb.SessionStatus_SESSION_STATUS_CREATING {
+			activeCount++
+		}
+	}
 	m.mu.Unlock()
 
 	_ = m.storage.UpdateSessionStatus(ctx, id, pb.SessionStatus_SESSION_STATUS_PAUSED)
+
+	metrics.Incr("sessions.paused", []string{"reason:manual"})
+	metrics.Gauge("sessions.active", float64(activeCount), nil)
 
 	return state.Session, nil
 }
@@ -1016,11 +1049,11 @@ func (m *Manager) Delete(ctx context.Context, id string) error {
 
 	// Delete K8s VolumeSnapshots first (before PVC deletion)
 	if snapshots, err := m.k8s.ListVolumeSnapshots(ctx, id); err != nil {
-		slog.Warn("Failed to list VolumeSnapshots during session delete", "sessionID", id, "error", err)
+		slog.WarnContext(ctx, "Failed to list VolumeSnapshots during session delete", "sessionID", id, "error", err)
 	} else {
 		for _, snap := range snapshots {
 			if err := m.k8s.DeleteVolumeSnapshot(ctx, id, snap.SnapshotID); err != nil {
-				slog.Warn("Failed to delete VolumeSnapshot during session delete",
+				slog.WarnContext(ctx, "Failed to delete VolumeSnapshot during session delete",
 					"sessionID", id, "snapshotID", snap.SnapshotID, "error", err)
 			}
 		}
@@ -1040,7 +1073,7 @@ func (m *Manager) Delete(ctx context.Context, id string) error {
 		return fmt.Errorf("delete session from storage: %w", err)
 	}
 
-	slog.Info("Session deleted", "sessionID", id)
+	slog.InfoContext(ctx, "Session deleted", "sessionID", id)
 	return nil
 }
 
@@ -1060,14 +1093,14 @@ func (m *Manager) DeleteAll(ctx context.Context) ([]string, error) {
 
 	for _, id := range sessionIDs {
 		if err := m.Delete(ctx, id); err != nil {
-			slog.Error("Failed to delete session during DeleteAll", "sessionID", id, "error", err)
+			slog.ErrorContext(ctx, "Failed to delete session during DeleteAll", "sessionID", id, "error", err)
 			lastErr = err
 			continue
 		}
 		deletedIDs = append(deletedIDs, id)
 	}
 
-	slog.Info("DeleteAll completed", "deleted", len(deletedIDs), "total", len(sessionIDs))
+	slog.InfoContext(ctx, "DeleteAll completed", "deleted", len(deletedIDs), "total", len(sessionIDs))
 
 	if lastErr != nil {
 		return deletedIDs, fmt.Errorf("some sessions failed to delete: %w", lastErr)
@@ -1135,7 +1168,7 @@ func (m *Manager) restoreExposedPorts(ctx context.Context, sessionID string) {
 	// Read all event entries from the stream
 	entries, err := m.storage.GetStreamEntriesByTypes(ctx, sessionID, "0", 0, []string{storage.StreamEntryTypeEvent})
 	if err != nil {
-		slog.Warn("Failed to read stream entries for port restoration", "sessionID", sessionID, "error", err)
+		slog.WarnContext(ctx, "Failed to read stream entries for port restoration", "sessionID", sessionID, "error", err)
 		return
 	}
 
@@ -1164,9 +1197,9 @@ func (m *Manager) restoreExposedPorts(ctx context.Context, sessionID string) {
 	// Re-expose each port (only updates K8s, doesn't re-emit events)
 	for port := range exposedPorts {
 		if err := m.k8s.ExposePort(ctx, sessionID, int(port)); err != nil {
-			slog.Warn("Failed to restore exposed port", "sessionID", sessionID, "port", port, "error", err)
+			slog.WarnContext(ctx, "Failed to restore exposed port", "sessionID", sessionID, "port", port, "error", err)
 		} else {
-			slog.Info("Restored exposed port", "sessionID", sessionID, "port", port)
+			slog.InfoContext(ctx, "Restored exposed port", "sessionID", sessionID, "port", port)
 		}
 	}
 }
@@ -1176,7 +1209,7 @@ func (m *Manager) List(ctx context.Context) ([]pb.Session, error) {
 	// Reconcile with K8s
 	sandboxes, err := m.k8s.ListSandboxes(ctx)
 	if err != nil {
-		slog.Warn("Failed to list sandboxes", "error", err)
+		slog.WarnContext(ctx, "Failed to list sandboxes", "error", err)
 	}
 
 	sandboxMap := make(map[string]k8s.SandboxInfo)
@@ -1237,7 +1270,7 @@ func (m *Manager) GetWithHistory(ctx context.Context, id string, afterStreamID s
 	// Get the latest stream ID for cursor-based subscription
 	lastStreamID, err := m.storage.GetLastStreamID(ctx, id)
 	if err != nil {
-		slog.Warn("Failed to get last stream ID, using $", "sessionID", id, "error", err)
+		slog.WarnContext(ctx, "Failed to get last stream ID, using $", "sessionID", id, "error", err)
 		lastStreamID = "$" // Default to "only new" if error
 	}
 
@@ -1329,11 +1362,11 @@ func (m *Manager) getOrLoadState(ctx context.Context, id string) *SessionState {
 	// Not in memory, try loading from storage
 	session, err := m.storage.GetSession(ctx, id)
 	if err != nil {
-		slog.Debug("Session not found in storage", "sessionID", id, "error", err)
+		slog.DebugContext(ctx, "Session not found in storage", "sessionID", id, "error", err)
 		return nil
 	}
 	if session == nil {
-		slog.Debug("Session not found in storage", "sessionID", id)
+		slog.DebugContext(ctx, "Session not found in storage", "sessionID", id)
 		return nil
 	}
 
@@ -1359,7 +1392,7 @@ func (m *Manager) getOrLoadState(ctx context.Context, id string) *SessionState {
 	m.sessions[id] = state
 	m.mu.Unlock()
 
-	slog.Info("Loaded session from storage into memory", "sessionID", id)
+	slog.InfoContext(ctx, "Loaded session from storage into memory", "sessionID", id)
 	return state
 }
 
@@ -1446,10 +1479,10 @@ func (m *Manager) ensureActiveSlot(ctx context.Context, excludeID string) string
 		m.mu.Unlock()
 
 		// Pause the oldest session
-		slog.Info("Auto-pausing session to make room", "sessionID", oldestID, "activeCount", activeCount, "maxActive", maxActive)
+		slog.InfoContext(ctx, "Auto-pausing session to make room", "sessionID", oldestID, "activeCount", activeCount, "maxActive", maxActive)
 		pausedSession, err := m.Pause(ctx, oldestID)
 		if err != nil {
-			slog.Error("Failed to auto-pause session", "sessionID", oldestID, "error", err)
+			slog.ErrorContext(ctx, "Failed to auto-pause session", "sessionID", oldestID, "error", err)
 			return lastPausedID
 		}
 
@@ -1489,9 +1522,9 @@ func (m *Manager) enforceActiveLimit(ctx context.Context) {
 		oldestID := oldest.Session.Id
 		m.mu.Unlock()
 
-		slog.Info("Enforcing active limit on startup", "sessionID", oldestID, "activeCount", activeCount, "maxActive", maxActive)
+		slog.InfoContext(ctx, "Enforcing active limit on startup", "sessionID", oldestID, "activeCount", activeCount, "maxActive", maxActive)
 		if _, err := m.Pause(ctx, oldestID); err != nil {
-			slog.Error("Failed to pause session during limit enforcement", "sessionID", oldestID, "error", err)
+			slog.ErrorContext(ctx, "Failed to pause session during limit enforcement", "sessionID", oldestID, "error", err)
 			return
 		}
 	}
@@ -1517,6 +1550,7 @@ func (m *Manager) startIdleReaper() {
 			select {
 			case <-ticker.C:
 				m.reapIdleSessions(timeout)
+				m.emitStreamDepthMetrics()
 			case <-m.stopIdleReaper:
 				slog.Info("Idle session reaper stopped")
 				return
@@ -1529,6 +1563,29 @@ func (m *Manager) startIdleReaper() {
 func (m *Manager) stopIdleReaperIfRunning() {
 	if m.stopIdleReaper != nil {
 		close(m.stopIdleReaper)
+	}
+}
+
+// emitStreamDepthMetrics samples the Redis stream depth for all active sessions
+// and emits a gauge for each. Called periodically from the idle reaper ticker.
+func (m *Manager) emitStreamDepthMetrics() {
+	m.mu.RLock()
+	var activeIDs []string
+	for id, state := range m.sessions {
+		if isActiveStatus(state.Session.Status) {
+			activeIDs = append(activeIDs, id)
+		}
+	}
+	m.mu.RUnlock()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	for _, id := range activeIDs {
+		depth, err := m.storage.GetStreamDepth(ctx, id)
+		if err != nil {
+			continue
+		}
+		metrics.Gauge("redis.stream.depth", float64(depth), []string{"session_id:" + id})
 	}
 }
 
@@ -1595,7 +1652,7 @@ func (m *Manager) Subscribe(ctx context.Context, id string, lastNotificationID s
 // ListGitHubRepos returns repositories accessible to the GitHub App installation.
 func (m *Manager) ListGitHubRepos(ctx context.Context) ([]GitHubRepo, error) {
 	if m.githubClient == nil {
-		slog.Warn("ListGitHubRepos called but GitHub App is not configured")
+		slog.WarnContext(ctx, "ListGitHubRepos called but GitHub App is not configured")
 		return nil, nil
 	}
 
@@ -1714,7 +1771,7 @@ func (m *Manager) GetSessionConfig(ctx context.Context, sessionID string) (*Agen
 
 // UpdateRepoAccess changes the repository access level for a session and sends new credentials to the agent.
 func (m *Manager) UpdateRepoAccess(ctx context.Context, sessionID string, newAccess pb.RepoAccess) error {
-	slog.Info("UpdateRepoAccess called", "sessionID", sessionID, "newAccess", newAccess)
+	slog.InfoContext(ctx, "UpdateRepoAccess called", "sessionID", sessionID, "newAccess", newAccess)
 
 	m.mu.Lock()
 	state, ok := m.sessions[sessionID]
@@ -1733,12 +1790,12 @@ func (m *Manager) UpdateRepoAccess(ctx context.Context, sessionID string, newAcc
 	// Generate new repo-scoped token for this access level
 	newToken := m.createRepoToken(ctx, repos, &newAccess)
 	if newToken == "" && len(repos) > 0 {
-		slog.Warn("Failed to create GitHub token (GitHub App not configured?)", "sessionID", sessionID, "access", newAccess)
+		slog.WarnContext(ctx, "Failed to create GitHub token (GitHub App not configured?)", "sessionID", sessionID, "access", newAccess)
 	}
 
 	// Persist to Redis
 	if err := m.storage.SaveSession(ctx, state.Session); err != nil {
-		slog.Warn("Failed to persist session after repo access update", "sessionID", sessionID, "error", err)
+		slog.WarnContext(ctx, "Failed to persist session after repo access update", "sessionID", sessionID, "error", err)
 	}
 
 	// Send new credentials to the agent if connected
@@ -1748,10 +1805,10 @@ func (m *Manager) UpdateRepoAccess(ctx context.Context, sessionID string, newAcc
 
 	if agentConnected && newToken != "" {
 		if err := agent.UpdateGitCredentials(newToken, newAccess); err != nil {
-			slog.Warn("Failed to send updated credentials to agent", "sessionID", sessionID, "error", err)
+			slog.WarnContext(ctx, "Failed to send updated credentials to agent", "sessionID", sessionID, "error", err)
 			return fmt.Errorf("failed to update agent credentials: %w", err)
 		}
-		slog.Info("Sent updated git credentials to agent", "sessionID", sessionID, "access", newAccess)
+		slog.InfoContext(ctx, "Sent updated git credentials to agent", "sessionID", sessionID, "access", newAccess)
 	}
 
 	// Emit session update
@@ -1764,7 +1821,7 @@ func (m *Manager) UpdateRepoAccess(ctx context.Context, sessionID string, newAcc
 // All StreamSubscribers reading from this session's stream will receive it.
 func (m *Manager) publishStreamEntry(ctx context.Context, sessionID string, entry *storage.StreamEntry) {
 	if _, err := m.storage.AppendStreamEntry(ctx, sessionID, entry); err != nil {
-		slog.Warn("Failed to publish stream entry", "sessionID", sessionID, "type", entry.Type, "error", err)
+		slog.WarnContext(ctx, "Failed to publish stream entry", "sessionID", sessionID, "type", entry.Type, "error", err)
 	}
 }
 
@@ -1844,7 +1901,7 @@ func (m *Manager) emitAgentDone(ctx context.Context, sessionID string) {
 	m.mu.RUnlock()
 
 	if !ok {
-		slog.Warn("emitAgentDone: session not found", "sessionID", sessionID)
+		slog.WarnContext(ctx, "emitAgentDone: session not found", "sessionID", sessionID)
 		return
 	}
 
@@ -1892,7 +1949,7 @@ func (m *Manager) emitUserMessage(ctx context.Context, sessionID, text string) {
 	})
 	// Increment message counter
 	if err := m.storage.IncrementMessageCount(ctx, sessionID); err != nil {
-		slog.Warn("Failed to increment message count", "sessionID", sessionID, "error", err)
+		slog.WarnContext(ctx, "Failed to increment message count", "sessionID", sessionID, "error", err)
 	}
 }
 
@@ -1910,7 +1967,7 @@ func (m *Manager) EmitEvent(ctx context.Context, sessionID string, event *pb.Age
 
 	// Emit the event (internal events are final, not streaming deltas)
 	m.emitAgentEvent(ctx, sessionID, event, false)
-	slog.Debug("Emitted internal event", "sessionID", sessionID, "kind", event.Kind)
+	slog.DebugContext(ctx, "Emitted internal event", "sessionID", sessionID, "kind", event.Kind)
 	return nil
 }
 
@@ -1989,14 +2046,14 @@ func (m *Manager) RegisterAgentConnection(sessionID string, conn AgentConnection
 			Kind: pb.AgentEventKind_AGENT_EVENT_KIND_AGENT_RECONNECTED,
 		}
 		m.emitAgentEvent(ctx, sessionID, event, false)
-		slog.Info("Emitted agent_reconnected event", "sessionID", sessionID)
+		slog.InfoContext(ctx, "Emitted agent_reconnected event", "sessionID", sessionID)
 	}
 
 	// Send pending prompt if any (for prompts queued before agent connected during session creation)
 	if pendingPrompt != "" {
-		slog.Info("Sending pending prompt to agent", "sessionID", sessionID)
+		slog.InfoContext(ctx, "Sending pending prompt to agent", "sessionID", sessionID)
 		if err := m.SendPrompt(ctx, sessionID, pendingPrompt); err != nil {
-			slog.Error("Failed to send pending prompt", "sessionID", sessionID, "error", err)
+			slog.ErrorContext(ctx, "Failed to send pending prompt", "sessionID", sessionID, "error", err)
 		}
 	}
 }
@@ -2024,7 +2081,7 @@ func (m *Manager) UnregisterAgentConnection(sessionID string) {
 		}
 		m.emitAgentEvent(ctx, sessionID, event, false)
 
-		slog.Info("Session marked as interrupted due to agent disconnect", "sessionID", sessionID)
+		slog.InfoContext(ctx, "Session marked as interrupted due to agent disconnect", "sessionID", sessionID)
 	}
 }
 
@@ -2092,7 +2149,7 @@ func (m *Manager) AssignSessionToWarmAgent(podName, sessionID string) bool {
 	ctx := context.Background()
 	config, err := m.GetSessionConfig(ctx, sessionID)
 	if err != nil {
-		slog.Error("Failed to get session config for warm agent", "sessionID", sessionID, "error", err)
+		slog.ErrorContext(ctx, "Failed to get session config for warm agent", "sessionID", sessionID, "error", err)
 		// Remove from active agents since we couldn't get config
 		m.mu.Lock()
 		delete(m.agents, sessionID)
@@ -2101,7 +2158,7 @@ func (m *Manager) AssignSessionToWarmAgent(podName, sessionID string) bool {
 	}
 
 	if err := warmAgent.AssignSession(sessionID, config); err != nil {
-		slog.Error("Failed to push session to warm agent", "podName", podName, "sessionID", sessionID, "error", err)
+		slog.ErrorContext(ctx, "Failed to push session to warm agent", "podName", podName, "sessionID", sessionID, "error", err)
 		// Remove from active agents since assignment failed
 		m.mu.Lock()
 		delete(m.agents, sessionID)
@@ -2153,7 +2210,7 @@ func (m *Manager) ValidateProxyAuth(ctx context.Context, token, targetHost strin
 			return nil, fmt.Errorf("session %s not found in memory or storage: %w", sessionID, err)
 		}
 		state = &SessionState{Session: session}
-		slog.Info("ValidateProxyAuth: loaded session from storage (not in memory)",
+		slog.InfoContext(ctx, "ValidateProxyAuth: loaded session from storage (not in memory)",
 			"sessionID", sessionID,
 			"podName", podName,
 			"targetHost", targetHost,
@@ -2169,7 +2226,7 @@ func (m *Manager) ValidateProxyAuth(ctx context.Context, token, targetHost strin
 	// Check if target host is allowed and get the secret key
 	secretKey, placeholder := m.getAllowedSecretForHost(sdkType, targetHost)
 	if secretKey == "" {
-		slog.Warn("ValidateProxyAuth: host not in allowlist",
+		slog.WarnContext(ctx, "ValidateProxyAuth: host not in allowlist",
 			"sessionID", sessionID,
 			"podName", podName,
 			"targetHost", targetHost,
@@ -2181,7 +2238,7 @@ func (m *Manager) ValidateProxyAuth(ctx context.Context, token, targetHost strin
 		}, nil
 	}
 
-	slog.Debug("ValidateProxyAuth: allowed",
+	slog.DebugContext(ctx, "ValidateProxyAuth: allowed",
 		"sessionID", sessionID,
 		"podName", podName,
 		"targetHost", targetHost,
@@ -2266,20 +2323,20 @@ func (m *Manager) getAllowedSecretForHost(sdkType pb.SdkType, host string) (secr
 // ListModels returns available models for the specified SDK type.
 // For Copilot SDK, returns a combined list of GitHub Copilot and Anthropic (BYOK) models.
 // For Codex SDK, returns OpenAI models with "gpt-codex" family.
-func (m *Manager) ListModels(sdkType pb.SdkType, copilotBackend *pb.CopilotBackend) []*pb.ModelInfo {
+func (m *Manager) ListModels(ctx context.Context, sdkType pb.SdkType, copilotBackend *pb.CopilotBackend) []*pb.ModelInfo {
 	switch sdkType {
 	case pb.SdkType_SDK_TYPE_CLAUDE:
-		return m.fetchModelsFromModelsDev("anthropic")
+		return m.fetchModelsFromModelsDev(ctx, "anthropic")
 	case pb.SdkType_SDK_TYPE_OPENCODE:
-		return m.fetchOpenCodeModels()
+		return m.fetchOpenCodeModels(ctx)
 	case pb.SdkType_SDK_TYPE_COPILOT:
 		// Return combined list of GitHub Copilot + Anthropic (BYOK) models
-		return m.fetchCopilotModels()
+		return m.fetchCopilotModels(ctx)
 	case pb.SdkType_SDK_TYPE_CODEX:
 		// Return OpenAI models with "gpt-codex" family
-		return m.fetchCodexModels()
+		return m.fetchCodexModels(ctx)
 	default:
-		return m.fetchModelsFromModelsDev("anthropic")
+		return m.fetchModelsFromModelsDev(ctx, "anthropic")
 	}
 }
 
@@ -2321,37 +2378,42 @@ type modelsDevLimit struct {
 }
 
 // fetchModelsFromModelsDev fetches models from models.dev API for a specific provider
-func (m *Manager) fetchModelsFromModelsDev(provider string) []*pb.ModelInfo {
-	models := m.doFetchModelsFromModelsDev(provider)
+func (m *Manager) fetchModelsFromModelsDev(ctx context.Context, provider string) []*pb.ModelInfo {
+	models := m.doFetchModelsFromModelsDev(ctx, provider)
 	if models == nil {
 		return getModelsFallback(provider)
 	}
 	return models
 }
 
-func (m *Manager) doFetchModelsFromModelsDev(provider string) []*pb.ModelInfo {
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Get("https://models.dev/api.json")
+func (m *Manager) doFetchModelsFromModelsDev(ctx context.Context, provider string) []*pb.ModelInfo {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://models.dev/api.json", nil)
 	if err != nil {
-		slog.Error("Failed to fetch from models.dev", "error", err)
+		slog.ErrorContext(ctx, "Failed to create models.dev request", "error", err)
+		return nil
+	}
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to fetch from models.dev", "error", err)
 		return nil
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		slog.Error("models.dev API error", "status", resp.StatusCode)
+		slog.ErrorContext(ctx, "models.dev API error", "status", resp.StatusCode)
 		return nil
 	}
 
 	var data modelsDevResponse
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		slog.Error("Failed to decode models.dev response", "error", err)
+		slog.ErrorContext(ctx, "Failed to decode models.dev response", "error", err)
 		return nil
 	}
 
 	providerData, ok := data[provider]
 	if !ok {
-		slog.Error("Provider not found in models.dev", "provider", provider)
+		slog.ErrorContext(ctx, "Provider not found in models.dev", "provider", provider)
 		return nil
 	}
 
@@ -2376,14 +2438,14 @@ func (m *Manager) doFetchModelsFromModelsDev(provider string) []*pb.ModelInfo {
 		})
 	}
 
-	slog.Info("Fetched models from models.dev", "provider", provider, "count", len(models))
+	slog.InfoContext(ctx, "Fetched models from models.dev", "provider", provider, "count", len(models))
 	return models
 }
 
 // fetchOpenCodeModels fetches models for OpenCode SDK based on configured API keys
 // Returns models with provider-prefixed IDs (e.g., "anthropic/claude-sonnet-4-0", "mistral/mistral-large-2512")
-func (m *Manager) fetchOpenCodeModels() []*pb.ModelInfo {
-	slog.Info("fetchOpenCodeModels called",
+func (m *Manager) fetchOpenCodeModels(ctx context.Context) []*pb.ModelInfo {
+	slog.InfoContext(ctx, "fetchOpenCodeModels called",
 		"hasAnthropicKey", m.config.AnthropicAPIKey != "",
 		"hasOpenAIKey", m.config.OpenAIAPIKey != "",
 		"hasMistralKey", m.config.MistralAPIKey != "",
@@ -2393,56 +2455,56 @@ func (m *Manager) fetchOpenCodeModels() []*pb.ModelInfo {
 	var models []*pb.ModelInfo
 
 	// Add OpenCode Zen models (always available - free models if no key, all models if key is set)
-	zenModels := m.fetchZenModels()
-	slog.Info("Fetched OpenCode Zen models", "count", len(zenModels))
+	zenModels := m.fetchZenModels(ctx)
+	slog.InfoContext(ctx, "Fetched OpenCode Zen models", "count", len(zenModels))
 	models = append(models, zenModels...)
 
 	// Add Anthropic models if ANTHROPIC_API_KEY is set
 	if m.config.AnthropicAPIKey != "" {
-		anthropicModels := m.fetchOpenCodeModelsForProvider("anthropic")
-		slog.Info("Fetched OpenCode Anthropic models", "count", len(anthropicModels))
+		anthropicModels := m.fetchOpenCodeModelsForProvider(ctx, "anthropic")
+		slog.InfoContext(ctx, "Fetched OpenCode Anthropic models", "count", len(anthropicModels))
 		models = append(models, anthropicModels...)
 	}
 
 	// Add OpenAI models if OPENAI_API_KEY is set
 	if m.config.OpenAIAPIKey != "" {
-		openaiModels := m.fetchOpenCodeModelsForProvider("openai")
-		slog.Info("Fetched OpenCode OpenAI models", "count", len(openaiModels))
+		openaiModels := m.fetchOpenCodeModelsForProvider(ctx, "openai")
+		slog.InfoContext(ctx, "Fetched OpenCode OpenAI models", "count", len(openaiModels))
 		models = append(models, openaiModels...)
 	}
 
 	// Add Mistral models if MISTRAL_API_KEY is set
 	if m.config.MistralAPIKey != "" {
-		mistralModels := m.fetchOpenCodeModelsForProvider("mistral")
-		slog.Info("Fetched OpenCode Mistral models", "count", len(mistralModels))
+		mistralModels := m.fetchOpenCodeModelsForProvider(ctx, "mistral")
+		slog.InfoContext(ctx, "Fetched OpenCode Mistral models", "count", len(mistralModels))
 		models = append(models, mistralModels...)
 	}
 
 	// Add Ollama models if OLLAMA_URL is set
 	if m.config.OllamaURL != "" {
-		ollamaModels := m.fetchOllamaModels()
-		slog.Info("Fetched OpenCode Ollama models", "count", len(ollamaModels))
+		ollamaModels := m.fetchOllamaModels(ctx)
+		slog.InfoContext(ctx, "Fetched OpenCode Ollama models", "count", len(ollamaModels))
 		models = append(models, ollamaModels...)
 	}
 
 	// Add Z.AI models if ZAI_API_KEY is set
 	if m.config.ZaiAPIKey != "" {
-		zaiModels := m.fetchOpenCodeModelsForProvider("zai")
-		slog.Info("Fetched OpenCode Z.AI models", "count", len(zaiModels))
+		zaiModels := m.fetchOpenCodeModelsForProvider(ctx, "zai")
+		slog.InfoContext(ctx, "Fetched OpenCode Z.AI models", "count", len(zaiModels))
 		models = append(models, zaiModels...)
 	}
 
 	if len(models) == 0 {
-		slog.Warn("No OpenCode credentials configured (need ANTHROPIC_API_KEY, OPENAI_API_KEY, MISTRAL_API_KEY, OPENCODE_API_KEY, ZAI_API_KEY, or OLLAMA_URL)")
+		slog.WarnContext(ctx, "No OpenCode credentials configured (need ANTHROPIC_API_KEY, OPENAI_API_KEY, MISTRAL_API_KEY, OPENCODE_API_KEY, ZAI_API_KEY, or OLLAMA_URL)")
 	}
 
-	slog.Info("fetchOpenCodeModels returning", "totalModels", len(models))
+	slog.InfoContext(ctx, "fetchOpenCodeModels returning", "totalModels", len(models))
 	return models
 }
 
 // fetchOpenCodeModelsForProvider fetches models for a specific provider with provider-prefixed IDs
-func (m *Manager) fetchOpenCodeModelsForProvider(provider string) []*pb.ModelInfo {
-	baseModels := m.fetchModelsFromModelsDev(provider)
+func (m *Manager) fetchOpenCodeModelsForProvider(ctx context.Context, provider string) []*pb.ModelInfo {
+	baseModels := m.fetchModelsFromModelsDev(ctx, provider)
 	if baseModels == nil {
 		return nil
 	}
@@ -2505,29 +2567,34 @@ func (m *Manager) fetchOpenCodeModelsForProvider(provider string) []*pb.ModelInf
 
 // fetchZenModels fetches models from the OpenCode Zen provider
 // If OPENCODE_API_KEY is not set, only returns free models (cost.input === 0)
-func (m *Manager) fetchZenModels() []*pb.ModelInfo {
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Get("https://models.dev/api.json")
+func (m *Manager) fetchZenModels(ctx context.Context) []*pb.ModelInfo {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://models.dev/api.json", nil)
 	if err != nil {
-		slog.Error("Failed to fetch from models.dev for Zen", "error", err)
+		slog.ErrorContext(ctx, "Failed to create models.dev request for Zen", "error", err)
+		return m.getZenModelsFallback()
+	}
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to fetch from models.dev for Zen", "error", err)
 		return m.getZenModelsFallback()
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		slog.Error("models.dev API error for Zen", "status", resp.StatusCode)
+		slog.ErrorContext(ctx, "models.dev API error for Zen", "status", resp.StatusCode)
 		return m.getZenModelsFallback()
 	}
 
 	var data modelsDevResponse
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		slog.Error("Failed to decode models.dev response for Zen", "error", err)
+		slog.ErrorContext(ctx, "Failed to decode models.dev response for Zen", "error", err)
 		return m.getZenModelsFallback()
 	}
 
 	zenData, ok := data["opencode"]
 	if !ok {
-		slog.Warn("OpenCode provider not found in models.dev")
+		slog.WarnContext(ctx, "OpenCode provider not found in models.dev")
 		return m.getZenModelsFallback()
 	}
 
@@ -2561,7 +2628,7 @@ func (m *Manager) fetchZenModels() []*pb.ModelInfo {
 		})
 	}
 
-	slog.Info("Fetched Zen models", "total", len(models), "hasAPIKey", hasAPIKey)
+	slog.InfoContext(ctx, "Fetched Zen models", "total", len(models), "hasAPIKey", hasAPIKey)
 	return models
 }
 
@@ -2596,29 +2663,34 @@ type ollamaDetail struct {
 }
 
 // fetchOllamaModels fetches models from the configured Ollama instance
-func (m *Manager) fetchOllamaModels() []*pb.ModelInfo {
+func (m *Manager) fetchOllamaModels(ctx context.Context) []*pb.ModelInfo {
 	if m.config.OllamaURL == "" {
 		return nil
 	}
 
 	url := strings.TrimSuffix(m.config.OllamaURL, "/") + "/api/tags"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to create Ollama request", "url", url, "error", err)
+		return nil
+	}
 	client := &http.Client{Timeout: 10 * time.Second}
 
-	resp, err := client.Get(url)
+	resp, err := client.Do(req)
 	if err != nil {
-		slog.Error("Failed to fetch from Ollama", "url", url, "error", err)
+		slog.ErrorContext(ctx, "Failed to fetch from Ollama", "url", url, "error", err)
 		return nil
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		slog.Error("Ollama API error", "status", resp.StatusCode)
+		slog.ErrorContext(ctx, "Ollama API error", "status", resp.StatusCode)
 		return nil
 	}
 
 	var data ollamaTagsResponse
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		slog.Error("Failed to decode Ollama response", "error", err)
+		slog.ErrorContext(ctx, "Failed to decode Ollama response", "error", err)
 		return nil
 	}
 
@@ -2643,39 +2715,44 @@ func (m *Manager) fetchOllamaModels() []*pb.ModelInfo {
 		})
 	}
 
-	slog.Info("Fetched models from Ollama", "url", url, "count", len(models))
+	slog.InfoContext(ctx, "Fetched models from Ollama", "url", url, "count", len(models))
 	return models
 }
 
 // fetchCopilotModels fetches combined GitHub Copilot + Anthropic models
-func (m *Manager) fetchCopilotModels() []*pb.ModelInfo {
+func (m *Manager) fetchCopilotModels(ctx context.Context) []*pb.ModelInfo {
 	// Check which credentials are available
 	hasGitHubCopilot := m.config.GitHubCopilotToken != ""
 	hasAnthropicKey := m.config.AnthropicAPIKey != ""
 
 	// If neither credential is available, return empty list
 	if !hasGitHubCopilot && !hasAnthropicKey {
-		slog.Warn("No Copilot credentials configured (need GITHUB_COPILOT_TOKEN or ANTHROPIC_API_KEY)")
+		slog.WarnContext(ctx, "No Copilot credentials configured (need GITHUB_COPILOT_TOKEN or ANTHROPIC_API_KEY)")
 		return nil
 	}
 
 	// Fetch from models.dev - get both github-copilot and anthropic providers
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Get("https://models.dev/api.json")
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://models.dev/api.json", nil)
 	if err != nil {
-		slog.Error("Failed to fetch from models.dev", "error", err)
+		slog.ErrorContext(ctx, "Failed to create models.dev request", "error", err)
+		return m.getCopilotModelsFallback()
+	}
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to fetch from models.dev", "error", err)
 		return m.getCopilotModelsFallback()
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		slog.Error("models.dev API error", "status", resp.StatusCode)
+		slog.ErrorContext(ctx, "models.dev API error", "status", resp.StatusCode)
 		return m.getCopilotModelsFallback()
 	}
 
 	var data modelsDevResponse
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		slog.Error("Failed to decode models.dev response", "error", err)
+		slog.ErrorContext(ctx, "Failed to decode models.dev response", "error", err)
 		return m.getCopilotModelsFallback()
 	}
 
@@ -2731,7 +2808,7 @@ func (m *Manager) fetchCopilotModels() []*pb.ModelInfo {
 		}
 	}
 
-	slog.Info("Fetched Copilot models from models.dev", "count", len(models))
+	slog.InfoContext(ctx, "Fetched Copilot models from models.dev", "count", len(models))
 	return models
 }
 
@@ -2787,7 +2864,7 @@ func (m *Manager) getCopilotModelsFallback() []*pb.ModelInfo {
 // - ":api" suffix when OPENAI_API_KEY is configured
 // - ":oauth" suffix when CODEX_ACCESS_TOKEN is configured
 // If both are configured, returns both sets of models
-func (m *Manager) fetchCodexModels() []*pb.ModelInfo {
+func (m *Manager) fetchCodexModels(ctx context.Context) []*pb.ModelInfo {
 	hasAPIKey := m.config.OpenAIAPIKey != ""
 	hasOAuth := m.config.CodexAccessToken != ""
 
@@ -2797,7 +2874,7 @@ func (m *Manager) fetchCodexModels() []*pb.ModelInfo {
 	}
 
 	// Fetch base models from models.dev
-	baseModels := m.doFetchCodexModels()
+	baseModels := m.doFetchCodexModels(ctx)
 	if baseModels == nil {
 		baseModels = m.getCodexBaseModels()
 	}
@@ -2841,33 +2918,38 @@ func (m *Manager) fetchCodexModels() []*pb.ModelInfo {
 		}
 	}
 
-	slog.Info("Fetched Codex models", "count", len(models), "hasAPIKey", hasAPIKey, "hasOAuth", hasOAuth)
+	slog.InfoContext(ctx, "Fetched Codex models", "count", len(models), "hasAPIKey", hasAPIKey, "hasOAuth", hasOAuth)
 	return models
 }
 
-func (m *Manager) doFetchCodexModels() []*pb.ModelInfo {
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Get("https://models.dev/api.json")
+func (m *Manager) doFetchCodexModels(ctx context.Context) []*pb.ModelInfo {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://models.dev/api.json", nil)
 	if err != nil {
-		slog.Error("Failed to fetch from models.dev", "error", err)
+		slog.ErrorContext(ctx, "Failed to create models.dev request", "error", err)
+		return nil
+	}
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to fetch from models.dev", "error", err)
 		return nil
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		slog.Error("models.dev API error", "status", resp.StatusCode)
+		slog.ErrorContext(ctx, "models.dev API error", "status", resp.StatusCode)
 		return nil
 	}
 
 	var data modelsDevResponse
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		slog.Error("Failed to decode models.dev response", "error", err)
+		slog.ErrorContext(ctx, "Failed to decode models.dev response", "error", err)
 		return nil
 	}
 
 	openaiData, ok := data["openai"]
 	if !ok {
-		slog.Error("OpenAI provider not found in models.dev")
+		slog.ErrorContext(ctx, "OpenAI provider not found in models.dev")
 		return nil
 	}
 
@@ -2897,7 +2979,7 @@ func (m *Manager) doFetchCodexModels() []*pb.ModelInfo {
 		})
 	}
 
-	slog.Info("Fetched Codex models from models.dev", "count", len(models))
+	slog.InfoContext(ctx, "Fetched Codex models from models.dev", "count", len(models))
 	return models
 }
 
@@ -2978,7 +3060,7 @@ func (m *Manager) CreateSnapshot(ctx context.Context, sessionID string, name str
 		return nil, fmt.Errorf("failed to save snapshot: %w", err)
 	}
 
-	slog.Info("Snapshot created", "sessionID", sessionID, "snapshotID", snapshotID, "name", name)
+	slog.InfoContext(ctx, "Snapshot created", "sessionID", sessionID, "snapshotID", snapshotID, "name", name)
 	return snapshot, nil
 }
 
@@ -3007,7 +3089,7 @@ func (m *Manager) RestoreSnapshot(ctx context.Context, sessionID, snapshotID str
 		return 0, fmt.Errorf("snapshot not found: %w", err)
 	}
 
-	slog.Info("Starting restore from snapshot", "sessionID", sessionID, "snapshotID", snapshotID)
+	slog.InfoContext(ctx, "Starting restore from snapshot", "sessionID", sessionID, "snapshotID", snapshotID)
 
 	// Update session status to indicate restore in progress
 	state.Session.Status = pb.SessionStatus_SESSION_STATUS_PAUSED
@@ -3024,7 +3106,7 @@ func (m *Manager) RestoreSnapshot(ctx context.Context, sessionID, snapshotID str
 	// Clean up K8s resources (sandbox, PVC) - returns old PVC name for cleanup after restore
 	oldPVCName, err := m.k8s.RestoreFromSnapshot(ctx, sessionID, snapshotID)
 	if err != nil {
-		slog.Error("Restore cleanup failed", "sessionID", sessionID, "snapshotID", snapshotID, "error", err)
+		slog.ErrorContext(ctx, "Restore cleanup failed", "sessionID", sessionID, "snapshotID", snapshotID, "error", err)
 		state.Session.Status = pb.SessionStatus_SESSION_STATUS_READY
 		_ = m.storage.UpdateSessionStatus(ctx, sessionID, pb.SessionStatus_SESSION_STATUS_READY)
 		return 0, fmt.Errorf("restore failed: %w", err)
@@ -3033,24 +3115,24 @@ func (m *Manager) RestoreSnapshot(ctx context.Context, sessionID, snapshotID str
 	// Store snapshot ID for next sandbox creation (bypasses warm pool)
 	state.RestoreSnapshotID = snapshotID
 	if err := m.storage.SetRestoreSnapshotID(ctx, sessionID, snapshotID); err != nil {
-		slog.Warn("Failed to persist restore snapshot ID", "sessionID", sessionID, "error", err)
+		slog.WarnContext(ctx, "Failed to persist restore snapshot ID", "sessionID", sessionID, "error", err)
 	}
 
 	// Store old PVC name so it can be deleted after restore completes
 	if oldPVCName != "" {
 		if err := m.storage.SetOldPVCName(ctx, sessionID, oldPVCName); err != nil {
-			slog.Warn("Failed to persist old PVC name", "sessionID", sessionID, "pvc", oldPVCName, "error", err)
+			slog.WarnContext(ctx, "Failed to persist old PVC name", "sessionID", sessionID, "pvc", oldPVCName, "error", err)
 		}
 	}
 
 	// Truncate the unified stream to the snapshot point
 	if err := m.storage.TruncateStreamAfter(ctx, sessionID, snapshot.StreamId); err != nil {
-		slog.Warn("Failed to truncate stream", "sessionID", sessionID, "error", err)
+		slog.WarnContext(ctx, "Failed to truncate stream", "sessionID", sessionID, "error", err)
 	}
 
 	// Reset message counter to snapshot value
 	if err := m.storage.SetMessageCount(ctx, sessionID, int(snapshot.MessageCount)); err != nil {
-		slog.Warn("Failed to reset message count", "sessionID", sessionID, "error", err)
+		slog.WarnContext(ctx, "Failed to reset message count", "sessionID", sessionID, "error", err)
 	}
 
 	// Delete snapshots newer than the restored one (destructive restore)
@@ -3059,7 +3141,7 @@ func (m *Manager) RestoreSnapshot(ctx context.Context, sessionID, snapshotID str
 	// Delete the K8s VolumeSnapshots that are newer than the restored one
 	m.deleteK8sSnapshotsAfter(ctx, sessionID, snapshot)
 
-	slog.Info("Snapshot restored", "sessionID", sessionID, "snapshotID", snapshotID, "messagesRestored", snapshot.MessageCount)
+	slog.InfoContext(ctx, "Snapshot restored", "sessionID", sessionID, "snapshotID", snapshotID, "messagesRestored", snapshot.MessageCount)
 
 	// Resume immediately to create sandbox from snapshot
 	// This runs async so we don't block the restore response
@@ -3089,7 +3171,7 @@ func (m *Manager) AutoSnapshot(ctx context.Context, sessionID string, turnNumber
 
 	snapshot, err := m.CreateSnapshot(ctx, sessionID, name)
 	if err != nil {
-		slog.Warn("Auto-snapshot failed", "sessionID", sessionID, "error", err)
+		slog.WarnContext(ctx, "Auto-snapshot failed", "sessionID", sessionID, "error", err)
 		return
 	}
 
@@ -3099,7 +3181,7 @@ func (m *Manager) AutoSnapshot(ctx context.Context, sessionID string, turnNumber
 	// Emit snapshot created notification to clients
 	m.emitSnapshotCreated(ctx, sessionID, snapshot)
 
-	slog.Info("Auto-snapshot created", "sessionID", sessionID, "snapshotID", snapshot.Id, "turn", turnNumber)
+	slog.InfoContext(ctx, "Auto-snapshot created", "sessionID", sessionID, "snapshotID", snapshot.Id, "turn", turnNumber)
 }
 
 // enforceSnapshotRetention deletes old snapshots beyond the limit.
@@ -3112,9 +3194,9 @@ func (m *Manager) enforceSnapshotRetention(ctx context.Context, sessionID string
 	// Delete oldest snapshots beyond limit (list is already newest-first)
 	for i := maxSnapshots; i < len(snapshots); i++ {
 		if err := m.storage.DeleteSnapshot(ctx, sessionID, snapshots[i].Id); err != nil {
-			slog.Warn("Failed to delete old snapshot", "sessionID", sessionID, "snapshotID", snapshots[i].Id, "error", err)
+			slog.WarnContext(ctx, "Failed to delete old snapshot", "sessionID", sessionID, "snapshotID", snapshots[i].Id, "error", err)
 		} else {
-			slog.Debug("Deleted old snapshot", "sessionID", sessionID, "snapshotID", snapshots[i].Id)
+			slog.DebugContext(ctx, "Deleted old snapshot", "sessionID", sessionID, "snapshotID", snapshots[i].Id)
 		}
 	}
 }
@@ -3123,7 +3205,7 @@ func (m *Manager) enforceSnapshotRetention(ctx context.Context, sessionID string
 func (m *Manager) deleteSnapshotsAfter(ctx context.Context, sessionID string, restoredSnapshot *pb.Snapshot) {
 	snapshots, err := m.storage.ListSnapshots(ctx, sessionID)
 	if err != nil {
-		slog.Warn("Failed to list snapshots for cleanup", "sessionID", sessionID, "error", err)
+		slog.WarnContext(ctx, "Failed to list snapshots for cleanup", "sessionID", sessionID, "error", err)
 		return
 	}
 
@@ -3134,16 +3216,16 @@ func (m *Manager) deleteSnapshotsAfter(ctx context.Context, sessionID string, re
 	for _, s := range snapshots {
 		if s.CreatedAt.AsTime().After(restoredTime) {
 			if err := m.storage.DeleteSnapshot(ctx, sessionID, s.Id); err != nil {
-				slog.Warn("Failed to delete newer snapshot", "sessionID", sessionID, "snapshotID", s.Id, "error", err)
+				slog.WarnContext(ctx, "Failed to delete newer snapshot", "sessionID", sessionID, "snapshotID", s.Id, "error", err)
 			} else {
 				deleted++
-				slog.Debug("Deleted newer snapshot", "sessionID", sessionID, "snapshotID", s.Id)
+				slog.DebugContext(ctx, "Deleted newer snapshot", "sessionID", sessionID, "snapshotID", s.Id)
 			}
 		}
 	}
 
 	if deleted > 0 {
-		slog.Info("Deleted snapshots after restore point", "sessionID", sessionID, "count", deleted)
+		slog.InfoContext(ctx, "Deleted snapshots after restore point", "sessionID", sessionID, "count", deleted)
 		// Emit updated snapshot list to clients
 		m.emitSnapshotList(ctx, sessionID)
 	}
@@ -3153,7 +3235,7 @@ func (m *Manager) deleteSnapshotsAfter(ctx context.Context, sessionID string, re
 func (m *Manager) deleteK8sSnapshotsAfter(ctx context.Context, sessionID string, restoredSnapshot *pb.Snapshot) {
 	snapshots, err := m.storage.ListSnapshots(ctx, sessionID)
 	if err != nil {
-		slog.Warn("Failed to list snapshots for K8s cleanup", "sessionID", sessionID, "error", err)
+		slog.WarnContext(ctx, "Failed to list snapshots for K8s cleanup", "sessionID", sessionID, "error", err)
 		return
 	}
 
@@ -3162,9 +3244,9 @@ func (m *Manager) deleteK8sSnapshotsAfter(ctx context.Context, sessionID string,
 	for _, s := range snapshots {
 		if s.CreatedAt.AsTime().After(restoredTime) {
 			if err := m.k8s.DeleteVolumeSnapshot(ctx, sessionID, s.Id); err != nil {
-				slog.Warn("Failed to delete K8s VolumeSnapshot", "sessionID", sessionID, "snapshotID", s.Id, "error", err)
+				slog.WarnContext(ctx, "Failed to delete K8s VolumeSnapshot", "sessionID", sessionID, "snapshotID", s.Id, "error", err)
 			} else {
-				slog.Debug("Deleted K8s VolumeSnapshot", "sessionID", sessionID, "snapshotID", s.Id)
+				slog.DebugContext(ctx, "Deleted K8s VolumeSnapshot", "sessionID", sessionID, "snapshotID", s.Id)
 			}
 		}
 	}
@@ -3230,7 +3312,7 @@ func (m *Manager) GetCopilotStatus(ctx context.Context) *pb.CopilotStatusRespons
 	// Fetch quota from GitHub's internal API
 	quota, err := m.fetchCopilotQuota(ctx)
 	if err != nil {
-		slog.Warn("failed to fetch Copilot quota", "error", err)
+		slog.WarnContext(ctx, "failed to fetch Copilot quota", "error", err)
 		return resp
 	}
 	resp.Quota = quota

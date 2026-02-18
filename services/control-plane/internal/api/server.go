@@ -11,6 +11,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	httptrace "github.com/DataDog/dd-trace-go/contrib/net/http/v2"
+
 	pb "github.com/angristan/netclode/services/control-plane/gen/netclode/v1"
 	"github.com/angristan/netclode/services/control-plane/gen/netclode/v1/netclodev1connect"
 	"github.com/angristan/netclode/services/control-plane/internal/session"
@@ -92,8 +94,11 @@ func (s *Server) ListenAndServe(ctx context.Context, httpAddr string) error {
 	agentPath, agentHandlerFunc := netclodev1connect.NewAgentServiceHandler(agentHandler)
 	mux.Handle(agentPath, agentHandlerFunc)
 
+	// Wrap with Datadog tracing to capture HTTP spans
+	tracedHandler := httptrace.WrapHandler(mux, "control-plane", "http.request")
+
 	// Wrap with h2c to support both HTTP/1.1 and HTTP/2 on the same port
-	h2cHandler := h2c.NewHandler(mux, &http2.Server{})
+	h2cHandler := h2c.NewHandler(tracedHandler, &http2.Server{})
 
 	s.httpServer = &http.Server{
 		Addr:    httpAddr,

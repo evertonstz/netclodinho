@@ -39,6 +39,7 @@ type Storage interface {
 	GetStreamEntries(ctx context.Context, sessionID string, afterID string, limit int) ([]StreamEntryWithID, error)
 	GetStreamEntriesByTypes(ctx context.Context, sessionID string, afterID string, limit int, types []string) ([]StreamEntryWithID, error)
 	GetLastStreamID(ctx context.Context, sessionID string) (string, error)
+	GetStreamDepth(ctx context.Context, sessionID string) (int64, error)
 	TruncateStreamAfter(ctx context.Context, sessionID string, afterID string) error
 
 	// Message count (for session summary)

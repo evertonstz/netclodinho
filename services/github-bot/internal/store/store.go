@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	redistrace "github.com/DataDog/dd-trace-go/contrib/redis/go-redis.v9/v2"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -37,8 +38,11 @@ func New(redisURL string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
+	client := redis.NewClient(opts)
+	redistrace.WrapClient(client, redistrace.WithService("github-bot-redis"))
+
 	return &Store{
-		rdb: redis.NewClient(opts),
+		rdb: client,
 	}, nil
 }
 

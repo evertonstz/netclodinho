@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	kubernetestrace "github.com/DataDog/dd-trace-go/contrib/k8s.io/client-go/v2/kubernetes"
+
 	"github.com/angristan/netclode/services/control-plane/internal/config"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -61,6 +63,9 @@ func newK8sRuntime(cfg *config.Config) (*k8sRuntime, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get in-cluster config: %w", err)
 	}
+
+	// Add Datadog tracing to all K8s API calls
+	restConfig.WrapTransport = kubernetestrace.WrapRoundTripperFunc()
 
 	dynamicClient, err := dynamic.NewForConfig(restConfig)
 	if err != nil {

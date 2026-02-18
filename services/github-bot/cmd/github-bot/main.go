@@ -9,9 +9,14 @@ import (
 	"syscall"
 	"time"
 
+	slogtrace "github.com/DataDog/dd-trace-go/contrib/log/slog/v2"
+	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
+	"github.com/DataDog/dd-trace-go/v2/profiler"
+
 	"github.com/angristan/netclode/services/github-bot/internal/config"
 	"github.com/angristan/netclode/services/github-bot/internal/controlplane"
 	"github.com/angristan/netclode/services/github-bot/internal/ghclient"
+	"github.com/angristan/netclode/services/github-bot/internal/metrics"
 	"github.com/angristan/netclode/services/github-bot/internal/server"
 	"github.com/angristan/netclode/services/github-bot/internal/store"
 	"github.com/angristan/netclode/services/github-bot/internal/webhook"
@@ -19,9 +24,32 @@ import (
 )
 
 func main() {
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+	// Start Datadog tracer (reads DD_SERVICE, DD_ENV, DD_VERSION from env)
+	tracer.Start(tracer.WithRuntimeMetrics())
+	defer tracer.Stop()
+
+	// Start continuous profiler
+	if err := profiler.Start(
+		profiler.WithProfileTypes(
+			profiler.CPUProfile,
+			profiler.HeapProfile,
+			profiler.GoroutineProfile,
+		),
+	); err != nil {
+		slog.Warn("Failed to start profiler", "error", err)
+	}
+	defer profiler.Stop()
+
+	// Configure structured logging with Datadog trace correlation
+	slog.SetDefault(slog.New(slogtrace.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 	})))
+
+	// Initialize DogStatsD metrics client
+	if err := metrics.Init(); err != nil {
+		slog.Warn("Failed to init metrics client", "error", err)
+	}
+	defer metrics.Close()
 
 	cfg, err := config.Load()
 	if err != nil {

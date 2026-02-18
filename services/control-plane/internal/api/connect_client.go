@@ -11,9 +11,12 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
+
 	pb "github.com/angristan/netclode/services/control-plane/gen/netclode/v1"
 	"github.com/angristan/netclode/services/control-plane/gen/netclode/v1/netclodev1connect"
 	"github.com/angristan/netclode/services/control-plane/internal/github"
+	"github.com/angristan/netclode/services/control-plane/internal/metrics"
 	"github.com/angristan/netclode/services/control-plane/internal/session"
 	"github.com/angristan/netclode/services/control-plane/internal/storage"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -105,7 +108,9 @@ func (h *ConnectClientServiceHandler) Connect(ctx context.Context, stream *conne
 	h.server.connCount.Add(1)
 	h.server.wg.Add(1)
 
-	slog.Info("Connect connection opened", "activeConnections", h.server.connCount.Load())
+	connCount := h.server.connCount.Load()
+	slog.InfoContext(ctx, "Connect connection opened", "activeConnections", connCount)
+	metrics.Gauge("connect.clients", float64(connCount), nil)
 
 	// Start goroutine to forward global messages
 	go conn.forwardGlobalMessages()
@@ -116,10 +121,11 @@ func (h *ConnectClientServiceHandler) Connect(ctx context.Context, stream *conne
 	// Cleanup
 	conn.close()
 	h.server.connectConnections.Delete(conn)
-	h.server.connCount.Add(-1)
+	newCount := h.server.connCount.Add(-1)
 	h.server.wg.Done()
 
-	slog.Info("Connect connection closed", "activeConnections", h.server.connCount.Load())
+	slog.InfoContext(ctx, "Connect connection closed", "activeConnections", newCount)
+	metrics.Gauge("connect.clients", float64(newCount), nil)
 
 	return err
 }
@@ -153,19 +159,79 @@ func (c *ConnectConnection) run(ctx context.Context) error {
 				return nil
 			default:
 			}
-			slog.Warn("Connect recv error", "error", err)
+			slog.WarnContext(ctx, "Connect recv error", "error", err)
 			return err
 		}
 
 		if err := c.handleMessage(ctx, msg); err != nil {
-			slog.Warn("Connect handler error", "error", err)
+			slog.WarnContext(ctx, "Connect handler error", "error", err)
 			c.send(makeErrorResponse("", "HANDLER_ERROR", err.Error()))
 		}
 	}
 }
 
+// messageTypeName returns a short name for the client message type (for tracing).
+func messageTypeName(msg *pb.ClientMessage) string {
+	switch msg.Message.(type) {
+	case *pb.ClientMessage_CreateSession:
+		return "CreateSession"
+	case *pb.ClientMessage_ListSessions:
+		return "ListSessions"
+	case *pb.ClientMessage_OpenSession:
+		return "OpenSession"
+	case *pb.ClientMessage_ResumeSession:
+		return "ResumeSession"
+	case *pb.ClientMessage_PauseSession:
+		return "PauseSession"
+	case *pb.ClientMessage_DeleteSession:
+		return "DeleteSession"
+	case *pb.ClientMessage_DeleteAllSessions:
+		return "DeleteAllSessions"
+	case *pb.ClientMessage_SendPrompt:
+		return "SendPrompt"
+	case *pb.ClientMessage_InterruptPrompt:
+		return "InterruptPrompt"
+	case *pb.ClientMessage_TerminalInput:
+		return "TerminalInput"
+	case *pb.ClientMessage_TerminalResize:
+		return "TerminalResize"
+	case *pb.ClientMessage_Sync:
+		return "Sync"
+	case *pb.ClientMessage_ExposePort:
+		return "ExposePort"
+	case *pb.ClientMessage_UnexposePort:
+		return "UnexposePort"
+	case *pb.ClientMessage_ListGithubRepos:
+		return "ListGithubRepos"
+	case *pb.ClientMessage_GitStatus:
+		return "GitStatus"
+	case *pb.ClientMessage_GitDiff:
+		return "GitDiff"
+	case *pb.ClientMessage_ListModels:
+		return "ListModels"
+	case *pb.ClientMessage_GetCopilotStatus:
+		return "GetCopilotStatus"
+	case *pb.ClientMessage_ListSnapshots:
+		return "ListSnapshots"
+	case *pb.ClientMessage_RestoreSnapshot:
+		return "RestoreSnapshot"
+	case *pb.ClientMessage_UpdateRepoAccess:
+		return "UpdateRepoAccess"
+	case *pb.ClientMessage_GetResourceLimits:
+		return "GetResourceLimits"
+	default:
+		return "Unknown"
+	}
+}
+
 // handleMessage dispatches a client message to the appropriate handler.
 func (c *ConnectConnection) handleMessage(ctx context.Context, msg *pb.ClientMessage) error {
+	methodName := messageTypeName(msg)
+	span, ctx := tracer.StartSpanFromContext(ctx, "connectrpc.client."+methodName,
+		tracer.Tag("rpc.method", methodName),
+	)
+	defer span.Finish()
+
 	switch m := msg.Message.(type) {
 	case *pb.ClientMessage_CreateSession:
 		return c.handleSessionCreate(ctx, m.CreateSession)
@@ -740,9 +806,9 @@ func (c *ConnectConnection) handleGitDiff(ctx context.Context, req *pb.GitDiffRe
 
 // handleListModels returns available models for the specified SDK type.
 func (c *ConnectConnection) handleListModels(ctx context.Context, req *pb.ListModelsRequest) error {
-	slog.Info("ListModels request", "sdkType", req.SdkType, "copilotBackend", req.CopilotBackend)
-	models := c.manager.ListModels(req.SdkType, req.CopilotBackend)
-	slog.Info("ListModels response", "sdkType", req.SdkType, "count", len(models))
+	slog.InfoContext(ctx, "ListModels request", "sdkType", req.SdkType, "copilotBackend", req.CopilotBackend)
+	models := c.manager.ListModels(ctx, req.SdkType, req.CopilotBackend)
+	slog.InfoContext(ctx, "ListModels response", "sdkType", req.SdkType, "count", len(models))
 
 	return c.send(&pb.ServerMessage{
 		Message: &pb.ServerMessage_Models{

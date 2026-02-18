@@ -10,8 +10,11 @@ import (
 	"sync"
 
 	"connectrpc.com/connect"
+	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
+
 	v1 "github.com/angristan/netclode/services/control-plane/gen/netclode/v1"
 	"github.com/angristan/netclode/services/control-plane/gen/netclode/v1/netclodev1connect"
+	"github.com/angristan/netclode/services/control-plane/internal/metrics"
 	"github.com/angristan/netclode/services/control-plane/internal/session"
 )
 
@@ -63,7 +66,7 @@ func (h *ConnectAgentServiceHandler) Connect(ctx context.Context, stream *connec
 	// Wait for registration message first
 	msg, err := stream.Receive()
 	if err != nil {
-		slog.Warn("Agent connection failed before registration", "error", err)
+		slog.WarnContext(ctx, "Agent connection failed before registration", "error", err)
 		return err
 	}
 
@@ -77,7 +80,7 @@ func (h *ConnectAgentServiceHandler) Connect(ctx context.Context, stream *connec
 	k8sToken := reg.GetK8SToken()
 
 	if k8sToken == "" {
-		slog.Warn("Agent registration failed - no k8s_token", "version", reg.Version)
+		slog.WarnContext(ctx, "Agent registration failed - no k8s_token", "version", reg.Version)
 		conn.send(&v1.ControlPlaneMessage{
 			Message: &v1.ControlPlaneMessage_Registered{
 				Registered: &v1.AgentRegistered{
@@ -93,7 +96,7 @@ func (h *ConnectAgentServiceHandler) Connect(ctx context.Context, stream *connec
 	// This prevents rogue agents from impersonating legitimate ones
 	podName, err := h.manager.VerifyAgentToken(ctx, k8sToken)
 	if err != nil {
-		slog.Warn("Agent token verification failed", "error", err, "version", reg.Version)
+		slog.WarnContext(ctx, "Agent token verification failed", "error", err, "version", reg.Version)
 		conn.send(&v1.ControlPlaneMessage{
 			Message: &v1.ControlPlaneMessage_Registered{
 				Registered: &v1.AgentRegistered{
@@ -107,7 +110,8 @@ func (h *ConnectAgentServiceHandler) Connect(ctx context.Context, stream *connec
 
 	// Warm pool mode: no session_id, agent waits for SessionAssigned message
 	if sessionID == "" {
-		slog.Info("Warm pool agent connecting (verified)", "podName", podName, "version", reg.Version)
+		slog.InfoContext(ctx, "Warm pool agent connecting (verified)", "podName", podName, "version", reg.Version)
+		metrics.Incr("connect.agents.registered", []string{"mode:warmpool"})
 
 		conn.podName = podName
 
@@ -127,7 +131,7 @@ func (h *ConnectAgentServiceHandler) Connect(ctx context.Context, stream *connec
 		h.manager.RegisterWarmAgentConnection(podName, conn)
 		defer h.manager.UnregisterWarmAgentConnection(podName)
 
-		slog.Info("Warm pool agent registered, waiting for session assignment", "podName", podName)
+		slog.InfoContext(ctx, "Warm pool agent registered, waiting for session assignment", "podName", podName)
 
 		// Start outbound message sender
 		go conn.sendLoop()
@@ -136,7 +140,7 @@ func (h *ConnectAgentServiceHandler) Connect(ctx context.Context, stream *connec
 		err = conn.receiveLoop(ctx)
 
 		close(conn.done)
-		slog.Info("Warm pool agent disconnected", "podName", podName, "sessionID", conn.sessionID)
+		slog.InfoContext(ctx, "Warm pool agent disconnected", "podName", podName, "sessionID", conn.sessionID)
 
 		// If session was assigned, unregister from active agents
 		if conn.sessionID != "" {
@@ -165,7 +169,8 @@ func (h *ConnectAgentServiceHandler) Connect(ctx context.Context, stream *connec
 	}
 
 	conn.sessionID = sessionID
-	slog.Info("Agent connecting (direct mode, verified)", "sessionID", sessionID, "podName", podName, "version", reg.Version)
+	slog.InfoContext(ctx, "Agent connecting (direct mode, verified)", "sessionID", sessionID, "podName", podName, "version", reg.Version)
+	metrics.Incr("connect.agents.registered", []string{"mode:direct"})
 
 	// Get session config
 	config, err := h.manager.GetSessionConfig(ctx, sessionID)
@@ -233,7 +238,7 @@ func (h *ConnectAgentServiceHandler) Connect(ctx context.Context, stream *connec
 	h.manager.RegisterAgentConnection(sessionID, conn)
 	defer h.manager.UnregisterAgentConnection(sessionID)
 
-	slog.Info("Agent registered (direct mode)", "sessionID", sessionID)
+	slog.InfoContext(ctx, "Agent registered (direct mode)", "sessionID", sessionID)
 
 	// Start outbound message sender
 	go conn.sendLoop()
@@ -242,7 +247,7 @@ func (h *ConnectAgentServiceHandler) Connect(ctx context.Context, stream *connec
 	err = conn.receiveLoop(ctx)
 
 	close(conn.done)
-	slog.Info("Agent disconnected", "sessionID", conn.sessionID)
+	slog.InfoContext(ctx, "Agent disconnected", "sessionID", conn.sessionID)
 
 	return err
 }
@@ -273,8 +278,33 @@ func (c *AgentConnection) receiveLoop(ctx context.Context) error {
 	}
 }
 
+// agentMessageTypeName returns a short name for the agent message type (for tracing).
+func agentMessageTypeName(msg *v1.AgentMessage) string {
+	switch msg.Message.(type) {
+	case *v1.AgentMessage_PromptResponse:
+		return "PromptResponse"
+	case *v1.AgentMessage_TerminalOutput:
+		return "TerminalOutput"
+	case *v1.AgentMessage_TitleResponse:
+		return "TitleResponse"
+	case *v1.AgentMessage_GitStatusResponse:
+		return "GitStatusResponse"
+	case *v1.AgentMessage_GitDiffResponse:
+		return "GitDiffResponse"
+	default:
+		return "Unknown"
+	}
+}
+
 // handleMessage processes an incoming message from the agent.
 func (c *AgentConnection) handleMessage(ctx context.Context, msg *v1.AgentMessage) error {
+	methodName := agentMessageTypeName(msg)
+	span, ctx := tracer.StartSpanFromContext(ctx, "connectrpc.agent."+methodName,
+		tracer.Tag("rpc.method", methodName),
+		tracer.Tag("session.id", c.sessionID),
+	)
+	defer span.Finish()
+
 	switch m := msg.Message.(type) {
 	case *v1.AgentMessage_PromptResponse:
 		return c.handlePromptResponse(ctx, m.PromptResponse)

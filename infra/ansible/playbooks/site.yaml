@@ -68,6 +68,11 @@
     - role: tailscale-operator
       tags: [tailscale-operator, k8s, addons]
 
+    # Datadog monitoring (optional, requires DD_API_KEY in .env)
+    - role: datadog
+      tags: [datadog, monitoring, k8s]
+      when: dd_api_key | default('') | length > 0
+
     # Workloads (creates namespace)
     - role: k8s-manifests
       tags: [k8s-manifests, workloads]

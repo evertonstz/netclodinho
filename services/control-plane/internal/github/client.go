@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	httptrace "github.com/DataDog/dd-trace-go/contrib/net/http/v2"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -47,9 +48,9 @@ func NewClient(appID, installationID int64, privateKeyPEM string) (*Client, erro
 		appID:          appID,
 		installationID: installationID,
 		privateKey:     privateKey,
-		httpClient: &http.Client{
+		httpClient: httptrace.WrapClient(&http.Client{
 			Timeout: 30 * time.Second,
-		},
+		}, httptrace.WithService("github-api")),
 	}, nil
 }
 

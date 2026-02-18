@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/angristan/netclode/services/github-bot/internal/metrics"
 	"github.com/angristan/netclode/services/github-bot/internal/store"
 	"github.com/angristan/netclode/services/github-bot/internal/workflow"
 	"github.com/google/go-github/v68/github"
@@ -37,6 +38,8 @@ func NewHandler(webhookSecret string, s *store.Store, deps *workflow.Deps, maxCo
 
 // ServeHTTP handles incoming webhook requests.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -45,7 +48,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Validate signature
 	payload, err := github.ValidatePayload(r, []byte(h.webhookSecret))
 	if err != nil {
-		slog.Warn("Invalid webhook signature", "error", err, "remoteAddr", r.RemoteAddr)
+		slog.WarnContext(ctx, "Invalid webhook signature", "error", err, "remoteAddr", r.RemoteAddr)
 		http.Error(w, "Invalid signature", http.StatusBadRequest)
 		return
 	}
@@ -53,11 +56,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	eventType := github.WebHookType(r)
 	deliveryID := github.DeliveryID(r)
 
-	slog.Info("Received webhook", "event", eventType, "delivery", deliveryID)
+	metrics.Incr("ghbot.webhook.received", []string{"event:" + eventType})
+	slog.InfoContext(ctx, "Received webhook", "event", eventType, "delivery", deliveryID)
 
 	// Dedup check
-	if h.store.IsDuplicate(r.Context(), deliveryID) {
-		slog.Info("Duplicate delivery, skipping", "delivery", deliveryID)
+	if h.store.IsDuplicate(ctx, deliveryID) {
+		slog.InfoContext(ctx, "Duplicate delivery, skipping", "delivery", deliveryID)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -124,6 +128,8 @@ func (h *Handler) handleIssueComment(deliveryID string, payload []byte) {
 		slog.Info("User lacks write access, ignoring mention", "user", userLogin, "owner", owner, "repo", repo)
 		return
 	}
+
+	metrics.Incr("ghbot.mention.triggered", []string{"type:issue_comment", "repo:" + owner + "/" + repo})
 
 	userRequest := ExtractMentionText(body)
 	number := event.GetIssue().GetNumber()
@@ -216,6 +222,8 @@ func (h *Handler) handlePRReviewComment(deliveryID string, payload []byte) {
 		return
 	}
 
+	metrics.Incr("ghbot.mention.triggered", []string{"type:pr_review_comment", "repo:" + owner + "/" + repo})
+
 	userRequest := ExtractMentionText(body)
 	prNumber := event.GetPullRequest().GetNumber()
 
@@ -251,6 +259,8 @@ func (h *Handler) handlePullRequest(deliveryID string, payload []byte) {
 
 	owner, repo := repoOwnerAndName(event.GetRepo())
 
+	metrics.Incr("ghbot.depbot.triggered", []string{"repo:" + owner + "/" + repo})
+
 	h.runAsync(deliveryID, func(ctx context.Context) {
 		workflow.DepbotReview(ctx, h.deps, workflow.DepbotReviewParams{
 			Owner:      owner,
@@ -276,9 +286,12 @@ func (h *Handler) runAsync(deliveryID string, fn func(ctx context.Context)) {
 		ctx, cancel := context.WithTimeout(context.Background(), h.timeout)
 		defer cancel()
 
-		slog.Info("Starting workflow", "delivery", deliveryID)
+		start := time.Now()
+		slog.InfoContext(ctx, "Starting workflow", "delivery", deliveryID)
 		fn(ctx)
-		slog.Info("Workflow completed", "delivery", deliveryID)
+		durationMs := float64(time.Since(start).Milliseconds())
+		metrics.Distribution("ghbot.session.duration_ms", durationMs, []string{"delivery:" + deliveryID})
+		slog.InfoContext(ctx, "Workflow completed", "delivery", deliveryID, "duration_ms", durationMs)
 	})
 }
 

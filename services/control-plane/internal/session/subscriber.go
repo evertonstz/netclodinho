@@ -85,7 +85,7 @@ func (s *StreamSubscriber) Run(ctx context.Context) {
 				// Context cancelled
 				return
 			}
-			slog.Error("XREAD error", "session", s.sessionID, "error", err)
+			slog.ErrorContext(ctx, "XREAD error", "session", s.sessionID, "error", err)
 			// Brief backoff before retry
 			time.Sleep(100 * time.Millisecond)
 			continue
@@ -100,20 +100,20 @@ func (s *StreamSubscriber) Run(ctx context.Context) {
 				// Parse the stream entry
 				dataStr, ok := msg.Values["data"].(string)
 				if !ok {
-					slog.Warn("invalid stream entry data", "session", s.sessionID, "id", msg.ID)
+					slog.WarnContext(ctx, "invalid stream entry data", "session", s.sessionID, "id", msg.ID)
 					continue
 				}
 
 				var entry storage.StreamEntry
 				if err := json.Unmarshal([]byte(dataStr), &entry); err != nil {
-					slog.Warn("failed to unmarshal stream entry", "session", s.sessionID, "error", err)
+					slog.WarnContext(ctx, "failed to unmarshal stream entry", "session", s.sessionID, "error", err)
 					continue
 				}
 
 				// Convert stream entry to ServerMessage
 				serverMsg := streamEntryToServerMessage(s.sessionID, msg.ID, &entry)
 				if serverMsg == nil {
-					slog.Warn("failed to convert stream entry", "session", s.sessionID, "type", entry.Type)
+					slog.WarnContext(ctx, "failed to convert stream entry", "session", s.sessionID, "type", entry.Type)
 					continue
 				}
 

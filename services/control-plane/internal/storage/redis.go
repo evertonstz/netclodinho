@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	redistrace "github.com/DataDog/dd-trace-go/contrib/redis/go-redis.v9/v2"
+
 	pb "github.com/angristan/netclode/services/control-plane/gen/netclode/v1"
 	"github.com/angristan/netclode/services/control-plane/internal/config"
 	"github.com/redis/go-redis/v9"
@@ -51,16 +53,19 @@ func NewRedisStorage(ctx context.Context, cfg *config.Config) (*RedisStorage, er
 
 	client := redis.NewClient(opts)
 
+	// Add Datadog tracing hooks to all Redis commands
+	redistrace.WrapClient(client, redistrace.WithService("control-plane-redis"))
+
 	// Retry connection with backoff
 	var lastErr error
 	for i := range 10 {
 		if err := client.Ping(ctx).Err(); err == nil {
-			slog.Info("connected to Redis", "url", ParseRedisURL(cfg.RedisURL))
+			slog.InfoContext(ctx, "connected to Redis", "url", ParseRedisURL(cfg.RedisURL))
 			return &RedisStorage{client: client, config: cfg}, nil
 		} else {
 			lastErr = err
 			backoff := min(time.Duration(100*(i+1))*time.Millisecond, 3*time.Second)
-			slog.Warn("Redis connection failed, retrying", "attempt", i+1, "error", err, "backoff", backoff)
+			slog.WarnContext(ctx, "Redis connection failed, retrying", "attempt", i+1, "error", err, "backoff", backoff)
 			time.Sleep(backoff)
 		}
 	}
@@ -92,7 +97,7 @@ func (r *RedisStorage) SaveSession(ctx context.Context, s *pb.Session) error {
 		if reposJSON, err := json.Marshal(s.Repos); err == nil {
 			pipe.HSet(ctx, sessionKey(s.Id), "repos", string(reposJSON))
 		} else {
-			slog.Warn("Failed to encode repos for session", "sessionID", s.Id, "error", err)
+			slog.WarnContext(ctx, "Failed to encode repos for session", "sessionID", s.Id, "error", err)
 		}
 	}
 	if s.RepoAccess != nil {
@@ -135,7 +140,7 @@ func (r *RedisStorage) GetSession(ctx context.Context, id string) (*pb.Session, 
 		if err := json.Unmarshal([]byte(reposJSON), &repos); err == nil {
 			session.Repos = repos
 		} else {
-			slog.Warn("Failed to decode repos for session", "sessionID", id, "error", err)
+			slog.WarnContext(ctx, "Failed to decode repos for session", "sessionID", id, "error", err)
 		}
 	}
 	if repoAccessStr, ok := data["repoAccess"]; ok && repoAccessStr != "" {
@@ -245,7 +250,7 @@ func (r *RedisStorage) GetAllSessions(ctx context.Context) ([]*pb.Session, error
 			if err := json.Unmarshal([]byte(reposJSON), &repos); err == nil {
 				session.Repos = repos
 			} else {
-				slog.Warn("Failed to decode repos for session", "sessionID", id, "error", err)
+				slog.WarnContext(ctx, "Failed to decode repos for session", "sessionID", id, "error", err)
 			}
 		}
 		if repoAccessStr, ok := data["repoAccess"]; ok && repoAccessStr != "" {
@@ -314,7 +319,7 @@ func (r *RedisStorage) GetPVCName(ctx context.Context, sessionID string) (string
 func (r *RedisStorage) DeleteSession(ctx context.Context, id string) error {
 	// First delete all snapshots
 	if err := r.DeleteAllSnapshots(ctx, id); err != nil {
-		slog.Warn("failed to delete snapshots during session delete", "sessionID", id, "error", err)
+		slog.WarnContext(ctx, "failed to delete snapshots during session delete", "sessionID", id, "error", err)
 	}
 
 	pipe := r.client.TxPipeline()
@@ -465,6 +470,12 @@ func (r *RedisStorage) TruncateStreamAfter(ctx context.Context, sessionID string
 	}
 
 	return r.client.XDel(ctx, streamKey, ids...).Err()
+}
+
+// GetStreamDepth returns the number of entries in the session's Redis stream.
+// This is useful for monitoring stream backlog depth.
+func (r *RedisStorage) GetStreamDepth(ctx context.Context, sessionID string) (int64, error) {
+	return r.client.XLen(ctx, StreamKey(sessionID)).Result()
 }
 
 // GetMessageCount returns the message count for a session.

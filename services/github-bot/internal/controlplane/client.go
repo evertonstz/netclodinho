@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"strings"
 
+	httptrace "github.com/DataDog/dd-trace-go/contrib/net/http/v2"
+
 	pb "github.com/angristan/netclode/services/control-plane/gen/netclode/v1"
 	"github.com/angristan/netclode/services/control-plane/gen/netclode/v1/netclodev1connect"
 	"golang.org/x/net/http2"
@@ -23,13 +25,16 @@ type Client struct {
 // Uses h2c (HTTP/2 cleartext) for in-cluster plaintext connections,
 // which is required for Connect protocol bidi streaming.
 func New(baseURL string) *Client {
-	httpClient := &http.Client{
-		Transport: &http2.Transport{
-			AllowHTTP: true,
-			DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.Config) (net.Conn, error) {
-				return (&net.Dialer{}).DialContext(ctx, network, addr)
-			},
+	h2cTransport := &http2.Transport{
+		AllowHTTP: true,
+		DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.Config) (net.Conn, error) {
+			return (&net.Dialer{}).DialContext(ctx, network, addr)
 		},
+	}
+	httpClient := &http.Client{
+		Transport: httptrace.WrapRoundTripper(h2cTransport,
+			httptrace.WithService("control-plane"),
+		),
 	}
 	return &Client{
 		client: netclodev1connect.NewClientServiceClient(httpClient, baseURL),

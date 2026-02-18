@@ -488,6 +488,12 @@ func (m *mockStorage) ClearOldPVCName(ctx context.Context, sessionID string) err
 	return nil
 }
 
+func (m *mockStorage) GetStreamDepth(ctx context.Context, sessionID string) (int64, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return int64(len(m.streams[sessionID])), nil
+}
+
 func (m *mockStorage) SetPVCName(ctx context.Context, sessionID, pvcName string) error {
 	return nil
 }
