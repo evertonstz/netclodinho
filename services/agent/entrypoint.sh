@@ -45,8 +45,12 @@ fi
 # /agent/.local/share/mise is for mise installed tools (persisted)
 # /agent/.cache/mise is for mise package cache
 # Note: Can't use /agent/.config - JuiceFS creates a .config file at mount root
-mkdir -p /agent/workspace /agent/docker /agent/.local/share/mise /agent/.cache/mise /agent/.local/config
+mkdir -p /agent/workspace /agent/docker /agent/.local/share/mise /agent/.cache/mise /agent/.local/config /agent/.claude
 chown -R agent:agent /agent
+
+# Disable Co-Authored-By trailer in Claude Code commits
+echo '{"includeCoAuthoredBy": false}' >/agent/.claude/settings.json
+chown agent:agent /agent/.claude/settings.json
 
 # Start Docker daemon with data on JuiceFS
 echo "[entrypoint] Starting Docker daemon..."
