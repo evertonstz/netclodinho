@@ -60,12 +60,30 @@ func formatCommentBody(deliveryID, body string) string {
 }
 
 // updateComment edits an existing comment with the final response.
+// Retries up to 3 times with exponential backoff on transient errors
+// (DNS failures, network timeouts, server errors).
 func updateComment(ctx context.Context, gh *ghclient.Client, owner, repo string, commentID int64, deliveryID, body string) error {
 	body = formatCommentBody(deliveryID, body)
-	if err := gh.EditComment(ctx, owner, repo, commentID, body); err != nil {
-		return fmt.Errorf("edit comment: %w", err)
+
+	var lastErr error
+	for attempt := range 3 {
+		if attempt > 0 {
+			backoff := time.Duration(attempt) * 2 * time.Second
+			slog.Warn("Retrying comment update", "attempt", attempt+1, "backoff", backoff, "error", lastErr)
+			select {
+			case <-ctx.Done():
+				return fmt.Errorf("context cancelled before retry: %w", lastErr)
+			case <-time.After(backoff):
+			}
+		}
+
+		if err := gh.EditComment(ctx, owner, repo, commentID, body); err != nil {
+			lastErr = err
+			continue
+		}
+		return nil
 	}
-	return nil
+	return fmt.Errorf("edit comment after 3 attempts: %w", lastErr)
 }
 
 // updateCommentWithError edits the thinking comment to show an error.
