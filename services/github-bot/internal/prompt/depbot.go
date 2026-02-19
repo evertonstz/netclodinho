@@ -55,14 +55,18 @@ Do ALL of the following:
    - **Check ALL intermediate versions**, not just the final one. If the update is e.g. v1.2.1 -> v1.2.5, you must review what changed in v1.2.2, v1.2.3, v1.2.4, AND v1.2.5. List all tags between old and new (`+"`git tag --sort=version:refv`"+`), then check release notes, changelogs, and code diffs for each intermediate version. Breaking changes, deprecations, or behavior shifts can be introduced in any intermediate release, not just the latest.
    - Read the actual source code diff — don't just skim changelogs. Changelogs omit things. You need to see what functions, types, interfaces, or behaviors actually changed.
    - For major bumps: identify every breaking change (removed exports, renamed types, changed signatures, altered behavior).
-   - Check if the dependency itself updated ITS dependencies (transitive deps). If it did, inspect those changes too — vulnerabilities and breaking changes can hide in transitive updates.
+    - **Transitive dependencies are critical.** Check the lockfile diff (composer.lock, package-lock.json, go.sum, etc.) for every transitive dependency that changed version. For each one:
+      - Determine if it is ALSO a direct dependency of the project (check composer.json, package.json, go.mod, etc.). In most frameworks, core packages like laravel/framework, symfony/*, etc. are direct deps of the app even if they also appear as deps of the updated package.
+      - If it is a direct dependency of the project, treat it with the same rigor as the primary dependency: clone or diff between old and new tags, check ALL intermediate versions between old and new (not just the endpoints), read the source changes, check for breaking changes and deprecations.
+      - If it is only an indirect transitive dep, at minimum check release notes and changelogs for ALL intermediate versions between old and new for breaking changes or security advisories.
+      - Do NOT dismiss transitive deps as "standard ecosystem packages" — vulnerabilities and breaking changes hide in transitive updates.
 
 3. **Trace impacted code paths in our codebase** (this is the most important step):
-   - Search the entire codebase for every import, require, or usage of the updated dependency.
+   - Search the entire codebase for every import, require, or usage of the updated dependency AND every transitive dependency that changed.
    - For each usage site: read the surrounding code to understand HOW the dependency is used — which functions are called, which types are referenced, which behaviors are relied upon.
    - Cross-reference each usage against the actual code diff from step 2. If a function signature changed, check every call site. If behavior changed, check if our code relies on the old behavior.
    - Follow the call chain: if our code wraps the dependency in a helper, trace through to the actual usage. Don't stop at the import — follow it to where it matters.
-   - For transitive dependency changes: check if our code directly imports the transitive dep too. If so, verify compatibility.
+   - For transitive dependency changes: search the ENTIRE codebase for imports/usages of each changed transitive dep — not just the code that uses the primary dependency. A transitive dep like laravel/framework is used everywhere in a Laravel app, not just in the file that imports Prism.
    - Be specific: name the files, functions, and line numbers where you found usages and whether they're affected.
 
 4. **Run tests and verify**:
