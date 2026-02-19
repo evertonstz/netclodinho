@@ -52,6 +52,7 @@ Do ALL of the following:
 
 2. **Deep-dive into what changed in the dependency**:
    - Clone the dependency repo (or for Go, run `+"`go mod download`"+` and inspect `+"`$GOPATH/pkg/mod/`"+`). Do a `+"`git diff`"+` between the old and new version tags to see every code change.
+   - **Check ALL intermediate versions**, not just the final one. If the update is e.g. v1.2.1 -> v1.2.5, you must review what changed in v1.2.2, v1.2.3, v1.2.4, AND v1.2.5. List all tags between old and new (`+"`git tag --sort=version:refv`"+`), then check release notes, changelogs, and code diffs for each intermediate version. Breaking changes, deprecations, or behavior shifts can be introduced in any intermediate release, not just the latest.
    - Read the actual source code diff — don't just skim changelogs. Changelogs omit things. You need to see what functions, types, interfaces, or behaviors actually changed.
    - For major bumps: identify every breaking change (removed exports, renamed types, changed signatures, altered behavior).
    - Check if the dependency itself updated ITS dependencies (transitive deps). If it did, inspect those changes too — vulnerabilities and breaking changes can hide in transitive updates.
