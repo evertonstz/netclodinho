@@ -85,14 +85,31 @@
     state: present
   loop: "{{ kernel_modules }}"
   ignore_errors: yes  # Some modules may not exist on all hardware (e.g., kvm_intel on AMD)
+  register: modprobe_results
 
-- name: Persist kernel modules
+- name: Persist successfully loaded kernel modules
   ansible.builtin.lineinfile:
     path: /etc/modules-load.d/netclode.conf
-    line: "{{ item }}"
+    line: "{{ item.item }}"
     create: yes
     mode: "0644"
-  loop: "{{ kernel_modules }}"
+  loop: "{{ modprobe_results.results }}"
+  when: not item.failed
+
+- name: Load br_netfilter module for bridge sysctls
+  community.general.modprobe:
+    name: br_netfilter
+    state: present
+  register: br_netfilter_result
+  ignore_errors: yes
+
+- name: Persist br_netfilter module if loaded
+  ansible.builtin.lineinfile:
+    path: /etc/modules-load.d/netclode.conf
+    line: br_netfilter
+    create: yes
+    mode: "0644"
+  when: not br_netfilter_result.failed
 
 - name: Set sysctl for IP forwarding
   ansible.posix.sysctl:
@@ -103,9 +120,18 @@
     reload: yes
   loop:
     - { name: "net.ipv4.ip_forward", value: "1" }
+
+- name: Set sysctl for bridge filtering (requires br_netfilter)
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    sysctl_set: yes
+    state: present
+    reload: yes
+  loop:
     - { name: "net.bridge.bridge-nf-call-iptables", value: "1" }
     - { name: "net.bridge.bridge-nf-call-ip6tables", value: "1" }
-  ignore_errors: yes  # bridge module may not be loaded yet
+  when: not br_netfilter_result.failed
 
 - name: Set sysctl for inotify limits (needed for Kata containers)
   ansible.posix.sysctl:

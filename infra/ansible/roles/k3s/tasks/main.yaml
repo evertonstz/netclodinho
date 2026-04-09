@@ -80,6 +80,25 @@
     state: link
     force: yes
 
+- name: Check if Helm is installed
+  ansible.builtin.stat:
+    path: /usr/local/bin/helm
+  register: helm_binary
+
+- name: Download Helm installer
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+    dest: /tmp/get-helm.sh
+    mode: "0755"
+  when: not helm_binary.stat.exists
+
+- name: Install Helm
+  ansible.builtin.command: /tmp/get-helm.sh
+  args:
+    creates: /usr/local/bin/helm
+  environment:
+    HELM_INSTALL_DIR: /usr/local/bin
+
 - name: Download k9s
   ansible.builtin.get_url:
     url: https://github.com/derailed/k9s/releases/latest/download/k9s_Linux_amd64.tar.gz
