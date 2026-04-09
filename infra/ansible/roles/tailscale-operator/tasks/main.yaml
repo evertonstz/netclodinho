@@ -20,6 +20,7 @@
     creates: /usr/local/bin/helm
   environment:
     HELM_INSTALL_DIR: /usr/local/bin
+  when: not helm_binary.stat.exists
 
 - name: Check for Tailscale OAuth credentials
   ansible.builtin.stat:

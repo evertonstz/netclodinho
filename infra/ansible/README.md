@@ -22,6 +22,8 @@ Everything else runs in Kubernetes:
 - Ansible 2.15+
 - Python 3.10+
 - SSH access to target host
+- Target host with nested virtualization and at least 8GB RAM
+- At least 5GiB free on `/` before deployment (30GiB+ total disk recommended in practice)
 
 ## Setup
 
