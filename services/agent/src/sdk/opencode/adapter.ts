@@ -40,10 +40,37 @@ export class OpenCodeAdapter implements SDKAdapter {
     await this.startServer();
   }
 
+  private async writeOpencodeAuthFile(token: string): Promise<void> {
+    const homeDir = process.env.HOME || "/root";
+    const authDir = path.join(homeDir, ".local", "share", "opencode");
+    const authFile = path.join(authDir, "auth.json");
+
+    const authContent = {
+      "github-copilot": {
+        type: "oauth",
+        refresh: token,
+        access: token,
+        expires: 0,
+      },
+    };
+
+    try {
+      await fs.mkdir(authDir, { recursive: true });
+      await fs.writeFile(authFile, JSON.stringify(authContent, null, 2), { encoding: "utf-8", mode: 0o600 });
+      console.log("[opencode-adapter] Wrote opencode auth.json for GitHub Copilot");
+    } catch (error) {
+      console.error("[opencode-adapter] Failed to write opencode auth.json:", error);
+    }
+  }
+
   private async startServer(): Promise<void> {
     if (this.server) {
       console.log("[opencode-adapter] Server already running at", this.server.url);
       return;
+    }
+
+    if (this.config?.githubCopilotToken) {
+      await this.writeOpencodeAuthFile(this.config.githubCopilotToken);
     }
 
     const startTime = Date.now();
