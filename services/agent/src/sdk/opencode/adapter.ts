@@ -41,11 +41,11 @@ export class OpenCodeAdapter implements SDKAdapter {
   }
 
   private async writeOpencodeAuthFile(): Promise<void> {
-    const refreshToken = process.env.GITHUB_COPILOT_OAUTH_REFRESH_TOKEN;
+    const refreshToken = this.config?.githubCopilotOAuthRefreshToken;
     if (!refreshToken) return;
 
-    const accessToken = process.env.GITHUB_COPILOT_OAUTH_ACCESS_TOKEN || refreshToken;
-    const expires = parseInt(process.env.GITHUB_COPILOT_OAUTH_TOKEN_EXPIRES || "0", 10);
+    const accessToken = this.config?.githubCopilotOAuthAccessToken || refreshToken;
+    const expires = parseInt(this.config?.githubCopilotOAuthTokenExpires || "0", 10);
 
     const authDir = "/agent/.local/share/opencode";
     const authFile = path.join(authDir, "auth.json");
