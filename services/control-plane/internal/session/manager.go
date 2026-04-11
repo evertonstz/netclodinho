@@ -31,18 +31,21 @@ type SessionUpdateCallback func(session *pb.Session)
 
 // AgentSessionConfig contains typed configuration for an agent session.
 type AgentSessionConfig struct {
-	SessionID         string
-	GitHubToken       string // For git credentials (from GitHub App) - not proxied, used in git URLs
-	Repos             []string
-	RepoAccess        *pb.RepoAccess
-	SdkType           *pb.SdkType
-	Model             string
-	CopilotBackend    *pb.CopilotBackend
-	CodexAccessToken  string // For Codex OAuth mode - written to ~/.codex/auth.json, can't be proxied
-	CodexIdToken      string // For Codex OAuth mode - written to ~/.codex/auth.json, can't be proxied
-	CodexRefreshToken string // For Codex OAuth mode - written to ~/.codex/auth.json, can't be proxied
-	ReasoningEffort   string // For Codex reasoning effort (low, medium, high)
-	OllamaURL         string // For local Ollama inference
+	SessionID                      string
+	GitHubToken                    string
+	Repos                          []string
+	RepoAccess                     *pb.RepoAccess
+	SdkType                        *pb.SdkType
+	Model                          string
+	CopilotBackend                 *pb.CopilotBackend
+	CodexAccessToken               string
+	CodexIdToken                   string
+	CodexRefreshToken              string
+	ReasoningEffort                string
+	OllamaURL                      string
+	GitHubCopilotOAuthAccessToken  string
+	GitHubCopilotOAuthRefreshToken string
+	GitHubCopilotOAuthTokenExpires string
 }
 
 // AgentConnection represents a connected agent that can receive commands.
@@ -461,7 +464,7 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 		}
 	}
 
-	// Pass GitHub Copilot token if configured
+	// Pass GitHub Copilot token if configured (for Copilot SDK)
 	if m.config.GitHubCopilotToken != "" {
 		env["GITHUB_COPILOT_TOKEN"] = m.config.GitHubCopilotToken
 	}
@@ -1700,6 +1703,12 @@ func (m *Manager) GetSessionConfig(ctx context.Context, sessionID string) (*Agen
 		SdkType:        state.Session.SdkType,
 		CopilotBackend: state.Session.CopilotBackend,
 		OllamaURL:      m.config.OllamaURL,
+	}
+
+	if state.Session.SdkType != nil && *state.Session.SdkType == pb.SdkType_SDK_TYPE_OPENCODE {
+		config.GitHubCopilotOAuthAccessToken = m.config.GitHubCopilotOAuthAccessToken
+		config.GitHubCopilotOAuthRefreshToken = m.config.GitHubCopilotOAuthRefreshToken
+		config.GitHubCopilotOAuthTokenExpires = m.config.GitHubCopilotOAuthTokenExpires
 	}
 
 	if state.Session.Model != nil {
