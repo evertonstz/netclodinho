@@ -40,7 +40,13 @@ export class OpenCodeAdapter implements SDKAdapter {
     await this.startServer();
   }
 
-  private async writeOpencodeAuthFile(token: string): Promise<void> {
+  private async writeOpencodeAuthFile(): Promise<void> {
+    const refreshToken = process.env.GITHUB_COPILOT_OAUTH_REFRESH_TOKEN;
+    if (!refreshToken) return;
+
+    const accessToken = process.env.GITHUB_COPILOT_OAUTH_ACCESS_TOKEN || refreshToken;
+    const expires = parseInt(process.env.GITHUB_COPILOT_OAUTH_TOKEN_EXPIRES || "0", 10);
+
     const homeDir = process.env.HOME || "/root";
     const authDir = path.join(homeDir, ".local", "share", "opencode");
     const authFile = path.join(authDir, "auth.json");
@@ -48,16 +54,16 @@ export class OpenCodeAdapter implements SDKAdapter {
     const authContent = {
       "github-copilot": {
         type: "oauth",
-        refresh: token,
-        access: token,
-        expires: 0,
+        refresh: refreshToken,
+        access: accessToken,
+        expires,
       },
     };
 
     try {
       await fs.mkdir(authDir, { recursive: true });
       await fs.writeFile(authFile, JSON.stringify(authContent, null, 2), { encoding: "utf-8", mode: 0o600 });
-      console.log("[opencode-adapter] Wrote opencode auth.json for GitHub Copilot");
+      console.log("[opencode-adapter] Wrote opencode auth.json for GitHub Copilot (OAuth)");
     } catch (error) {
       console.error("[opencode-adapter] Failed to write opencode auth.json:", error);
     }
@@ -69,9 +75,7 @@ export class OpenCodeAdapter implements SDKAdapter {
       return;
     }
 
-    if (this.config?.githubCopilotToken) {
-      await this.writeOpencodeAuthFile(this.config.githubCopilotToken);
-    }
+    await this.writeOpencodeAuthFile();
 
     const startTime = Date.now();
     console.log("[opencode-adapter] Starting opencode serve...");
@@ -153,8 +157,6 @@ export class OpenCodeAdapter implements SDKAdapter {
           : isZenModel && { OPENCODE_API_KEY: "public" }),
         // Z.AI API key for GLM-4.7 models (models.dev uses ZHIPU_API_KEY)
         ...(this.config?.zaiApiKey && { ZHIPU_API_KEY: this.config.zaiApiKey }),
-        // GitHub Copilot token for Copilot provider support
-        ...(this.config?.githubCopilotToken && { GITHUB_COPILOT_TOKEN: this.config.githubCopilotToken }),
         OPENCODE_DISABLE_DEFAULT_PLUGINS: "true",
         // Only disable models fetch if NOT using Zen (Zen needs models.dev to work)
         ...(!isZenModel && { OPENCODE_DISABLE_MODELS_FETCH: "true" }),

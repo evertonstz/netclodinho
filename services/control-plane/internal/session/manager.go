@@ -461,9 +461,10 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 		}
 	}
 
-	// Pass GitHub Copilot token if configured
-	if m.config.GitHubCopilotToken != "" {
-		env["GITHUB_COPILOT_TOKEN"] = m.config.GitHubCopilotToken
+	if m.config.GitHubCopilotOAuthRefreshToken != "" {
+		env["GITHUB_COPILOT_OAUTH_ACCESS_TOKEN"] = m.config.GitHubCopilotOAuthAccessToken
+		env["GITHUB_COPILOT_OAUTH_REFRESH_TOKEN"] = m.config.GitHubCopilotOAuthRefreshToken
+		env["GITHUB_COPILOT_OAUTH_TOKEN_EXPIRES"] = m.config.GitHubCopilotOAuthTokenExpires
 	}
 
 	// Setup GitHub repo access if configured
