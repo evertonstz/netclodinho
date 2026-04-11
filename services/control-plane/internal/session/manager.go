@@ -2494,8 +2494,15 @@ func (m *Manager) fetchOpenCodeModels(ctx context.Context) []*pb.ModelInfo {
 		models = append(models, zaiModels...)
 	}
 
+	// Add GitHub Copilot models if GITHUB_COPILOT_TOKEN is set
+	if m.config.GitHubCopilotToken != "" {
+		copilotModels := m.fetchCopilotModels(ctx)
+		slog.InfoContext(ctx, "Fetched Copilot models for OpenCode", "count", len(copilotModels))
+		models = append(models, copilotModels...)
+	}
+
 	if len(models) == 0 {
-		slog.WarnContext(ctx, "No OpenCode credentials configured (need ANTHROPIC_API_KEY, OPENAI_API_KEY, MISTRAL_API_KEY, OPENCODE_API_KEY, ZAI_API_KEY, or OLLAMA_URL)")
+		slog.WarnContext(ctx, "No OpenCode credentials configured (need ANTHROPIC_API_KEY, OPENAI_API_KEY, MISTRAL_API_KEY, OPENCODE_API_KEY, ZAI_API_KEY, OLLAMA_URL, or GITHUB_COPILOT_TOKEN)")
 	}
 
 	slog.InfoContext(ctx, "fetchOpenCodeModels returning", "totalModels", len(models))

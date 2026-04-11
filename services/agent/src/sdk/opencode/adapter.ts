@@ -126,6 +126,8 @@ export class OpenCodeAdapter implements SDKAdapter {
           : isZenModel && { OPENCODE_API_KEY: "public" }),
         // Z.AI API key for GLM-4.7 models (models.dev uses ZHIPU_API_KEY)
         ...(this.config?.zaiApiKey && { ZHIPU_API_KEY: this.config.zaiApiKey }),
+        // GitHub Copilot token for Copilot provider support
+        ...(this.config?.githubCopilotToken && { GITHUB_COPILOT_TOKEN: this.config.githubCopilotToken }),
         OPENCODE_DISABLE_DEFAULT_PLUGINS: "true",
         // Only disable models fetch if NOT using Zen (Zen needs models.dev to work)
         ...(!isZenModel && { OPENCODE_DISABLE_MODELS_FETCH: "true" }),
