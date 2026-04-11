@@ -2790,7 +2790,7 @@ func (m *Manager) fetchCopilotModels(ctx context.Context) []*pb.ModelInfo {
 				}
 
 				models = append(models, &pb.ModelInfo{
-					Id:           model.ID,
+					Id:           "github-copilot/" + model.ID,
 					Name:         model.Name,
 					Provider:     strPtr("Copilot"),
 					Capabilities: capabilities,
