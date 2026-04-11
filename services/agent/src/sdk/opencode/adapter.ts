@@ -62,7 +62,7 @@ export class OpenCodeAdapter implements SDKAdapter {
     try {
       await fs.mkdir(authDir, { recursive: true });
       await fs.writeFile(authFile, JSON.stringify(authContent, null, 2), { encoding: "utf-8", mode: 0o600 });
-      console.log("[opencode-adapter] Wrote opencode auth.json for GitHub Copilot");
+      console.log("[opencode-adapter] Wrote opencode auth.json for GitHub Copilot (OAuth)");
     } catch (error) {
       console.error("[opencode-adapter] Failed to write opencode auth.json:", error);
     }
@@ -156,8 +156,6 @@ export class OpenCodeAdapter implements SDKAdapter {
           : isZenModel && { OPENCODE_API_KEY: "public" }),
         // Z.AI API key for GLM-4.7 models (models.dev uses ZHIPU_API_KEY)
         ...(this.config?.zaiApiKey && { ZHIPU_API_KEY: this.config.zaiApiKey }),
-        // GitHub Copilot token for Copilot provider support
-        ...(this.config?.githubCopilotToken && { GITHUB_COPILOT_TOKEN: this.config.githubCopilotToken }),
         OPENCODE_DISABLE_DEFAULT_PLUGINS: "true",
         // Disable models fetch except for providers that discover models dynamically
         ...(!isZenModel && !isCopilotModel && { OPENCODE_DISABLE_MODELS_FETCH: "true" }),
