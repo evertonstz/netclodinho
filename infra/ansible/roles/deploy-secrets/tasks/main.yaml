@@ -132,6 +132,7 @@
             | combine({'opencode': opencode_api_key} if opencode_api_key | length > 0 else {})
             | combine({'zai': zai_api_key} if zai_api_key | length > 0 else {})
             | combine({'github_copilot': github_copilot_token} if github_copilot_token | length > 0 else {})
+            | combine({'github_copilot_oauth': github_copilot_oauth_access_token} if github_copilot_oauth_access_token | length > 0 else {})
             | combine({'codex_access': codex_access_token} if codex_access_token | length > 0 else {})
             | combine({'codex_id': codex_id_token} if codex_id_token | length > 0 else {})
             | combine({'codex_refresh': codex_refresh_token} if codex_refresh_token | length > 0 else {})
