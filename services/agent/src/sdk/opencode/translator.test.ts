@@ -446,7 +446,7 @@ describe("OpenCode Translator", () => {
   });
 
   describe("translateEvent", () => {
-    it("handles message.part.updated", () => {
+    it("returns null for message.part.updated with text part (text arrives via message.part.delta)", () => {
       const result = translateEvent(
         {
           type: "message.part.updated",
@@ -454,7 +454,28 @@ describe("OpenCode Translator", () => {
         },
         state
       );
-      expect(result?.type).toBe("textDelta");
+      expect(result).toBeNull();
+    });
+
+    it("handles message.part.updated for tool part (running state emits toolStart)", () => {
+      state.assistantMessageIds.add("msg_assistant");
+      const result = translateEvent(
+        {
+          type: "message.part.updated",
+          properties: {
+            part: {
+              type: "tool",
+              id: "part_tool_1",
+              tool: "Read",
+              callID: "call_1",
+              messageID: "msg_assistant",
+              state: { status: "running", input: { file_path: "/foo.ts" } },
+            },
+          },
+        },
+        state
+      );
+      expect(result?.type).toBe("toolStart");
     });
 
     it("handles message.updated", () => {
