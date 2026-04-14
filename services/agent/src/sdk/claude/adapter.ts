@@ -1,11 +1,14 @@
 /**
- * Claude Agent SDK Adapter
+ * Claude backend
  *
- * Wraps the @anthropic-ai/claude-agent-sdk integration
+ * Wraps the @anthropic-ai/claude-agent-sdk integration behind the Netclode
+ * backend contract.
  */
 
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import type { SDKAdapter, SDKConfig, PromptConfig, PromptEvent } from "../types.js";
+import type { NetclodePromptBackend, SDKConfig, PromptConfig, PromptEvent } from "../types.js";
+import { createAgentCapabilities } from "../types.js";
+import { NoopAuthMaterializer, type BackendAuthMaterializer } from "../auth-materializer.js";
 import { getSdkSessionId, registerSession } from "../../services/session.js";
 import { buildSystemPromptText, type SystemPromptConfig } from "../../utils/system-prompt.js";
 import {
@@ -16,7 +19,6 @@ import {
   type ClaudeMessage,
 } from "./translator.js";
 import { WORKSPACE_DIR } from "../../constants.js";
-import { logSecretMaterialization } from "../secret-materialization.js";
 
 /**
  * Build the system prompt in Claude Agent SDK preset format
@@ -33,7 +35,17 @@ function buildSystemPrompt(config: SystemPromptConfig): {
   };
 }
 
-export class ClaudeSDKAdapter implements SDKAdapter {
+export class ClaudeSDKAdapter implements NetclodePromptBackend {
+  readonly capabilities = createAgentCapabilities({
+    interrupt: true,
+    toolStreaming: true,
+    thinkingStreaming: true,
+  });
+
+  constructor(
+    private readonly authMaterializer: BackendAuthMaterializer = new NoopAuthMaterializer("claude-backend"),
+  ) {}
+
   private config: SDKConfig | null = null;
   private interruptSignal = false;
   private abortController: AbortController | null = null;
@@ -41,8 +53,8 @@ export class ClaudeSDKAdapter implements SDKAdapter {
 
   async initialize(config: SDKConfig): Promise<void> {
     this.config = config;
-    console.log("[claude-adapter] Initialized with workspace:", config.workspaceDir);
-    logSecretMaterialization("claude-adapter", config);
+    console.log("[claude-backend] Initialized with workspace:", config.workspaceDir);
+    await this.authMaterializer.materialize(config);
   }
 
   async *executePrompt(sessionId: string, text: string, promptConfig?: PromptConfig): AsyncGenerator<PromptEvent> {
@@ -128,10 +140,14 @@ export class ClaudeSDKAdapter implements SDKAdapter {
     // Abort the query to cancel in-flight API calls and tool executions
     if (this.abortController) {
       this.abortController.abort();
-      console.log("[claude-adapter] Interrupt signal set and query aborted");
+      console.log("[claude-backend] Interrupt signal set and query aborted");
     } else {
-      console.log("[claude-adapter] Interrupt signal set");
+      console.log("[claude-backend] Interrupt signal set");
     }
+  }
+
+  async interrupt(): Promise<void> {
+    this.setInterruptSignal();
   }
 
   clearInterruptSignal(): void {
@@ -144,7 +160,7 @@ export class ClaudeSDKAdapter implements SDKAdapter {
   }
 
   async shutdown(): Promise<void> {
-    console.log("[claude-adapter] Shutdown");
+    console.log("[claude-backend] Shutdown");
     // Claude SDK doesn't need explicit cleanup
   }
 }

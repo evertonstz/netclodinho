@@ -1,5 +1,5 @@
 /**
- * OpenAI Codex SDK Adapter
+ * OpenAI Codex backend
  *
  * Uses @openai/codex-sdk to communicate with OpenAI's Codex agent.
  *
@@ -18,7 +18,9 @@
  */
 
 import { Codex, type Thread, type ThreadEvent, type ModelReasoningEffort } from "@openai/codex-sdk";
-import type { SDKAdapter, SDKConfig, PromptConfig, PromptEvent } from "../types.js";
+import type { NetclodePromptBackend, SDKConfig, PromptConfig, PromptEvent } from "../types.js";
+import { createAgentCapabilities } from "../types.js";
+import { CodexAuthMaterializer, type BackendAuthMaterializer } from "../auth-materializer.js";
 import {
   createTranslatorState,
   resetTranslatorState,
@@ -34,9 +36,19 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { WORKSPACE_DIR } from "../../constants.js";
 import { buildSystemPromptText } from "../../utils/system-prompt.js";
-import { isCodexOAuthMode, logSecretMaterialization } from "../secret-materialization.js";
+import { isCodexOAuthMode } from "../secret-materialization.js";
 
-export class CodexAdapter implements SDKAdapter {
+export class CodexAdapter implements NetclodePromptBackend {
+  readonly capabilities = createAgentCapabilities({
+    interrupt: true,
+    toolStreaming: true,
+    thinkingStreaming: false,
+  });
+
+  constructor(
+    private readonly authMaterializer: BackendAuthMaterializer = new CodexAuthMaterializer("codex-backend"),
+  ) {}
+
   private config: SDKConfig | null = null;
   private codex: Codex | null = null;
   private thread: Thread | null = null;
@@ -66,7 +78,7 @@ export class CodexAdapter implements SDKAdapter {
     console.log("[codex-adapter] Model:", this.cleanedModel || "default");
     console.log("[codex-adapter] Auth mode:", isApiMode ? "API key" : isOAuthMode ? "OAuth" : "unknown");
     console.log("[codex-adapter] Reasoning effort:", this.reasoningEffort || "default");
-    logSecretMaterialization("codex-adapter", config);
+    await this.authMaterializer.materialize(config);
 
     // Build clean env object without undefined values
     const buildEnv = (overrides: Record<string, string | undefined> = {}): Record<string, string> => {
@@ -88,9 +100,6 @@ export class CodexAdapter implements SDKAdapter {
 
     // Determine which credentials to use based on auth mode
     if (isOAuthMode && config.codexAccessToken && config.codexIdToken) {
-      // OAuth mode: write tokens to ~/.codex/auth.json
-      // The Codex CLI binary reads credentials from this location
-      await this.writeCodexAuth(config.codexAccessToken, config.codexIdToken, config.codexRefreshToken);
       console.log("[codex-adapter] Using OAuth authentication (ChatGPT subscription)");
 
       this.codex = new Codex({
@@ -134,28 +143,6 @@ export class CodexAdapter implements SDKAdapter {
     } catch (error) {
       console.error("[codex-adapter] Failed to write global AGENTS.md:", error);
     }
-  }
-
-  /**
-   * Write OAuth tokens to Codex auth file
-   * The Codex CLI reads from ~/.codex/auth.json
-   */
-  private async writeCodexAuth(accessToken: string, idToken: string, refreshToken?: string): Promise<void> {
-    const codexHome = process.env.CODEX_HOME || path.join(os.homedir(), ".codex");
-    await fs.mkdir(codexHome, { recursive: true });
-
-    const authData = {
-      tokens: {
-        access_token: accessToken,
-        id_token: idToken,
-        refresh_token: refreshToken || "",
-      },
-      last_refresh: new Date().toISOString(),
-    };
-
-    const authPath = path.join(codexHome, "auth.json");
-    await fs.writeFile(authPath, JSON.stringify(authData, null, 2), { mode: 0o600 });
-    console.log("[codex-adapter] OAuth tokens written to", authPath);
   }
 
   async *executePrompt(sessionId: string, text: string, promptConfig?: PromptConfig): AsyncGenerator<PromptEvent> {
@@ -260,7 +247,11 @@ export class CodexAdapter implements SDKAdapter {
 
   setInterruptSignal(): void {
     this.interruptSignal = true;
-    console.log("[codex-adapter] Interrupt signal set");
+    console.log("[codex-backend] Interrupt signal set");
+  }
+
+  async interrupt(): Promise<void> {
+    this.setInterruptSignal();
   }
 
   clearInterruptSignal(): void {
@@ -273,7 +264,7 @@ export class CodexAdapter implements SDKAdapter {
   }
 
   async shutdown(): Promise<void> {
-    console.log("[codex-adapter] Shutting down...");
+    console.log("[codex-backend] Shutting down...");
     this.thread = null;
     this.codex = null;
     resetTranslatorState(this.translatorState);

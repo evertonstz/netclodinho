@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { OpenCodeAdapter } from "./adapter.js";
+import { buildOpenCodeAuthContent } from "../auth-materializer.js";
 import type { SDKConfig } from "../types.js";
 
 function makeConfig(overrides: Partial<SDKConfig> = {}): SDKConfig {
@@ -15,15 +15,9 @@ function makeConfig(overrides: Partial<SDKConfig> = {}): SDKConfig {
   };
 }
 
-describe("OpenCodeAdapter auth materialization", () => {
+describe("OpenCode auth materialization", () => {
   it("builds auth.json with the Copilot OAuth values provided in session config", () => {
-    const adapter = new OpenCodeAdapter() as unknown as {
-      config: SDKConfig;
-      buildOpencodeAuthContent: () => Record<string, unknown> | null;
-    };
-    adapter.config = makeConfig();
-
-    const authContent = adapter.buildOpencodeAuthContent();
+    const authContent = buildOpenCodeAuthContent(makeConfig());
     expect(authContent).toEqual({
       "github-copilot": {
         type: "oauth",
@@ -36,12 +30,6 @@ describe("OpenCodeAdapter auth materialization", () => {
   });
 
   it("does not build auth.json for non-Copilot OpenCode models", () => {
-    const adapter = new OpenCodeAdapter() as unknown as {
-      config: SDKConfig;
-      buildOpencodeAuthContent: () => Record<string, unknown> | null;
-    };
-    adapter.config = makeConfig({ model: "anthropic/claude-sonnet-4-5" });
-
-    expect(adapter.buildOpencodeAuthContent()).toBeNull();
+    expect(buildOpenCodeAuthContent(makeConfig({ model: "anthropic/claude-sonnet-4-5" }))).toBeNull();
   });
 });

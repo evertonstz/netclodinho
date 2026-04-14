@@ -1,8 +1,9 @@
 /**
- * SDK abstraction layer types
+ * Netclode agent backend contract.
  *
- * This module defines the interface for SDK adapters, allowing the agent
- * to use different AI SDKs (Claude Agent SDK, OpenCode SDK, etc.)
+ * The control-plane speaks protobuf to the sandbox agent. Inside the sandbox,
+ * Netclode owns this backend/runtime contract so provider-specific SDKs remain
+ * implementation details rather than the primary mental model.
  */
 
 import type { JsonObject } from "@bufbuild/protobuf";
@@ -10,31 +11,67 @@ import type { JsonObject } from "@bufbuild/protobuf";
 export type SdkType = "claude" | "opencode" | "copilot" | "codex";
 
 /**
- * Backend for Copilot SDK sessions
+ * Backend for Copilot sessions.
  */
 export type CopilotBackend = "github" | "anthropic";
 
 /**
- * Configuration for SDK initialization
+ * Explicit capability declaration for Netclode backends/runtime.
  */
-export interface SDKConfig {
+export interface AgentCapabilities {
+  interrupt: boolean;
+  titleGeneration: boolean;
+  gitStatus: boolean;
+  gitDiff: boolean;
+  toolStreaming: boolean;
+  thinkingStreaming: boolean;
+}
+
+export const DEFAULT_AGENT_CAPABILITIES: AgentCapabilities = {
+  interrupt: false,
+  titleGeneration: false,
+  gitStatus: false,
+  gitDiff: false,
+  toolStreaming: false,
+  thinkingStreaming: false,
+};
+
+export type AgentCapabilityName = keyof AgentCapabilities;
+
+export function createAgentCapabilities(overrides: Partial<AgentCapabilities> = {}): AgentCapabilities {
+  return {
+    ...DEFAULT_AGENT_CAPABILITIES,
+    ...overrides,
+  };
+}
+
+export class UnsupportedAgentCapabilityError extends Error {
+  readonly capability: AgentCapabilityName;
+
+  constructor(capability: AgentCapabilityName, message?: string) {
+    super(message ?? `Agent capability '${capability}' is not supported`);
+    this.name = "UnsupportedAgentCapabilityError";
+    this.capability = capability;
+  }
+}
+
+/**
+ * Configuration used to initialize a Netclode backend/runtime.
+ */
+export interface NetclodeAgentConfig {
   sdkType: SdkType;
   workspaceDir: string;
   anthropicApiKey: string;
   openaiApiKey?: string; // OpenAI API key (for Codex API mode)
-  mistralApiKey?: string; // Mistral API key (for OpenCode SDK)
-  githubCopilotToken?: string; // GitHub PAT with Copilot scope (for Copilot SDK auth)
-  model?: string; // e.g., "anthropic/claude-sonnet-4-0" for OpenCode, "codex-mini-latest:api" for Codex
-  copilotBackend?: CopilotBackend; // For Copilot SDK: "github" or "anthropic"
-  // Codex SDK OAuth tokens (for ChatGPT auth mode)
+  mistralApiKey?: string; // Mistral API key (for OpenCode backend)
+  githubCopilotToken?: string; // GitHub PAT with Copilot scope (for Copilot backend auth)
+  model?: string; // e.g. anthropic/claude-sonnet-4-0 or codex-mini-latest:api
+  copilotBackend?: CopilotBackend;
   codexAccessToken?: string;
   codexIdToken?: string;
   codexRefreshToken?: string;
-  // Codex reasoning effort (low, medium, high, minimal, xhigh)
   reasoningEffort?: string;
-  // Ollama URL for local inference (e.g., "http://ollama.netclode.svc.cluster.local:11434")
   ollamaUrl?: string;
-  // OpenCode Zen API key (for paid models; empty/"public" = free tier only)
   openCodeApiKey?: string;
   zaiApiKey?: string;
   githubCopilotOAuthAccessToken?: string;
@@ -43,7 +80,7 @@ export interface SDKConfig {
 }
 
 /**
- * Configuration passed to executePrompt
+ * Configuration passed to prompt execution.
  */
 export interface PromptConfig {
   repos?: string[];
@@ -51,7 +88,27 @@ export interface PromptConfig {
 }
 
 /**
- * Event types emitted during prompt execution
+ * Context for repo-aware helper operations.
+ */
+export interface RepositoryContext {
+  repos?: string[];
+  githubToken?: string;
+}
+
+/**
+ * Normalized git file change shape used by the Netclode runtime.
+ */
+export interface AgentGitFileChange {
+  path: string;
+  status: "modified" | "added" | "deleted" | "renamed" | "copied" | "untracked" | "ignored" | "unmerged";
+  staged: boolean;
+  linesAdded?: number;
+  linesRemoved?: number;
+  repo: string;
+}
+
+/**
+ * Event types emitted during prompt execution.
  */
 export type PromptEvent =
   | { type: "system"; message: string }
@@ -66,42 +123,44 @@ export type PromptEvent =
   | { type: "error"; message: string; retryable: boolean };
 
 /**
- * SDK Adapter interface
- * All SDK implementations must implement this interface
+ * Backend-specific prompt runner. SDKs/providers implement this interface.
  */
-export interface SDKAdapter {
-  /**
-   * Initialize the SDK adapter
-   * Called once when the adapter is created
-   */
-  initialize(config: SDKConfig): Promise<void>;
-
-  /**
-   * Execute a prompt and yield events
-   * @param sessionId - Netclode session ID (for session mapping)
-   * @param text - The prompt text
-   * @param config - Additional configuration (repos, github token)
-   */
+export interface NetclodePromptBackend {
+  readonly capabilities: AgentCapabilities;
+  initialize(config: NetclodeAgentConfig): Promise<void>;
   executePrompt(sessionId: string, text: string, config?: PromptConfig): AsyncGenerator<PromptEvent>;
-
-  /**
-   * Set the interrupt signal to stop prompt execution
-   */
-  setInterruptSignal(): void;
-
-  /**
-   * Clear the interrupt signal
-   */
-  clearInterruptSignal(): void;
-
-  /**
-   * Check if interrupt was requested
-   */
-  isInterrupted(): boolean;
-
-  /**
-   * Shutdown the SDK adapter
-   * Called when the agent is shutting down
-   */
+  interrupt(): Promise<void> | void;
   shutdown(): Promise<void>;
 }
+
+export interface TitleGenerator {
+  generateTitle(prompt: string): Promise<string>;
+}
+
+export interface GitInspector {
+  getGitStatus(context?: RepositoryContext): Promise<AgentGitFileChange[]>;
+  getGitDiff(context?: RepositoryContext, file?: string): Promise<string>;
+}
+
+export interface SessionBootstrapper {
+  initializeSessionRepos(sessionId: string, repos: string[], githubToken?: string): AsyncGenerator<PromptEvent>;
+}
+
+/**
+ * Composed runtime used by the sandbox transport adapter.
+ */
+export interface NetclodeAgent {
+  readonly capabilities: AgentCapabilities;
+  executePrompt(sessionId: string, text: string, config?: PromptConfig): AsyncGenerator<PromptEvent>;
+  interrupt(): Promise<void>;
+  generateTitle(prompt: string): Promise<string>;
+  getGitStatus(context?: RepositoryContext): Promise<AgentGitFileChange[]>;
+  getGitDiff(context?: RepositoryContext, file?: string): Promise<string>;
+  shutdown(): Promise<void>;
+}
+
+/**
+ * Transitional compatibility aliases. Prefer the Netclode* names in new code.
+ */
+export type SDKConfig = NetclodeAgentConfig;
+export type SDKAdapter = NetclodePromptBackend;

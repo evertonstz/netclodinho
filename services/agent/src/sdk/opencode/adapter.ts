@@ -1,13 +1,15 @@
 /**
- * OpenCode SDK Adapter
+ * OpenCode backend
  *
- * Spawns opencode serve and communicates via REST API + SSE events
+ * Spawns opencode serve and communicates via REST API + SSE events.
  */
 
 import { spawn, type ChildProcess } from "node:child_process";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { SDKAdapter, SDKConfig, PromptConfig, PromptEvent } from "../types.js";
+import type { NetclodePromptBackend, SDKConfig, PromptConfig, PromptEvent } from "../types.js";
+import { createAgentCapabilities } from "../types.js";
+import { OpenCodeAuthMaterializer, type BackendAuthMaterializer } from "../auth-materializer.js";
 import {
   createTranslatorState,
   resetTranslatorState,
@@ -17,7 +19,7 @@ import {
 import { getSdkSessionId, registerSession } from "../../services/session.js";
 import { WORKSPACE_DIR } from "../../constants.js";
 import { buildSystemPromptText } from "../../utils/system-prompt.js";
-import { getOpenCodeProvider, isOpenCodeCopilotOAuthMode, logSecretMaterialization } from "../secret-materialization.js";
+import { getOpenCodeProvider } from "../secret-materialization.js";
 const OPENCODE_PORT = 4096;
 const OPENCODE_HOST = "127.0.0.1";
 
@@ -26,7 +28,17 @@ interface OpenCodeServer {
   process: ChildProcess;
 }
 
-export class OpenCodeAdapter implements SDKAdapter {
+export class OpenCodeAdapter implements NetclodePromptBackend {
+  readonly capabilities = createAgentCapabilities({
+    interrupt: true,
+    toolStreaming: true,
+    thinkingStreaming: true,
+  });
+
+  constructor(
+    private readonly authMaterializer: BackendAuthMaterializer = new OpenCodeAuthMaterializer("opencode-backend"),
+  ) {}
+
   private config: SDKConfig | null = null;
   private server: OpenCodeServer | null = null;
   private interruptSignal = false;
@@ -36,49 +48,10 @@ export class OpenCodeAdapter implements SDKAdapter {
   async initialize(config: SDKConfig): Promise<void> {
     this.config = config;
     this.ollamaUrl = config.ollamaUrl || null;
-    console.log("[opencode-adapter] Initializing with model:", config.model, "ollamaUrl:", this.ollamaUrl);
-    logSecretMaterialization("opencode-adapter", config);
+    console.log("[opencode-backend] Initializing with model:", config.model, "ollamaUrl:", this.ollamaUrl);
+    await this.authMaterializer.materialize(config);
 
     await this.startServer();
-  }
-
-  private buildOpencodeAuthContent(): Record<string, unknown> | null {
-    if (!this.config || !isOpenCodeCopilotOAuthMode(this.config)) {
-      return null;
-    }
-
-    const accessToken = this.config.githubCopilotOAuthAccessToken || "";
-    const refreshToken = this.config.githubCopilotOAuthRefreshToken || accessToken;
-    const expires = Number.parseInt(this.config.githubCopilotOAuthTokenExpires || "0", 10) || 0;
-
-    if (!accessToken && !refreshToken) {
-      return null;
-    }
-
-    return {
-      "github-copilot": {
-        type: "oauth",
-        refresh: refreshToken,
-        access: accessToken,
-        expires,
-      },
-    };
-  }
-
-  private async writeOpencodeAuthFile(): Promise<void> {
-    const authContent = this.buildOpencodeAuthContent();
-    if (!authContent) return;
-
-    const authDir = "/agent/.local/share/opencode";
-    const authFile = path.join(authDir, "auth.json");
-
-    try {
-      await fs.mkdir(authDir, { recursive: true });
-      await fs.writeFile(authFile, JSON.stringify(authContent, null, 2), { encoding: "utf-8", mode: 0o600 });
-      console.log("[opencode-adapter] Wrote opencode auth.json for GitHub Copilot OAuth (direct-file mode)");
-    } catch (error) {
-      console.error("[opencode-adapter] Failed to write opencode auth.json:", error);
-    }
   }
 
   private async startServer(): Promise<void> {
@@ -86,8 +59,6 @@ export class OpenCodeAdapter implements SDKAdapter {
       console.log("[opencode-adapter] Server already running at", this.server.url);
       return;
     }
-
-    await this.writeOpencodeAuthFile();
 
     const startTime = Date.now();
     console.log("[opencode-adapter] Starting opencode serve...");
@@ -482,7 +453,11 @@ export class OpenCodeAdapter implements SDKAdapter {
 
   setInterruptSignal(): void {
     this.interruptSignal = true;
-    console.log("[opencode-adapter] Interrupt signal set");
+    console.log("[opencode-backend] Interrupt signal set");
+  }
+
+  async interrupt(): Promise<void> {
+    this.setInterruptSignal();
   }
 
   clearInterruptSignal(): void {
@@ -495,7 +470,7 @@ export class OpenCodeAdapter implements SDKAdapter {
   }
 
   async shutdown(): Promise<void> {
-    console.log("[opencode-adapter] Shutting down...");
+    console.log("[opencode-backend] Shutting down...");
 
     if (this.server) {
       this.server.process.kill();

@@ -1,5 +1,5 @@
 /**
- * GitHub Copilot SDK Adapter
+ * GitHub Copilot backend
  *
  * Uses @github/copilot-sdk to communicate with GitHub Copilot or Anthropic.
  *
@@ -20,7 +20,9 @@
  */
 
 import { CopilotClient, type CopilotSession, type SessionEvent } from "@github/copilot-sdk";
-import type { SDKAdapter, SDKConfig, PromptConfig, PromptEvent, CopilotBackend } from "../types.js";
+import type { NetclodePromptBackend, SDKConfig, PromptConfig, PromptEvent, CopilotBackend } from "../types.js";
+import { createAgentCapabilities } from "../types.js";
+import { NoopAuthMaterializer, type BackendAuthMaterializer } from "../auth-materializer.js";
 import {
   createTranslatorState,
   resetTranslatorState,
@@ -32,9 +34,18 @@ import {
 import { getSdkSessionId, registerSession } from "../../services/session.js";
 import { WORKSPACE_DIR } from "../../constants.js";
 import { buildSystemPromptText } from "../../utils/system-prompt.js";
-import { logSecretMaterialization } from "../secret-materialization.js";
 
-export class CopilotAdapter implements SDKAdapter {
+export class CopilotAdapter implements NetclodePromptBackend {
+  readonly capabilities = createAgentCapabilities({
+    interrupt: true,
+    toolStreaming: true,
+    thinkingStreaming: false,
+  });
+
+  constructor(
+    private readonly authMaterializer: BackendAuthMaterializer = new NoopAuthMaterializer("copilot-backend"),
+  ) {}
+
   private config: SDKConfig | null = null;
   private client: CopilotClient | null = null;
   private interruptSignal = false;
@@ -58,7 +69,7 @@ export class CopilotAdapter implements SDKAdapter {
     console.log("[copilot-adapter] Model:", config.model || "default");
     console.log("[copilot-adapter] GitHub Copilot token available:", Boolean(config.githubCopilotToken));
     console.log("[copilot-adapter] Anthropic API key available:", Boolean(config.anthropicApiKey));
-    logSecretMaterialization("copilot-adapter", config);
+    await this.authMaterializer.materialize(config);
 
     // Build environment for the client
     const clientEnv: Record<string, string | undefined> = {
@@ -261,7 +272,11 @@ export class CopilotAdapter implements SDKAdapter {
 
   setInterruptSignal(): void {
     this.interruptSignal = true;
-    console.log("[copilot-adapter] Interrupt signal set");
+    console.log("[copilot-backend] Interrupt signal set");
+  }
+
+  async interrupt(): Promise<void> {
+    this.setInterruptSignal();
   }
 
   clearInterruptSignal(): void {
@@ -274,7 +289,7 @@ export class CopilotAdapter implements SDKAdapter {
   }
 
   async shutdown(): Promise<void> {
-    console.log("[copilot-adapter] Shutting down...");
+    console.log("[copilot-backend] Shutting down...");
 
     if (this.client) {
       try {

@@ -130,36 +130,37 @@ Terminal input/output flows through the same bidirectional stream as prompts. Mu
 
 Available at `GET /health` for k8s probes.
 
-## SDK Adapters
+## Backend Runtime Layer
 
-The agent supports multiple AI SDK backends. Users select which SDK to use when creating a session.
+The agent supports multiple AI backends. Users select which backend to use when creating a session.
 
-### How SDK routing works
+### How backend routing works
 
-When the agent registers with the control plane, it receives a `SessionConfig` containing `sdk_type`. The agent uses a factory pattern to instantiate the correct adapter:
+When the agent registers with the control plane, it receives a `SessionConfig` containing `sdk_type`. The agent uses a backend factory to instantiate the correct prompt backend and compose it with shared runtime services:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                              connect-client.ts                               │
-│                                                                              │
-│  1. Agent connects to control plane                                          │
-│  2. Receives SessionConfig with sdk_type, model, credentials                 │
-│  3. Calls createSDKAdapter(config)                                           │
-│  4. On executePrompt: iterates adapter.executePrompt() → streams events      │
+│                              connect-client.ts                              │
+│                                                                             │
+│  1. Agent connects to control plane                                         │
+│  2. Receives SessionConfig with sdk_type, model, credentials                │
+│  3. Calls createNetclodeAgent(config)                                       │
+│  4. On executePrompt: iterates runtime.executePrompt() → streams events     │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                              sdk/factory.ts                                  │
-│                                                                              │
-│  switch (config.sdkType) {                                                   │
-│    case "opencode": adapter = new OpenCodeAdapter(); break;                  │
-│    case "copilot":  adapter = new CopilotAdapter();  break;                  │
-│    case "codex":    adapter = new CodexAdapter();    break;                  │
-│    case "claude":                                                            │
-│    default:         adapter = new ClaudeSDKAdapter(); break;                 │
-│  }                                                                           │
-│  await adapter.initialize(config);                                           │
+│                              sdk/factory.ts                                 │
+│                                                                             │
+│  switch (config.sdkType) {                                                  │
+│    case "opencode": backend = new OpenCodeAdapter(); break;                │
+│    case "copilot":  backend = new CopilotAdapter();  break;                │
+│    case "codex":    backend = new CodexAdapter();    break;                │
+│    case "claude":                                                           │
+│    default:         backend = new ClaudeSDKAdapter(); break;                │
+│  }                                                                          │
+│  await backend.initialize(config);                                          │
+│  return new ComposedNetclodeAgent(backend, sharedServices)                  │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     │
                     ┌───────────────┼───────────────┬───────────────┐

@@ -1,58 +1,72 @@
 /**
- * SDK Adapter Factory
+ * Netclode backend factory.
  *
- * Creates the appropriate SDK adapter based on configuration.
+ * Creates provider-backed prompt backends and composes them into the runtime
+ * used by the sandbox transport layer.
  */
 
-import type { SDKAdapter, SDKConfig, SdkType } from "./types.js";
+import type { NetclodeAgent, NetclodeAgentConfig, NetclodePromptBackend, SdkType } from "./types.js";
 import { ClaudeSDKAdapter } from "./claude/index.js";
 import { OpenCodeAdapter } from "./opencode/index.js";
 import { CopilotAdapter } from "./copilot/index.js";
 import { CodexAdapter } from "./codex/index.js";
+import {
+  ComposedNetclodeAgent,
+  createGitInspector,
+  createSessionBootstrapper,
+  createTitleGenerator,
+  type NetclodeAgentDependencies,
+} from "./runtime.js";
 
-// Singleton adapters per SDK type
-const adapterInstances: Map<SdkType, SDKAdapter> = new Map();
+export type PromptBackendFactory = () => NetclodePromptBackend;
 
-/**
- * Create or get an SDK adapter instance
- * Adapters are singletons per SDK type
- */
-export async function createSDKAdapter(config: SDKConfig): Promise<SDKAdapter> {
-  const existing = adapterInstances.get(config.sdkType);
-  if (existing) {
-    return existing;
-  }
+export interface NetclodeAgentFactoryDependencies extends NetclodeAgentDependencies {
+  backendFactories?: Partial<Record<SdkType, PromptBackendFactory>>;
+}
 
-  let adapter: SDKAdapter;
+const defaultBackendFactories: Record<SdkType, PromptBackendFactory> = {
+  claude: () => new ClaudeSDKAdapter(),
+  opencode: () => new OpenCodeAdapter(),
+  copilot: () => new CopilotAdapter(),
+  codex: () => new CodexAdapter(),
+};
 
-  switch (config.sdkType) {
-    case "opencode":
-      console.log("[sdk-factory] Creating OpenCode adapter");
-      adapter = new OpenCodeAdapter();
-      break;
-    case "copilot":
-      console.log("[sdk-factory] Creating Copilot adapter");
-      adapter = new CopilotAdapter();
-      break;
-    case "codex":
-      console.log("[sdk-factory] Creating Codex adapter");
-      adapter = new CodexAdapter();
-      break;
-    case "claude":
-    default:
-      console.log("[sdk-factory] Creating Claude SDK adapter");
-      adapter = new ClaudeSDKAdapter();
-      break;
-  }
+function resolveBackendFactory(
+  sdkType: SdkType,
+  dependencies: NetclodeAgentFactoryDependencies = {},
+): PromptBackendFactory {
+  return dependencies.backendFactories?.[sdkType] ?? defaultBackendFactories[sdkType] ?? defaultBackendFactories.claude;
+}
 
-  await adapter.initialize(config);
-  adapterInstances.set(config.sdkType, adapter);
+export function createPromptBackend(
+  sdkType: SdkType,
+  dependencies: NetclodeAgentFactoryDependencies = {},
+): NetclodePromptBackend {
+  return resolveBackendFactory(sdkType, dependencies)();
+}
 
-  return adapter;
+export async function createNetclodeAgent(
+  config: NetclodeAgentConfig,
+  dependencies: NetclodeAgentFactoryDependencies = {},
+): Promise<NetclodeAgent> {
+  const backend = createPromptBackend(config.sdkType, dependencies);
+  await backend.initialize(config);
+
+  return new ComposedNetclodeAgent(backend, {
+    titleGenerator: dependencies.titleGenerator ?? createTitleGenerator(),
+    gitInspector: dependencies.gitInspector ?? createGitInspector(config.workspaceDir),
+    sessionBootstrapper: dependencies.sessionBootstrapper ?? createSessionBootstrapper(),
+  });
+}
+
+export function createNetclodeAgentFactory(
+  dependencies: NetclodeAgentFactoryDependencies = {},
+): (config: NetclodeAgentConfig) => Promise<NetclodeAgent> {
+  return (config: NetclodeAgentConfig) => createNetclodeAgent(config, dependencies);
 }
 
 /**
- * Get SDK type from proto enum string
+ * Get SDK type from proto enum string.
  */
 export function parseSdkType(sdkTypeStr: string | undefined): SdkType {
   if (!sdkTypeStr) return "claude";
@@ -79,19 +93,7 @@ export function parseSdkType(sdkTypeStr: string | undefined): SdkType {
 }
 
 /**
- * Get the current SDK adapter (if initialized)
+ * Transitional compatibility helpers. Prefer createNetclodeAgent in new code.
  */
-export function getAdapter(sdkType: SdkType): SDKAdapter | undefined {
-  return adapterInstances.get(sdkType);
-}
-
-/**
- * Shutdown all adapters (called on agent shutdown)
- */
-export async function shutdownAllAdapters(): Promise<void> {
-  for (const [sdkType, adapter] of adapterInstances) {
-    console.log(`[sdk-factory] Shutting down ${sdkType} adapter`);
-    await adapter.shutdown();
-  }
-  adapterInstances.clear();
-}
+export const createSDKAdapter = createNetclodeAgent;
+export const createSDKAdapterFactory = createNetclodeAgentFactory;

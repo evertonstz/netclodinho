@@ -1,11 +1,22 @@
 /**
- * SDK Abstraction Layer
+ * Netclode agent backend layer.
  *
- * Provides a unified interface for different AI SDK backends.
+ * Transport-facing code should depend on the Netclode-owned runtime/backend
+ * contract defined here rather than vendor SDK concepts.
  */
 
 // Types
 export type {
+  AgentCapabilities,
+  AgentCapabilityName,
+  AgentGitFileChange,
+  NetclodeAgent,
+  NetclodeAgentConfig,
+  NetclodePromptBackend,
+  TitleGenerator,
+  GitInspector,
+  SessionBootstrapper,
+  RepositoryContext,
   SDKAdapter,
   SDKConfig,
   PromptConfig,
@@ -13,13 +24,30 @@ export type {
   SdkType,
   CopilotBackend,
 } from "./types.js";
+export {
+  DEFAULT_AGENT_CAPABILITIES,
+  UnsupportedAgentCapabilityError,
+  createAgentCapabilities,
+} from "./types.js";
+
+// Runtime composition
+export {
+  ComposedNetclodeAgent,
+  createGitInspector,
+  createSessionBootstrapper,
+  createTitleGenerator,
+  type NetclodeAgentDependencies,
+  type GitInspectorDependencies,
+} from "./runtime.js";
 
 // Factory
 export {
+  createNetclodeAgent,
+  createNetclodeAgentFactory,
+  createPromptBackend,
   createSDKAdapter,
+  createSDKAdapterFactory,
   parseSdkType,
-  getAdapter,
-  shutdownAllAdapters,
 } from "./factory.js";
 
 // Adapters
@@ -49,3 +77,13 @@ export {
   type SecretMaterializationDecision,
   type SecretMaterializationMode,
 } from "./secret-materialization.js";
+
+export {
+  buildOpenCodeAuthContent,
+  buildCodexAuthContent,
+  NoopAuthMaterializer,
+  OpenCodeAuthMaterializer,
+  CodexAuthMaterializer,
+  type BackendAuthMaterializer,
+  type AuthFileWriter,
+} from "./auth-materializer.js";
