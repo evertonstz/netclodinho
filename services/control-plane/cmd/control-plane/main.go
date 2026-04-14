@@ -13,6 +13,7 @@ import (
 	"github.com/DataDog/dd-trace-go/v2/profiler"
 
 	"github.com/angristan/netclode/services/control-plane/internal/api"
+	"github.com/angristan/netclode/services/control-plane/internal/boxlite"
 	"github.com/angristan/netclode/services/control-plane/internal/config"
 	"github.com/angristan/netclode/services/control-plane/internal/github"
 	"github.com/angristan/netclode/services/control-plane/internal/k8s"
@@ -68,6 +69,7 @@ func run() error {
 		"agentImage", cfg.AgentImage,
 		"redisURL", storage.ParseRedisURL(cfg.RedisURL),
 		"idleTimeout", cfg.IdleTimeout,
+		"runtimeMode", cfg.RuntimeMode,
 	)
 
 	// Initialize Redis storage
@@ -80,15 +82,39 @@ func run() error {
 		store.Close()
 	}()
 
-	// Initialize Kubernetes runtime with informers
-	k8sRuntime, err := k8s.NewRuntime(cfg)
-	if err != nil {
-		return fmt.Errorf("init k8s: %w", err)
+	// Create session manager (needed before Docker runtime to satisfy TokenIssuer).
+	manager := session.NewManager(store, nil, cfg, nil) // runtime injected below
+
+	// Initialize runtime: Docker or Kubernetes.
+	var runtime k8s.Runtime
+	if cfg.IsDockerMode() {
+		slog.Info("Runtime mode: docker (boxlite)")
+		// Force warm pool off in Docker/Boxlite mode.
+		cfg.UseWarmPool = false
+		boxliteRuntime, err := boxlite.NewRuntime(cfg, manager)
+		if err != nil {
+			return fmt.Errorf("init boxlite runtime: %w", err)
+		}
+		defer func() {
+			slog.Info("Closing Boxlite runtime")
+			boxliteRuntime.Close()
+		}()
+		runtime = boxliteRuntime
+	} else {
+		slog.Info("Runtime mode: kubernetes")
+		k8sRuntime, err := k8s.NewRuntime(cfg)
+		if err != nil {
+			return fmt.Errorf("init k8s: %w", err)
+		}
+		defer func() {
+			slog.Info("Stopping K8s informer")
+			k8sRuntime.Close()
+		}()
+		runtime = k8sRuntime
 	}
-	defer func() {
-		slog.Info("Stopping K8s informer")
-		k8sRuntime.Close()
-	}()
+
+	// Inject the runtime into the manager now that it's ready.
+	manager.SetRuntime(runtime)
 
 	// Initialize GitHub client (nil if not configured)
 	var githubClient *github.Client
@@ -102,8 +128,9 @@ func run() error {
 		}
 	}
 
-	// Create session manager
-	manager := session.NewManager(store, k8sRuntime, cfg, githubClient)
+	// Set GitHub client on manager.
+	manager.SetGitHubClient(githubClient)
+
 	defer func() {
 		slog.Info("Closing session manager")
 		manager.Close()

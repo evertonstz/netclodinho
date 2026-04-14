@@ -11,6 +11,7 @@ require (
 	github.com/DataDog/dd-trace-go/contrib/redis/go-redis.v9/v2 v2.6.0
 	github.com/DataDog/dd-trace-go/v2 v2.6.0
 	github.com/alicebob/miniredis/v2 v2.36.1
+	github.com/boxlite-ai/boxlite/sdks/go v0.8.2
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/redis/go-redis/v9 v9.17.3
@@ -127,3 +128,5 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.0 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
+
+replace github.com/boxlite-ai/boxlite/sdks/go => ./third_party/boxlite-go-sdk

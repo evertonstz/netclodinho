@@ -450,7 +450,7 @@ func (c *ConnectConnection) handleSessionCreate(ctx context.Context, req *pb.Cre
 		return err
 	}
 
-	if err := c.subscribe(ctx, sess.Id, "$"); err != nil {
+	if err := c.subscribe(ctx, sess.Id, "0"); err != nil {
 		slog.Warn("Failed to subscribe to new session", "sessionID", sess.Id, "error", err)
 	}
 

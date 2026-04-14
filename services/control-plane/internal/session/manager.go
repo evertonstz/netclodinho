@@ -2,6 +2,8 @@ package session
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -79,6 +81,10 @@ type Manager struct {
 	pendingAssignments map[string]string              // podName -> sessionID (for when agent registers late)
 	mu                 sync.RWMutex
 
+	// Docker mode: per-session tokens for agent authentication (replaces K8s SA tokens)
+	dockerTokens   map[string]string // token -> sessionID
+	dockerTokensMu sync.Mutex
+
 	// onSessionUpdated is called when a session is updated internally (e.g., auto-pause).
 	onSessionUpdated SessionUpdateCallback
 
@@ -98,7 +104,19 @@ func NewManager(store storage.Storage, k8sRuntime k8s.Runtime, cfg *config.Confi
 		agents:             make(map[string]AgentConnection),
 		warmAgents:         make(map[string]WarmAgentConnection),
 		pendingAssignments: make(map[string]string),
+		dockerTokens:       make(map[string]string),
 	}
+}
+
+// SetRuntime injects the runtime after construction (used in main.go when Docker runtime
+// needs the manager as a TokenIssuer before the runtime is built).
+func (m *Manager) SetRuntime(runtime k8s.Runtime) {
+	m.k8s = runtime
+}
+
+// SetGitHubClient injects the GitHub client after construction.
+func (m *Manager) SetGitHubClient(client *github.Client) {
+	m.githubClient = client
 }
 
 // createRepoToken generates a GitHub token scoped to the specific repos with the given access level.
@@ -393,8 +411,14 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 	if len(restoreSnapshotID) > 0 {
 		snapID = restoreSnapshotID[0]
 	}
+	sdkType := pb.SdkType_SDK_TYPE_CLAUDE
+	if state := m.getOrLoadState(ctx, sessionID); state != nil && state.Session.SdkType != nil {
+		sdkType = *state.Session.SdkType
+	}
+
 	env := map[string]string{
 		"SESSION_ID":        sessionID,
+		"SDK_TYPE":          sdkType.String(),
 		"ANTHROPIC_API_KEY": m.config.AnthropicAPIKey,
 	}
 
@@ -1752,8 +1776,8 @@ func (m *Manager) GetSessionConfig(ctx context.Context, sessionID string) (*Agen
 					}
 				}
 
-				// For OAuth mode, send tokens (written to ~/.codex/auth.json, can't be proxied).
-				// API mode uses OPENAI_API_KEY placeholder env var, proxied by secret-proxy.
+				// For OAuth mode, send tokens (written to ~/.codex/auth.json in the guest).
+				// API mode continues to use OPENAI_API_KEY placeholder env handling.
 				if authMode == "oauth" {
 					config.CodexAccessToken = m.config.CodexAccessToken
 					config.CodexIdToken = m.config.CodexIdToken
@@ -2047,6 +2071,10 @@ func (m *Manager) RegisterAgentConnection(sessionID string, conn AgentConnection
 
 	slog.Info("Agent connection registered", "sessionID", sessionID, "wasInterrupted", wasInterrupted, "isRunning", isRunning, "hasPendingPrompt", pendingPrompt != "")
 
+	// Signal the runtime that the agent is connected and ready.
+	// For BoxLite this unblocks WaitForReady; for K8s this is a no-op.
+	m.k8s.NotifyAgentReady(sessionID)
+
 	ctx := context.Background()
 
 	// If session was interrupted, emit reconnect event (status stays interrupted until user sends prompt)
@@ -2194,20 +2222,34 @@ type ProxyAuthResult struct {
 }
 
 // ValidateProxyAuth validates a proxy authentication request.
-// It validates the Kubernetes ServiceAccount token and checks if the target host is allowed.
-// The token is cryptographically verified via TokenReview API.
+// It supports two token formats:
+//   - JWT (contains ".") → K8s TokenReview (existing path)
+//   - Opaque hex (no ".") → Docker session token lookup (non-destructive)
 func (m *Manager) ValidateProxyAuth(ctx context.Context, token, targetHost string) (*ProxyAuthResult, error) {
-	// Verify the ServiceAccount token with "secret-proxy" audience
-	// The proxy-auth projected token uses this specific audience
-	podName, err := m.k8s.VerifyAgentToken(ctx, token, []string{"secret-proxy"})
-	if err != nil {
-		return nil, fmt.Errorf("token verification failed: %w", err)
-	}
+	var sessionID string
 
-	// Look up session by pod name
-	sessionID, err := m.k8s.GetSessionIDByPodName(ctx, podName)
-	if err != nil {
-		return nil, fmt.Errorf("session not found for pod %s: %w", podName, err)
+	if strings.Contains(token, ".") {
+		// K8s mode: verify via TokenReview with "secret-proxy" audience.
+		podName, err := m.k8s.VerifyAgentToken(ctx, token, []string{"secret-proxy"})
+		if err != nil {
+			return nil, fmt.Errorf("token verification failed: %w", err)
+		}
+		var lookupErr error
+		sessionID, lookupErr = m.k8s.GetSessionIDByPodName(ctx, podName)
+		if lookupErr != nil {
+			return nil, fmt.Errorf("session not found for pod %s: %w", podName, lookupErr)
+		}
+	} else {
+		// Docker mode: non-destructive lookup (secret-proxy may call this repeatedly).
+		var ok bool
+		sessionID, ok = m.LookupDockerToken(token)
+		if !ok {
+			slog.WarnContext(ctx, "ValidateProxyAuth: unknown Docker session token",
+				"targetHost", targetHost,
+				"tokenLen", len(token),
+			)
+			return nil, fmt.Errorf("unknown session token")
+		}
 	}
 
 	// Get session state to determine SDK type
@@ -2221,7 +2263,6 @@ func (m *Manager) ValidateProxyAuth(ctx context.Context, token, targetHost strin
 		state = &SessionState{Session: session}
 		slog.InfoContext(ctx, "ValidateProxyAuth: loaded session from storage (not in memory)",
 			"sessionID", sessionID,
-			"podName", podName,
 			"targetHost", targetHost,
 		)
 	}
@@ -2237,7 +2278,6 @@ func (m *Manager) ValidateProxyAuth(ctx context.Context, token, targetHost strin
 	if secretKey == "" {
 		slog.WarnContext(ctx, "ValidateProxyAuth: host not in allowlist",
 			"sessionID", sessionID,
-			"podName", podName,
 			"targetHost", targetHost,
 			"sdkType", sdkType.String(),
 		)
@@ -2249,7 +2289,6 @@ func (m *Manager) ValidateProxyAuth(ctx context.Context, token, targetHost strin
 
 	slog.DebugContext(ctx, "ValidateProxyAuth: allowed",
 		"sessionID", sessionID,
-		"podName", podName,
 		"targetHost", targetHost,
 		"secretKey", secretKey,
 	)
@@ -2302,8 +2341,7 @@ func (m *Manager) getAllowedSecretForHost(sdkType pb.SdkType, host string) (secr
 
 	case pb.SdkType_SDK_TYPE_CODEX:
 		allowedMappings = []hostMapping{
-			// Codex API mode: agent sends OPENAI_API_KEY placeholder, proxy injects OAuth access token
-			// (OpenAI API accepts OAuth tokens as Bearer tokens)
+			// Codex API mode uses the OPENAI_API_KEY placeholder path for outbound OpenAI requests.
 			{hosts: []string{"api.openai.com"}, secretKey: "codex_access", placeholder: "NETCLODE_PLACEHOLDER_openai"},
 		}
 
@@ -3396,4 +3434,57 @@ func (m *Manager) GetResourceLimits() *pb.ResourceLimitsResponse {
 		DefaultVcpus:    int32(m.config.DefaultCPUs),
 		DefaultMemoryMb: int32(m.config.DefaultMemoryMB),
 	}
+}
+
+// ── Docker-mode agent authentication ─────────────────────────────────────────
+
+// IssueDockerToken generates a cryptographically random 32-byte hex token for
+// a session, stores the token→sessionID mapping, and returns the token.
+// The token is injected into the agent container's environment as AGENT_SESSION_TOKEN.
+func (m *Manager) IssueDockerToken(sessionID string) string {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		// Should never happen; panic would be catastrophic so fall back to uuid.
+		slog.Error("IssueDockerToken: failed to read random bytes", "error", err)
+		return uuid.New().String()
+	}
+	token := hex.EncodeToString(b)
+	m.dockerTokensMu.Lock()
+	m.dockerTokens[token] = sessionID
+	m.dockerTokensMu.Unlock()
+	return token
+}
+
+// RedeemDockerToken looks up and removes the token (single-use) and returns the
+// associated sessionID. Used during agent registration — the token is consumed
+// so it cannot be replayed.
+func (m *Manager) RedeemDockerToken(token string) (sessionID string, ok bool) {
+	m.dockerTokensMu.Lock()
+	defer m.dockerTokensMu.Unlock()
+	sessionID, ok = m.dockerTokens[token]
+	if ok {
+		delete(m.dockerTokens, token)
+	}
+	return sessionID, ok
+}
+
+// LookupDockerToken returns the sessionID for a token without consuming it.
+// Used by secret-proxy validation which may be called repeatedly per session.
+func (m *Manager) LookupDockerToken(token string) (sessionID string, ok bool) {
+	m.dockerTokensMu.Lock()
+	defer m.dockerTokensMu.Unlock()
+	sessionID, ok = m.dockerTokens[token]
+	return sessionID, ok
+}
+
+// RevokeDockerToken removes the token from the map. Called when the session ends.
+func (m *Manager) RevokeDockerToken(token string) {
+	m.dockerTokensMu.Lock()
+	delete(m.dockerTokens, token)
+	m.dockerTokensMu.Unlock()
+}
+
+// Config returns the manager's configuration (read-only).
+func (m *Manager) Config() *config.Config {
+	return m.config
 }

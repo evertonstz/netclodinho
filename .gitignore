@@ -2,6 +2,10 @@
 node_modules/
 .pnpm-store/
 
+clients/tui/
+openspec/
+.pi/
+
 # Build outputs
 dist/
 build/
@@ -56,3 +60,4 @@ secrets/
 
 .opencode/plans/
 .claude/skills/
+

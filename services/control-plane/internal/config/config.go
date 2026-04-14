@@ -55,6 +55,17 @@ type Config struct {
 
 	// Z.AI (optional)
 	ZaiAPIKey string // Z.AI API key (for GLM-4.7 models via Anthropic-compatible endpoint)
+
+	// Runtime mode: "kubernetes" (default) or "docker"
+	RuntimeMode string
+
+	// Boxlite runtime settings (only used when RuntimeMode == "docker")
+	BoxliteHomeDir              string // BoxLite home directory for the embedded runtime
+	BoxliteWorkspaceRoot        string // Host path for workspace directories, default /var/lib/netclode/workspaces
+	BoxliteAgentCPURL           string // URL agents inside Boxlite VMs use to reach control-plane
+	BoxlitePersistentDiskSizeGB int    // Per-session persistent disk size in GB (0 = disabled)
+	BoxliteSnapshotRetention    int    // Number of snapshots to retain per session (default 5)
+	BoxliteStartupLogRetention  int    // Number of agent startup logs to retain per session (default 5)
 }
 
 func Load() *Config {
@@ -100,6 +111,17 @@ func Load() *Config {
 
 		// Z.AI
 		ZaiAPIKey: getEnv("ZAI_API_KEY", ""),
+
+		// Runtime mode
+		RuntimeMode: getEnv("RUNTIME_MODE", "kubernetes"),
+
+		// Boxlite runtime settings
+		BoxliteHomeDir:              getEnv("BOXLITE_HOME_DIR", ""),
+		BoxliteWorkspaceRoot:        getEnv("BOXLITE_WORKSPACE_ROOT", "/var/lib/netclode/workspaces"),
+		BoxliteAgentCPURL:           getEnv("BOXLITE_AGENT_CP_URL", ""),
+		BoxlitePersistentDiskSizeGB: getEnvInt("BOXLITE_PERSISTENT_DISK_SIZE_GB", 0), // 0 = disabled
+		BoxliteSnapshotRetention:    getEnvInt("BOXLITE_SNAPSHOT_RETENTION", 5),      // keep last 5 snapshots
+		BoxliteStartupLogRetention:  getEnvInt("BOXLITE_STARTUP_LOG_RETENTION", 5),   // keep last 5 startup logs
 	}
 }
 
@@ -116,6 +138,11 @@ func getGitHubPrivateKey() string {
 	}
 	// Fall back to raw PEM
 	return os.Getenv("GITHUB_APP_PRIVATE_KEY")
+}
+
+// IsDockerMode returns true if the runtime is Boxlite/Docker mode.
+func (c *Config) IsDockerMode() bool {
+	return c.RuntimeMode == "docker"
 }
 
 // HasGitHubApp returns true if GitHub App is configured.

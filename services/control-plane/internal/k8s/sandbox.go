@@ -276,6 +276,10 @@ func (r *k8sRuntime) Close() {
 	close(r.informerStop)
 }
 
+// NotifyAgentReady is a no-op for the K8s runtime — readiness is determined
+// by pod/sandbox state, not by the agent gRPC connection.
+func (r *k8sRuntime) NotifyAgentReady(_ string) {}
+
 func sandboxName(sessionID string) string {
 	return "sess-" + sessionID
 }

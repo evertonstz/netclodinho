@@ -340,7 +340,9 @@ export async function connectToControlPlane(
     }
   };
 
-  // Read Kubernetes ServiceAccount token for authentication (required for all modes)
+  // Read authentication token.
+  // K8s mode: read projected ServiceAccount token from the well-known path.
+  // Docker mode: fall back to AGENT_SESSION_TOKEN env var when the SA file is absent.
   const k8sTokenPath = "/var/run/secrets/kubernetes.io/serviceaccount/token";
   let k8sToken: string | undefined;
 
@@ -352,11 +354,22 @@ export async function connectToControlPlane(
       console.error("[agent] Failed to read Kubernetes token:", err);
     }
   } else {
-    console.warn("[agent] Kubernetes token not found at", k8sTokenPath);
+    // Docker mode: use the per-session token injected by the control-plane.
+    const sessionToken = process.env.AGENT_SESSION_TOKEN;
+    if (sessionToken) {
+      k8sToken = sessionToken;
+      console.log("[agent] Authenticating with session token (Docker mode)");
+    } else {
+      console.warn("[agent] Kubernetes token not found at", k8sTokenPath);
+    }
   }
 
   if (!k8sToken) {
-    throw new Error("Kubernetes ServiceAccount token required for authentication");
+    throw new Error(
+      "No authentication token available. " +
+      "In Kubernetes mode the ServiceAccount token must exist at " + k8sTokenPath + ". " +
+      "In Docker mode AGENT_SESSION_TOKEN must be set."
+    );
   }
 
   // Build registration message

@@ -92,20 +92,45 @@ func (h *ConnectAgentServiceHandler) Connect(ctx context.Context, stream *connec
 		return errors.New("k8s_token required for authentication")
 	}
 
-	// Verify the agent's identity using Kubernetes TokenReview API
-	// This prevents rogue agents from impersonating legitimate ones
-	podName, err := h.manager.VerifyAgentToken(ctx, k8sToken)
-	if err != nil {
-		slog.WarnContext(ctx, "Agent token verification failed", "error", err, "version", reg.Version)
-		conn.send(&v1.ControlPlaneMessage{
-			Message: &v1.ControlPlaneMessage_Registered{
-				Registered: &v1.AgentRegistered{
-					Success: false,
-					Error:   strPtr("token verification failed: " + err.Error()),
+	// Authenticate the agent: Docker mode uses an opaque hex token (no dots),
+	// K8s mode uses a JWT ServiceAccount token (contains dots).
+	var podName string
+	if !strings.Contains(k8sToken, ".") {
+		// Docker mode: redeem the single-use session token.
+		var ok bool
+		podName, ok = h.manager.RedeemDockerToken(k8sToken)
+		if !ok {
+			slog.WarnContext(ctx, "Agent Docker token unknown or already redeemed", "version", reg.Version)
+			conn.send(&v1.ControlPlaneMessage{
+				Message: &v1.ControlPlaneMessage_Registered{
+					Registered: &v1.AgentRegistered{
+						Success: false,
+						Error:   strPtr("invalid or expired session token"),
+					},
 				},
-			},
-		})
-		return err
+			})
+			return errors.New("invalid or expired session token")
+		}
+		// BoxLite/Docker mode: the pod name is the session ID itself.
+		// Prefix with "sess-" so it matches the direct-mode naming convention.
+		podName = "sess-" + podName
+		slog.InfoContext(ctx, "Agent authenticated via Docker session token", "sessionID", podName)
+	} else {
+		// K8s mode: verify via TokenReview API.
+		var err error
+		podName, err = h.manager.VerifyAgentToken(ctx, k8sToken)
+		if err != nil {
+			slog.WarnContext(ctx, "Agent token verification failed", "error", err, "version", reg.Version)
+			conn.send(&v1.ControlPlaneMessage{
+				Message: &v1.ControlPlaneMessage_Registered{
+					Registered: &v1.AgentRegistered{
+						Success: false,
+						Error:   strPtr("token verification failed: " + err.Error()),
+					},
+				},
+			})
+			return err
+		}
 	}
 
 	// Warm pool mode: no session_id, agent waits for SessionAssigned message
@@ -207,29 +232,12 @@ func (h *ConnectAgentServiceHandler) Connect(ctx context.Context, stream *connec
 	if config.Model != "" {
 		sessionConfig.Model = &config.Model
 	}
-	if config.CodexAccessToken != "" {
-		sessionConfig.CodexAccessToken = &config.CodexAccessToken
-	}
-	if config.CodexIdToken != "" {
-		sessionConfig.CodexIdToken = &config.CodexIdToken
-	}
-	if config.CodexRefreshToken != "" {
-		sessionConfig.CodexRefreshToken = &config.CodexRefreshToken
-	}
+	applyAgentSessionSecrets(sessionConfig, config)
 	if config.ReasoningEffort != "" {
 		sessionConfig.ReasoningEffort = &config.ReasoningEffort
 	}
 	if config.OllamaURL != "" {
 		sessionConfig.OllamaUrl = &config.OllamaURL
-	}
-	if config.GitHubCopilotOAuthAccessToken != "" {
-		sessionConfig.GithubCopilotOauthAccessToken = &config.GitHubCopilotOAuthAccessToken
-	}
-	if config.GitHubCopilotOAuthRefreshToken != "" {
-		sessionConfig.GithubCopilotOauthRefreshToken = &config.GitHubCopilotOAuthRefreshToken
-	}
-	if config.GitHubCopilotOAuthTokenExpires != "" {
-		sessionConfig.GithubCopilotOauthTokenExpires = &config.GitHubCopilotOAuthTokenExpires
 	}
 
 	if err := conn.send(&v1.ControlPlaneMessage{
@@ -511,29 +519,12 @@ func (c *AgentConnection) AssignSession(sessionID string, config *session.AgentS
 	if config.Model != "" {
 		sessionConfig.Model = &config.Model
 	}
-	if config.CodexAccessToken != "" {
-		sessionConfig.CodexAccessToken = &config.CodexAccessToken
-	}
-	if config.CodexIdToken != "" {
-		sessionConfig.CodexIdToken = &config.CodexIdToken
-	}
-	if config.CodexRefreshToken != "" {
-		sessionConfig.CodexRefreshToken = &config.CodexRefreshToken
-	}
+	applyAgentSessionSecrets(sessionConfig, config)
 	if config.ReasoningEffort != "" {
 		sessionConfig.ReasoningEffort = &config.ReasoningEffort
 	}
 	if config.OllamaURL != "" {
 		sessionConfig.OllamaUrl = &config.OllamaURL
-	}
-	if config.GitHubCopilotOAuthAccessToken != "" {
-		sessionConfig.GithubCopilotOauthAccessToken = &config.GitHubCopilotOAuthAccessToken
-	}
-	if config.GitHubCopilotOAuthRefreshToken != "" {
-		sessionConfig.GithubCopilotOauthRefreshToken = &config.GitHubCopilotOAuthRefreshToken
-	}
-	if config.GitHubCopilotOAuthTokenExpires != "" {
-		sessionConfig.GithubCopilotOauthTokenExpires = &config.GitHubCopilotOAuthTokenExpires
 	}
 
 	slog.Info("Pushing session assignment to warm agent", "sessionID", sessionID, "podName", c.podName)
@@ -546,6 +537,27 @@ func (c *AgentConnection) AssignSession(sessionID string, config *session.AgentS
 			},
 		},
 	})
+}
+
+func applyAgentSessionSecrets(sessionConfig *v1.SessionConfig, config *session.AgentSessionConfig) {
+	if config.CodexAccessToken != "" {
+		sessionConfig.CodexAccessToken = &config.CodexAccessToken
+	}
+	if config.CodexIdToken != "" {
+		sessionConfig.CodexIdToken = &config.CodexIdToken
+	}
+	if config.CodexRefreshToken != "" {
+		sessionConfig.CodexRefreshToken = &config.CodexRefreshToken
+	}
+	if config.GitHubCopilotOAuthAccessToken != "" {
+		sessionConfig.GithubCopilotOauthAccessToken = &config.GitHubCopilotOAuthAccessToken
+	}
+	if config.GitHubCopilotOAuthRefreshToken != "" {
+		sessionConfig.GithubCopilotOauthRefreshToken = &config.GitHubCopilotOAuthRefreshToken
+	}
+	if config.GitHubCopilotOAuthTokenExpires != "" {
+		sessionConfig.GithubCopilotOauthTokenExpires = &config.GitHubCopilotOAuthTokenExpires
+	}
 }
 
 func strPtr(s string) *string {

@@ -1,9 +1,0 @@
-# Tailscale Kubernetes Operator
-# https://tailscale.com/kb/1185/kubernetes
-#
-# Prerequisites:
-# 1. Create OAuth client at https://login.tailscale.com/admin/settings/oauth
-#    - Grant "Devices: Write" scope
-# 2. Add TS_OAUTH_CLIENT_ID and TS_OAUTH_CLIENT_SECRET to .env
-#
-# Deployed via Helm in infra/ansible/roles/tailscale-operator/

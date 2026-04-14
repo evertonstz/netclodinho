@@ -1,0 +1,2 @@
+# Keep the vendored BoxLite source, but don't send the large native archive
+third_party/boxlite-go-sdk/libboxlite.a

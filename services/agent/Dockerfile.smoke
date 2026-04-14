@@ -1,0 +1,46 @@
+# Minimal smoke-test agent image for BoxLite validation.
+# Does NOT include Claude/Copilot/OpenCode CLIs — only what's needed
+# for the agent to boot and connect back to the control plane.
+FROM debian:trixie-slim
+
+ARG TARGETARCH=amd64
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    bash curl git ca-certificates sudo \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node 24 (binary tarball — no mise needed)
+RUN ARCH=$([ "$TARGETARCH" = "arm64" ] && echo "arm64" || echo "x64") && \
+    NODE_VERSION=24.0.0 && \
+    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${ARCH}.tar.xz" \
+      -o /tmp/node.tar.xz && \
+    mkdir -p /opt/node && \
+    tar -xJf /tmp/node.tar.xz -C /opt/node --strip-components=1 && \
+    rm /tmp/node.tar.xz
+
+ENV PATH="/opt/node/bin:${PATH}"
+
+# Agent user
+RUN useradd -m -u 1000 -d /agent agent && \
+    echo 'agent ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/agent && \
+    chmod 0440 /etc/sudoers.d/agent && \
+    mkdir -p /agent /opt/agent && \
+    chown -R agent:agent /agent /opt/agent
+
+# Copy pre-built agent bundle + dependencies
+COPY services/agent/dist/agent.js /opt/agent/agent.js
+COPY services/agent/node_modules /opt/agent/node_modules
+RUN chown -R agent:agent /opt/agent
+
+# Copy entrypoint
+COPY services/agent/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+WORKDIR /opt/agent
+
+ENV NODE_ENV=production
+ENV HOME=/agent
+ENV PATH="/opt/node/bin:/usr/local/bin:/usr/bin:/bin"
+
+EXPOSE 3002
+ENTRYPOINT ["/entrypoint.sh"]
