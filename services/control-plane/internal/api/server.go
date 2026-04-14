@@ -84,6 +84,8 @@ func (s *Server) ListenAndServe(ctx context.Context, httpAddr string) error {
 	mux.HandleFunc("GET /health", s.handleHealth)
 	mux.HandleFunc("POST /internal/session/{sessionID}/event", s.handleInternalEvent)
 	mux.HandleFunc("POST /internal/validate-proxy-auth", s.handleValidateProxyAuth)
+	mux.HandleFunc("POST /agent-startup-log", s.handleAgentStartupLog)
+	mux.HandleFunc("GET /internal/session/{sessionID}/startup-logs", s.handleAgentStartupLogGet)
 
 	// Connect services (ClientService for iOS, AgentService for agents)
 	clientHandler := NewConnectClientServiceHandler(s.manager, s)

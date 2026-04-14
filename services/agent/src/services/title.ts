@@ -11,7 +11,7 @@ import { ProxyAgent, fetch as undiciFetch } from "undici";
  */
 const proxyUrl = process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
 const proxyDispatcher = proxyUrl ? new ProxyAgent(proxyUrl) : undefined;
-// Use a proxy-aware fetch so the placeholder key is injected by secret-proxy.
+// Use a proxy-aware fetch so BoxLite/K8s networking can apply the configured secret-handling path.
 const proxyFetch: ClientOptions["fetch"] = proxyDispatcher
   ? (input, init) =>
       undiciFetch(input, { ...(init ?? {}), dispatcher: proxyDispatcher })

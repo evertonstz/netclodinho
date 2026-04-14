@@ -32,6 +32,7 @@ import {
 import { getSdkSessionId, registerSession } from "../../services/session.js";
 import { WORKSPACE_DIR } from "../../constants.js";
 import { buildSystemPromptText } from "../../utils/system-prompt.js";
+import { logSecretMaterialization } from "../secret-materialization.js";
 
 export class CopilotAdapter implements SDKAdapter {
   private config: SDKConfig | null = null;
@@ -57,6 +58,7 @@ export class CopilotAdapter implements SDKAdapter {
     console.log("[copilot-adapter] Model:", config.model || "default");
     console.log("[copilot-adapter] GitHub Copilot token available:", Boolean(config.githubCopilotToken));
     console.log("[copilot-adapter] Anthropic API key available:", Boolean(config.anthropicApiKey));
+    logSecretMaterialization("copilot-adapter", config);
 
     // Build environment for the client
     const clientEnv: Record<string, string | undefined> = {

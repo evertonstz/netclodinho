@@ -1,6 +1,0 @@
----
-# JuiceFS CSI defaults
-juicefs_csi_version: "v0.31.0"
-
-# Kubernetes VolumeSnapshot controller (for session history restore)
-snapshot_controller_version: "v8.2.0"

@@ -34,6 +34,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { WORKSPACE_DIR } from "../../constants.js";
 import { buildSystemPromptText } from "../../utils/system-prompt.js";
+import { isCodexOAuthMode, logSecretMaterialization } from "../secret-materialization.js";
 
 export class CodexAdapter implements SDKAdapter {
   private config: SDKConfig | null = null;
@@ -58,14 +59,14 @@ export class CodexAdapter implements SDKAdapter {
 
     // Determine auth mode from model suffix or available credentials
     const modelHasApiSuffix = config.model?.includes(":api");
-    const modelHasOAuthSuffix = config.model?.includes(":oauth");
-    const isApiMode = modelHasApiSuffix || Boolean(config.openaiApiKey && !config.codexAccessToken);
-    const isOAuthMode = modelHasOAuthSuffix || Boolean(config.codexAccessToken && !config.openaiApiKey);
+    const isOAuthMode = isCodexOAuthMode(config);
+    const isApiMode = modelHasApiSuffix || (!isOAuthMode && Boolean(config.openaiApiKey));
 
     console.log("[codex-adapter] Initializing");
     console.log("[codex-adapter] Model:", this.cleanedModel || "default");
     console.log("[codex-adapter] Auth mode:", isApiMode ? "API key" : isOAuthMode ? "OAuth" : "unknown");
     console.log("[codex-adapter] Reasoning effort:", this.reasoningEffort || "default");
+    logSecretMaterialization("codex-adapter", config);
 
     // Build clean env object without undefined values
     const buildEnv = (overrides: Record<string, string | undefined> = {}): Record<string, string> => {

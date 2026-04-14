@@ -17,6 +17,7 @@ import {
 import { getSdkSessionId, registerSession } from "../../services/session.js";
 import { WORKSPACE_DIR } from "../../constants.js";
 import { buildSystemPromptText } from "../../utils/system-prompt.js";
+import { getOpenCodeProvider, isOpenCodeCopilotOAuthMode, logSecretMaterialization } from "../secret-materialization.js";
 const OPENCODE_PORT = 4096;
 const OPENCODE_HOST = "127.0.0.1";
 
@@ -36,36 +37,45 @@ export class OpenCodeAdapter implements SDKAdapter {
     this.config = config;
     this.ollamaUrl = config.ollamaUrl || null;
     console.log("[opencode-adapter] Initializing with model:", config.model, "ollamaUrl:", this.ollamaUrl);
+    logSecretMaterialization("opencode-adapter", config);
 
     await this.startServer();
   }
 
+  private buildOpencodeAuthContent(): Record<string, unknown> | null {
+    if (!this.config || !isOpenCodeCopilotOAuthMode(this.config)) {
+      return null;
+    }
+
+    const accessToken = this.config.githubCopilotOAuthAccessToken || "";
+    const refreshToken = this.config.githubCopilotOAuthRefreshToken || accessToken;
+    const expires = Number.parseInt(this.config.githubCopilotOAuthTokenExpires || "0", 10) || 0;
+
+    if (!accessToken && !refreshToken) {
+      return null;
+    }
+
+    return {
+      "github-copilot": {
+        type: "oauth",
+        refresh: refreshToken,
+        access: accessToken,
+        expires,
+      },
+    };
+  }
+
   private async writeOpencodeAuthFile(): Promise<void> {
-    const refreshToken = this.config?.githubCopilotOAuthRefreshToken;
-    if (!refreshToken) return;
+    const authContent = this.buildOpencodeAuthContent();
+    if (!authContent) return;
 
     const authDir = "/agent/.local/share/opencode";
     const authFile = path.join(authDir, "auth.json");
 
-    // Write placeholders instead of real tokens so that the secret-proxy can inject
-    // the real OAuth access token into outbound request headers. The placeholder value
-    // matches the one registered in the control-plane allowlist for SDK_TYPE_OPENCODE
-    // (secretKey: "github_copilot_oauth", placeholder: "NETCLODE_PLACEHOLDER_github_copilot_oauth").
-    // When opencode sends "Authorization: Bearer NETCLODE_PLACEHOLDER_github_copilot_oauth" to
-    // api.githubcopilot.com, the secret-proxy replaces the placeholder with the real OAuth token.
-    const authContent = {
-      "github-copilot": {
-        type: "oauth",
-        refresh: "NETCLODE_PLACEHOLDER_github_copilot_oauth",
-        access: "NETCLODE_PLACEHOLDER_github_copilot_oauth",
-        expires: 0,
-      },
-    };
-
     try {
       await fs.mkdir(authDir, { recursive: true });
       await fs.writeFile(authFile, JSON.stringify(authContent, null, 2), { encoding: "utf-8", mode: 0o600 });
-      console.log("[opencode-adapter] Wrote opencode auth.json for GitHub Copilot (OAuth, placeholder tokens)");
+      console.log("[opencode-adapter] Wrote opencode auth.json for GitHub Copilot OAuth (direct-file mode)");
     } catch (error) {
       console.error("[opencode-adapter] Failed to write opencode auth.json:", error);
     }
@@ -86,7 +96,8 @@ export class OpenCodeAdapter implements SDKAdapter {
 
     const model = this.config?.model || "anthropic/claude-sonnet-4-0";
     const thinkingLevel = this.config?.reasoningEffort;
-    const [providerId, modelName] = model.includes("/") ? model.split("/", 2) : ["anthropic", model];
+    const providerId = this.config ? getOpenCodeProvider(this.config) : "anthropic";
+    const [, modelName = model] = model.includes("/") ? model.split("/", 2) : [providerId, model];
     const thinkingBudget = thinkingLevel === "max" ? 32000 : thinkingLevel === "high" ? 16000 : 0;
 
     const isZenModel = providerId === "opencode";

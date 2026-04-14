@@ -66,6 +66,10 @@ type Runtime interface {
 	// If audiences is empty/nil, the token is validated against the default API server audiences.
 	VerifyAgentToken(ctx context.Context, token string, audiences []string) (podName string, err error)
 
+	// NotifyAgentReady signals that the agent for the given session has connected
+	// and is ready. For BoxLite this closes the ready channel; for K8s this is a no-op.
+	NotifyAgentReady(sessionID string)
+
 	Close()
 }
 

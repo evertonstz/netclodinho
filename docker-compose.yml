@@ -1,0 +1,145 @@
+name: netclode
+
+# ─── Deployment overview ──────────────────────────────────────────────────────
+# Services:
+#   tailscale     - Tailscale sidecar; control-plane and github-bot share its network
+#   redis         - Session state storage
+#   control-plane - API server; embeds the BoxLite runtime directly
+#   github-bot    - Optional; enable with --profile github-bot
+#
+# BoxLite v0.8.2 provides box lifecycle, env vars, volumes, exec support,
+# allowlisted networking, and host-side secret substitution via the embedded runtime.
+# In compose mode, simple provider env/header flows use placeholders; file-based
+# OAuth SDKs may still need real auth material inside the guest.
+#
+# Prerequisites:
+#   - KVM-capable host (/dev/kvm must exist)
+#   - Tailscale auth key (TS_AUTHKEY in .env)
+#   - At least one LLM API key (ANTHROPIC_API_KEY in .env)
+#   See infra/docker/README.md for full setup.
+
+services:
+
+  # ── Tailscale ─────────────────────────────────────────────────────────────
+  tailscale:
+    image: ghcr.io/angristan/tailscale:connect-fix
+    hostname: ${TS_HOSTNAME:-netclode}
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY:-}
+      TS_OAUTH_CLIENT_ID: ${TS_OAUTH_CLIENT_ID:-}
+      TS_OAUTH_CLIENT_SECRET: ${TS_OAUTH_CLIENT_SECRET:-}
+      TS_HOSTNAME: ${TS_HOSTNAME:-netclode}
+      TS_EXTRA_ARGS: "--advertise-tags=tag:k8s-operator"
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_USERSPACE: "true"
+    volumes:
+      - tailscale-state:/var/lib/tailscale
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "tailscale", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis ─────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - netclode-redis-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── Control-plane ─────────────────────────────────────────────────────────
+  # Shares Tailscale's network namespace → reachable on the tailnet.
+  # Embeds the BoxLite runtime directly in-process.
+  # Docker Desktop (macOS/Windows): host.docker.internal resolves to the host.
+  control-plane:
+    build:
+      context: ./services/control-plane
+      dockerfile: Dockerfile
+    network_mode: service:tailscale
+    user: "0:0"
+    devices:
+      - /dev/kvm:/dev/kvm
+    depends_on:
+      redis:
+        condition: service_healthy
+      tailscale:
+        condition: service_healthy
+    volumes:
+      - ${BOXLITE_WORKSPACE_ROOT:-/var/lib/netclode/workspaces}:${BOXLITE_WORKSPACE_ROOT:-/var/lib/netclode/workspaces}
+      - boxlite-home:/var/lib/boxlite
+    environment:
+      PORT: "3000"
+      RUNTIME_MODE: docker
+      BOXLITE_HOME_DIR: /var/lib/boxlite
+      BOXLITE_WORKSPACE_ROOT: ${BOXLITE_WORKSPACE_ROOT:-/var/lib/netclode/workspaces}
+      BOXLITE_AGENT_CP_URL: ${BOXLITE_AGENT_CP_URL:-}
+      BOXLITE_PERSISTENT_DISK_SIZE_GB: ${BOXLITE_PERSISTENT_DISK_SIZE_GB:-0}
+      BOXLITE_SNAPSHOT_RETENTION: ${BOXLITE_SNAPSHOT_RETENTION:-5}
+      BOXLITE_STARTUP_LOG_RETENTION: ${BOXLITE_STARTUP_LOG_RETENTION:-5}
+      AGENT_IMAGE: ${AGENT_IMAGE:-ghcr.io/angristan/netclode-agent:latest}
+      REDIS_URL: redis://redis:6379
+      WARM_POOL_ENABLED: "false"
+      MAX_ACTIVE_SESSIONS: ${MAX_ACTIVE_SESSIONS:-5}
+      IDLE_TIMEOUT_MINUTES: ${IDLE_TIMEOUT_MINUTES:-0}
+
+      # LLM API keys — guest-visible placeholders for supported env/header flows.
+      # File-based OAuth SDKs receive their auth material through session config.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      OPENCODE_API_KEY: ${OPENCODE_API_KEY:-}
+      ZAI_API_KEY: ${ZAI_API_KEY:-}
+      GITHUB_COPILOT_TOKEN: ${GITHUB_COPILOT_TOKEN:-}
+      GITHUB_COPILOT_OAUTH_ACCESS_TOKEN: ${GITHUB_COPILOT_OAUTH_ACCESS_TOKEN:-}
+      GITHUB_COPILOT_OAUTH_REFRESH_TOKEN: ${GITHUB_COPILOT_OAUTH_REFRESH_TOKEN:-}
+      GITHUB_COPILOT_OAUTH_TOKEN_EXPIRES: ${GITHUB_COPILOT_OAUTH_TOKEN_EXPIRES:-0}
+      CODEX_ACCESS_TOKEN: ${CODEX_ACCESS_TOKEN:-}
+
+      # GitHub App (optional)
+      GITHUB_APP_ID: ${GITHUB_APP_ID:-}
+      GITHUB_APP_PRIVATE_KEY_B64: ${GITHUB_APP_PRIVATE_KEY_B64:-}
+      GITHUB_INSTALLATION_ID: ${GITHUB_INSTALLATION_ID:-}
+
+      # Ollama (optional)
+      OLLAMA_URL: ${OLLAMA_URL:-}
+
+      # Resource defaults per session
+      DEFAULT_CPUS: ${DEFAULT_CPUS:-4}
+      DEFAULT_MEMORY_MB: ${DEFAULT_MEMORY_MB:-4096}
+    restart: unless-stopped
+
+  # ── GitHub Bot (optional) ─────────────────────────────────────────────────
+  # Enable with: docker compose --profile github-bot up -d
+  github-bot:
+    build:
+      context: .
+      dockerfile: services/github-bot/Dockerfile
+    network_mode: service:tailscale
+    depends_on:
+      tailscale:
+        condition: service_healthy
+    environment:
+      CONTROL_PLANE_URL: http://localhost:3000
+      GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
+      GITHUB_APP_ID: ${GITHUB_APP_ID:-}
+      GITHUB_APP_PRIVATE_KEY_B64: ${GITHUB_APP_PRIVATE_KEY_B64:-}
+      GITHUB_INSTALLATION_ID: ${GITHUB_INSTALLATION_ID:-}
+      PORT: "8082"
+    profiles:
+      - github-bot
+    restart: unless-stopped
+
+volumes:
+  tailscale-state:
+  netclode-redis-data:
+  boxlite-home:

@@ -16,6 +16,7 @@ import {
   type ClaudeMessage,
 } from "./translator.js";
 import { WORKSPACE_DIR } from "../../constants.js";
+import { logSecretMaterialization } from "../secret-materialization.js";
 
 /**
  * Build the system prompt in Claude Agent SDK preset format
@@ -41,6 +42,7 @@ export class ClaudeSDKAdapter implements SDKAdapter {
   async initialize(config: SDKConfig): Promise<void> {
     this.config = config;
     console.log("[claude-adapter] Initialized with workspace:", config.workspaceDir);
+    logSecretMaterialization("claude-adapter", config);
   }
 
   async *executePrompt(sessionId: string, text: string, promptConfig?: PromptConfig): AsyncGenerator<PromptEvent> {

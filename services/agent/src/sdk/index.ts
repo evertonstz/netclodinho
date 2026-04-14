@@ -39,3 +39,13 @@ export {
   calculateDuration,
   TOOL_NAME_MAP,
 } from "./utils/index.js";
+
+export {
+  getSecretMaterializationDecisions,
+  getOpenCodeProvider,
+  isOpenCodeCopilotOAuthMode,
+  isCodexOAuthMode,
+  logSecretMaterialization,
+  type SecretMaterializationDecision,
+  type SecretMaterializationMode,
+} from "./secret-materialization.js";
