@@ -8,15 +8,15 @@ function makeConfig(overrides: Partial<SDKConfig> = {}): SDKConfig {
     workspaceDir: "/workspace",
     anthropicApiKey: "",
     model: "github-copilot/claude-haiku-4.5",
-    githubCopilotOAuthAccessToken: "real-access-token",
-    githubCopilotOAuthRefreshToken: "real-refresh-token",
+    githubCopilotOAuthAccessToken: "NETCLODE_PLACEHOLDER_github_copilot_oauth_access",
+    githubCopilotOAuthRefreshToken: "NETCLODE_PLACEHOLDER_github_copilot_oauth_refresh",
     githubCopilotOAuthTokenExpires: "1234567890",
     ...overrides,
   };
 }
 
 describe("OpenCodeAdapter auth materialization", () => {
-  it("builds auth.json with real Copilot OAuth tokens instead of placeholders", () => {
+  it("builds auth.json with the Copilot OAuth values provided in session config", () => {
     const adapter = new OpenCodeAdapter() as unknown as {
       config: SDKConfig;
       buildOpencodeAuthContent: () => Record<string, unknown> | null;
@@ -27,12 +27,12 @@ describe("OpenCodeAdapter auth materialization", () => {
     expect(authContent).toEqual({
       "github-copilot": {
         type: "oauth",
-        refresh: "real-refresh-token",
-        access: "real-access-token",
+        refresh: "NETCLODE_PLACEHOLDER_github_copilot_oauth_refresh",
+        access: "NETCLODE_PLACEHOLDER_github_copilot_oauth_access",
         expires: 1234567890,
       },
     });
-    expect(JSON.stringify(authContent)).not.toContain("NETCLODE_PLACEHOLDER");
+    expect(JSON.stringify(authContent)).toContain("NETCLODE_PLACEHOLDER_github_copilot_oauth_access");
   });
 
   it("does not build auth.json for non-Copilot OpenCode models", () => {

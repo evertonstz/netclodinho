@@ -69,7 +69,7 @@ export function getSecretMaterializationDecisions(config: SDKConfig): SecretMate
             credential: "github-copilot-oauth",
             mode: "direct-file",
             source: "session-config",
-            reason: "OpenCode GitHub Copilot OAuth persists credentials in auth.json, so BoxLite mode must materialize real OAuth tokens.",
+            reason: "OpenCode GitHub Copilot OAuth persists credentials in auth.json, so the agent writes BoxLite placeholder tokens into the auth file.",
           }];
         }
         return [{

@@ -21,14 +21,14 @@ describe("auth materializers", () => {
     expect(buildOpenCodeAuthContent(baseConfig({
       sdkType: "opencode",
       model: "github-copilot/claude-haiku-4.5",
-      githubCopilotOAuthAccessToken: "access",
-      githubCopilotOAuthRefreshToken: "refresh",
+      githubCopilotOAuthAccessToken: "NETCLODE_PLACEHOLDER_github_copilot_oauth_access",
+      githubCopilotOAuthRefreshToken: "NETCLODE_PLACEHOLDER_github_copilot_oauth_refresh",
       githubCopilotOAuthTokenExpires: "42",
     }))).toEqual({
       "github-copilot": {
         type: "oauth",
-        refresh: "refresh",
-        access: "access",
+        refresh: "NETCLODE_PLACEHOLDER_github_copilot_oauth_refresh",
+        access: "NETCLODE_PLACEHOLDER_github_copilot_oauth_access",
         expires: 42,
       },
     });
@@ -38,14 +38,14 @@ describe("auth materializers", () => {
     expect(buildCodexAuthContent(baseConfig({
       sdkType: "codex",
       model: "gpt-5-codex:oauth",
-      codexAccessToken: "access",
-      codexIdToken: "id-token",
-      codexRefreshToken: "refresh-token",
+      codexAccessToken: "NETCLODE_PLACEHOLDER_codex_oauth_access",
+      codexIdToken: "NETCLODE_PLACEHOLDER_codex_oauth_id",
+      codexRefreshToken: "NETCLODE_PLACEHOLDER_codex_oauth_refresh",
     }))).toEqual(expect.objectContaining({
       tokens: {
-        access_token: "access",
-        id_token: "id-token",
-        refresh_token: "refresh-token",
+        access_token: "NETCLODE_PLACEHOLDER_codex_oauth_access",
+        id_token: "NETCLODE_PLACEHOLDER_codex_oauth_id",
+        refresh_token: "NETCLODE_PLACEHOLDER_codex_oauth_refresh",
       },
     }));
   });
@@ -60,8 +60,8 @@ describe("auth materializers", () => {
     await materializer.materialize(baseConfig({
       sdkType: "opencode",
       model: "github-copilot/claude-haiku-4.5",
-      githubCopilotOAuthAccessToken: "access",
-      githubCopilotOAuthRefreshToken: "refresh",
+      githubCopilotOAuthAccessToken: "NETCLODE_PLACEHOLDER_github_copilot_oauth_access",
+      githubCopilotOAuthRefreshToken: "NETCLODE_PLACEHOLDER_github_copilot_oauth_refresh",
     }));
 
     expect(fileWriter.mkdir).toHaveBeenCalledWith("/tmp/opencode", { recursive: true });
@@ -78,8 +78,8 @@ describe("auth materializers", () => {
     await materializer.materialize(baseConfig({
       sdkType: "codex",
       model: "gpt-5-codex:oauth",
-      codexAccessToken: "access",
-      codexIdToken: "id-token",
+      codexAccessToken: "NETCLODE_PLACEHOLDER_codex_oauth_access",
+      codexIdToken: "NETCLODE_PLACEHOLDER_codex_oauth_id",
     }));
 
     expect(fileWriter.mkdir).toHaveBeenCalledWith("/tmp/home/.codex", { recursive: true });

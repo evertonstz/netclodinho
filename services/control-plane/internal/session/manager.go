@@ -422,6 +422,24 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 		"ANTHROPIC_API_KEY": m.config.AnthropicAPIKey,
 	}
 
+	// Inject per-session Codex OAuth tokens as BoxLite secret carriers.
+	// The runtime strips these before building the guest env and registers them
+	// as per-session BoxLite secrets so tokens are substituted in-flight.
+	if sdkType == pb.SdkType_SDK_TYPE_CODEX {
+		state := m.getOrLoadState(ctx, sessionID)
+		if state != nil {
+			if m.config.CodexAccessToken != "" {
+				env["_BOXLITE_SESSION_SECRET_codex_oauth_access"] = m.config.CodexAccessToken
+			}
+			if m.config.CodexIdToken != "" {
+				env["_BOXLITE_SESSION_SECRET_codex_oauth_id"] = m.config.CodexIdToken
+			}
+			if m.config.CodexRefreshToken != "" {
+				env["_BOXLITE_SESSION_SECRET_codex_oauth_refresh"] = m.config.CodexRefreshToken
+			}
+		}
+	}
+
 	// If restoring from snapshot, create the PVC first and wait for restore to complete
 	// BEFORE creating the sandbox. This ensures the restore job finishes before the pod mounts.
 	if snapID != "" {

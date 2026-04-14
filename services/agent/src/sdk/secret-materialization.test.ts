@@ -54,8 +54,8 @@ describe("secret materialization policy", () => {
       baseConfig({
         sdkType: "codex",
         model: "gpt-5-codex:oauth:high",
-        codexAccessToken: "access",
-        codexIdToken: "id",
+        codexAccessToken: "NETCLODE_PLACEHOLDER_codex_oauth_access",
+        codexIdToken: "NETCLODE_PLACEHOLDER_codex_oauth_id",
       })
     );
 

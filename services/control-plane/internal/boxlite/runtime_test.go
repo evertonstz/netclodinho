@@ -49,18 +49,25 @@ func TestBuildSecretsAndAllowNet_OpencodeDedupesHosts(t *testing.T) {
 func TestBuildSecretsAndAllowNet_OpencodeIncludesCopilotOAuthHosts(t *testing.T) {
 	bindings, allowNet := BuildSecretsAndAllowNet(pb.SdkType_SDK_TYPE_OPENCODE, map[string]string{})
 
-	found := false
+	want := map[string]string{
+		"github_copilot_oauth_access":  "NETCLODE_PLACEHOLDER_github_copilot_oauth_access",
+		"github_copilot_oauth_refresh": "NETCLODE_PLACEHOLDER_github_copilot_oauth_refresh",
+	}
+	found := map[string]bool{}
 	for _, binding := range bindings {
-		if binding.Name == "github_copilot_oauth" {
-			found = true
-			if binding.Placeholder != "NETCLODE_PLACEHOLDER_github_copilot_oauth" {
-				t.Fatalf("unexpected placeholder: %q", binding.Placeholder)
-			}
-			break
+		placeholder, ok := want[binding.Name]
+		if !ok {
+			continue
+		}
+		found[binding.Name] = true
+		if binding.Placeholder != placeholder {
+			t.Fatalf("unexpected placeholder for %s: %q", binding.Name, binding.Placeholder)
 		}
 	}
-	if !found {
-		t.Fatal("expected github_copilot_oauth binding")
+	for name := range want {
+		if !found[name] {
+			t.Fatalf("expected %s binding", name)
+		}
 	}
 
 	for _, expected := range []string{"api.github.com", "api.githubcopilot.com", "api.individual.githubcopilot.com", "copilot-proxy.githubusercontent.com"} {
@@ -71,8 +78,11 @@ func TestBuildSecretsAndAllowNet_OpencodeIncludesCopilotOAuthHosts(t *testing.T)
 }
 
 func TestShouldExposeGuestPlaceholderEnv(t *testing.T) {
-	if shouldExposeGuestPlaceholderEnv("github_copilot_oauth") {
-		t.Fatal("github_copilot_oauth should not be exposed as a guest env placeholder")
+	if shouldExposeGuestPlaceholderEnv("github_copilot_oauth_access") {
+		t.Fatal("github_copilot_oauth_access should not be exposed as a guest env placeholder")
+	}
+	if shouldExposeGuestPlaceholderEnv("github_copilot_oauth_refresh") {
+		t.Fatal("github_copilot_oauth_refresh should not be exposed as a guest env placeholder")
 	}
 	if !shouldExposeGuestPlaceholderEnv("anthropic") {
 		t.Fatal("anthropic should be exposed as a guest env placeholder")

@@ -73,7 +73,8 @@ func sdkAllowedMappings(sdkType pb.SdkType) []secretMapping {
 			{"mistral", "NETCLODE_PLACEHOLDER_mistral", []string{"api.mistral.ai"}},
 			{"opencode", "NETCLODE_PLACEHOLDER_opencode", []string{"openrouter.ai", "api.openrouter.ai", "api.opencode.ai"}},
 			{"zai", "NETCLODE_PLACEHOLDER_zai", []string{"open.bigmodel.cn"}},
-			{"github_copilot_oauth", "NETCLODE_PLACEHOLDER_github_copilot_oauth", []string{"api.github.com", "api.githubcopilot.com", "api.individual.githubcopilot.com", "copilot-proxy.githubusercontent.com"}},
+			{"github_copilot_oauth_access", "NETCLODE_PLACEHOLDER_github_copilot_oauth_access", []string{"api.github.com", "api.githubcopilot.com", "api.individual.githubcopilot.com", "copilot-proxy.githubusercontent.com"}},
+			{"github_copilot_oauth_refresh", "NETCLODE_PLACEHOLDER_github_copilot_oauth_refresh", []string{"api.github.com", "api.githubcopilot.com", "api.individual.githubcopilot.com", "copilot-proxy.githubusercontent.com"}},
 		}
 	case pb.SdkType_SDK_TYPE_COPILOT:
 		return []secretMapping{
@@ -81,7 +82,14 @@ func sdkAllowedMappings(sdkType pb.SdkType) []secretMapping {
 			{"anthropic", "NETCLODE_PLACEHOLDER_anthropic", []string{"api.anthropic.com"}},
 		}
 	case pb.SdkType_SDK_TYPE_CODEX:
-		return []secretMapping{{"codex_access", "NETCLODE_PLACEHOLDER_openai", []string{"api.openai.com"}}}
+		return []secretMapping{
+			// API mode: OPENAI_API_KEY env
+			{"codex_access", "NETCLODE_PLACEHOLDER_openai", []string{"api.openai.com"}},
+			// OAuth mode: tokens written to ~/.codex/auth.json, substituted in-flight
+			{"codex_oauth_access", "NETCLODE_PLACEHOLDER_codex_oauth_access", []string{"api.openai.com"}},
+			{"codex_oauth_id", "NETCLODE_PLACEHOLDER_codex_oauth_id", []string{"api.openai.com"}},
+			{"codex_oauth_refresh", "NETCLODE_PLACEHOLDER_codex_oauth_refresh", []string{"api.openai.com"}},
+		}
 	default:
 		return []secretMapping{{"anthropic", "NETCLODE_PLACEHOLDER_anthropic", []string{"api.anthropic.com"}}}
 	}
@@ -142,14 +150,16 @@ func defaultHomeDir() string {
 
 func buildRealKeys(cfg *config.Config) map[string]string {
 	return map[string]string{
-		"anthropic":            cfg.AnthropicAPIKey,
-		"openai":               cfg.OpenAIAPIKey,
-		"mistral":              cfg.MistralAPIKey,
-		"opencode":             cfg.OpenCodeAPIKey,
-		"zai":                  cfg.ZaiAPIKey,
-		"github_copilot":       cfg.GitHubCopilotToken,
-		"github_copilot_oauth": cfg.GitHubCopilotOAuthAccessToken,
-		"codex_access":         cfg.CodexAccessToken,
+		"anthropic":                    cfg.AnthropicAPIKey,
+		"openai":                       cfg.OpenAIAPIKey,
+		"mistral":                      cfg.MistralAPIKey,
+		"opencode":                     cfg.OpenCodeAPIKey,
+		"zai":                          cfg.ZaiAPIKey,
+		"github_copilot":               cfg.GitHubCopilotToken,
+		"github_copilot_oauth_access":  cfg.GitHubCopilotOAuthAccessToken,
+		"github_copilot_oauth_refresh": cfg.GitHubCopilotOAuthRefreshToken,
+		"codex_access":                 cfg.CodexAccessToken,
+		// codex_oauth_* are per-session — injected via env prefix at CreateSandbox time
 	}
 }
 
@@ -236,7 +246,26 @@ func (r *Runtime) CreateSandbox(ctx context.Context, sessionID string, env map[s
 	}
 
 	sdkType := sdkTypeFromEnv(env)
-	secrets, allowNet := BuildSecretsAndAllowNet(sdkType, r.realKeys)
+
+	// Extract per-session secrets injected by the manager via a reserved env prefix.
+	// These are merged with global realKeys so BoxLite can substitute them in-flight.
+	// The prefix keys are never forwarded to the guest environment.
+	const perSessionPrefix = "_BOXLITE_SESSION_SECRET_"
+	perSessionKeys := map[string]string{}
+	for k, v := range env {
+		if strings.HasPrefix(k, perSessionPrefix) {
+			perSessionKeys[strings.TrimPrefix(k, perSessionPrefix)] = v
+		}
+	}
+	mergedKeys := make(map[string]string, len(r.realKeys)+len(perSessionKeys))
+	for k, v := range r.realKeys {
+		mergedKeys[k] = v
+	}
+	for k, v := range perSessionKeys {
+		mergedKeys[k] = v
+	}
+
+	secrets, allowNet := BuildSecretsAndAllowNet(sdkType, mergedKeys)
 
 	// Resolve the control-plane URL the agent will use to call back.
 	// Priority: explicit config > auto-detected outbound IP > fallback k8s DNS name.
@@ -250,6 +279,9 @@ func (r *Runtime) CreateSandbox(ctx context.Context, sessionID string, env map[s
 
 	boxEnv := make(map[string]string, len(env)+len(secrets)+3)
 	for k, v := range env {
+		if strings.HasPrefix(k, perSessionPrefix) {
+			continue // never forward internal secret carriers to the guest
+		}
 		boxEnv[k] = v
 	}
 	for _, secret := range secrets {
@@ -489,7 +521,8 @@ func sdkTypeFromEnv(env map[string]string) pb.SdkType {
 
 func shouldExposeGuestPlaceholderEnv(name string) bool {
 	switch name {
-	case "github_copilot_oauth":
+	case "github_copilot_oauth_access", "github_copilot_oauth_refresh",
+		"codex_oauth_access", "codex_oauth_id", "codex_oauth_refresh":
 		return false
 	default:
 		return true
@@ -508,7 +541,7 @@ func envKeyForSecret(name string) string {
 		return "OPENCODE_API_KEY"
 	case "zai":
 		return "ZAI_API_KEY"
-	case "github_copilot", "github_copilot_oauth":
+	case "github_copilot", "github_copilot_oauth_access", "github_copilot_oauth_refresh":
 		return "GITHUB_COPILOT_TOKEN"
 	default:
 		return strings.ToUpper(name) + "_API_KEY"

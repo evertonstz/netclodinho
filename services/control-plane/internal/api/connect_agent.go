@@ -239,15 +239,6 @@ func (h *ConnectAgentServiceHandler) Connect(ctx context.Context, stream *connec
 	if config.OllamaURL != "" {
 		sessionConfig.OllamaUrl = &config.OllamaURL
 	}
-	if config.GitHubCopilotOAuthAccessToken != "" {
-		sessionConfig.GithubCopilotOauthAccessToken = &config.GitHubCopilotOAuthAccessToken
-	}
-	if config.GitHubCopilotOAuthRefreshToken != "" {
-		sessionConfig.GithubCopilotOauthRefreshToken = &config.GitHubCopilotOAuthRefreshToken
-	}
-	if config.GitHubCopilotOAuthTokenExpires != "" {
-		sessionConfig.GithubCopilotOauthTokenExpires = &config.GitHubCopilotOAuthTokenExpires
-	}
 
 	if err := conn.send(&v1.ControlPlaneMessage{
 		Message: &v1.ControlPlaneMessage_Registered{
@@ -535,15 +526,6 @@ func (c *AgentConnection) AssignSession(sessionID string, config *session.AgentS
 	if config.OllamaURL != "" {
 		sessionConfig.OllamaUrl = &config.OllamaURL
 	}
-	if config.GitHubCopilotOAuthAccessToken != "" {
-		sessionConfig.GithubCopilotOauthAccessToken = &config.GitHubCopilotOAuthAccessToken
-	}
-	if config.GitHubCopilotOAuthRefreshToken != "" {
-		sessionConfig.GithubCopilotOauthRefreshToken = &config.GitHubCopilotOAuthRefreshToken
-	}
-	if config.GitHubCopilotOAuthTokenExpires != "" {
-		sessionConfig.GithubCopilotOauthTokenExpires = &config.GitHubCopilotOAuthTokenExpires
-	}
 
 	slog.Info("Pushing session assignment to warm agent", "sessionID", sessionID, "podName", c.podName)
 
@@ -557,21 +539,34 @@ func (c *AgentConnection) AssignSession(sessionID string, config *session.AgentS
 	})
 }
 
+const (
+	boxliteGitHubCopilotOAuthAccessPlaceholder  = "NETCLODE_PLACEHOLDER_github_copilot_oauth_access"
+	boxliteGitHubCopilotOAuthRefreshPlaceholder = "NETCLODE_PLACEHOLDER_github_copilot_oauth_refresh"
+	boxliteCodexOAuthAccessPlaceholder          = "NETCLODE_PLACEHOLDER_codex_oauth_access"
+	boxliteCodexOAuthIdPlaceholder              = "NETCLODE_PLACEHOLDER_codex_oauth_id"
+	boxliteCodexOAuthRefreshPlaceholder         = "NETCLODE_PLACEHOLDER_codex_oauth_refresh"
+)
+
 func applyAgentSessionSecrets(sessionConfig *v1.SessionConfig, config *session.AgentSessionConfig) {
 	if config.CodexAccessToken != "" {
-		sessionConfig.CodexAccessToken = &config.CodexAccessToken
+		value := boxliteCodexOAuthAccessPlaceholder
+		sessionConfig.CodexAccessToken = &value
 	}
 	if config.CodexIdToken != "" {
-		sessionConfig.CodexIdToken = &config.CodexIdToken
+		value := boxliteCodexOAuthIdPlaceholder
+		sessionConfig.CodexIdToken = &value
 	}
 	if config.CodexRefreshToken != "" {
-		sessionConfig.CodexRefreshToken = &config.CodexRefreshToken
+		value := boxliteCodexOAuthRefreshPlaceholder
+		sessionConfig.CodexRefreshToken = &value
 	}
 	if config.GitHubCopilotOAuthAccessToken != "" {
-		sessionConfig.GithubCopilotOauthAccessToken = &config.GitHubCopilotOAuthAccessToken
+		value := boxliteGitHubCopilotOAuthAccessPlaceholder
+		sessionConfig.GithubCopilotOauthAccessToken = &value
 	}
 	if config.GitHubCopilotOAuthRefreshToken != "" {
-		sessionConfig.GithubCopilotOauthRefreshToken = &config.GitHubCopilotOAuthRefreshToken
+		value := boxliteGitHubCopilotOAuthRefreshPlaceholder
+		sessionConfig.GithubCopilotOauthRefreshToken = &value
 	}
 	if config.GitHubCopilotOAuthTokenExpires != "" {
 		sessionConfig.GithubCopilotOauthTokenExpires = &config.GitHubCopilotOAuthTokenExpires
