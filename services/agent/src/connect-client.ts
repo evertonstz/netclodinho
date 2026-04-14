@@ -45,26 +45,27 @@ import {
 
 // Import modular services
 import { handleTerminalInput, resizeTerminal, setTerminalOutputCallback } from "./services/terminal.js";
-import { generateTitle } from "./services/title.js";
-import { getGitStatus, getGitDiff, configureGitCredentials, getRepoPath, getRepoPrefix, type GitFileChange } from "./git.js";
+import { configureGitCredentials } from "./git.js";
 
-// Import SDK abstraction layer
+// Import backend/runtime abstraction layer
 import {
-  createSDKAdapter,
-  type SDKAdapter,
+  createNetclodeAgent,
+  type AgentGitFileChange,
+  type NetclodeAgent,
   type PromptEvent,
   type SdkType,
   type CopilotBackend,
+  type RepositoryContext,
+  UnsupportedAgentCapabilityError,
 } from "./sdk/index.js";
 import { SdkType as ProtoSdkType } from "../gen/netclode/v1/common_pb.js";
-import { initializeSessionRepos } from "./services/session.js";
 import { WORKSPACE_DIR } from "./constants.js";
 
 // Track if a prompt is currently running (to prevent concurrent prompts)
 let isPromptRunning = false;
 
-// Current SDK adapter for the session
-let currentAdapter: SDKAdapter | null = null;
+// Current composed Netclode runtime for the session
+let currentAgent: NetclodeAgent | null = null;
 
 /**
  * Convert proto SdkType enum to internal SdkType string
@@ -114,7 +115,7 @@ function convertRepoCloneStage(stage: "cloning" | "done" | "error"): RepoCloneSt
 /**
  * Convert local git status to protobuf enum
  */
-function convertGitStatus(status: GitFileChange["status"]): GitFileStatus {
+function convertGitStatus(status: AgentGitFileChange["status"]): GitFileStatus {
   switch (status) {
     case "modified": return GitFileStatus.MODIFIED;
     case "added": return GitFileStatus.ADDED;
@@ -301,14 +302,37 @@ interface AgentConnection {
 
 let connection: AgentConnection | null = null;
 
-function getRepoConfigs(): Array<{ repo: string; dir: string; prefix: string }> {
-  const repos = connection?.sessionConfig?.repos ?? [];
-  const totalRepos = repos.length;
-  return repos.map((repo) => {
-    const prefix = getRepoPrefix(repo, totalRepos);
-    const dir = getRepoPath(repo, totalRepos, WORKSPACE_DIR);
-    return { repo, dir, prefix };
-  });
+function getCurrentRepositoryContext(): RepositoryContext | undefined {
+  const config = connection?.sessionConfig;
+  if (!config) return undefined;
+
+  return {
+    repos: config.repos,
+    githubToken: config.githubToken,
+  };
+}
+
+function buildNetclodeAgentConfig(config: SessionConfig) {
+  return {
+    sdkType: parseSdkTypeFromProto(config.sdkType),
+    workspaceDir: WORKSPACE_DIR,
+    anthropicApiKey: process.env.ANTHROPIC_API_KEY || "",
+    githubCopilotToken: process.env.GITHUB_COPILOT_TOKEN || "",
+    model: config.model,
+    copilotBackend: parseCopilotBackendFromProto(config.copilotBackend),
+    openaiApiKey: process.env.OPENAI_API_KEY || "",
+    codexAccessToken: config.codexAccessToken,
+    codexIdToken: config.codexIdToken,
+    codexRefreshToken: config.codexRefreshToken,
+    reasoningEffort: config.reasoningEffort,
+    mistralApiKey: process.env.MISTRAL_API_KEY || "",
+    ollamaUrl: config.ollamaUrl,
+    openCodeApiKey: process.env.OPENCODE_API_KEY || "",
+    zaiApiKey: process.env.ZAI_API_KEY || "",
+    githubCopilotOAuthAccessToken: config.githubCopilotOauthAccessToken,
+    githubCopilotOAuthRefreshToken: config.githubCopilotOauthRefreshToken,
+    githubCopilotOAuthTokenExpires: config.githubCopilotOauthTokenExpires,
+  };
 }
 
 /**
@@ -442,17 +466,31 @@ export async function connectToControlPlane(
     setTerminalOutputCallback(null);
     connection = null;
 
-    // Shutdown SDK adapters
-    if (currentAdapter) {
+    // Shutdown Netclode runtime
+    if (currentAgent) {
       try {
-        await currentAdapter.shutdown();
+        await currentAgent.shutdown();
       } catch (err) {
-        console.error("[agent] Error shutting down SDK adapter:", err);
+        console.error("[agent] Error shutting down backend runtime:", err);
       }
-      currentAdapter = null;
+      currentAgent = null;
     }
 
     console.log("[agent] Disconnected from control plane");
+  }
+}
+
+async function initializeCurrentAgent(config: SessionConfig, mode: "direct" | "warm-pool"): Promise<void> {
+  const agentConfig = buildNetclodeAgentConfig(config);
+  console.log(
+    `[agent] Initializing backend runtime (${mode}): ${agentConfig.sdkType}, model: ${config.model || "(default)"}, copilotBackend: ${agentConfig.copilotBackend || "(auto)"}`,
+  );
+
+  try {
+    currentAgent = await createNetclodeAgent(agentConfig);
+  } catch (err) {
+    console.error(`[agent] Failed to initialize backend runtime (${mode}):`, err);
+    throw new Error(`SDK initialization failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
@@ -478,38 +516,7 @@ async function handleControlPlaneMessage(
         }
         if (connection && msg.message.value.config) {
           connection.sessionConfig = msg.message.value.config;
-
-          // Initialize SDK adapter based on session config
-          const config = msg.message.value.config;
-          const sdkType = parseSdkTypeFromProto(config.sdkType);
-          const copilotBackend = parseCopilotBackendFromProto(config.copilotBackend);
-          console.log(`[agent] Initializing SDK adapter: ${sdkType}, model: ${config.model || "(default)"}, copilotBackend: ${copilotBackend || "(auto)"}`);
-
-          try {
-            currentAdapter = await createSDKAdapter({
-              sdkType,
-              workspaceDir: WORKSPACE_DIR,
-              anthropicApiKey: process.env.ANTHROPIC_API_KEY || "",
-              githubCopilotToken: process.env.GITHUB_COPILOT_TOKEN || "",
-              model: config.model,
-              copilotBackend,
-              openaiApiKey: process.env.OPENAI_API_KEY || "",
-              codexAccessToken: config.codexAccessToken,
-              codexIdToken: config.codexIdToken,
-              codexRefreshToken: config.codexRefreshToken,
-              reasoningEffort: config.reasoningEffort,
-              mistralApiKey: process.env.MISTRAL_API_KEY || "",
-              ollamaUrl: config.ollamaUrl,
-              openCodeApiKey: process.env.OPENCODE_API_KEY || "",
-              zaiApiKey: process.env.ZAI_API_KEY || "",
-              githubCopilotOAuthAccessToken: config.githubCopilotOauthAccessToken,
-              githubCopilotOAuthRefreshToken: config.githubCopilotOauthRefreshToken,
-              githubCopilotOAuthTokenExpires: config.githubCopilotOauthTokenExpires,
-            });
-          } catch (err) {
-            console.error("[agent] Failed to initialize SDK adapter:", err);
-            throw new Error(`SDK initialization failed: ${err instanceof Error ? err.message : String(err)}`);
-          }
+          await initializeCurrentAgent(msg.message.value.config, "direct");
         }
       } else {
         console.error("[agent] Registration failed:", msg.message.value.error);
@@ -535,8 +542,16 @@ async function handleControlPlaneMessage(
 
     case "interrupt":
       console.log("[agent] Interrupt requested");
-      if (currentAdapter) {
-        currentAdapter.setInterruptSignal();
+      if (currentAgent) {
+        try {
+          await currentAgent.interrupt();
+        } catch (error) {
+          if (error instanceof UnsupportedAgentCapabilityError) {
+            console.warn(`[agent] Interrupt unsupported: ${error.capability}`);
+          } else {
+            console.error("[agent] Interrupt failed:", error);
+          }
+        }
       }
       break;
 
@@ -608,37 +623,8 @@ async function handleSessionAssigned(
     connection.sessionConfig = config;
   }
 
-  // Initialize SDK adapter based on session config
-  const sdkType = parseSdkTypeFromProto(config.sdkType);
-  const copilotBackend = parseCopilotBackendFromProto(config.copilotBackend);
-  console.log(`[agent] Initializing SDK adapter (warm pool): ${sdkType}, model: ${config.model || "(default)"}, copilotBackend: ${copilotBackend || "(auto)"}`);
-
-  try {
-    currentAdapter = await createSDKAdapter({
-      sdkType,
-      workspaceDir: WORKSPACE_DIR,
-      anthropicApiKey: process.env.ANTHROPIC_API_KEY || "",
-      githubCopilotToken: process.env.GITHUB_COPILOT_TOKEN || "",
-      model: config.model,
-      copilotBackend,
-      openaiApiKey: process.env.OPENAI_API_KEY || "",
-      codexAccessToken: config.codexAccessToken,
-      codexIdToken: config.codexIdToken,
-      codexRefreshToken: config.codexRefreshToken,
-      reasoningEffort: config.reasoningEffort,
-      mistralApiKey: process.env.MISTRAL_API_KEY || "",
-      ollamaUrl: config.ollamaUrl,
-      openCodeApiKey: process.env.OPENCODE_API_KEY || "",
-      zaiApiKey: process.env.ZAI_API_KEY || "",
-      githubCopilotOAuthAccessToken: config.githubCopilotOauthAccessToken,
-      githubCopilotOAuthRefreshToken: config.githubCopilotOauthRefreshToken,
-      githubCopilotOAuthTokenExpires: config.githubCopilotOauthTokenExpires,
-    });
-    console.log("[agent] SDK adapter initialized (warm pool mode)");
-  } catch (err) {
-    console.error("[agent] Failed to initialize SDK adapter (warm pool):", err);
-    throw new Error(`SDK initialization failed: ${err instanceof Error ? err.message : String(err)}`);
-  }
+  await initializeCurrentAgent(config, "warm-pool");
+  console.log("[agent] Backend runtime initialized (warm pool mode)");
 }
 
 /**
@@ -649,10 +635,8 @@ async function handleExecutePrompt(
   text: string,
   send: (msg: AgentMessage) => void
 ): Promise<void> {
-  const config = connection?.sessionConfig;
-
-  if (!currentAdapter) {
-    console.error("[agent] No SDK adapter initialized");
+  if (!currentAgent) {
+    console.error("[agent] No backend runtime initialized");
     send(
       create(AgentMessageSchema, {
         message: {
@@ -662,7 +646,7 @@ async function handleExecutePrompt(
               case: "error",
               value: {
                 $typeName: "netclode.v1.AgentError",
-                message: "SDK adapter not initialized",
+                message: "Backend runtime not initialized",
                 retryable: false,
               },
             },
@@ -674,20 +658,9 @@ async function handleExecutePrompt(
   }
 
   try {
-    // Initialize session repos if needed (SDK-agnostic)
-    if (config?.repos && config.repos.length > 0) {
-      for await (const event of initializeSessionRepos(sessionId, config.repos, config.githubToken)) {
-        send(promptEventToAgentMessage(event));
-      }
-    }
-
-    for await (const event of currentAdapter.executePrompt(
-      sessionId,
-      text,
-      config ? { repos: config.repos, githubToken: config.githubToken } : undefined
-    )) {
+    for await (const event of currentAgent.executePrompt(sessionId, text, getCurrentRepositoryContext())) {
       send(promptEventToAgentMessage(event));
-      
+
       // If toolStart has input, also send toolInputComplete event
       // This is needed because the proto toolStart doesn't carry input - it comes via toolInput
       if (event.type === "toolStart" && event.input && Object.keys(event.input).length > 0) {
@@ -730,7 +703,7 @@ async function handleGenerateTitle(
   send: (msg: AgentMessage) => void
 ): Promise<void> {
   try {
-    const title = await generateTitle(prompt);
+    const title = currentAgent ? await currentAgent.generateTitle(prompt) : "";
     send(
       create(AgentMessageSchema, {
         message: {
@@ -740,7 +713,11 @@ async function handleGenerateTitle(
       })
     );
   } catch (error) {
-    console.error("[agent] Title generation error:", error);
+    if (error instanceof UnsupportedAgentCapabilityError) {
+      console.warn(`[agent] Title generation unsupported: ${error.capability}`);
+    } else {
+      console.error("[agent] Title generation error:", error);
+    }
     send(
       create(AgentMessageSchema, {
         message: {
@@ -760,24 +737,7 @@ async function handleGetGitStatus(
   send: (msg: AgentMessage) => void
 ): Promise<void> {
   try {
-    const repoConfigs = getRepoConfigs();
-    const files: Array<GitFileChange & { repo: string }> = [];
-
-    if (repoConfigs.length === 0) {
-      const rootFiles = await getGitStatus(WORKSPACE_DIR);
-      files.push(...rootFiles.map((file) => ({ ...file, repo: "" })));
-    } else {
-      for (const { repo, dir, prefix } of repoConfigs) {
-        const repoFiles = await getGitStatus(dir);
-        files.push(
-          ...repoFiles.map((file) => ({
-            ...file,
-            path: `${prefix}/${file.path}`,
-            repo,
-          }))
-        );
-      }
-    }
+    const files = currentAgent ? await currentAgent.getGitStatus(getCurrentRepositoryContext()) : [];
     send(
       create(AgentMessageSchema, {
         message: {
@@ -799,7 +759,11 @@ async function handleGetGitStatus(
       })
     );
   } catch (error) {
-    console.error("[agent] Git status error:", error);
+    if (error instanceof UnsupportedAgentCapabilityError) {
+      console.warn(`[agent] Git status unsupported: ${error.capability}`);
+    } else {
+      console.error("[agent] Git status error:", error);
+    }
     send(
       create(AgentMessageSchema, {
         message: {
@@ -820,36 +784,7 @@ async function handleGetGitDiff(
   send: (msg: AgentMessage) => void
 ): Promise<void> {
   try {
-    const repoConfigs = getRepoConfigs();
-    let diff = "";
-
-    if (repoConfigs.length === 0) {
-      diff = await getGitDiff(WORKSPACE_DIR, file);
-    } else if (file) {
-      const parts = file.split("/");
-      const prefix = parts[0];
-      let target = repoConfigs.find((repoConfig) => repoConfig.prefix === prefix);
-      let relativeFile = parts.slice(1).join("/");
-
-      if (!target && repoConfigs.length === 1) {
-        target = repoConfigs[0];
-        relativeFile = file;
-      }
-
-      if (target) {
-        const fileArg = relativeFile.length > 0 ? relativeFile : undefined;
-        diff = await getGitDiff(target.dir, fileArg, target.prefix);
-      }
-    } else {
-      const diffs: string[] = [];
-      for (const repoConfig of repoConfigs) {
-        const repoDiff = await getGitDiff(repoConfig.dir, undefined, repoConfig.prefix);
-        if (repoDiff) {
-          diffs.push(repoDiff.trimEnd());
-        }
-      }
-      diff = diffs.join("\n");
-    }
+    const diff = currentAgent ? await currentAgent.getGitDiff(getCurrentRepositoryContext(), file) : "";
     send(
       create(AgentMessageSchema, {
         message: {
@@ -859,7 +794,11 @@ async function handleGetGitDiff(
       })
     );
   } catch (error) {
-    console.error("[agent] Git diff error:", error);
+    if (error instanceof UnsupportedAgentCapabilityError) {
+      console.warn(`[agent] Git diff unsupported: ${error.capability}`);
+    } else {
+      console.error("[agent] Git diff error:", error);
+    }
     send(
       create(AgentMessageSchema, {
         message: {

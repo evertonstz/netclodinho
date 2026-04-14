@@ -1,3 +1,11 @@
+/**
+ * Backend/provider auth materialization.
+ *
+ * Keep credential-shape decisions and auth artifact generation here so future
+ * multi-provider backends (for example Pi Code) have one obvious extension
+ * point instead of hiding auth file construction inside prompt backends.
+ */
+
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -18,6 +26,8 @@ export interface AuthFileWriter {
   ): Promise<unknown>;
 }
 
+// Provider-specific auth builders remain centralized here so adapters only
+// orchestrate *when* credentials are materialized, not *how* they are shaped.
 export function buildOpenCodeAuthContent(config: SDKConfig): Record<string, unknown> | null {
   if (!isOpenCodeCopilotOAuthMode(config)) {
     return null;
