@@ -321,7 +321,13 @@ func (m *Manager) Create(ctx context.Context, name string, repos []string, repoA
 		CopilotBackend: copilotBackend,
 	}
 
-	// Save to storage
+	// Determine tailnet setting (default: disabled) and persist it with the session.
+	tailnetEnabled := false
+	if tailnetAccess != nil {
+		tailnetEnabled = *tailnetAccess
+	}
+	session.TailnetEnabled = tailnetEnabled
+
 	if err := m.storage.SaveSession(ctx, session); err != nil {
 		return nil, fmt.Errorf("save session: %w", err)
 	}
@@ -342,12 +348,6 @@ func (m *Manager) Create(ctx context.Context, name string, repos []string, repoA
 	activeCount := m.countActiveSessionsLocked("")
 	m.mu.RUnlock()
 	metrics.Gauge("sessions.active", float64(activeCount), nil)
-
-	// Determine tailnet setting (default: disabled)
-	tailnetEnabled := false
-	if tailnetAccess != nil {
-		tailnetEnabled = *tailnetAccess
-	}
 
 	// Start sandbox creation in background
 	go m.createSandbox(context.Background(), id, repos, repoAccess, tailnetEnabled, resources)
@@ -416,13 +416,22 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 		sdkType = *state.Session.SdkType
 	}
 
+	// Load tailnetEnabled from persisted session state.
+	tailnetForSession := false
+	if state := m.getOrLoadState(ctx, sessionID); state != nil {
+		tailnetForSession = state.Session.TailnetEnabled
+	}
+
 	env := map[string]string{
 		"SESSION_ID":        sessionID,
 		"SDK_TYPE":          sdkType.String(),
 		"ANTHROPIC_API_KEY": m.config.AnthropicAPIKey,
 	}
 
-	// Inject per-session Codex OAuth tokens as BoxLite secret carriers.
+	// Inject tailnet flag for the BoxLite runtime.
+	if tailnetForSession {
+		env["_BOXLITE_TAILNET"] = "true"
+	}
 	// The runtime strips these before building the guest env and registers them
 	// as per-session BoxLite secrets so tokens are substituted in-flight.
 	if sdkType == pb.SdkType_SDK_TYPE_CODEX {
@@ -1010,15 +1019,15 @@ func (m *Manager) Resume(ctx context.Context, id string) (*pb.Session, error) {
 	// Always use direct sandbox creation for resume (bypasses warm pool).
 	// This ensures we use the session's existing PVC instead of getting a fresh warm pool PVC.
 	// createSandboxDirect will automatically use the stored PVC name if available.
-	// Note: Resume always uses default tailnetEnabled=false since we don't store network config
+	// tailnetEnabled is now persisted in session state and loaded by createSandboxDirect.
 	// Note: Resume doesn't support custom resources - uses nil to get default resources
 	if restoreSnapshotID != "" {
 		slog.InfoContext(ctx, "Resuming with snapshot restore", "sessionID", id, "snapshotID", restoreSnapshotID)
 		_ = m.storage.ClearRestoreSnapshotID(ctx, id) // Clear from storage
-		go m.createSandboxDirect(context.Background(), id, state.Session.Repos, state.Session.RepoAccess, false, nil, restoreSnapshotID)
+		go m.createSandboxDirect(context.Background(), id, state.Session.Repos, state.Session.RepoAccess, state.Session.TailnetEnabled, nil, restoreSnapshotID)
 	} else {
 		slog.InfoContext(ctx, "Resuming session", "sessionID", id)
-		go m.createSandboxDirect(context.Background(), id, state.Session.Repos, state.Session.RepoAccess, false, nil)
+		go m.createSandboxDirect(context.Background(), id, state.Session.Repos, state.Session.RepoAccess, state.Session.TailnetEnabled, nil)
 	}
 
 	return state.Session, nil

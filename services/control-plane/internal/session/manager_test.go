@@ -28,6 +28,7 @@ type mockRuntime struct {
 	createdSandboxes []string
 	createdClaims    []string
 	createdServices  []string
+	createdEnvs      map[string]map[string]string // sessionID -> env passed to CreateSandbox
 	exposedPorts     map[string]map[int]bool
 	labeledSandboxes map[string]string // sandboxName -> sessionID
 	readyCallbacks   map[string][]k8s.SandboxReadyCallback
@@ -36,6 +37,7 @@ type mockRuntime struct {
 func newMockRuntime() *mockRuntime {
 	return &mockRuntime{
 		sandboxes:        make(map[string]*k8s.SandboxStatusInfo),
+		createdEnvs:      make(map[string]map[string]string),
 		exposedPorts:     make(map[string]map[int]bool),
 		labeledSandboxes: make(map[string]string),
 		readyCallbacks:   make(map[string][]k8s.SandboxReadyCallback),
@@ -47,6 +49,12 @@ func (m *mockRuntime) CreateSandbox(ctx context.Context, sessionID string, env m
 	defer m.mu.Unlock()
 	m.createdSandboxes = append(m.createdSandboxes, sessionID)
 	m.sandboxes[sessionID] = &k8s.SandboxStatusInfo{Exists: true, Ready: true, ServiceFQDN: "test.local"}
+	// Record env for inspection in tests.
+	envCopy := make(map[string]string, len(env))
+	for k, v := range env {
+		envCopy[k] = v
+	}
+	m.createdEnvs[sessionID] = envCopy
 	return nil
 }
 
@@ -967,7 +975,10 @@ func TestSessionUpdateStreamContract(t *testing.T) {
 		t.Skipf("Redis not available: %v", err)
 	}
 
-	store := storage.NewRedisStorage(client)
+	store, err2 := storage.NewRedisStorage(ctx, &config.Config{RedisURL: "redis://localhost:6379"})
+	if err2 != nil {
+		t.Skipf("Redis not available: %v", err2)
+	}
 	cfg := &config.Config{Port: 3000}
 	rt := newMockRuntime()
 	m := NewManager(store, rt, cfg, nil)

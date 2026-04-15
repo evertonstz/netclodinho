@@ -324,6 +324,7 @@ type Session struct {
 	SdkType        *SdkType               `protobuf:"varint,8,opt,name=sdk_type,json=sdkType,proto3,enum=netclode.v1.SdkType,oneof" json:"sdk_type,omitempty"`
 	Model          *string                `protobuf:"bytes,9,opt,name=model,proto3,oneof" json:"model,omitempty"`
 	CopilotBackend *CopilotBackend        `protobuf:"varint,10,opt,name=copilot_backend,json=copilotBackend,proto3,enum=netclode.v1.CopilotBackend,oneof" json:"copilot_backend,omitempty"`
+	TailnetEnabled bool                   `protobuf:"varint,11,opt,name=tailnet_enabled,json=tailnetEnabled,proto3" json:"tailnet_enabled,omitempty"` // Whether this session has Tailscale network access enabled
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -428,6 +429,13 @@ func (x *Session) GetCopilotBackend() CopilotBackend {
 	return CopilotBackend_COPILOT_BACKEND_UNSPECIFIED
 }
 
+func (x *Session) GetTailnetEnabled() bool {
+	if x != nil {
+		return x.TailnetEnabled
+	}
+	return false
+}
+
 // SessionSummary includes session data plus metadata for list views.
 type SessionSummary struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -511,7 +519,7 @@ type SessionConfig struct {
 	OllamaUrl          *string                `protobuf:"bytes,17,opt,name=ollama_url,json=ollamaUrl,proto3,oneof" json:"ollama_url,omitempty"`                  // URL for local Ollama inference (e.g., "http://ollama.netclode.svc.cluster.local:11434")
 	OpencodeApiKey     *string                `protobuf:"bytes,18,opt,name=opencode_api_key,json=opencodeApiKey,proto3,oneof" json:"opencode_api_key,omitempty"` // OpenCode Zen API key (for paid models, empty/"public" = free tier only)
 	ZaiApiKey          *string                `protobuf:"bytes,19,opt,name=zai_api_key,json=zaiApiKey,proto3,oneof" json:"zai_api_key,omitempty"`                // Z.AI API key (for GLM-4.7 models via Anthropic-compatible endpoint)
-	// GitHub Copilot OAuth tokens for OpenCode SDK (written to auth.json, not exposed to proxy)
+	// GitHub Copilot OAuth tokens for OpenCode SDK (written to auth.json for BoxLite/file-based auth flows)
 	GithubCopilotOauthAccessToken  *string `protobuf:"bytes,20,opt,name=github_copilot_oauth_access_token,json=githubCopilotOauthAccessToken,proto3,oneof" json:"github_copilot_oauth_access_token,omitempty"`
 	GithubCopilotOauthRefreshToken *string `protobuf:"bytes,21,opt,name=github_copilot_oauth_refresh_token,json=githubCopilotOauthRefreshToken,proto3,oneof" json:"github_copilot_oauth_refresh_token,omitempty"`
 	GithubCopilotOauthTokenExpires *string `protobuf:"bytes,22,opt,name=github_copilot_oauth_token_expires,json=githubCopilotOauthTokenExpires,proto3,oneof" json:"github_copilot_oauth_token_expires,omitempty"`
@@ -1623,7 +1631,7 @@ var File_netclode_v1_common_proto protoreflect.FileDescriptor
 
 const file_netclode_v1_common_proto_rawDesc = "" +
 	"\n" +
-	"\x18netclode/v1/common.proto\x12\vnetclode.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x18netclode/v1/events.proto\"\x8a\x04\n" +
+	"\x18netclode/v1/common.proto\x12\vnetclode.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x18netclode/v1/events.proto\"\xb3\x04\n" +
 	"\aSession\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x122\n" +
@@ -1637,7 +1645,8 @@ const file_netclode_v1_common_proto_rawDesc = "" +
 	"\bsdk_type\x18\b \x01(\x0e2\x14.netclode.v1.SdkTypeH\x01R\asdkType\x88\x01\x01\x12\x19\n" +
 	"\x05model\x18\t \x01(\tH\x02R\x05model\x88\x01\x01\x12I\n" +
 	"\x0fcopilot_backend\x18\n" +
-	" \x01(\x0e2\x1b.netclode.v1.CopilotBackendH\x03R\x0ecopilotBackend\x88\x01\x01B\x0e\n" +
+	" \x01(\x0e2\x1b.netclode.v1.CopilotBackendH\x03R\x0ecopilotBackend\x88\x01\x01\x12'\n" +
+	"\x0ftailnet_enabled\x18\v \x01(\bR\x0etailnetEnabledB\x0e\n" +
 	"\f_repo_accessB\v\n" +
 	"\t_sdk_typeB\b\n" +
 	"\x06_modelB\x12\n" +

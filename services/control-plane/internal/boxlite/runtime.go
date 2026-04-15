@@ -35,8 +35,27 @@ const (
 
 // BuildSecretsAndAllowNet derives the BoxLite secret substitution rules and
 // the network allowlist for a given SDK type.
+// Deprecated: allowNet is no longer used for network restriction (allow_net is empty).
+// Use buildSecrets() for the secrets-only path in CreateSandbox.
 func BuildSecretsAndAllowNet(sdkType pb.SdkType, realSecrets map[string]string) (secrets []boxlitesdk.Secret, allowNet []string) {
+	secrets = buildSecrets(sdkType, realSecrets)
+	// Build allowNet for callers that still need it (e.g. tests, manager.go secret-proxy path).
 	seen := map[string]bool{}
+	for _, m := range sdkAllowedMappings(sdkType) {
+		for _, h := range m.hosts {
+			if !seen[h] {
+				seen[h] = true
+				allowNet = append(allowNet, h)
+			}
+		}
+	}
+	return secrets, allowNet
+}
+
+// buildSecrets builds BoxLite secret substitution bindings without an allowlist.
+// This is the primary function used by CreateSandbox; allow_net is set separately.
+func buildSecrets(sdkType pb.SdkType, realSecrets map[string]string) []boxlitesdk.Secret {
+	var secrets []boxlitesdk.Secret
 	for _, m := range sdkAllowedMappings(sdkType) {
 		val := realSecrets[m.secretKey]
 		if val == "" {
@@ -48,14 +67,8 @@ func BuildSecretsAndAllowNet(sdkType pb.SdkType, realSecrets map[string]string) 
 			Placeholder: m.placeholder,
 			Hosts:       m.hosts,
 		})
-		for _, h := range m.hosts {
-			if !seen[h] {
-				seen[h] = true
-				allowNet = append(allowNet, h)
-			}
-		}
 	}
-	return secrets, allowNet
+	return secrets
 }
 
 type secretMapping struct {
@@ -265,7 +278,15 @@ func (r *Runtime) CreateSandbox(ctx context.Context, sessionID string, env map[s
 		mergedKeys[k] = v
 	}
 
-	secrets, allowNet := BuildSecretsAndAllowNet(sdkType, mergedKeys)
+	// Extract tailnet flag (injected by manager via reserved env key).
+	const tailnetEnvKey = "_BOXLITE_TAILNET"
+	tailnetEnabled := env[tailnetEnvKey] == "true"
+
+	// Build secret bindings for BoxLite MITM proxy substitution.
+	// allow_net is intentionally empty — agents need full internet access.
+	// BoxLite secrets work independently of allow_net; the MITM proxy
+	// substitutes placeholders in outbound HTTPS headers regardless.
+	secrets := buildSecrets(sdkType, mergedKeys)
 
 	// Resolve the control-plane URL the agent will use to call back.
 	// Priority: explicit config > auto-detected outbound IP > fallback k8s DNS name.
@@ -273,14 +294,24 @@ func (r *Runtime) CreateSandbox(ctx context.Context, sessionID string, env map[s
 	if cpURL == "" {
 		cpURL = autoDetectCPURL(r.cfg.Port)
 	}
-	if host := extractHost(cpURL); host != "" {
-		allowNet = appendUnique(allowNet, host)
+
+	// allow_net must be empty for full internet access — BoxLite's DNS sinkhole
+	// only activates when allow_net is non-empty. The control-plane host is
+	// reachable through normal routing regardless (gvproxy NATs to the host).
+	var allowNet []string
+	if tailnetEnabled {
+		slog.InfoContext(ctx, "BoxLite: tailnet access enabled for session", "sessionID", sessionID)
+	} else {
+		slog.InfoContext(ctx, "BoxLite: tailnet isolation not enforced in v0.8.2 (dns_zones not in wire format)", "sessionID", sessionID)
 	}
 
 	boxEnv := make(map[string]string, len(env)+len(secrets)+3)
 	for k, v := range env {
 		if strings.HasPrefix(k, perSessionPrefix) {
 			continue // never forward internal secret carriers to the guest
+		}
+		if k == tailnetEnvKey {
+			continue // strip internal tailnet flag
 		}
 		boxEnv[k] = v
 	}
@@ -427,12 +458,16 @@ func (r *Runtime) ListSandboxes(ctx context.Context) ([]k8s.SandboxInfo, error) 
 }
 
 func (r *Runtime) ConfigureNetwork(_ context.Context, sessionID string, _ bool) error {
-	slog.Warn("BoxLite: ConfigureNetwork is a no-op in v0.8.2", "sessionID", sessionID)
+	// Network policy (allow_net, secrets) is applied at CreateSandbox time when
+	// gvproxy is configured. It cannot be changed after the VM has booted.
+	slog.InfoContext(context.Background(), "BoxLite: ConfigureNetwork is a no-op — network policy is set at CreateSandbox time", "sessionID", sessionID)
 	return nil
 }
 
 func (r *Runtime) ConfigureTailnetAccess(_ context.Context, sessionID string, _ bool) error {
-	slog.Warn("BoxLite: ConfigureTailnetAccess is a no-op in v0.8.2", "sessionID", sessionID)
+	// Tailnet access is determined at CreateSandbox time via the _BOXLITE_TAILNET env key.
+	// Post-creation changes are not possible with the current BoxLite v0.8.2 API.
+	slog.InfoContext(context.Background(), "BoxLite: ConfigureTailnetAccess is a no-op — tailnet policy is set at CreateSandbox time", "sessionID", sessionID)
 	return nil
 }
 

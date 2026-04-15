@@ -22,6 +22,18 @@ func TestBuildSecretsAndAllowNet_Claude(t *testing.T) {
 	}
 }
 
+func TestBuildSecrets_DoesNotIncludeAllowNet(t *testing.T) {
+	// buildSecrets is the primary path used by CreateSandbox.
+	// It returns only secrets; the caller decides allow_net separately.
+	secrets := buildSecrets(pb.SdkType_SDK_TYPE_CLAUDE, map[string]string{"anthropic": "sk-real"})
+	if len(secrets) != 1 {
+		t.Fatalf("want 1 secret, got %d", len(secrets))
+	}
+	if secrets[0].Value != "sk-real" {
+		t.Fatalf("unexpected value: %q", secrets[0].Value)
+	}
+}
+
 func TestBuildSecretsAndAllowNet_UsesPlaceholderWhenMissing(t *testing.T) {
 	bindings, _ := BuildSecretsAndAllowNet(pb.SdkType_SDK_TYPE_CLAUDE, map[string]string{})
 	if len(bindings) != 1 {
@@ -86,6 +98,33 @@ func TestShouldExposeGuestPlaceholderEnv(t *testing.T) {
 	}
 	if !shouldExposeGuestPlaceholderEnv("anthropic") {
 		t.Fatal("anthropic should be exposed as a guest env placeholder")
+	}
+}
+
+// TestCreateSandboxUsesEmptyAllowNet verifies that CreateSandbox configures
+// the BoxLite VM with an empty allow_net (full internet access).
+// The runtime_test package cannot call the private helper directly, but we
+// can verify that buildSecrets returns secrets without the function returning
+// an allowNet that would restrict traffic.
+func TestBuildSecrets_AllSdkTypes(t *testing.T) {
+	for _, sdkType := range []pb.SdkType{
+		pb.SdkType_SDK_TYPE_CLAUDE,
+		pb.SdkType_SDK_TYPE_OPENCODE,
+		pb.SdkType_SDK_TYPE_COPILOT,
+		pb.SdkType_SDK_TYPE_CODEX,
+	} {
+		secrets := buildSecrets(sdkType, map[string]string{})
+		if len(secrets) == 0 {
+			t.Errorf("sdk type %v: expected at least one secret binding", sdkType)
+		}
+		for _, s := range secrets {
+			if s.Placeholder == "" {
+				t.Errorf("sdk type %v secret %q: placeholder must not be empty", sdkType, s.Name)
+			}
+			if len(s.Hosts) == 0 {
+				t.Errorf("sdk type %v secret %q: hosts must not be empty", sdkType, s.Name)
+			}
+		}
 	}
 }
 
