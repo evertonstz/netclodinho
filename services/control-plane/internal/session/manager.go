@@ -412,8 +412,31 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 		snapID = restoreSnapshotID[0]
 	}
 	sdkType := pb.SdkType_SDK_TYPE_CLAUDE
-	if state := m.getOrLoadState(ctx, sessionID); state != nil && state.Session.SdkType != nil {
-		sdkType = *state.Session.SdkType
+	var state *SessionState
+	if s := m.getOrLoadState(ctx, sessionID); s != nil {
+		state = s
+		if s.Session.SdkType != nil {
+			sdkType = *s.Session.SdkType
+		} else if s.Session.Model != nil {
+			// Fallback: infer SDK type from model string if SdkType wasn't persisted
+			model := *s.Session.Model
+			if strings.HasPrefix(model, "opencode") || strings.Contains(model, "openrouter") {
+				sdkType = pb.SdkType_SDK_TYPE_OPENCODE
+			} else if strings.HasPrefix(model, "github-copilot") {
+				sdkType = pb.SdkType_SDK_TYPE_COPILOT
+			} else if strings.HasPrefix(model, "gpt-5-codex") || strings.HasPrefix(model, "codex") {
+				sdkType = pb.SdkType_SDK_TYPE_CODEX
+			} else if strings.Contains(model, "claude") || strings.Contains(model, "anthropic") {
+				sdkType = pb.SdkType_SDK_TYPE_CLAUDE
+			}
+			// Persist the inferred SdkType back to the session if it wasn't previously set
+		if s.Session.SdkType == nil {
+				s.Session.SdkType = &sdkType
+				if err := m.storage.SaveSession(ctx, s.Session); err != nil {
+					slog.WarnContext(ctx, "Failed to persist inferred SdkType", "sessionID", sessionID, "sdkType", sdkType, "error", err)
+				}
+		}
+		}
 	}
 
 	env := map[string]string{
@@ -426,7 +449,9 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 	// The runtime strips these before building the guest env and registers them
 	// as per-session BoxLite secrets so tokens are substituted in-flight.
 	if sdkType == pb.SdkType_SDK_TYPE_CODEX {
-		state := m.getOrLoadState(ctx, sessionID)
+		if state == nil {
+			state = m.getOrLoadState(ctx, sessionID)
+		}
 		if state != nil {
 			if m.config.CodexAccessToken != "" {
 				env["_BOXLITE_SESSION_SECRET_codex_oauth_access"] = m.config.CodexAccessToken
@@ -1020,10 +1045,10 @@ func (m *Manager) Resume(ctx context.Context, id string) (*pb.Session, error) {
 	if restoreSnapshotID != "" {
 		slog.InfoContext(ctx, "Resuming with snapshot restore", "sessionID", id, "snapshotID", restoreSnapshotID)
 		_ = m.storage.ClearRestoreSnapshotID(ctx, id) // Clear from storage
-		go m.createSandboxDirect(context.Background(), id, state.Session.Repos, state.Session.RepoAccess, false, nil, restoreSnapshotID)
+		go m.createSandboxDirect(context.Background(), id, state.Session.Repos, state.Session.RepoAccess, state.Session.TailnetEnabled, nil, restoreSnapshotID)
 	} else {
 		slog.InfoContext(ctx, "Resuming session", "sessionID", id)
-		go m.createSandboxDirect(context.Background(), id, state.Session.Repos, state.Session.RepoAccess, false, nil)
+		go m.createSandboxDirect(context.Background(), id, state.Session.Repos, state.Session.RepoAccess, state.Session.TailnetEnabled, nil)
 	}
 
 	return state.Session, nil
