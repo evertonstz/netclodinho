@@ -63,6 +63,17 @@ type secretMapping struct {
 	hosts       []string
 }
 
+type sandboxCreateSpec struct {
+	existingBoxName string
+	sdkType         pb.SdkType
+	boxEnv          map[string]string
+	secrets         []boxlitesdk.Secret
+	allowNet        []string
+	diskSizeGb      int
+	cpus            int
+	memoryMB        int
+}
+
 func sdkAllowedMappings(sdkType pb.SdkType) []secretMapping {
 	switch sdkType {
 	case pb.SdkType_SDK_TYPE_OPENCODE:
@@ -192,23 +203,25 @@ func (r *Runtime) watchReadyCh(sessionID string) <-chan struct{} {
 	return ch
 }
 
-// CreateSandbox creates and starts a BoxLite box for the session.
-func (r *Runtime) CreateSandbox(ctx context.Context, sessionID string, env map[string]string, resources *k8s.SandboxResourceConfig) error {
-	if r.tokenIssuer == nil {
-		return fmt.Errorf("token issuer not configured")
-	}
+func (r *Runtime) buildSandboxCreateSpec(sessionID string, env map[string]string, resources *k8s.SandboxResourceConfig) sandboxCreateSpec {
 	token := r.tokenIssuer.IssueDockerToken(sessionID)
-	existingBoxName := env[k8s.ExistingPVCEnvKey]
-	delete(env, k8s.ExistingPVCEnvKey)
+	envCopy := make(map[string]string, len(env))
+	for k, v := range env {
+		envCopy[k] = v
+	}
 
-	sdkType := sdkTypeFromEnv(env)
+	spec := sandboxCreateSpec{
+		existingBoxName: envCopy[k8s.ExistingPVCEnvKey],
+		sdkType:         sdkTypeFromEnv(envCopy),
+	}
+	delete(envCopy, k8s.ExistingPVCEnvKey)
 
 	// Extract per-session secrets injected by the manager via a reserved env prefix.
 	// These are merged with global realKeys so BoxLite can substitute them in-flight.
 	// The prefix keys are never forwarded to the guest environment.
 	const perSessionPrefix = "_BOXLITE_SESSION_SECRET_"
 	perSessionKeys := map[string]string{}
-	for k, v := range env {
+	for k, v := range envCopy {
 		if strings.HasPrefix(k, perSessionPrefix) {
 			perSessionKeys[strings.TrimPrefix(k, perSessionPrefix)] = v
 		}
@@ -221,8 +234,8 @@ func (r *Runtime) CreateSandbox(ctx context.Context, sessionID string, env map[s
 		mergedKeys[k] = v
 	}
 
-	secrets, _ := BuildSecretsAndAllowNet(sdkType, mergedKeys)
-	allowNet := []string{}
+	spec.secrets, _ = BuildSecretsAndAllowNet(spec.sdkType, mergedKeys)
+	spec.allowNet = []string{}
 
 	// Resolve the control-plane URL the agent will use to call back.
 	// Priority: explicit config > auto-detected outbound IP > fallback k8s DNS name.
@@ -231,57 +244,74 @@ func (r *Runtime) CreateSandbox(ctx context.Context, sessionID string, env map[s
 		cpURL = autoDetectCPURL(r.cfg.Port)
 	}
 
-	boxEnv := make(map[string]string, len(env)+len(secrets)+3)
-	for k, v := range env {
+	spec.boxEnv = make(map[string]string, len(envCopy)+len(spec.secrets)+3)
+	for k, v := range envCopy {
 		if strings.HasPrefix(k, perSessionPrefix) {
 			continue // never forward internal secret carriers to the guest
 		}
-		boxEnv[k] = v
+		spec.boxEnv[k] = v
 	}
-	for _, secret := range secrets {
+	for _, secret := range spec.secrets {
 		if shouldExposeGuestPlaceholderEnv(secret.Name) {
-			boxEnv[envKeyForSecret(secret.Name)] = secret.Placeholder
+			spec.boxEnv[envKeyForSecret(secret.Name)] = secret.Placeholder
 		}
 	}
-	boxEnv["AGENT_SESSION_TOKEN"] = token
-	boxEnv["SESSION_ID"] = sessionID
-	boxEnv["CONTROL_PLANE_URL"] = cpURL
+	spec.boxEnv["AGENT_SESSION_TOKEN"] = token
+	spec.boxEnv["SESSION_ID"] = sessionID
+	spec.boxEnv["CONTROL_PLANE_URL"] = cpURL
 
-	diskSizeGb := r.cfg.BoxliteDefaultDiskSizeGb
+	spec.diskSizeGb = r.cfg.BoxliteDefaultDiskSizeGb
 	if resources != nil && resources.DiskSizeGb > 0 {
-		diskSizeGb = resources.DiskSizeGb
+		spec.diskSizeGb = resources.DiskSizeGb
 	}
-	if diskSizeGb <= 0 {
-		diskSizeGb = 20
-	}
-
-	opts := []boxlitesdk.BoxOption{
-		boxlitesdk.WithName(r.boxName(sessionID)),
-		boxlitesdk.WithDiskSizeGb(diskSizeGb),
-		// Keep persisted box metadata + QCOW2 disk across Stop/Start so pause/resume works.
-		// Full session deletion uses ForceRemove in DeletePVC.
-		boxlitesdk.WithAutoRemove(false),
-		boxlitesdk.WithNetwork(boxlitesdk.NetworkSpec{Mode: boxlitesdk.NetworkModeEnabled, AllowNet: allowNet}),
-		boxlitesdk.WithWorkDir("/agent"),
-	}
-	for k, v := range boxEnv {
-		opts = append(opts, boxlitesdk.WithEnv(k, v))
-	}
-	for _, secret := range secrets {
-		opts = append(opts, boxlitesdk.WithSecret(secret))
+	if spec.diskSizeGb <= 0 {
+		spec.diskSizeGb = 20
 	}
 	if resources != nil {
 		if resources.VCPUs > 0 {
-			opts = append(opts, boxlitesdk.WithCPUs(int(resources.VCPUs)))
+			spec.cpus = int(resources.VCPUs)
 		}
 		if resources.MemoryMB > 0 {
-			opts = append(opts, boxlitesdk.WithMemory(int(resources.MemoryMB)))
+			spec.memoryMB = int(resources.MemoryMB)
 		}
 	}
 
-	if existingBoxName != "" {
-		if existingBox, err := r.rt.Get(ctx, existingBoxName); err == nil && existingBox != nil {
-			slog.Info("BoxLite: restarting existing box", "sessionID", sessionID, "boxName", existingBoxName)
+	return spec
+}
+
+// CreateSandbox creates and starts a BoxLite box for the session.
+func (r *Runtime) CreateSandbox(ctx context.Context, sessionID string, env map[string]string, resources *k8s.SandboxResourceConfig) error {
+	if r.tokenIssuer == nil {
+		return fmt.Errorf("token issuer not configured")
+	}
+
+	spec := r.buildSandboxCreateSpec(sessionID, env, resources)
+
+	opts := []boxlitesdk.BoxOption{
+		boxlitesdk.WithName(r.boxName(sessionID)),
+		boxlitesdk.WithDiskSizeGb(spec.diskSizeGb),
+		// Keep persisted box metadata + QCOW2 disk across Stop/Start so pause/resume works.
+		// Full session deletion uses ForceRemove in DeletePVC.
+		boxlitesdk.WithAutoRemove(false),
+		boxlitesdk.WithNetwork(boxlitesdk.NetworkSpec{Mode: boxlitesdk.NetworkModeEnabled, AllowNet: spec.allowNet}),
+		boxlitesdk.WithWorkDir("/agent"),
+	}
+	for k, v := range spec.boxEnv {
+		opts = append(opts, boxlitesdk.WithEnv(k, v))
+	}
+	for _, secret := range spec.secrets {
+		opts = append(opts, boxlitesdk.WithSecret(secret))
+	}
+	if spec.cpus > 0 {
+		opts = append(opts, boxlitesdk.WithCPUs(spec.cpus))
+	}
+	if spec.memoryMB > 0 {
+		opts = append(opts, boxlitesdk.WithMemory(spec.memoryMB))
+	}
+
+	if spec.existingBoxName != "" {
+		if existingBox, err := r.rt.Get(ctx, spec.existingBoxName); err == nil && existingBox != nil {
+			slog.Info("BoxLite: restarting existing box", "sessionID", sessionID, "boxName", spec.existingBoxName)
 			if err := existingBox.Start(ctx); err != nil {
 				_ = existingBox.Close()
 				return fmt.Errorf("box restart: %w", err)
@@ -292,7 +322,7 @@ func (r *Runtime) CreateSandbox(ctx context.Context, sessionID string, env map[s
 		}
 	}
 
-	slog.Info("BoxLite: creating box", "sessionID", sessionID, "image", r.cfg.AgentImage, "sdkType", sdkType, "allowNet", allowNet, "diskSizeGb", diskSizeGb)
+	slog.Info("BoxLite: creating box", "sessionID", sessionID, "image", r.cfg.AgentImage, "sdkType", spec.sdkType, "allowNet", spec.allowNet, "diskSizeGb", spec.diskSizeGb, "cpus", spec.cpus, "memoryMB", spec.memoryMB)
 	box, err := r.rt.Create(ctx, r.cfg.AgentImage, opts...)
 	if err != nil {
 		return fmt.Errorf("box create: %w", err)

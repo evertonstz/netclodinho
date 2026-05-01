@@ -324,6 +324,8 @@ type Session struct {
 	SdkType        *SdkType               `protobuf:"varint,8,opt,name=sdk_type,json=sdkType,proto3,enum=netclode.v1.SdkType,oneof" json:"sdk_type,omitempty"`
 	Model          *string                `protobuf:"bytes,9,opt,name=model,proto3,oneof" json:"model,omitempty"`
 	CopilotBackend *CopilotBackend        `protobuf:"varint,10,opt,name=copilot_backend,json=copilotBackend,proto3,enum=netclode.v1.CopilotBackend,oneof" json:"copilot_backend,omitempty"`
+	TailnetEnabled bool                   `protobuf:"varint,11,opt,name=tailnet_enabled,json=tailnetEnabled,proto3" json:"tailnet_enabled,omitempty"` // Whether this session has Tailscale network access enabled
+	Resources      *SandboxResources      `protobuf:"bytes,12,opt,name=resources,proto3,oneof" json:"resources,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -426,6 +428,20 @@ func (x *Session) GetCopilotBackend() CopilotBackend {
 		return *x.CopilotBackend
 	}
 	return CopilotBackend_COPILOT_BACKEND_UNSPECIFIED
+}
+
+func (x *Session) GetTailnetEnabled() bool {
+	if x != nil {
+		return x.TailnetEnabled
+	}
+	return false
+}
+
+func (x *Session) GetResources() *SandboxResources {
+	if x != nil {
+		return x.Resources
+	}
+	return nil
 }
 
 // SessionSummary includes session data plus metadata for list views.
@@ -1631,7 +1647,7 @@ var File_netclode_v1_common_proto protoreflect.FileDescriptor
 
 const file_netclode_v1_common_proto_rawDesc = "" +
 	"\n" +
-	"\x18netclode/v1/common.proto\x12\vnetclode.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x18netclode/v1/events.proto\"\x8a\x04\n" +
+	"\x18netclode/v1/common.proto\x12\vnetclode.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x18netclode/v1/events.proto\"\x83\x05\n" +
 	"\aSession\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x122\n" +
@@ -1645,11 +1661,15 @@ const file_netclode_v1_common_proto_rawDesc = "" +
 	"\bsdk_type\x18\b \x01(\x0e2\x14.netclode.v1.SdkTypeH\x01R\asdkType\x88\x01\x01\x12\x19\n" +
 	"\x05model\x18\t \x01(\tH\x02R\x05model\x88\x01\x01\x12I\n" +
 	"\x0fcopilot_backend\x18\n" +
-	" \x01(\x0e2\x1b.netclode.v1.CopilotBackendH\x03R\x0ecopilotBackend\x88\x01\x01B\x0e\n" +
+	" \x01(\x0e2\x1b.netclode.v1.CopilotBackendH\x03R\x0ecopilotBackend\x88\x01\x01\x12'\n" +
+	"\x0ftailnet_enabled\x18\v \x01(\bR\x0etailnetEnabled\x12@\n" +
+	"\tresources\x18\f \x01(\v2\x1d.netclode.v1.SandboxResourcesH\x04R\tresources\x88\x01\x01B\x0e\n" +
 	"\f_repo_accessB\v\n" +
 	"\t_sdk_typeB\b\n" +
 	"\x06_modelB\x12\n" +
-	"\x10_copilot_backend\"\xba\x01\n" +
+	"\x10_copilot_backendB\f\n" +
+	"\n" +
+	"_resources\"\xba\x01\n" +
 	"\x0eSessionSummary\x12.\n" +
 	"\asession\x18\x01 \x01(\v2\x14.netclode.v1.SessionR\asession\x12(\n" +
 	"\rmessage_count\x18\x02 \x01(\x05H\x00R\fmessageCount\x88\x01\x01\x12)\n" +
@@ -1892,27 +1912,28 @@ var file_netclode_v1_common_proto_depIdxs = []int32{
 	24, // 3: netclode.v1.Session.last_active_at:type_name -> google.protobuf.Timestamp
 	1,  // 4: netclode.v1.Session.sdk_type:type_name -> netclode.v1.SdkType
 	2,  // 5: netclode.v1.Session.copilot_backend:type_name -> netclode.v1.CopilotBackend
-	5,  // 6: netclode.v1.SessionSummary.session:type_name -> netclode.v1.Session
-	0,  // 7: netclode.v1.SessionConfig.repo_access:type_name -> netclode.v1.RepoAccess
-	1,  // 8: netclode.v1.SessionConfig.sdk_type:type_name -> netclode.v1.SdkType
-	2,  // 9: netclode.v1.SessionConfig.copilot_backend:type_name -> netclode.v1.CopilotBackend
-	24, // 10: netclode.v1.StreamEntry.timestamp:type_name -> google.protobuf.Timestamp
-	25, // 11: netclode.v1.StreamEntry.event:type_name -> netclode.v1.AgentEvent
-	9,  // 12: netclode.v1.StreamEntry.terminal_output:type_name -> netclode.v1.TerminalOutput
-	5,  // 13: netclode.v1.StreamEntry.session_update:type_name -> netclode.v1.Session
-	10, // 14: netclode.v1.StreamEntry.error:type_name -> netclode.v1.Error
-	20, // 15: netclode.v1.Error.details:type_name -> netclode.v1.Error.DetailsEntry
-	21, // 16: netclode.v1.InProgressState.messages:type_name -> netclode.v1.InProgressState.MessagesEntry
-	22, // 17: netclode.v1.InProgressState.thinking:type_name -> netclode.v1.InProgressState.ThinkingEntry
-	23, // 18: netclode.v1.InProgressState.tools:type_name -> netclode.v1.InProgressState.ToolsEntry
-	24, // 19: netclode.v1.Snapshot.created_at:type_name -> google.protobuf.Timestamp
-	4,  // 20: netclode.v1.GitFileChange.status:type_name -> netclode.v1.GitFileStatus
-	12, // 21: netclode.v1.InProgressState.ToolsEntry.value:type_name -> netclode.v1.InProgressTool
-	22, // [22:22] is the sub-list for method output_type
-	22, // [22:22] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	19, // 6: netclode.v1.Session.resources:type_name -> netclode.v1.SandboxResources
+	5,  // 7: netclode.v1.SessionSummary.session:type_name -> netclode.v1.Session
+	0,  // 8: netclode.v1.SessionConfig.repo_access:type_name -> netclode.v1.RepoAccess
+	1,  // 9: netclode.v1.SessionConfig.sdk_type:type_name -> netclode.v1.SdkType
+	2,  // 10: netclode.v1.SessionConfig.copilot_backend:type_name -> netclode.v1.CopilotBackend
+	24, // 11: netclode.v1.StreamEntry.timestamp:type_name -> google.protobuf.Timestamp
+	25, // 12: netclode.v1.StreamEntry.event:type_name -> netclode.v1.AgentEvent
+	9,  // 13: netclode.v1.StreamEntry.terminal_output:type_name -> netclode.v1.TerminalOutput
+	5,  // 14: netclode.v1.StreamEntry.session_update:type_name -> netclode.v1.Session
+	10, // 15: netclode.v1.StreamEntry.error:type_name -> netclode.v1.Error
+	20, // 16: netclode.v1.Error.details:type_name -> netclode.v1.Error.DetailsEntry
+	21, // 17: netclode.v1.InProgressState.messages:type_name -> netclode.v1.InProgressState.MessagesEntry
+	22, // 18: netclode.v1.InProgressState.thinking:type_name -> netclode.v1.InProgressState.ThinkingEntry
+	23, // 19: netclode.v1.InProgressState.tools:type_name -> netclode.v1.InProgressState.ToolsEntry
+	24, // 20: netclode.v1.Snapshot.created_at:type_name -> google.protobuf.Timestamp
+	4,  // 21: netclode.v1.GitFileChange.status:type_name -> netclode.v1.GitFileStatus
+	12, // 22: netclode.v1.InProgressState.ToolsEntry.value:type_name -> netclode.v1.InProgressTool
+	23, // [23:23] is the sub-list for method output_type
+	23, // [23:23] is the sub-list for method input_type
+	23, // [23:23] is the sub-list for extension type_name
+	23, // [23:23] is the sub-list for extension extendee
+	0,  // [0:23] is the sub-list for field type_name
 }
 
 func init() { file_netclode_v1_common_proto_init() }

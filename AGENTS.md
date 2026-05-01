@@ -75,6 +75,22 @@ kubectl -n netclode get pods
 - **secret-proxy**: External MITM proxy that validates tokens and injects real API keys
 - **github-bot**: Receives GitHub webhooks, creates Netclode sessions for @mentions and dependency reviews
 
+## Session Persistence
+
+Paused session metadata is stored separately from the live sandbox. For correct resume behavior, the persisted session record must include:
+- `sdk_type`
+- `model`
+- `tailnet_enabled`
+- `resources` (vCPU, memory, disk)
+
+If a session predates one of these fields, resume falls back to defaults where possible (for example default resources or Claude SDK fallback) but may not perfectly reconstruct the original runtime configuration.
+
+For the `resources` field specifically, the proto change is additive/backward-compatible: older sessions load with `resources=nil` and resume with default sandbox sizing.
+
+Deployment order for this change: roll out the **control-plane only**. The agent does not require a coordinated release for persisted session resources.
+
+Rollback: reverting the control-plane is safe. Older binaries ignore the newer Redis fields and resumed sessions fall back to default resources if the persisted `resources` field is no longer read.
+
 ### GitHub Bot
 
 Receives GitHub webhooks and creates Netclode sessions automatically:

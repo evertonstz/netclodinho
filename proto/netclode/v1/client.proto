@@ -136,6 +136,7 @@ message SendPromptRequest {
   optional string request_id = 1;
   string session_id = 2;
   string text = 3;
+  optional string model = 4;
 }
 
 message InterruptPromptRequest {

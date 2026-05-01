@@ -102,7 +102,7 @@ flowchart LR
 
 The control plane grabs a pre-booted Kata VM from the warm pool (so it's instant), forwards prompts to the agent SDK inside, and streams responses back. Redis persists events so clients can reconnect without losing anything.
 
-When pausing, the VM is deleted but JuiceFS keeps everything in S3: workspace, installed tools, Docker images, SDK session. Resume mounts the same storage and the conversation continues as if nothing happened. Dozens of paused sessions cost practically nothing.
+When pausing, the VM is deleted but JuiceFS keeps everything in S3: workspace, installed tools, Docker images, SDK session. Resume mounts the same storage and the conversation continues as if nothing happened. Session metadata such as model selection, SDK type, tailnet access, and custom sandbox resources are also persisted so resumed sessions come back with the same runtime configuration. Dozens of paused sessions cost practically nothing.
 
 ## Stack
 

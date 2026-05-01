@@ -15,6 +15,42 @@ const (
 	interruptTimeout = 5 * time.Second
 )
 
+func (m *Manager) PersistPromptModel(ctx context.Context, sessionID string, model *string) error {
+	if model == nil || *model == "" {
+		return nil
+	}
+
+	state := m.getOrLoadState(ctx, sessionID)
+	if state == nil {
+		return fmt.Errorf("session %s not found", sessionID)
+	}
+
+	modelValue := *model
+
+	m.mu.Lock()
+	changed := false
+	if state.Session.Model == nil || *state.Session.Model != modelValue {
+		state.Session.Model = &modelValue
+		changed = true
+	}
+	if state.Session.SdkType == nil {
+		if inferred, ok := inferSdkTypeFromModel(modelValue); ok {
+			state.Session.SdkType = &inferred
+			changed = true
+		}
+	}
+	session := state.Session
+	m.mu.Unlock()
+
+	if !changed {
+		return nil
+	}
+	if err := m.storage.SaveSession(ctx, session); err != nil {
+		return fmt.Errorf("persist prompt model: %w", err)
+	}
+	return nil
+}
+
 // SendPrompt sends a prompt to the agent and streams the response.
 // If the sandbox isn't ready yet, queues the prompt to be sent when ready.
 // If the session is paused or no agent is connected, automatically resumes it first.
@@ -85,7 +121,7 @@ func (m *Manager) handleAgentError(ctx context.Context, sessionID string, err er
 
 // pendingGitRequests tracks pending git status/diff requests with response channels
 type gitStatusResult struct {
-	files []pb.GitFileChange
+	files []*pb.GitFileChange
 	err   error
 }
 
@@ -101,7 +137,7 @@ var (
 )
 
 // GetGitStatus fetches git status from the agent.
-func (m *Manager) GetGitStatus(ctx context.Context, sessionID string) ([]pb.GitFileChange, error) {
+func (m *Manager) GetGitStatus(ctx context.Context, sessionID string) ([]*pb.GitFileChange, error) {
 	agent := m.GetAgentConnection(sessionID)
 	if agent == nil {
 		return nil, fmt.Errorf("no agent connected for session %s", sessionID)

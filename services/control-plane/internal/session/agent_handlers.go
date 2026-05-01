@@ -327,18 +327,10 @@ func (m *Manager) HandleTitleResponse(ctx context.Context, sessionID string, req
 
 // HandleGitStatusResponse processes git status response from agent.
 func (m *Manager) HandleGitStatusResponse(ctx context.Context, sessionID string, requestID string, files []*pb.GitFileChange) error {
-	// Convert []*pb.GitFileChange to []pb.GitFileChange for gitStatusResult
-	result := make([]pb.GitFileChange, len(files))
-	for i, f := range files {
-		if f != nil {
-			result[i] = *f
-		}
-	}
-
-	// Send to waiting request
+	// Send to waiting request without copying protobuf messages by value.
 	pendingGitMu.Lock()
 	if ch, ok := pendingGitStatusRequests[requestID]; ok {
-		ch <- gitStatusResult{files: result, err: nil}
+		ch <- gitStatusResult{files: files, err: nil}
 	}
 	pendingGitMu.Unlock()
 
