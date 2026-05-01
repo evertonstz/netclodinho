@@ -118,6 +118,15 @@ func (s *Server) ListenAndServe(ctx context.Context, httpAddr string) error {
 		}
 	}()
 
+	// Also listen on port 3001 — the iOS client maps :3000 → :3001 for local dev
+	altServer := &http.Server{Addr: ":3001", Handler: h2cHandler}
+	go func() {
+		slog.Info("Starting h2c server on alt port", "addr", ":3001")
+		if err := altServer.ListenAndServe(); err != http.ErrServerClosed {
+			slog.Error("h2c alt server error", "error", err)
+		}
+	}()
+
 	select {
 	case <-ctx.Done():
 		return s.gracefulShutdown()
