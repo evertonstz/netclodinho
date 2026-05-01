@@ -50,6 +50,7 @@ jobs:
         if: steps.cache-boxlite.outputs.cache-hit != 'true'
         working-directory: services/control-plane
         run: |
+          go mod download github.com/boxlite-ai/boxlite/sdks/go@v0.8.2
           go run github.com/boxlite-ai/boxlite/sdks/go/cmd/setup
           cp "$(go env GOMODCACHE)/github.com/boxlite-ai/boxlite/sdks/go@v0.8.2/libboxlite.a" third_party/boxlite-go-sdk/
 
