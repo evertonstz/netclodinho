@@ -38,6 +38,14 @@ services:
     cap_add:
       - NET_ADMIN
     restart: unless-stopped
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        containerboot &
+        for i in $$(seq 1 30); do tailscale status >/dev/null 2>&1 && break; sleep 1; done
+        tailscale serve --bg --https=443 http://localhost:3000 2>/dev/null || true
+        wait
     healthcheck:
       test: ["CMD", "tailscale", "status"]
       interval: 10s
@@ -116,24 +124,24 @@ services:
 
   # ── GitHub Bot (optional) ─────────────────────────────────────────────────
   # Enable with: docker compose --profile github-bot up -d
-  github-bot:
-    build:
-      context: .
-      dockerfile: services/github-bot/Dockerfile
-    network_mode: service:tailscale
-    depends_on:
-      tailscale:
-        condition: service_healthy
-    environment:
-      CONTROL_PLANE_URL: http://localhost:3000
-      GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
-      GITHUB_APP_ID: ${GITHUB_APP_ID:-}
-      GITHUB_APP_PRIVATE_KEY_B64: ${GITHUB_APP_PRIVATE_KEY_B64:-}
-      GITHUB_INSTALLATION_ID: ${GITHUB_INSTALLATION_ID:-}
-      PORT: "8082"
-    profiles:
-      - github-bot
-    restart: unless-stopped
+  # github-bot:
+  #   build:
+  #     context: .
+  #     dockerfile: services/github-bot/Dockerfile
+  #   network_mode: service:tailscale
+  #   depends_on:
+  #     tailscale:
+  #       condition: service_healthy
+  #   environment:
+  #     CONTROL_PLANE_URL: http://localhost:3000
+  #     GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
+  #     GITHUB_APP_ID: ${GITHUB_APP_ID:-}
+  #     GITHUB_APP_PRIVATE_KEY_B64: ${GITHUB_APP_PRIVATE_KEY_B64:-}
+  #     GITHUB_INSTALLATION_ID: ${GITHUB_INSTALLATION_ID:-}
+  #     PORT: "8082"
+  #   profiles:
+  #     - github-bot
+  #   restart: unless-stopped
 
 volumes:
   tailscale-state:
