@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 	"time"
 
@@ -92,6 +93,7 @@ func (r *RedisStorage) SaveSession(ctx context.Context, s *pb.Session) error {
 		"status", s.Status.String(),
 		"createdAt", s.CreatedAt.AsTime().Format(time.RFC3339),
 		"lastActiveAt", s.LastActiveAt.AsTime().Format(time.RFC3339),
+		"tailnetEnabled", strconv.FormatBool(s.TailnetEnabled),
 	)
 	if len(s.Repos) > 0 {
 		if reposJSON, err := json.Marshal(s.Repos); err == nil {
@@ -109,6 +111,18 @@ func (r *RedisStorage) SaveSession(ctx context.Context, s *pb.Session) error {
 	if s.Model != nil {
 		pipe.HSet(ctx, sessionKey(s.Id), "model", *s.Model)
 	}
+	if s.CopilotBackend != nil {
+		pipe.HSet(ctx, sessionKey(s.Id), "copilotBackend", s.CopilotBackend.String())
+	}
+	if s.Resources != nil {
+		pipe.HSet(ctx, sessionKey(s.Id),
+			"resourcesVcpus", strconv.FormatInt(int64(s.Resources.Vcpus), 10),
+			"resourcesMemoryMb", strconv.FormatInt(int64(s.Resources.MemoryMb), 10),
+		)
+		if s.Resources.DiskSizeGb != nil {
+			pipe.HSet(ctx, sessionKey(s.Id), "resourcesDiskSizeGb", strconv.FormatInt(int64(s.Resources.GetDiskSizeGb()), 10))
+		}
+	}
 
 	_, err := pipe.Exec(ctx)
 	return err
@@ -124,40 +138,7 @@ func (r *RedisStorage) GetSession(ctx context.Context, id string) (*pb.Session, 
 		return nil, nil
 	}
 
-	session := &pb.Session{
-		Id:     id,
-		Name:   data["name"],
-		Status: parseSessionStatus(data["status"]),
-	}
-	if t, err := time.Parse(time.RFC3339, data["createdAt"]); err == nil {
-		session.CreatedAt = timestamppb.New(t)
-	}
-	if t, err := time.Parse(time.RFC3339, data["lastActiveAt"]); err == nil {
-		session.LastActiveAt = timestamppb.New(t)
-	}
-	if reposJSON, ok := data["repos"]; ok && reposJSON != "" {
-		var repos []string
-		if err := json.Unmarshal([]byte(reposJSON), &repos); err == nil {
-			session.Repos = repos
-		} else {
-			slog.WarnContext(ctx, "Failed to decode repos for session", "sessionID", id, "error", err)
-		}
-	}
-	if repoAccessStr, ok := data["repoAccess"]; ok && repoAccessStr != "" {
-		repoAccess := parseRepoAccess(repoAccessStr)
-		if repoAccess != pb.RepoAccess_REPO_ACCESS_UNSPECIFIED {
-			session.RepoAccess = &repoAccess
-		}
-	}
-	if sdkTypeStr, ok := data["sdkType"]; ok && sdkTypeStr != "" {
-		sdkType := parseSdkType(sdkTypeStr)
-		session.SdkType = &sdkType
-	}
-	if model, ok := data["model"]; ok && model != "" {
-		session.Model = &model
-	}
-
-	return session, nil
+	return parseSessionData(ctx, id, data), nil
 }
 
 // parseSessionStatus converts a string status to pb.SessionStatus enum.
@@ -189,6 +170,10 @@ func parseSdkType(s string) pb.SdkType {
 		return pb.SdkType_SDK_TYPE_CLAUDE
 	case "SDK_TYPE_OPENCODE":
 		return pb.SdkType_SDK_TYPE_OPENCODE
+	case "SDK_TYPE_COPILOT":
+		return pb.SdkType_SDK_TYPE_COPILOT
+	case "SDK_TYPE_CODEX":
+		return pb.SdkType_SDK_TYPE_CODEX
 	default:
 		return pb.SdkType_SDK_TYPE_UNSPECIFIED
 	}
@@ -203,6 +188,79 @@ func parseRepoAccess(s string) pb.RepoAccess {
 	default:
 		return pb.RepoAccess_REPO_ACCESS_UNSPECIFIED
 	}
+}
+
+func parseCopilotBackend(s string) pb.CopilotBackend {
+	switch s {
+	case "COPILOT_BACKEND_GITHUB":
+		return pb.CopilotBackend_COPILOT_BACKEND_GITHUB
+	case "COPILOT_BACKEND_ANTHROPIC":
+		return pb.CopilotBackend_COPILOT_BACKEND_ANTHROPIC
+	default:
+		return pb.CopilotBackend_COPILOT_BACKEND_UNSPECIFIED
+	}
+}
+
+func parseSessionData(ctx context.Context, id string, data map[string]string) *pb.Session {
+	session := &pb.Session{
+		Id:             id,
+		Name:           data["name"],
+		Status:         parseSessionStatus(data["status"]),
+		TailnetEnabled: strings.EqualFold(data["tailnetEnabled"], "true"),
+	}
+	if t, err := time.Parse(time.RFC3339, data["createdAt"]); err == nil {
+		session.CreatedAt = timestamppb.New(t)
+	}
+	if t, err := time.Parse(time.RFC3339, data["lastActiveAt"]); err == nil {
+		session.LastActiveAt = timestamppb.New(t)
+	}
+	if reposJSON, ok := data["repos"]; ok && reposJSON != "" {
+		var repos []string
+		if err := json.Unmarshal([]byte(reposJSON), &repos); err == nil {
+			session.Repos = repos
+		} else {
+			slog.WarnContext(ctx, "Failed to decode repos for session", "sessionID", id, "error", err)
+		}
+	}
+	if repoAccessStr, ok := data["repoAccess"]; ok && repoAccessStr != "" {
+		repoAccess := parseRepoAccess(repoAccessStr)
+		if repoAccess != pb.RepoAccess_REPO_ACCESS_UNSPECIFIED {
+			session.RepoAccess = &repoAccess
+		}
+	}
+	if sdkTypeStr, ok := data["sdkType"]; ok && sdkTypeStr != "" {
+		sdkType := parseSdkType(sdkTypeStr)
+		if sdkType != pb.SdkType_SDK_TYPE_UNSPECIFIED {
+			session.SdkType = &sdkType
+		}
+	}
+	if model, ok := data["model"]; ok && model != "" {
+		session.Model = &model
+	}
+	if backendStr, ok := data["copilotBackend"]; ok && backendStr != "" {
+		backend := parseCopilotBackend(backendStr)
+		if backend != pb.CopilotBackend_COPILOT_BACKEND_UNSPECIFIED {
+			session.CopilotBackend = &backend
+		}
+	}
+	if vcpusStr, ok := data["resourcesVcpus"]; ok && vcpusStr != "" {
+		if vcpus, err := strconv.ParseInt(vcpusStr, 10, 32); err == nil {
+			resources := &pb.SandboxResources{Vcpus: int32(vcpus)}
+			if memoryStr, ok := data["resourcesMemoryMb"]; ok && memoryStr != "" {
+				if memoryMb, err := strconv.ParseInt(memoryStr, 10, 32); err == nil {
+					resources.MemoryMb = int32(memoryMb)
+				}
+			}
+			if diskStr, ok := data["resourcesDiskSizeGb"]; ok && diskStr != "" {
+				if diskSizeGb, err := strconv.ParseInt(diskStr, 10, 32); err == nil {
+					disk := int32(diskSizeGb)
+					resources.DiskSizeGb = &disk
+				}
+			}
+			session.Resources = resources
+		}
+	}
+	return session
 }
 
 // GetAllSessions retrieves all sessions from Redis.
@@ -233,33 +291,7 @@ func (r *RedisStorage) GetAllSessions(ctx context.Context) ([]*pb.Session, error
 		if err != nil || len(data) == 0 {
 			continue
 		}
-
-		session := &pb.Session{
-			Id:     id,
-			Name:   data["name"],
-			Status: parseSessionStatus(data["status"]),
-		}
-		if t, err := time.Parse(time.RFC3339, data["createdAt"]); err == nil {
-			session.CreatedAt = timestamppb.New(t)
-		}
-		if t, err := time.Parse(time.RFC3339, data["lastActiveAt"]); err == nil {
-			session.LastActiveAt = timestamppb.New(t)
-		}
-		if reposJSON, ok := data["repos"]; ok && reposJSON != "" {
-			var repos []string
-			if err := json.Unmarshal([]byte(reposJSON), &repos); err == nil {
-				session.Repos = repos
-			} else {
-				slog.WarnContext(ctx, "Failed to decode repos for session", "sessionID", id, "error", err)
-			}
-		}
-		if repoAccessStr, ok := data["repoAccess"]; ok && repoAccessStr != "" {
-			repoAccess := parseRepoAccess(repoAccessStr)
-			if repoAccess != pb.RepoAccess_REPO_ACCESS_UNSPECIFIED {
-				session.RepoAccess = &repoAccess
-			}
-		}
-		sessions = append(sessions, session)
+		sessions = append(sessions, parseSessionData(ctx, id, data))
 	}
 
 	return sessions, nil

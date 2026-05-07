@@ -248,7 +248,7 @@ func (c *ConnectConnection) handleMessage(ctx context.Context, msg *pb.ClientMes
 	case *pb.ClientMessage_DeleteAllSessions:
 		return c.handleSessionDeleteAll(ctx)
 	case *pb.ClientMessage_SendPrompt:
-		return c.handlePrompt(ctx, m.SendPrompt.SessionId, m.SendPrompt.Text)
+		return c.handlePrompt(ctx, m.SendPrompt)
 	case *pb.ClientMessage_InterruptPrompt:
 		return c.handlePromptInterrupt(ctx, m.InterruptPrompt.SessionId)
 	case *pb.ClientMessage_TerminalInput:
@@ -484,15 +484,9 @@ func (c *ConnectConnection) handleSessionList(ctx context.Context) error {
 		return err
 	}
 
-	// Sessions are already pb.Session, just need to convert to pointers
-	pbSessions := make([]*pb.Session, len(sessions))
-	for i := range sessions {
-		pbSessions[i] = &sessions[i]
-	}
-
 	return c.send(&pb.ServerMessage{
 		Message: &pb.ServerMessage_SessionList{
-			SessionList: &pb.SessionListResponse{Sessions: pbSessions},
+			SessionList: &pb.SessionListResponse{Sessions: sessions},
 		},
 	})
 }
@@ -623,12 +617,17 @@ func (c *ConnectConnection) handleSessionDeleteAll(ctx context.Context) error {
 	return nil
 }
 
-func (c *ConnectConnection) handlePrompt(ctx context.Context, sessionID, text string) error {
+func (c *ConnectConnection) handlePrompt(ctx context.Context, req *pb.SendPromptRequest) error {
+	sessionID := req.SessionId
+	text := req.Text
 	if sessionID == "" {
 		return connect.NewError(connect.CodeInvalidArgument, errSessionIDRequired)
 	}
 	if text == "" {
 		return connect.NewError(connect.CodeInvalidArgument, errTextRequired)
+	}
+	if err := c.manager.PersistPromptModel(ctx, sessionID, req.Model); err != nil {
+		return err
 	}
 
 	return c.manager.SendPrompt(ctx, sessionID, text)
@@ -668,16 +667,10 @@ func (c *ConnectConnection) handleSync(ctx context.Context) error {
 		return err
 	}
 
-	// Sessions are already pb.SessionSummary, just need to convert to pointers
-	pbSessions := make([]*pb.SessionSummary, len(sessions))
-	for i := range sessions {
-		pbSessions[i] = &sessions[i]
-	}
-
 	return c.send(&pb.ServerMessage{
 		Message: &pb.ServerMessage_SyncResponse{
 			SyncResponse: &pb.SyncResponse{
-				Sessions:   pbSessions,
+				Sessions:   sessions,
 				ServerTime: timestamppb.Now(),
 			},
 		},
@@ -765,15 +758,9 @@ func (c *ConnectConnection) handleGitStatus(ctx context.Context, sessionID strin
 		return c.send(makeErrorResponse(sessionID, "GIT_ERROR", err.Error()))
 	}
 
-	// Files are already pb.GitFileChange, convert to pointers
-	pbFiles := make([]*pb.GitFileChange, len(files))
-	for i := range files {
-		pbFiles[i] = &files[i]
-	}
-
 	return c.send(&pb.ServerMessage{
 		Message: &pb.ServerMessage_GitStatus{
-			GitStatus: &pb.GitStatusResponse{SessionId: sessionID, Files: pbFiles},
+			GitStatus: &pb.GitStatusResponse{SessionId: sessionID, Files: files},
 		},
 	})
 }

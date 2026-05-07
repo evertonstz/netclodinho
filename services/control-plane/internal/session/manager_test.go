@@ -1,7 +1,9 @@
 package session
 
 import (
+	"bytes"
 	"context"
+	"log/slog"
 	"strconv"
 	"strings"
 	"sync"
@@ -14,6 +16,7 @@ import (
 	"github.com/angristan/netclode/services/control-plane/internal/storage"
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -28,7 +31,8 @@ type mockRuntime struct {
 	createdSandboxes []string
 	createdClaims    []string
 	createdServices  []string
-	createdEnvs      map[string]map[string]string // sessionID -> env passed to CreateSandbox
+	createdEnvs      map[string]map[string]string          // sessionID -> env passed to CreateSandbox
+	createdResources map[string]*k8s.SandboxResourceConfig // sessionID -> resources passed to CreateSandbox
 	exposedPorts     map[string]map[int]bool
 	labeledSandboxes map[string]string // sandboxName -> sessionID
 	readyCallbacks   map[string][]k8s.SandboxReadyCallback
@@ -38,6 +42,7 @@ func newMockRuntime() *mockRuntime {
 	return &mockRuntime{
 		sandboxes:        make(map[string]*k8s.SandboxStatusInfo),
 		createdEnvs:      make(map[string]map[string]string),
+		createdResources: make(map[string]*k8s.SandboxResourceConfig),
 		exposedPorts:     make(map[string]map[int]bool),
 		labeledSandboxes: make(map[string]string),
 		readyCallbacks:   make(map[string][]k8s.SandboxReadyCallback),
@@ -49,12 +54,18 @@ func (m *mockRuntime) CreateSandbox(ctx context.Context, sessionID string, env m
 	defer m.mu.Unlock()
 	m.createdSandboxes = append(m.createdSandboxes, sessionID)
 	m.sandboxes[sessionID] = &k8s.SandboxStatusInfo{Exists: true, Ready: true, ServiceFQDN: "test.local"}
-	// Record env for inspection in tests.
+	// Record env/resources for inspection in tests.
 	envCopy := make(map[string]string, len(env))
 	for k, v := range env {
 		envCopy[k] = v
 	}
 	m.createdEnvs[sessionID] = envCopy
+	if resources != nil {
+		resCopy := *resources
+		m.createdResources[sessionID] = &resCopy
+	} else {
+		m.createdResources[sessionID] = nil
+	}
 	return nil
 }
 
@@ -294,7 +305,7 @@ func newMockStorage() *mockStorage {
 func (m *mockStorage) SaveSession(ctx context.Context, s *pb.Session) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.sessions[s.Id] = s
+	m.sessions[s.Id] = proto.Clone(s).(*pb.Session)
 	return nil
 }
 
@@ -302,7 +313,7 @@ func (m *mockStorage) GetSession(ctx context.Context, id string) (*pb.Session, e
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if s, ok := m.sessions[id]; ok {
-		return s, nil
+		return proto.Clone(s).(*pb.Session), nil
 	}
 	return nil, nil
 }
@@ -312,7 +323,7 @@ func (m *mockStorage) GetAllSessions(ctx context.Context) ([]*pb.Session, error)
 	defer m.mu.Unlock()
 	var result []*pb.Session
 	for _, s := range m.sessions {
-		result = append(result, s)
+		result = append(result, proto.Clone(s).(*pb.Session))
 	}
 	return result, nil
 }
@@ -535,6 +546,341 @@ func addSession(m *Manager, id string, status pb.SessionStatus, lastActiveAt tim
 		LastActiveAt: timestamppb.New(lastActiveAt),
 	}
 	m.sessions[id] = NewSessionState(session)
+}
+
+func waitForCondition(t *testing.T, fn func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if fn() {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("condition not met before timeout")
+}
+
+func TestCreatePersistsResources(t *testing.T) {
+	manager, _, store := newTestManager(3)
+	manager.config.UseWarmPool = false
+	manager.config.HostCPUs = 16
+	manager.config.HostMemoryMB = 32768
+
+	repoAccess := pb.RepoAccess_REPO_ACCESS_WRITE
+	tailnet := true
+	resources := &pb.SandboxResources{Vcpus: 4, MemoryMb: 4096}
+	diskSizeGb := int32(40)
+	resources.DiskSizeGb = &diskSizeGb
+
+	sess, err := manager.Create(context.Background(), "resource-session", []string{"owner/repo"}, &repoAccess, nil, nil, nil, &tailnet, resources)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	persisted, err := store.GetSession(context.Background(), sess.Id)
+	if err != nil {
+		t.Fatalf("GetSession() error = %v", err)
+	}
+	if persisted == nil || persisted.Resources == nil {
+		t.Fatalf("expected persisted resources, got %#v", persisted)
+	}
+	if persisted.Resources.Vcpus != 4 || persisted.Resources.MemoryMb != 4096 || persisted.Resources.GetDiskSizeGb() != 40 {
+		t.Fatalf("persisted resources = %+v, want vcpus=4 memory=4096 disk=40", persisted.Resources)
+	}
+	if !persisted.TailnetEnabled {
+		t.Fatalf("expected tailnet_enabled to be persisted")
+	}
+}
+
+func TestCreateRejectsResourcesThatExceedCapacity(t *testing.T) {
+	manager, _, _ := newTestManager(3)
+	manager.config.HostCPUs = 4
+	manager.config.HostMemoryMB = 4096
+
+	_, err := manager.Create(context.Background(), "too-big", nil, nil, nil, nil, nil, nil, &pb.SandboxResources{Vcpus: 8, MemoryMb: 8192})
+	if err == nil {
+		t.Fatal("expected Create() to reject oversized resources")
+	}
+	if !strings.Contains(err.Error(), "exceeds maximum allowed") {
+		t.Fatalf("Create() error = %v, want capacity validation error", err)
+	}
+}
+
+func TestResumeUsesPersistedResources(t *testing.T) {
+	manager, runtime, store := newTestManager(3)
+	manager.config.HostCPUs = 16
+	manager.config.HostMemoryMB = 32768
+
+	now := timestamppb.Now()
+	diskSizeGb := int32(50)
+	session := &pb.Session{
+		Id:           "resume-resource-session",
+		Name:         "resume-resource-session",
+		Status:       pb.SessionStatus_SESSION_STATUS_PAUSED,
+		CreatedAt:    now,
+		LastActiveAt: now,
+		Resources:    &pb.SandboxResources{Vcpus: 6, MemoryMb: 8192, DiskSizeGb: &diskSizeGb},
+	}
+	if err := store.SaveSession(context.Background(), session); err != nil {
+		t.Fatalf("SaveSession() error = %v", err)
+	}
+	manager.sessions[session.Id] = NewSessionState(proto.Clone(session).(*pb.Session))
+
+	if _, err := manager.Resume(context.Background(), session.Id); err != nil {
+		t.Fatalf("Resume() error = %v", err)
+	}
+
+	waitForCondition(t, func() bool {
+		runtime.mu.Lock()
+		defer runtime.mu.Unlock()
+		_, ok := runtime.createdResources[session.Id]
+		return ok
+	})
+
+	runtime.mu.Lock()
+	defer runtime.mu.Unlock()
+	res := runtime.createdResources[session.Id]
+	if res == nil {
+		t.Fatalf("expected runtime resources, got nil")
+	}
+	if res.VCPUs != 6 || res.MemoryMB != 8192 || res.DiskSizeGb != 50 {
+		t.Fatalf("runtime resources = %+v, want vcpus=6 memory=8192 disk=50", res)
+	}
+}
+
+func TestResumeRejectsPersistedResourcesThatExceedCapacity(t *testing.T) {
+	manager, runtime, store := newTestManager(3)
+	manager.config.HostCPUs = 4
+	manager.config.HostMemoryMB = 4096
+
+	now := timestamppb.Now()
+	session := &pb.Session{
+		Id:           "oversized-session",
+		Name:         "oversized-session",
+		Status:       pb.SessionStatus_SESSION_STATUS_PAUSED,
+		CreatedAt:    now,
+		LastActiveAt: now,
+		Resources:    &pb.SandboxResources{Vcpus: 8, MemoryMb: 8192},
+	}
+	if err := store.SaveSession(context.Background(), session); err != nil {
+		t.Fatalf("SaveSession() error = %v", err)
+	}
+	manager.sessions[session.Id] = NewSessionState(proto.Clone(session).(*pb.Session))
+
+	_, err := manager.Resume(context.Background(), session.Id)
+	if err == nil {
+		t.Fatal("expected Resume() to fail for oversized persisted resources")
+	}
+	if !strings.Contains(err.Error(), "recreate with smaller allocation") {
+		t.Fatalf("Resume() error = %v, want clearer capacity guidance", err)
+	}
+
+	runtime.mu.Lock()
+	defer runtime.mu.Unlock()
+	if _, ok := runtime.createdResources[session.Id]; ok {
+		t.Fatalf("expected no sandbox creation for oversized resume")
+	}
+}
+
+func TestCreatePauseResumePreservesPersistedResources(t *testing.T) {
+	manager, runtime, _ := newTestManager(3)
+	manager.config.UseWarmPool = false
+	manager.config.HostCPUs = 16
+	manager.config.HostMemoryMB = 32768
+
+	diskSizeGb := int32(30)
+	resources := &pb.SandboxResources{Vcpus: 3, MemoryMb: 6144, DiskSizeGb: &diskSizeGb}
+	sess, err := manager.Create(context.Background(), "roundtrip-session", nil, nil, nil, nil, nil, nil, resources)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	waitForCondition(t, func() bool {
+		runtime.mu.Lock()
+		defer runtime.mu.Unlock()
+		_, ok := runtime.createdResources[sess.Id]
+		return ok
+	})
+
+	if _, err := manager.Pause(context.Background(), sess.Id); err != nil {
+		t.Fatalf("Pause() error = %v", err)
+	}
+
+	runtime.mu.Lock()
+	delete(runtime.createdResources, sess.Id)
+	runtime.mu.Unlock()
+
+	if _, err := manager.Resume(context.Background(), sess.Id); err != nil {
+		t.Fatalf("Resume() error = %v", err)
+	}
+
+	waitForCondition(t, func() bool {
+		runtime.mu.Lock()
+		defer runtime.mu.Unlock()
+		_, ok := runtime.createdResources[sess.Id]
+		return ok
+	})
+
+	runtime.mu.Lock()
+	defer runtime.mu.Unlock()
+	res := runtime.createdResources[sess.Id]
+	if res == nil || res.VCPUs != 3 || res.MemoryMB != 6144 || res.DiskSizeGb != 30 {
+		t.Fatalf("resume resources = %+v, want vcpus=3 memory=6144 disk=30", res)
+	}
+}
+
+func TestResumeOldSessionUsesDefaultResources(t *testing.T) {
+	manager, runtime, store := newTestManager(3)
+	manager.config.HostCPUs = 16
+	manager.config.HostMemoryMB = 32768
+
+	var logs bytes.Buffer
+	prevDefault := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	defer slog.SetDefault(prevDefault)
+
+	now := timestamppb.Now()
+	session := &pb.Session{
+		Id:           "legacy-session",
+		Name:         "legacy-session",
+		Status:       pb.SessionStatus_SESSION_STATUS_PAUSED,
+		CreatedAt:    now,
+		LastActiveAt: now,
+	}
+	if err := store.SaveSession(context.Background(), session); err != nil {
+		t.Fatalf("SaveSession() error = %v", err)
+	}
+	manager.sessions[session.Id] = NewSessionState(proto.Clone(session).(*pb.Session))
+
+	if _, err := manager.Resume(context.Background(), session.Id); err != nil {
+		t.Fatalf("Resume() error = %v", err)
+	}
+
+	waitForCondition(t, func() bool {
+		runtime.mu.Lock()
+		defer runtime.mu.Unlock()
+		_, ok := runtime.createdResources[session.Id]
+		return ok
+	})
+
+	runtime.mu.Lock()
+	defer runtime.mu.Unlock()
+	if runtime.createdResources[session.Id] != nil {
+		t.Fatalf("expected legacy session resume to use default resources, got %+v", runtime.createdResources[session.Id])
+	}
+	if !strings.Contains(logs.String(), "defaulting to Claude") {
+		t.Fatalf("expected warning log about Claude fallback during resume, got logs: %s", logs.String())
+	}
+}
+
+func TestCreateSandboxDirectInfersSdkTypeFromModelAndPersistsIt(t *testing.T) {
+	manager, runtime, store := newTestManager(3)
+	manager.config.UseWarmPool = false
+
+	model := "gpt-5-codex:oauth:high"
+	now := timestamppb.Now()
+	session := &pb.Session{
+		Id:           "model-inference-session",
+		Name:         "model-inference-session",
+		Status:       pb.SessionStatus_SESSION_STATUS_PAUSED,
+		CreatedAt:    now,
+		LastActiveAt: now,
+		Model:        &model,
+	}
+	if err := store.SaveSession(context.Background(), session); err != nil {
+		t.Fatalf("SaveSession() error = %v", err)
+	}
+	manager.sessions[session.Id] = NewSessionState(proto.Clone(session).(*pb.Session))
+
+	manager.createSandboxDirect(context.Background(), session.Id, nil, nil, false, nil)
+
+	persisted, err := store.GetSession(context.Background(), session.Id)
+	if err != nil {
+		t.Fatalf("GetSession() error = %v", err)
+	}
+	if persisted.SdkType == nil || *persisted.SdkType != pb.SdkType_SDK_TYPE_CODEX {
+		t.Fatalf("persisted sdk type = %v, want CODEX", persisted.SdkType)
+	}
+
+	runtime.mu.Lock()
+	defer runtime.mu.Unlock()
+	if got := runtime.createdEnvs[session.Id]["SDK_TYPE"]; got != pb.SdkType_SDK_TYPE_CODEX.String() {
+		t.Fatalf("SDK_TYPE env = %q, want %q", got, pb.SdkType_SDK_TYPE_CODEX.String())
+	}
+}
+
+func TestCreateSandboxDirectDefaultsToClaudeWithoutPersistedModel(t *testing.T) {
+	manager, runtime, store := newTestManager(3)
+	manager.config.UseWarmPool = false
+
+	var logs bytes.Buffer
+	prevDefault := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	defer slog.SetDefault(prevDefault)
+
+	now := timestamppb.Now()
+	session := &pb.Session{
+		Id:           "default-claude-session",
+		Name:         "default-claude-session",
+		Status:       pb.SessionStatus_SESSION_STATUS_PAUSED,
+		CreatedAt:    now,
+		LastActiveAt: now,
+	}
+	if err := store.SaveSession(context.Background(), session); err != nil {
+		t.Fatalf("SaveSession() error = %v", err)
+	}
+	manager.sessions[session.Id] = NewSessionState(proto.Clone(session).(*pb.Session))
+
+	manager.createSandboxDirect(context.Background(), session.Id, nil, nil, false, nil)
+
+	persisted, err := store.GetSession(context.Background(), session.Id)
+	if err != nil {
+		t.Fatalf("GetSession() error = %v", err)
+	}
+	if persisted.SdkType == nil || *persisted.SdkType != pb.SdkType_SDK_TYPE_CLAUDE {
+		t.Fatalf("persisted sdk type = %v, want CLAUDE", persisted.SdkType)
+	}
+
+	runtime.mu.Lock()
+	defer runtime.mu.Unlock()
+	if got := runtime.createdEnvs[session.Id]["SDK_TYPE"]; got != pb.SdkType_SDK_TYPE_CLAUDE.String() {
+		t.Fatalf("SDK_TYPE env = %q, want %q", got, pb.SdkType_SDK_TYPE_CLAUDE.String())
+	}
+	if !strings.Contains(logs.String(), "defaulting to Claude") {
+		t.Fatalf("expected warning log about Claude fallback, got logs: %s", logs.String())
+	}
+}
+
+func TestPersistPromptModelSavesModelAndSdkType(t *testing.T) {
+	manager, _, store := newTestManager(3)
+	model := "opencode/openrouter/anthropic/claude-sonnet-4"
+	now := timestamppb.Now()
+	session := &pb.Session{
+		Id:           "prompt-model-session",
+		Name:         "prompt-model-session",
+		Status:       pb.SessionStatus_SESSION_STATUS_READY,
+		CreatedAt:    now,
+		LastActiveAt: now,
+	}
+	if err := store.SaveSession(context.Background(), session); err != nil {
+		t.Fatalf("SaveSession() error = %v", err)
+	}
+	manager.sessions[session.Id] = NewSessionState(proto.Clone(session).(*pb.Session))
+
+	if err := manager.PersistPromptModel(context.Background(), session.Id, &model); err != nil {
+		t.Fatalf("PersistPromptModel() error = %v", err)
+	}
+
+	persisted, err := store.GetSession(context.Background(), session.Id)
+	if err != nil {
+		t.Fatalf("GetSession() error = %v", err)
+	}
+	if persisted.Model == nil || *persisted.Model != model {
+		t.Fatalf("persisted model = %v, want %q", persisted.Model, model)
+	}
+	if persisted.SdkType == nil || *persisted.SdkType != pb.SdkType_SDK_TYPE_OPENCODE {
+		t.Fatalf("persisted sdk type = %v, want OPENCODE", persisted.SdkType)
+	}
 }
 
 func TestEnsureActiveSlot_NoActionWhenUnderLimit(t *testing.T) {
@@ -994,8 +1340,8 @@ func TestSessionUpdateStreamContract(t *testing.T) {
 
 	// Publish a session update directly via emitSessionUpdated.
 	session := &pb.Session{
-		Id:     sessionID,
-		Status: pb.SessionStatus_SESSION_STATUS_READY,
+		Id:        sessionID,
+		Status:    pb.SessionStatus_SESSION_STATUS_READY,
 		CreatedAt: timestamppb.Now(),
 	}
 	m.emitSessionUpdated(ctx, session)

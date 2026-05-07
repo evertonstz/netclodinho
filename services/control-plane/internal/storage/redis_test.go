@@ -44,17 +44,26 @@ func TestSaveSessionReposAndAccess(t *testing.T) {
 
 	ctx := context.Background()
 	repoAccess := pb.RepoAccess_REPO_ACCESS_WRITE
+	sdkType := pb.SdkType_SDK_TYPE_CODEX
+	copilotBackend := pb.CopilotBackend_COPILOT_BACKEND_GITHUB
 	now := timestamppb.Now()
+	diskSizeGb := int32(64)
 
 	session := &pb.Session{
-		Id:           "test-session-repos",
-		Name:         "Repo Session",
-		Status:       pb.SessionStatus_SESSION_STATUS_READY,
-		Repos:        []string{"https://github.com/owner/repo.git", "https://github.com/owner/another.git"},
-		RepoAccess:   &repoAccess,
-		CreatedAt:    now,
-		LastActiveAt: now,
+		Id:             "test-session-repos",
+		Name:           "Repo Session",
+		Status:         pb.SessionStatus_SESSION_STATUS_READY,
+		Repos:          []string{"https://github.com/owner/repo.git", "https://github.com/owner/another.git"},
+		RepoAccess:     &repoAccess,
+		CreatedAt:      now,
+		LastActiveAt:   now,
+		SdkType:        &sdkType,
+		CopilotBackend: &copilotBackend,
+		TailnetEnabled: true,
+		Resources:      &pb.SandboxResources{Vcpus: 6, MemoryMb: 12288, DiskSizeGb: &diskSizeGb},
 	}
+	model := "gpt-5-codex:oauth:high"
+	session.Model = &model
 
 	if err := storage.SaveSession(ctx, session); err != nil {
 		t.Fatalf("failed to save session: %v", err)
@@ -78,6 +87,52 @@ func TestSaveSessionReposAndAccess(t *testing.T) {
 	}
 	if loaded.RepoAccess == nil || *loaded.RepoAccess != repoAccess {
 		t.Fatalf("expected repo access %v, got %v", repoAccess, loaded.RepoAccess)
+	}
+	if loaded.SdkType == nil || *loaded.SdkType != sdkType {
+		t.Fatalf("expected sdk type %v, got %v", sdkType, loaded.SdkType)
+	}
+	if loaded.CopilotBackend == nil || *loaded.CopilotBackend != copilotBackend {
+		t.Fatalf("expected copilot backend %v, got %v", copilotBackend, loaded.CopilotBackend)
+	}
+	if !loaded.TailnetEnabled {
+		t.Fatalf("expected tailnet_enabled to round-trip")
+	}
+	if loaded.Model == nil || *loaded.Model != model {
+		t.Fatalf("expected model %q, got %v", model, loaded.Model)
+	}
+	if loaded.Resources == nil || loaded.Resources.Vcpus != 6 || loaded.Resources.MemoryMb != 12288 || loaded.Resources.GetDiskSizeGb() != 64 {
+		t.Fatalf("expected resources to round-trip, got %+v", loaded.Resources)
+	}
+}
+
+func TestGetSessionOldDataWithoutResourcesStillLoads(t *testing.T) {
+	mr, storage := setupTestRedis(t)
+	defer mr.Close()
+	defer storage.Close()
+
+	ctx := context.Background()
+	key := sessionKey("legacy-session")
+	if err := storage.client.HSet(ctx, key,
+		"name", "Legacy Session",
+		"status", "SESSION_STATUS_PAUSED",
+		"createdAt", time.Now().UTC().Format(time.RFC3339),
+		"lastActiveAt", time.Now().UTC().Format(time.RFC3339),
+	).Err(); err != nil {
+		t.Fatalf("failed to seed legacy session: %v", err)
+	}
+	if err := storage.client.SAdd(ctx, keySessionsAll, "legacy-session").Err(); err != nil {
+		t.Fatalf("failed to seed session set: %v", err)
+	}
+
+	loaded, err := storage.GetSession(ctx, "legacy-session")
+	if err != nil {
+		t.Fatalf("GetSession() error = %v", err)
+	}
+	if loaded == nil {
+		t.Fatal("expected session, got nil")
+	}
+	if loaded.Resources != nil {
+		t.Fatalf("expected nil resources for legacy session, got %+v", loaded.Resources)
 	}
 }
 

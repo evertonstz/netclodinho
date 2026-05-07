@@ -5,6 +5,7 @@ import (
 
 	pb "github.com/angristan/netclode/services/control-plane/gen/netclode/v1"
 	"github.com/angristan/netclode/services/control-plane/internal/config"
+	"github.com/angristan/netclode/services/control-plane/internal/k8s"
 )
 
 func TestBuildSecretsAndAllowNet_Claude(t *testing.T) {
@@ -114,6 +115,75 @@ func contains(slice []string, want string) bool {
 		}
 	}
 	return false
+}
+
+type stubTokenIssuer struct{}
+
+func (stubTokenIssuer) IssueDockerToken(sessionID string) string {
+	return "token-for-" + sessionID
+}
+
+func TestBuildSandboxCreateSpecAppliesPersistedResources(t *testing.T) {
+	r := &Runtime{
+		cfg: &config.Config{
+			AgentImage:               "ghcr.io/angristan/netclode-agent:latest",
+			BoxliteAgentCPURL:        "https://cp.example.com",
+			BoxliteDefaultDiskSizeGb: 20,
+		},
+		realKeys:    map[string]string{"anthropic": "sk-real"},
+		tokenIssuer: stubTokenIssuer{},
+	}
+
+	spec := r.buildSandboxCreateSpec("sess-123", map[string]string{
+		"SDK_TYPE":                  pb.SdkType_SDK_TYPE_CLAUDE.String(),
+		"FOO":                       "bar",
+		k8s.ExistingPVCEnvKey:       "persisted-box",
+		"_BOXLITE_SESSION_SECRET_x": "secret-value",
+	}, &k8s.SandboxResourceConfig{VCPUs: 6, MemoryMB: 12288, DiskSizeGb: 80})
+
+	if spec.existingBoxName != "persisted-box" {
+		t.Fatalf("existingBoxName = %q, want persisted-box", spec.existingBoxName)
+	}
+	if spec.diskSizeGb != 80 {
+		t.Fatalf("diskSizeGb = %d, want 80", spec.diskSizeGb)
+	}
+	if spec.cpus != 6 {
+		t.Fatalf("cpus = %d, want 6", spec.cpus)
+	}
+	if spec.memoryMB != 12288 {
+		t.Fatalf("memoryMB = %d, want 12288", spec.memoryMB)
+	}
+	if spec.boxEnv["AGENT_SESSION_TOKEN"] != "token-for-sess-123" {
+		t.Fatalf("AGENT_SESSION_TOKEN = %q", spec.boxEnv["AGENT_SESSION_TOKEN"])
+	}
+	if spec.boxEnv["CONTROL_PLANE_URL"] != "https://cp.example.com" {
+		t.Fatalf("CONTROL_PLANE_URL = %q", spec.boxEnv["CONTROL_PLANE_URL"])
+	}
+	if spec.boxEnv["ANTHROPIC_API_KEY"] != "NETCLODE_PLACEHOLDER_anthropic" {
+		t.Fatalf("ANTHROPIC_API_KEY placeholder = %q", spec.boxEnv["ANTHROPIC_API_KEY"])
+	}
+	if _, ok := spec.boxEnv[k8s.ExistingPVCEnvKey]; ok {
+		t.Fatal("existing PVC env key should not be forwarded to guest env")
+	}
+	if _, ok := spec.boxEnv["_BOXLITE_SESSION_SECRET_x"]; ok {
+		t.Fatal("per-session secret carrier should not be forwarded to guest env")
+	}
+}
+
+func TestBuildSandboxCreateSpecUsesDefaultDiskWithoutResources(t *testing.T) {
+	r := &Runtime{
+		cfg:         &config.Config{BoxliteAgentCPURL: "https://cp.example.com", BoxliteDefaultDiskSizeGb: 24},
+		realKeys:    map[string]string{},
+		tokenIssuer: stubTokenIssuer{},
+	}
+
+	spec := r.buildSandboxCreateSpec("sess-456", map[string]string{"SDK_TYPE": pb.SdkType_SDK_TYPE_CLAUDE.String()}, nil)
+	if spec.diskSizeGb != 24 {
+		t.Fatalf("diskSizeGb = %d, want 24", spec.diskSizeGb)
+	}
+	if spec.cpus != 0 || spec.memoryMB != 0 {
+		t.Fatalf("unexpected default resource overrides: cpus=%d memoryMB=%d", spec.cpus, spec.memoryMB)
+	}
 }
 
 func TestNewRuntimeCreatesHomeDir(t *testing.T) {

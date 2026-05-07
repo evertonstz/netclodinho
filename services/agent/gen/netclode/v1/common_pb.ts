@@ -71,6 +71,18 @@ export type Session = Message<"netclode.v1.Session"> & {
    * @generated from field: optional netclode.v1.CopilotBackend copilot_backend = 10;
    */
   copilotBackend?: CopilotBackend;
+
+  /**
+   * Whether this session has Tailscale network access enabled
+   *
+   * @generated from field: bool tailnet_enabled = 11;
+   */
+  tailnetEnabled: boolean;
+
+  /**
+   * @generated from field: optional netclode.v1.SandboxResources resources = 12;
+   */
+  resources?: SandboxResources;
 };
 
 /**

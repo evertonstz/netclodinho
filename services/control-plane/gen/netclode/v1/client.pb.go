@@ -1317,6 +1317,7 @@ type SendPromptRequest struct {
 	RequestId     *string                `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3,oneof" json:"request_id,omitempty"`
 	SessionId     string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 	Text          string                 `protobuf:"bytes,3,opt,name=text,proto3" json:"text,omitempty"`
+	Model         *string                `protobuf:"bytes,4,opt,name=model,proto3,oneof" json:"model,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1368,6 +1369,13 @@ func (x *SendPromptRequest) GetSessionId() string {
 func (x *SendPromptRequest) GetText() string {
 	if x != nil {
 		return x.Text
+	}
+	return ""
+}
+
+func (x *SendPromptRequest) GetModel() string {
+	if x != nil && x.Model != nil {
+		return *x.Model
 	}
 	return ""
 }
@@ -3557,14 +3565,16 @@ const file_netclode_v1_client_proto_rawDesc = "" +
 	"\x18DeleteAllSessionsRequest\x12\"\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tH\x00R\trequestId\x88\x01\x01B\r\n" +
-	"\v_request_id\"y\n" +
+	"\v_request_id\"\x9e\x01\n" +
 	"\x11SendPromptRequest\x12\"\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tH\x00R\trequestId\x88\x01\x01\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x02 \x01(\tR\tsessionId\x12\x12\n" +
-	"\x04text\x18\x03 \x01(\tR\x04textB\r\n" +
-	"\v_request_id\"j\n" +
+	"\x04text\x18\x03 \x01(\tR\x04text\x12\x19\n" +
+	"\x05model\x18\x04 \x01(\tH\x01R\x05model\x88\x01\x01B\r\n" +
+	"\v_request_idB\b\n" +
+	"\x06_model\"j\n" +
 	"\x16InterruptPromptRequest\x12\"\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tH\x00R\trequestId\x88\x01\x01\x12\x1d\n" +
