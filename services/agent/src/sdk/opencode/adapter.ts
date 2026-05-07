@@ -135,6 +135,7 @@ export class OpenCodeAdapter implements NetclodePromptBackend {
         ANTHROPIC_API_KEY: this.config?.anthropicApiKey || process.env.ANTHROPIC_API_KEY,
         ...(this.config?.openaiApiKey && { OPENAI_API_KEY: this.config.openaiApiKey }),
         ...(this.config?.mistralApiKey && { MISTRAL_API_KEY: this.config.mistralApiKey }),
+        ...(this.config?.openRouterApiKey && { OPENROUTER_API_KEY: this.config.openRouterApiKey }),
         // OpenCode Zen API key: use configured key, or "public" for free tier if Zen model
         ...(this.config?.openCodeApiKey
           ? { OPENCODE_API_KEY: this.config.openCodeApiKey }

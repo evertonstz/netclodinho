@@ -531,6 +531,7 @@ type SessionConfig struct {
 	GithubCopilotOauthAccessToken  *string `protobuf:"bytes,20,opt,name=github_copilot_oauth_access_token,json=githubCopilotOauthAccessToken,proto3,oneof" json:"github_copilot_oauth_access_token,omitempty"`
 	GithubCopilotOauthRefreshToken *string `protobuf:"bytes,21,opt,name=github_copilot_oauth_refresh_token,json=githubCopilotOauthRefreshToken,proto3,oneof" json:"github_copilot_oauth_refresh_token,omitempty"`
 	GithubCopilotOauthTokenExpires *string `protobuf:"bytes,22,opt,name=github_copilot_oauth_token_expires,json=githubCopilotOauthTokenExpires,proto3,oneof" json:"github_copilot_oauth_token_expires,omitempty"`
+	OpenrouterApiKey               *string `protobuf:"bytes,23,opt,name=openrouter_api_key,json=openrouterApiKey,proto3,oneof" json:"openrouter_api_key,omitempty"` // OpenRouter API key (multi-provider gateway, for OpenCode SDK sessions)
 	unknownFields                  protoimpl.UnknownFields
 	sizeCache                      protoimpl.SizeCache
 }
@@ -715,6 +716,13 @@ func (x *SessionConfig) GetGithubCopilotOauthRefreshToken() string {
 func (x *SessionConfig) GetGithubCopilotOauthTokenExpires() string {
 	if x != nil && x.GithubCopilotOauthTokenExpires != nil {
 		return *x.GithubCopilotOauthTokenExpires
+	}
+	return ""
+}
+
+func (x *SessionConfig) GetOpenrouterApiKey() string {
+	if x != nil && x.OpenrouterApiKey != nil {
+		return *x.OpenrouterApiKey
 	}
 	return ""
 }
@@ -1675,7 +1683,7 @@ const file_netclode_v1_common_proto_rawDesc = "" +
 	"\rmessage_count\x18\x02 \x01(\x05H\x00R\fmessageCount\x88\x01\x01\x12)\n" +
 	"\x0elast_stream_id\x18\x03 \x01(\tH\x01R\flastStreamId\x88\x01\x01B\x10\n" +
 	"\x0e_message_countB\x11\n" +
-	"\x0f_last_stream_id\"\xde\v\n" +
+	"\x0f_last_stream_id\"\xa8\f\n" +
 	"\rSessionConfig\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12#\n" +
@@ -1703,7 +1711,8 @@ const file_netclode_v1_common_proto_rawDesc = "" +
 	"\vzai_api_key\x18\x13 \x01(\tH\x0eR\tzaiApiKey\x88\x01\x01\x12M\n" +
 	"!github_copilot_oauth_access_token\x18\x14 \x01(\tH\x0fR\x1dgithubCopilotOauthAccessToken\x88\x01\x01\x12O\n" +
 	"\"github_copilot_oauth_refresh_token\x18\x15 \x01(\tH\x10R\x1egithubCopilotOauthRefreshToken\x88\x01\x01\x12O\n" +
-	"\"github_copilot_oauth_token_expires\x18\x16 \x01(\tH\x11R\x1egithubCopilotOauthTokenExpires\x88\x01\x01B\x0f\n" +
+	"\"github_copilot_oauth_token_expires\x18\x16 \x01(\tH\x11R\x1egithubCopilotOauthTokenExpires\x88\x01\x01\x121\n" +
+	"\x12openrouter_api_key\x18\x17 \x01(\tH\x12R\x10openrouterApiKey\x88\x01\x01B\x0f\n" +
 	"\r_github_tokenB\x0e\n" +
 	"\f_repo_accessB\v\n" +
 	"\t_sdk_typeB\b\n" +
@@ -1721,7 +1730,8 @@ const file_netclode_v1_common_proto_rawDesc = "" +
 	"\f_zai_api_keyB$\n" +
 	"\"_github_copilot_oauth_access_tokenB%\n" +
 	"#_github_copilot_oauth_refresh_tokenB%\n" +
-	"#_github_copilot_oauth_token_expires\"\xe0\x02\n" +
+	"#_github_copilot_oauth_token_expiresB\x15\n" +
+	"\x13_openrouter_api_key\"\xe0\x02\n" +
 	"\vStreamEntry\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x128\n" +
 	"\ttimestamp\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\x18\n" +

@@ -74,6 +74,7 @@ export interface NetclodeAgentConfig {
   ollamaUrl?: string;
   openCodeApiKey?: string;
   zaiApiKey?: string;
+  openRouterApiKey?: string; // OpenRouter API key (multi-provider gateway, for OpenCode sessions)
   githubCopilotOAuthAccessToken?: string;
   githubCopilotOAuthRefreshToken?: string;
   githubCopilotOAuthTokenExpires?: string;
