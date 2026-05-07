@@ -496,7 +496,7 @@ func (c *ConnectConnection) handleSessionOpen(ctx context.Context, req *pb.OpenS
 	if req.AfterStreamId != nil {
 		afterStreamID = *req.AfterStreamId
 	}
-	limit := 0 // no limit by default
+	limit := 50 // default page size
 	if req.Limit != nil {
 		limit = int(*req.Limit)
 	}

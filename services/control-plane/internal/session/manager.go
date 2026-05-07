@@ -1377,6 +1377,16 @@ func (m *Manager) GetWithHistory(ctx context.Context, id string, afterStreamID s
 		}
 	}
 
+	// Determine pagination cursor and whether more entries exist
+	hasMore := false
+	returnedLastStreamID := ""
+	if limit > 0 && len(entries) >= limit {
+		hasMore = true
+	}
+	if len(entries) > 0 {
+		returnedLastStreamID = entries[len(entries)-1].ID
+	}
+
 	// Get the latest stream ID for cursor-based subscription
 	lastStreamID, err := m.storage.GetLastStreamID(ctx, id)
 	if err != nil {
@@ -1407,10 +1417,12 @@ func (m *Manager) GetWithHistory(ctx context.Context, id string, afterStreamID s
 		m.mu.RUnlock()
 	}
 
-	// TODO: implement proper pagination with hasMore
-	hasMore := false
+	// Use the last returned entry as cursor for pagination, falling back to global last
+	if returnedLastStreamID == "" {
+		returnedLastStreamID = lastStreamID
+	}
 
-	return session, entries, hasMore, lastStreamID, inProgress, nil
+	return session, entries, hasMore, returnedLastStreamID, inProgress, nil
 }
 
 // GetAllWithMeta returns all sessions with metadata.
