@@ -347,6 +347,7 @@ export function translateEvent(
 
       // Text deltas — only for assistant messages
       if (!delta || !messageId) return null;
+      if (!state.assistantMessageIds.has(messageId)) return null;
 
       // Track part ID for message ID continuity
       if (partId !== state.currentTextPartId) {
