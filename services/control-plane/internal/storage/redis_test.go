@@ -205,23 +205,34 @@ func TestGetStreamEntries(t *testing.T) {
 		t.Fatalf("failed to get entries: %v", err)
 	}
 
+	// With XRevRangeN, entries come back newest-first when no cursor is set
 	if len(entries) != 3 {
 		t.Errorf("expected 3 entries, got %d", len(entries))
 	}
+	// Newest first: ids[2], ids[1], ids[0]
+	if entries[0].ID != ids[2] {
+		t.Errorf("expected newest first %s, got %s", ids[2], entries[0].ID)
+	}
 
-	// Get entries after first one
-	entries, err = storage.GetStreamEntries(ctx, sessionID, ids[0], 0)
+	// Pagination: fetch entries older than ids[0] (none exist)
+	entries, err = storage.GetStreamEntries(ctx, sessionID, ids[0], 2)
 	if err != nil {
-		t.Fatalf("failed to get entries after: %v", err)
+		t.Fatalf("failed to get entries before: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("expected 0 entries before first, got %d", len(entries))
 	}
 
+	// Pagination: fetch entries older than ids[2] (should return ids[1], ids[0])
+	entries, err = storage.GetStreamEntries(ctx, sessionID, ids[2], 2)
+	if err != nil {
+		t.Fatalf("failed to get entries before: %v", err)
+	}
 	if len(entries) != 2 {
-		t.Errorf("expected 2 entries after first, got %d", len(entries))
+		t.Errorf("expected 2 entries before last, got %d", len(entries))
 	}
-
-	// Verify IDs match
 	if entries[0].ID != ids[1] {
-		t.Errorf("expected first result ID %s, got %s", ids[1], entries[0].ID)
+		t.Errorf("expected %s, got %s", ids[1], entries[0].ID)
 	}
 
 	// Get entries with "$" (should return empty)
