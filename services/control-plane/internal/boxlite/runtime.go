@@ -71,6 +71,7 @@ func sdkAllowedMappings(sdkType pb.SdkType) []secretMapping {
 			{"openai", "NETCLODE_PLACEHOLDER_openai", []string{"api.openai.com"}},
 			{"mistral", "NETCLODE_PLACEHOLDER_mistral", []string{"api.mistral.ai"}},
 			{"opencode", "NETCLODE_PLACEHOLDER_opencode", []string{"openrouter.ai", "api.openrouter.ai", "api.opencode.ai"}},
+			{"openrouter", "NETCLODE_PLACEHOLDER_openrouter", []string{"openrouter.ai", "api.openrouter.ai"}},
 			{"zai", "NETCLODE_PLACEHOLDER_zai", []string{"open.bigmodel.cn"}},
 			{"github_copilot_oauth_access", "NETCLODE_PLACEHOLDER_github_copilot_oauth_access", []string{"api.github.com", "api.githubcopilot.com", "api.individual.githubcopilot.com", "copilot-proxy.githubusercontent.com"}},
 			{"github_copilot_oauth_refresh", "NETCLODE_PLACEHOLDER_github_copilot_oauth_refresh", []string{"api.github.com", "api.githubcopilot.com", "api.individual.githubcopilot.com", "copilot-proxy.githubusercontent.com"}},
@@ -143,6 +144,7 @@ func buildRealKeys(cfg *config.Config) map[string]string {
 		"openai":                       cfg.OpenAIAPIKey,
 		"mistral":                      cfg.MistralAPIKey,
 		"opencode":                     cfg.OpenCodeAPIKey,
+		"openrouter":                   cfg.OpenRouterAPIKey,
 		"zai":                          cfg.ZaiAPIKey,
 		"github_copilot":               cfg.GitHubCopilotToken,
 		"github_copilot_oauth_access":  cfg.GitHubCopilotOAuthAccessToken,
@@ -525,6 +527,8 @@ func envKeyForSecret(name string) string {
 		return "OPENAI_API_KEY"
 	case "mistral":
 		return "MISTRAL_API_KEY"
+	case "openrouter":
+		return "OPENROUTER_API_KEY"
 	case "opencode":
 		return "OPENCODE_API_KEY"
 	case "zai":

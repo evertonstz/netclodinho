@@ -329,6 +329,7 @@ function buildNetclodeAgentConfig(config: SessionConfig) {
     ollamaUrl: config.ollamaUrl,
     openCodeApiKey: process.env.OPENCODE_API_KEY || "",
     zaiApiKey: process.env.ZAI_API_KEY || "",
+    openRouterApiKey: process.env.OPENROUTER_API_KEY || "",
     githubCopilotOAuthAccessToken: config.githubCopilotOauthAccessToken,
     githubCopilotOAuthRefreshToken: config.githubCopilotOauthRefreshToken,
     githubCopilotOAuthTokenExpires: config.githubCopilotOauthTokenExpires,

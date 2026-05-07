@@ -107,6 +107,7 @@ message SessionConfig {
   optional string github_copilot_oauth_access_token = 20;
   optional string github_copilot_oauth_refresh_token = 21;
   optional string github_copilot_oauth_token_expires = 22;
+  optional string openrouter_api_key = 23; // OpenRouter API key (multi-provider gateway, for OpenCode SDK sessions)
 }
 
 // ============================================================================

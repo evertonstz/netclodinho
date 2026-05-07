@@ -58,6 +58,9 @@ type Config struct {
 	// Z.AI (optional)
 	ZaiAPIKey string // Z.AI API key (for GLM-4.7 models via Anthropic-compatible endpoint)
 
+	// OpenRouter (optional)
+	OpenRouterAPIKey string // OpenRouter API key (for OpenCode SDK multi-provider gateway)
+
 	// Runtime mode: "kubernetes" (default) or "docker"
 	RuntimeMode string
 
@@ -111,7 +114,10 @@ func Load() *Config {
 		OpenCodeAPIKey: getEnv("OPENCODE_API_KEY", ""),
 
 		// Z.AI
-		ZaiAPIKey: getEnv("ZAI_API_KEY", ""),
+		ZaiAPIKey:    getEnv("ZAI_API_KEY", ""),
+
+		// OpenRouter
+		OpenRouterAPIKey: getEnv("OPENROUTER_API_KEY", ""),
 
 		// Runtime mode
 		RuntimeMode: getEnv("RUNTIME_MODE", "kubernetes"),

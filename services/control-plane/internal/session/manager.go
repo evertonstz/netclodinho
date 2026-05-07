@@ -2522,6 +2522,7 @@ func (m *Manager) fetchOpenCodeModels(ctx context.Context) []*pb.ModelInfo {
 		"hasAnthropicKey", m.config.AnthropicAPIKey != "",
 		"hasOpenAIKey", m.config.OpenAIAPIKey != "",
 		"hasMistralKey", m.config.MistralAPIKey != "",
+		"hasOpenRouterKey", m.config.OpenRouterAPIKey != "",
 		"hasOpenCodeKey", m.config.OpenCodeAPIKey != "",
 		"hasZaiKey", m.config.ZaiAPIKey != "")
 
@@ -2567,6 +2568,13 @@ func (m *Manager) fetchOpenCodeModels(ctx context.Context) []*pb.ModelInfo {
 		models = append(models, zaiModels...)
 	}
 
+	// Add OpenRouter models if OPENROUTER_API_KEY is set
+	if m.config.OpenRouterAPIKey != "" {
+		openrouterModels := m.fetchOpenCodeModelsForProvider(ctx, "openrouter")
+		slog.InfoContext(ctx, "Fetched OpenCode OpenRouter models", "count", len(openrouterModels))
+		models = append(models, openrouterModels...)
+	}
+
 	// Add GitHub Copilot models if GITHUB_COPILOT_OAUTH_ACCESS_TOKEN is set (OAuth, not PAT)
 	if m.config.GitHubCopilotOAuthAccessToken != "" {
 		copilotModels := m.fetchCopilotModels(ctx, m.config.GitHubCopilotOAuthAccessToken)
@@ -2575,7 +2583,7 @@ func (m *Manager) fetchOpenCodeModels(ctx context.Context) []*pb.ModelInfo {
 	}
 
 	if len(models) == 0 {
-		slog.WarnContext(ctx, "No OpenCode credentials configured (need ANTHROPIC_API_KEY, OPENAI_API_KEY, MISTRAL_API_KEY, OPENCODE_API_KEY, ZAI_API_KEY, OLLAMA_URL, or GITHUB_COPILOT_TOKEN)")
+		slog.WarnContext(ctx, "No OpenCode credentials configured (need ANTHROPIC_API_KEY, OPENAI_API_KEY, MISTRAL_API_KEY, OPENROUTER_API_KEY, OPENCODE_API_KEY, ZAI_API_KEY, OLLAMA_URL, or GITHUB_COPILOT_TOKEN)")
 	}
 
 	slog.InfoContext(ctx, "fetchOpenCodeModels returning", "totalModels", len(models))
