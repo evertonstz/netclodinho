@@ -349,17 +349,11 @@ export function translateEvent(
       if (!delta || !messageId) return null;
       if (!state.assistantMessageIds.has(messageId)) return null;
 
-      // Track part ID for message ID continuity
-      if (partId !== state.currentTextPartId) {
-        state.currentTextPartId = partId || null;
-        state.currentTextMessageId = `msg_${Date.now()}_${++state.textMessageIdCounter}`;
-      }
-
       return {
         type: "textDelta",
         content: delta,
         partial: true,
-        messageId: state.currentTextMessageId || undefined,
+        messageId,
       };
     }
 
