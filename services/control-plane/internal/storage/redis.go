@@ -410,9 +410,31 @@ func (r *RedisStorage) GetStreamEntriesByTypes(ctx context.Context, sessionID st
 		return []StreamEntryWithID{}, nil
 	}
 
-	messages, err := r.client.XRange(ctx, streamKey, startID, "+").Result()
-	if err != nil {
-		return nil, err
+	// Initial page (no cursor): use XRevRangeN to get newest entries first.
+	// Pagination (cursor set): fetch entries older than the cursor.
+	var messages []redis.XMessage
+	if startID == "0" {
+		// No cursor — fetch newest N entries
+		count := int64(limit)
+		if count <= 0 {
+			count = 50
+		}
+		msgs, err := r.client.XRevRangeN(ctx, streamKey, "+", "-", count).Result()
+		if err != nil {
+			return nil, err
+		}
+		messages = msgs
+	} else {
+		// Pagination — fetch older entries before the cursor (exclusive)
+		count := int64(limit)
+		if count <= 0 {
+			count = 50
+		}
+		msgs, err := r.client.XRevRangeN(ctx, streamKey, startID, "-", count).Result()
+		if err != nil {
+			return nil, err
+		}
+		messages = msgs
 	}
 
 	// Build type filter set if provided
