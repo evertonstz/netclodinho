@@ -107,7 +107,7 @@ describe("OpenCode Translator", () => {
       expect((result as { partial: boolean }).partial).toBe(true);
     });
 
-    it("generates message ID for text delta", () => {
+    it("uses OpenCode messageID for text delta", () => {
       state.assistantMessageIds.add("msg_assistant");
       const result = translateEvent(
         {
@@ -116,7 +116,7 @@ describe("OpenCode Translator", () => {
         },
         state
       );
-      expect((result as { messageId: string }).messageId).toMatch(/^msg_\d+_\d+$/);
+      expect((result as { messageId: string }).messageId).toBe("msg_assistant");
     });
 
     it("reuses message ID for same partID", () => {
@@ -138,7 +138,7 @@ describe("OpenCode Translator", () => {
       expect((r1 as { messageId: string }).messageId).toBe((r2 as { messageId: string }).messageId);
     });
 
-    it("generates new message ID for different partID", () => {
+    it("uses same messageId across parts from same OpenCode message", () => {
       state.assistantMessageIds.add("msg_assistant");
       const r1 = translateEvent(
         {
@@ -154,7 +154,8 @@ describe("OpenCode Translator", () => {
         },
         state
       );
-      expect((r1 as { messageId: string }).messageId).not.toBe((r2 as { messageId: string }).messageId);
+      expect((r1 as { messageId: string }).messageId).toBe("msg_assistant");
+      expect((r2 as { messageId: string }).messageId).toBe("msg_assistant");
     });
 
     it("drops delta for non-assistant message", () => {
