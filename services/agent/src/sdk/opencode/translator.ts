@@ -333,8 +333,20 @@ export function translateEvent(
       const delta = props.delta as string | undefined;
       const partId = props.partID as string | undefined;
 
-      if (field !== "text" || !delta || !messageId) return null;
-      if (!state.assistantMessageIds.has(messageId)) return null;
+      if (field !== "text" && field !== "reasoning") return null;
+
+      // Reasoning deltas → thinking events
+      if (field === "reasoning" && delta) {
+        return {
+          type: "thinking",
+          thinkingId: partId || `thinking_${Date.now()}`,
+          content: delta,
+          partial: true,
+        };
+      }
+
+      // Text deltas — only for assistant messages
+      if (!delta || !messageId) return null;
 
       // Track part ID for message ID continuity
       if (partId !== state.currentTextPartId) {
@@ -355,8 +367,6 @@ export function translateEvent(
       // Text content arrives via message.part.delta instead.
       const part = props.part as Record<string, unknown> | undefined;
       if (!part) return null;
-      // Only pass through for tool parts — text parts have no delta here
-      if (part.type !== "tool") return null;
       return translateMessagePartUpdated(part, undefined, state);
     }
 
