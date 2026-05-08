@@ -107,7 +107,28 @@ describe("OpenCode Translator", () => {
       expect((result as { partial: boolean }).partial).toBe(true);
     });
 
-    it("uses OpenCode messageID for text delta", () => {
+    it("resets message ID on session idle", () => {
+      state.assistantMessageIds.add("msg_assistant");
+      const r1 = translateEvent(
+        {
+          type: "message.part.delta",
+          properties: { messageID: "msg_assistant", partID: "part_1", field: "text", delta: "Hello" },
+        },
+        state
+      );
+      translateSessionIdle(state); // Turn ends
+      // Next turn should get a new ID
+      const r2 = translateEvent(
+        {
+          type: "message.part.delta",
+          properties: { messageID: "msg_assistant", partID: "part_1", field: "text", delta: "New turn" },
+        },
+        state
+      );
+      expect((r1 as { messageId: string }).messageId).not.toBe((r2 as { messageId: string }).messageId);
+    });
+
+    it("generates message ID for first text delta in a turn", () => {
       state.assistantMessageIds.add("msg_assistant");
       const result = translateEvent(
         {
@@ -116,7 +137,7 @@ describe("OpenCode Translator", () => {
         },
         state
       );
-      expect((result as { messageId: string }).messageId).toBe("msg_assistant");
+      expect((result as { messageId: string }).messageId).toMatch(/^msg_\d+_\d+$/);
     });
 
     it("reuses message ID for same partID", () => {
@@ -138,7 +159,7 @@ describe("OpenCode Translator", () => {
       expect((r1 as { messageId: string }).messageId).toBe((r2 as { messageId: string }).messageId);
     });
 
-    it("uses same messageId across parts from same OpenCode message", () => {
+    it("uses same messageId across parts within a turn", () => {
       state.assistantMessageIds.add("msg_assistant");
       const r1 = translateEvent(
         {
@@ -154,8 +175,8 @@ describe("OpenCode Translator", () => {
         },
         state
       );
-      expect((r1 as { messageId: string }).messageId).toBe("msg_assistant");
-      expect((r2 as { messageId: string }).messageId).toBe("msg_assistant");
+      expect((r1 as { messageId: string }).messageId).toBe((r2 as { messageId: string }).messageId);
+      expect((r1 as { messageId: string }).messageId).toMatch(/^msg_\d+_\d+$/);
     });
 
     it("drops delta for non-assistant message", () => {

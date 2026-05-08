@@ -308,6 +308,9 @@ export function translateMessageUpdated(
  * Translate a session.idle event
  */
 export function translateSessionIdle(state: TranslatorState): PromptEvent {
+  // Reset text state for next turn
+  state.currentTextMessageId = null;
+  state.currentTextPartId = null;
   return {
     type: "result",
     inputTokens: state.lastUsage?.inputTokens || 0,
@@ -351,11 +354,17 @@ export function translateEvent(
       if (!delta || !messageId) return null;
       if (!state.assistantMessageIds.has(messageId)) return null;
 
+      // Generate a stable messageId at the start of each response turn.
+      // OpenCode reuses messageID across turns, so we track our own.
+      if (!state.currentTextMessageId) {
+        state.currentTextMessageId = `msg_${Date.now()}_${++state.textMessageIdCounter}`;
+      }
+
       return {
         type: "textDelta",
         content: delta,
         partial: true,
-        messageId,
+        messageId: state.currentTextMessageId,
       };
     }
 
