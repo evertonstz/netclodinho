@@ -227,6 +227,33 @@ describe("OpenCode Translator", () => {
       });
     });
 
+    it("returns null for reasoning part without text field", () => {
+      const result = translateMessagePartUpdated(
+        { type: "reasoning", id: "reason_1" },
+        undefined,
+        state
+      );
+      expect(result).toBeNull();
+    });
+
+    it("returns null for empty reasoning content", () => {
+      const result = translateMessagePartUpdated(
+        { type: "reasoning", id: "reason_1", text: "" },
+        undefined,
+        state
+      );
+      expect(result).toBeNull();
+    });
+
+    it("returns null for empty delta", () => {
+      const result = translateMessagePartUpdated(
+        { type: "reasoning", id: "reason_1" },
+        "",
+        state
+      );
+      expect(result).toBeNull();
+    });
+
     it("generates thinking ID if not provided", () => {
       const result = translateMessagePartUpdated(
         { type: "reasoning" },
@@ -498,6 +525,34 @@ describe("OpenCode Translator", () => {
     it("handles session.idle", () => {
       const result = translateEvent({ type: "session.idle" }, state);
       expect(result?.type).toBe("result");
+    });
+
+    it("handles message.part.updated with reasoning part", () => {
+      const result = translateEvent(
+        {
+          type: "message.part.updated",
+          properties: { part: { type: "reasoning", id: "r1", text: "Full reasoning" } },
+        },
+        state
+      );
+      expect(result).toEqual({
+        type: "thinking",
+        thinkingId: "r1",
+        content: "Full reasoning",
+        partial: false,
+      });
+    });
+
+    it("returns null for empty reasoning delta", () => {
+      state.assistantMessageIds.add("msg_assistant");
+      const result = translateEvent(
+        {
+          type: "message.part.delta",
+          properties: { messageID: "msg_assistant", partID: "p1", field: "reasoning", delta: "" },
+        },
+        state
+      );
+      expect(result).toBeNull();
     });
 
     it("returns null for unknown events", () => {

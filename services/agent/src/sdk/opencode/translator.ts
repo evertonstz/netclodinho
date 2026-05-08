@@ -116,11 +116,13 @@ function translateTextPart(
 function translateReasoningPart(
   part: Record<string, unknown>,
   delta: string | undefined
-): PromptEvent {
+): PromptEvent | null {
+  const content = delta || (part.text as string) || "";
+  if (!content) return null;
   return {
     type: "thinking",
     thinkingId: (part.id as string) || `thinking_${Date.now()}`,
-    content: delta || (part.text as string) || "",
+    content,
     partial: !!delta,
   };
 }
