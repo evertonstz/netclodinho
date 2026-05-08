@@ -672,6 +672,13 @@ struct ChatView: View {
         lastRepoOrderSignature = currentRepoOrderSignature
         
         cachedTimeline = computeTimeline()
+
+        // Auto-scroll to bottom when new content arrives, unless user is reading history
+        if !isScrollingUp {
+            DispatchQueue.main.async {
+                scrollToBottom()
+            }
+        }
     }
     
 
