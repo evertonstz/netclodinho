@@ -49,7 +49,9 @@ export function createTranslatorState(): TranslatorState {
  * Reset translator state for a new prompt
  */
 export function resetTranslatorState(state: TranslatorState): void {
-  state.assistantMessageIds.clear();
+  // Preserve assistantMessageIds across turns — OpenCode reuses messageIDs
+  // between turns, and clearing them here causes text deltas to be dropped
+  // when message.part.delta arrives before message.updated on subsequent turns.
   state.toolStartTimes.clear();
   state.toolStartEmitted.clear();
   state.currentTextPartId = null;
@@ -352,7 +354,12 @@ export function translateEvent(
 
       // Text deltas — only for assistant messages
       if (!delta || !messageId) return null;
-      if (!state.assistantMessageIds.has(messageId)) return null;
+      // Track unknown messageIds on first sight — OpenCode may send
+      // message.part.delta before message.updated, especially on
+      // subsequent turns where messageIDs are reused.
+      if (!state.assistantMessageIds.has(messageId)) {
+        state.assistantMessageIds.add(messageId);
+      }
 
       // Generate a stable messageId at the start of each response turn.
       // OpenCode reuses messageID across turns, so we track our own.
