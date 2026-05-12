@@ -33,7 +33,7 @@ describe("OpenCode Translator", () => {
   });
 
   describe("resetTranslatorState", () => {
-    it("clears most state but preserves assistantMessageIds across turns", () => {
+    it("clears all state", () => {
       state.assistantMessageIds.add("msg_1");
       state.toolStartTimes.set("tool_1", 1000);
       state.toolStartEmitted.add("tool_1");
@@ -43,10 +43,7 @@ describe("OpenCode Translator", () => {
 
       resetTranslatorState(state);
 
-      // assistantMessageIds is preserved across turns — OpenCode reuses
-      // messageIDs, and clearing would cause text deltas to be dropped
-      expect(state.assistantMessageIds.size).toBe(1);
-      expect(state.assistantMessageIds.has("msg_1")).toBe(true);
+      expect(state.assistantMessageIds.size).toBe(0);
       expect(state.toolStartTimes.size).toBe(0);
       expect(state.toolStartEmitted.size).toBe(0);
       expect(state.currentTextPartId).toBeNull();
@@ -182,18 +179,15 @@ describe("OpenCode Translator", () => {
       expect((r1 as { messageId: string }).messageId).toMatch(/^msg_\d+_\d+$/);
     });
 
-    it("auto-tracks unknown messageId for text delta on first sight", () => {
-      // No pre-added messageId — simulate OpenCode sending delta before message.updated
+    it("drops delta for non-assistant message", () => {
       const result = translateEvent(
         {
           type: "message.part.delta",
-          properties: { messageID: "msg_new", partID: "part_1", field: "text", delta: "Hello" },
+          properties: { messageID: "msg_user", partID: "part_1", field: "text", delta: "Hello" },
         },
         state
       );
-      // Should auto-track and emit textDelta (OpenCode only streams text for assistant messages)
-      expect(result?.type).toBe("textDelta");
-      expect(state.assistantMessageIds.has("msg_new")).toBe(true);
+      expect(result).toBeNull();
     });
 
     it("emits thinking event for reasoning deltas", () => {
