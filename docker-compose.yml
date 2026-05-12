@@ -71,6 +71,7 @@ services:
   # Docker Desktop (macOS/Windows): host.docker.internal resolves to the host.
   control-plane:
     image: ghcr.io/evertonstz/netclode-control-plane:tip
+    restart: always
     network_mode: service:tailscale
     user: "0:0"
     devices:
