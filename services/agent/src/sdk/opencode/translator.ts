@@ -65,10 +65,12 @@ export function translateMessagePartUpdated(
   delta: string | undefined,
   state: TranslatorState
 ): PromptEvent | null {
-  // Only process parts that belong to assistant messages
+  // Only process parts that belong to assistant messages.
+  // Auto-register unknown messageIds on first sight — OpenCode may
+  // send part data before message.updated on subsequent turns.
   const messageId = part.messageID as string | undefined;
   if (messageId && !state.assistantMessageIds.has(messageId)) {
-    return null;
+    state.assistantMessageIds.add(messageId);
   }
 
   switch (part.type) {
@@ -350,9 +352,13 @@ export function translateEvent(
         };
       }
 
-      // Text deltas — only for assistant messages
+      // Text deltas — auto-register unknown messageIds on first sight.
+      // OpenCode sends message.part.delta before message.updated on
+      // subsequent turns, and reuses messageIDs across turns.
       if (!delta || !messageId) return null;
-      if (!state.assistantMessageIds.has(messageId)) return null;
+      if (!state.assistantMessageIds.has(messageId)) {
+        state.assistantMessageIds.add(messageId);
+      }
 
       // Generate a stable messageId at the start of each response turn.
       // OpenCode reuses messageID across turns, so we track our own.

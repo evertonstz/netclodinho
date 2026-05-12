@@ -179,15 +179,16 @@ describe("OpenCode Translator", () => {
       expect((r1 as { messageId: string }).messageId).toMatch(/^msg_\d+_\d+$/);
     });
 
-    it("drops delta for non-assistant message", () => {
+    it("auto-registers unknown messageId for text delta", () => {
       const result = translateEvent(
         {
           type: "message.part.delta",
-          properties: { messageID: "msg_user", partID: "part_1", field: "text", delta: "Hello" },
+          properties: { messageID: "msg_new", partID: "part_1", field: "text", delta: "Hello" },
         },
         state
       );
-      expect(result).toBeNull();
+      expect(result?.type).toBe("textDelta");
+      expect(state.assistantMessageIds.has("msg_new")).toBe(true);
     });
 
     it("emits thinking event for reasoning deltas", () => {
@@ -286,6 +287,21 @@ describe("OpenCode Translator", () => {
   });
 
   describe("translateMessagePartUpdated - tool", () => {
+    it("auto-registers unknown messageId for tool parts", () => {
+      const result = translateMessagePartUpdated(
+        {
+          type: "tool",
+          messageID: "msg_unknown",
+          tool: "read",
+          callID: "call_1",
+          state: { status: "pending" },
+        },
+        undefined,
+        state
+      );
+      expect(state.assistantMessageIds.has("msg_unknown")).toBe(true);
+    });
+
     it("ignores pending status", () => {
       const result = translateMessagePartUpdated(
         {
