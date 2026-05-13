@@ -301,9 +301,17 @@ func (r *Runtime) CreateSandbox(ctx context.Context, sessionID string, env map[s
 
 	spec := r.buildSandboxCreateSpec(sessionID, env, resources)
 
+	// Ensure agent log directory exists on host so volume mount succeeds
+	agentLogDir := filepath.Join(r.cfg.EffectiveBoxliteHomeDir(), "agent-logs", sessionID)
+	if err := os.MkdirAll(agentLogDir, 0o755); err != nil {
+		slog.Warn("Failed to create agent log dir", "path", agentLogDir, "error", err)
+	}
+
 	opts := []boxlitesdk.BoxOption{
 		boxlitesdk.WithName(r.boxName(sessionID)),
 		boxlitesdk.WithDiskSizeGb(spec.diskSizeGb),
+		// Mount agent log directory to host so control-plane can read agent.log
+		boxlitesdk.WithVolume(filepath.Join(r.cfg.EffectiveBoxliteHomeDir(), "agent-logs", sessionID), "/agent-logs"),
 		// Keep persisted box metadata + QCOW2 disk across Stop/Start so pause/resume works.
 		// Full session deletion uses ForceRemove in DeletePVC.
 		boxlitesdk.WithAutoRemove(false),

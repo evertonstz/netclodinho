@@ -108,5 +108,5 @@ exec su -s /bin/bash agent -c "
     echo '--- ENV ---' >> /agent/agent.log
     env >> /agent/agent.log
     echo '--- RUNNING agent.js ---' >> /agent/agent.log
-    /opt/node/bin/node agent.js 2>&1 | tee -a /agent/agent.log
+    /opt/node/bin/node agent.js 2>&1 | tee -a /agent/agent.log | tee -a /agent-logs/agent.log
 "
