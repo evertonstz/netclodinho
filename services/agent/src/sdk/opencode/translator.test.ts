@@ -157,18 +157,19 @@ describe("OpenCode Translator", () => {
       expect((r1 as { messageId: string }).messageId).not.toBe((r2 as { messageId: string }).messageId);
     });
 
-    it("drops delta for non-assistant message", () => {
+    it("auto-registers unknown messageId for text delta", () => {
       const result = translateEvent(
         {
           type: "message.part.delta",
-          properties: { messageID: "msg_user", partID: "part_1", field: "text", delta: "Hello" },
+          properties: { messageID: "msg_new", partID: "part_1", field: "text", delta: "Hello" },
         },
         state
       );
-      expect(result).toBeNull();
+      expect(result?.type).toBe("textDelta");
+      expect(state.assistantMessageIds.has("msg_new")).toBe(true);
     });
 
-    it("drops delta for non-text fields", () => {
+    it("emits thinking event for reasoning deltas", () => {
       state.assistantMessageIds.add("msg_assistant");
       const result = translateEvent(
         {
@@ -177,7 +178,12 @@ describe("OpenCode Translator", () => {
         },
         state
       );
-      expect(result).toBeNull();
+      expect(result).toEqual({
+        type: "thinking",
+        thinkingId: "part_1",
+        content: "thinking...",
+        partial: true,
+      });
     });
 
     it("drops delta when messageID missing", () => {

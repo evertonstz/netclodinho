@@ -28,6 +28,7 @@ export interface TranslatorState {
   currentTextMessageId: string | null;
   textMessageIdCounter: number;
   lastUsage: { inputTokens: number; outputTokens: number } | null;
+  textPartContent: Map<string, string>;
 }
 
 /**
@@ -42,6 +43,7 @@ export function createTranslatorState(): TranslatorState {
     currentTextMessageId: null,
     textMessageIdCounter: 0,
     lastUsage: null,
+    textPartContent: new Map(),
   };
 }
 
@@ -55,6 +57,7 @@ export function resetTranslatorState(state: TranslatorState): void {
   state.currentTextPartId = null;
   state.currentTextMessageId = null;
   state.lastUsage = null;
+  state.textPartContent.clear();
 }
 
 /**
@@ -65,23 +68,57 @@ export function translateMessagePartUpdated(
   delta: string | undefined,
   state: TranslatorState
 ): PromptEvent | null {
-  // Only process parts that belong to assistant messages
+  // Auto-register unknown messageIds for tool/reasoning.
+  // Text parts require confirmed assistant messageIds (set by message.updated).
   const messageId = part.messageID as string | undefined;
-  if (messageId && !state.assistantMessageIds.has(messageId)) {
-    return null;
-  }
 
   switch (part.type) {
     case "tool":
+      if (messageId && !state.assistantMessageIds.has(messageId)) {
+        state.assistantMessageIds.add(messageId);
+      }
       return translateToolPart(part, state);
     case "reasoning":
+      if (messageId && !state.assistantMessageIds.has(messageId)) {
+        state.assistantMessageIds.add(messageId);
+      }
       return translateReasoningPart(part, delta);
     case "text":
+      if (messageId && !state.assistantMessageIds.has(messageId)) {
+        return null; // only emit for confirmed assistant messages
+      }
+      return translateTextPartUpdated(part, state);
     case "step-start":
     case "step-finish":
     default:
       return null;
   }
+}
+
+function translateTextPartUpdated(
+  part: Record<string, unknown>,
+  state: TranslatorState
+): PromptEvent | null {
+  const partId = part.id as string | undefined;
+  const newText = (part.text as string) || "";
+  if (!partId || !newText) return null;
+
+  const prevText = state.textPartContent.get(partId) || "";
+  if (newText.length <= prevText.length) return null;
+
+  const delta = newText.slice(prevText.length);
+  state.textPartContent.set(partId, newText);
+
+  if (!state.currentTextMessageId) {
+    state.currentTextMessageId = `msg_${Date.now()}_${++state.textMessageIdCounter}`;
+  }
+
+  return {
+    type: "textDelta",
+    content: delta,
+    partial: true,
+    messageId: state.currentTextMessageId,
+  };
 }
 
 /**
@@ -333,8 +370,23 @@ export function translateEvent(
       const delta = props.delta as string | undefined;
       const partId = props.partID as string | undefined;
 
-      if (field !== "text" || !delta || !messageId) return null;
-      if (!state.assistantMessageIds.has(messageId)) return null;
+      if (field !== "text" && field !== "reasoning") return null;
+
+      // Reasoning deltas → thinking events
+      if (field === "reasoning" && delta) {
+        return {
+          type: "thinking",
+          thinkingId: partId || `thinking_${Date.now()}`,
+          content: delta,
+          partial: true,
+        };
+      }
+
+      // Text deltas — auto-register unknown messageIds on first sight
+      if (!delta || !messageId) return null;
+      if (!state.assistantMessageIds.has(messageId)) {
+        state.assistantMessageIds.add(messageId);
+      }
 
       // Track part ID for message ID continuity
       if (partId !== state.currentTextPartId) {
@@ -352,11 +404,10 @@ export function translateEvent(
 
     case "message.part.updated": {
       // Used for tool state transitions (pending → running → completed/error).
-      // Text content arrives via message.part.delta instead.
+      // All part types now pass through — text content arrives via
+      // message.part.updated with part.type="text" in OpenCode 1.15+.
       const part = props.part as Record<string, unknown> | undefined;
       if (!part) return null;
-      // Only pass through for tool parts — text parts have no delta here
-      if (part.type !== "tool") return null;
       return translateMessagePartUpdated(part, undefined, state);
     }
 
