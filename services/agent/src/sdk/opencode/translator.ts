@@ -161,8 +161,8 @@ function translateReasoningPart(
   const partId = part.id as string;
   const newContent = delta || (part.text as string) || "";
 
-  const prevContent = state.reasoningPartContent.get(partId) || "";
-  if (newContent === prevContent) return null; // no change
+  const prevContent = state.reasoningPartContent.get(partId) || "__unset__";
+  if (newContent === prevContent) return null; // no change from last emit
   state.reasoningPartContent.set(partId, newContent);
 
   // Emit even with empty content — OpenCode sends empty event first to
