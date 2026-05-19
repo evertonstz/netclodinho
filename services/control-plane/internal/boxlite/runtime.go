@@ -13,6 +13,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -129,6 +130,16 @@ func NewRuntime(cfg *config.Config, issuer TokenIssuer) (*Runtime, error) {
 	homeDir := cfg.EffectiveBoxliteHomeDir()
 	if err := os.MkdirAll(homeDir, 0o700); err != nil {
 		return nil, fmt.Errorf("create boxlite home dir %s: %w", homeDir, err)
+	}
+
+	// Clear OCI image cache on startup so mutable tags like :tip are re-pulled
+	for _, dir := range []string{"images", "db"} {
+		p := filepath.Join(homeDir, dir)
+		if err := os.RemoveAll(p); err != nil {
+			slog.Warn("Failed to clear BoxLite cache", "path", p, "error", err)
+		} else {
+			slog.Info("Cleared BoxLite image cache", "path", p)
+		}
 	}
 
 	rt, err := boxlitesdk.NewRuntime(boxlitesdk.WithHomeDir(homeDir))
