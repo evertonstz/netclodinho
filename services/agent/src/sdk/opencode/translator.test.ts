@@ -10,6 +10,7 @@ import {
   translateMessagePartUpdated,
   translateMessageUpdated,
   translateSessionIdle,
+  finalizeActiveThinking,
   type TranslatorState,
 } from "./translator.js";
 
@@ -184,6 +185,14 @@ describe("OpenCode Translator", () => {
         content: "thinking...",
         partial: true,
       });
+    });
+
+    it("finalizes active thinking on session idle", () => {
+      state.reasoningPartContent.set("prt_1", "thinking text");
+      state.reasoningPartContent.set("prt_2", ""); // empty — should not finalize
+      const events = finalizeActiveThinking(state);
+      expect(events.length).toBe(1);
+      expect(events[0]).toEqual({ type: "thinking", thinkingId: "prt_1", content: "", partial: false });
     });
 
     it("drops delta when messageID missing", () => {

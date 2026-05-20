@@ -366,6 +366,25 @@ export function translateSessionIdle(state: TranslatorState): PromptEvent {
 }
 
 /**
+ * Return final thinking events for all active reasoning parts.
+ * Called after session.idle to mark thinking bubbles as complete.
+ */
+export function finalizeActiveThinking(state: TranslatorState): PromptEvent[] {
+  const events: PromptEvent[] = [];
+  for (const [partId, content] of state.reasoningPartContent) {
+    if (content) {
+      events.push({
+        type: "thinking",
+        thinkingId: partId,
+        content: "", // iOS finalizeThinking only flips the flag, doesn't need content
+        partial: false,
+      });
+    }
+  }
+  return events;
+}
+
+/**
  * Main event translator function
  */
 export function translateEvent(

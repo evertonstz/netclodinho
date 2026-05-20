@@ -14,6 +14,7 @@ import {
   createTranslatorState,
   resetTranslatorState,
   translateEvent,
+  finalizeActiveThinking,
   type TranslatorState,
 } from "./translator.js";
 import { getSdkSessionId, registerSession } from "../../services/session.js";
@@ -348,15 +349,19 @@ export class OpenCodeAdapter implements NetclodePromptBackend {
                 const event = JSON.parse(data);
                 const promptEvent = translateEvent(event, this.translatorState);
                 if (promptEvent) {
+                  if (promptEvent.type === "result" || promptEvent.type === "error") {
+                    // Finalize active thinking bubbles before completing
+                    for (const evt of finalizeActiveThinking(this.translatorState)) {
+                      eventQueue.push(evt);
+                    }
+                    completed = true;
+                  }
+
                   if (resolveNextEvent) {
                     resolveNextEvent(promptEvent);
                     resolveNextEvent = null;
                   } else {
                     eventQueue.push(promptEvent);
-                  }
-
-                  if (promptEvent.type === "result" || promptEvent.type === "error") {
-                    completed = true;
                   }
                 }
               } catch (e) {
