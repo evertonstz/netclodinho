@@ -106,11 +106,23 @@ function translateTextPartUpdated(
   const newText = (part.text as string) || "";
   if (!partId || !newText) return null;
 
-  const prevText = state.textPartContent.get(partId) || "";
-  if (newText.length <= prevText.length) return null;
+  // Strip reasoning content that was already emitted as a thinking event.
+  // DeepSeek models duplicate reasoning into text parts.
+  const msgId = part.messageID as string;
+  const reasoningText = msgId
+    ? Array.from(state.reasoningPartContent.values()).join("")
+    : "";
+  let effectiveText = newText;
+  if (reasoningText && newText.startsWith(reasoningText)) {
+    effectiveText = newText.slice(reasoningText.length);
+  }
+  if (!effectiveText) return null;
 
-  const delta = newText.slice(prevText.length);
-  state.textPartContent.set(partId, newText);
+  const prevText = state.textPartContent.get(partId) || "";
+  if (effectiveText.length <= prevText.length) return null;
+
+  const delta = effectiveText.slice(prevText.length);
+  state.textPartContent.set(partId, effectiveText);
 
   if (!state.currentTextMessageId) {
     state.currentTextMessageId = `msg_${Date.now()}_${++state.textMessageIdCounter}`;
