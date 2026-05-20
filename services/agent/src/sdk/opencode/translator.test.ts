@@ -89,85 +89,13 @@ describe("OpenCode Translator", () => {
   });
 
   describe("translateEvent - message.part.delta", () => {
-    it("translates text delta for assistant message", () => {
+    it("returns null for text deltas (now handled via message.part.updated)", () => {
       state.assistantMessageIds.add("msg_assistant");
       const result = translateEvent(
-        {
-          type: "message.part.delta",
-          properties: {
-            messageID: "msg_assistant",
-            partID: "part_1",
-            field: "text",
-            delta: "Hello ",
-          },
-        },
+        { type: "message.part.delta", properties: { messageID: "msg_assistant", partID: "part_1", field: "text", delta: "Hello" } },
         state
       );
-      expect(result?.type).toBe("textDelta");
-      expect((result as { content: string }).content).toBe("Hello ");
-      expect((result as { partial: boolean }).partial).toBe(true);
-    });
-
-    it("generates message ID for text delta", () => {
-      state.assistantMessageIds.add("msg_assistant");
-      const result = translateEvent(
-        {
-          type: "message.part.delta",
-          properties: { messageID: "msg_assistant", partID: "part_1", field: "text", delta: "Hi" },
-        },
-        state
-      );
-      expect((result as { messageId: string }).messageId).toMatch(/^msg_\d+_\d+$/);
-    });
-
-    it("reuses message ID for same partID", () => {
-      state.assistantMessageIds.add("msg_assistant");
-      const r1 = translateEvent(
-        {
-          type: "message.part.delta",
-          properties: { messageID: "msg_assistant", partID: "part_1", field: "text", delta: "Hello" },
-        },
-        state
-      );
-      const r2 = translateEvent(
-        {
-          type: "message.part.delta",
-          properties: { messageID: "msg_assistant", partID: "part_1", field: "text", delta: " world" },
-        },
-        state
-      );
-      expect((r1 as { messageId: string }).messageId).toBe((r2 as { messageId: string }).messageId);
-    });
-
-    it("generates new message ID for different partID", () => {
-      state.assistantMessageIds.add("msg_assistant");
-      const r1 = translateEvent(
-        {
-          type: "message.part.delta",
-          properties: { messageID: "msg_assistant", partID: "part_1", field: "text", delta: "Hello" },
-        },
-        state
-      );
-      const r2 = translateEvent(
-        {
-          type: "message.part.delta",
-          properties: { messageID: "msg_assistant", partID: "part_2", field: "text", delta: "world" },
-        },
-        state
-      );
-      expect((r1 as { messageId: string }).messageId).not.toBe((r2 as { messageId: string }).messageId);
-    });
-
-    it("auto-registers unknown messageId for text delta", () => {
-      const result = translateEvent(
-        {
-          type: "message.part.delta",
-          properties: { messageID: "msg_new", partID: "part_1", field: "text", delta: "Hello" },
-        },
-        state
-      );
-      expect(result?.type).toBe("textDelta");
-      expect(state.assistantMessageIds.has("msg_new")).toBe(true);
+      expect(result).toBeNull();
     });
 
     it("emits thinking event for reasoning deltas", () => {

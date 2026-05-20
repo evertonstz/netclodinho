@@ -415,7 +415,7 @@ export function translateEvent(
       const delta = props.delta as string | undefined;
       const partId = props.partID as string | undefined;
 
-      if (field !== "text" && field !== "reasoning") return null;
+      if (field !== "reasoning") return null;
 
       // Reasoning deltas → thinking events
       if (field === "reasoning" && delta) {
@@ -427,24 +427,7 @@ export function translateEvent(
         };
       }
 
-      // Text deltas — auto-register unknown messageIds on first sight
-      if (!delta || !messageId) return null;
-      if (!state.assistantMessageIds.has(messageId)) {
-        state.assistantMessageIds.add(messageId);
-      }
-
-      // Track part ID for message ID continuity
-      if (partId !== state.currentTextPartId) {
-        state.currentTextPartId = partId || null;
-        state.currentTextMessageId = `msg_${Date.now()}_${++state.textMessageIdCounter}`;
-      }
-
-      return {
-        type: "textDelta",
-        content: delta,
-        partial: true,
-        messageId: state.currentTextMessageId || undefined,
-      };
+      return null;
     }
 
     case "message.part.updated": {
