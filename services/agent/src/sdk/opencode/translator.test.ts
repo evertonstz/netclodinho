@@ -223,7 +223,7 @@ describe("OpenCode Translator", () => {
         type: "thinking",
         thinkingId: "reason_1",
         content: "Full reasoning",
-        partial: false,
+        partial: true,
       });
     });
 

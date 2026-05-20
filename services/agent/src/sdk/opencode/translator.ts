@@ -166,12 +166,13 @@ function translateReasoningPart(
   state.reasoningPartContent.set(partId, newContent);
 
   // Emit even with empty content — OpenCode sends empty event first to
-  // position the thinking bubble in the timeline, then fills it later.
+  // position the thinking bubble, then fills it later.
+  // Always emit as partial: true so the iOS app appends content.
   return {
     type: "thinking",
     thinkingId: partId || `thinking_${Date.now()}`,
     content: newContent,
-    partial: !!delta || !newContent, // empty content = still streaming
+    partial: true,
   };
 }
 
