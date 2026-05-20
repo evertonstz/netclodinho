@@ -369,6 +369,9 @@ export function translateMessageUpdated(
  * Translate a session.idle event
  */
 export function translateSessionIdle(state: TranslatorState): PromptEvent {
+  // Reset per-turn state so next turn gets a fresh messageId
+  state.currentTextMessageId = null;
+  state.currentTextPartId = null;
   return {
     type: "result",
     inputTokens: state.lastUsage?.inputTokens || 0,
