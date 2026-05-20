@@ -125,6 +125,7 @@ export class OpenCodeAdapter implements NetclodePromptBackend {
         bash: "allow",
         webfetch: "allow",
         mcp: "allow",
+        question: "deny",
       },
       ...(Object.keys(providerConfig).length > 0 && { provider: providerConfig }),
     };
