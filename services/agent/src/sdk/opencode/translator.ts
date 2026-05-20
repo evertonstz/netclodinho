@@ -384,14 +384,12 @@ export function translateSessionIdle(state: TranslatorState): PromptEvent {
 export function finalizeActiveThinking(state: TranslatorState): PromptEvent[] {
   const events: PromptEvent[] = [];
   for (const [partId, content] of state.reasoningPartContent) {
-    if (content) {
-      events.push({
-        type: "thinking",
-        thinkingId: partId,
-        content: "", // iOS finalizeThinking only flips the flag, doesn't need content
-        partial: false,
-      });
-    }
+    events.push({
+      type: "thinking",
+      thinkingId: partId,
+      content,
+      partial: false,
+    });
   }
   return events;
 }

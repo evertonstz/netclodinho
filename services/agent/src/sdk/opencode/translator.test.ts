@@ -117,10 +117,11 @@ describe("OpenCode Translator", () => {
 
     it("finalizes active thinking on session idle", () => {
       state.reasoningPartContent.set("prt_1", "thinking text");
-      state.reasoningPartContent.set("prt_2", ""); // empty — should not finalize
+      state.reasoningPartContent.set("prt_2", "");
       const events = finalizeActiveThinking(state);
-      expect(events.length).toBe(1);
-      expect(events[0]).toEqual({ type: "thinking", thinkingId: "prt_1", content: "", partial: false });
+      expect(events.length).toBe(2);
+      expect(events[0]).toEqual({ type: "thinking", thinkingId: "prt_1", content: "thinking text", partial: false });
+      expect(events[1]).toEqual({ type: "thinking", thinkingId: "prt_2", content: "", partial: false });
     });
 
     it("drops delta when messageID missing", () => {
