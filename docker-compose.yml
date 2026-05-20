@@ -66,7 +66,7 @@ services:
       retries: 5
 
   # ── Control-plane ─────────────────────────────────────────────────────────
-  # Shares Tailscale's network namespace → reachable on the tailnet.
+  # Tailscale proxies to this container via Docker DNS (control-plane:3000).
   # Embeds the BoxLite runtime directly in-process.
   # Docker Desktop (macOS/Windows): host.docker.internal resolves to the host.
   control-plane:
@@ -120,7 +120,6 @@ services:
       # Resource defaults per session
       DEFAULT_CPUS: ${DEFAULT_CPUS:-4}
       DEFAULT_MEMORY_MB: ${DEFAULT_MEMORY_MB:-4096}
-    restart: unless-stopped
 
   # ── GitHub Bot (optional) ─────────────────────────────────────────────────
   # Enable with: docker compose --profile github-bot up -d
