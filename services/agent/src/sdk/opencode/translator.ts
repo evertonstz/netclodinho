@@ -30,6 +30,7 @@ export interface TranslatorState {
   lastUsage: { inputTokens: number; outputTokens: number } | null;
   textPartContent: Map<string, string>;
   reasoningPartContent: Map<string, string>;
+  partTypes: Map<string, "text" | "reasoning">;
 }
 
 /**
@@ -46,6 +47,7 @@ export function createTranslatorState(): TranslatorState {
     lastUsage: null,
     textPartContent: new Map(),
     reasoningPartContent: new Map(),
+    partTypes: new Map(),
   };
 }
 
@@ -61,6 +63,7 @@ export function resetTranslatorState(state: TranslatorState): void {
   state.lastUsage = null;
   state.textPartContent.clear();
   state.reasoningPartContent.clear();
+  state.partTypes.clear();
 }
 
 /**
@@ -85,11 +88,15 @@ export function translateMessagePartUpdated(
       if (messageId && !state.assistantMessageIds.has(messageId)) {
         state.assistantMessageIds.add(messageId);
       }
+      // Track part type for routing message.part.delta events (always field:"text")
+      if (part.id) state.partTypes.set(part.id as string, "reasoning");
       return translateReasoningPart(part, delta, state);
     case "text":
       if (messageId && !state.assistantMessageIds.has(messageId)) {
         return null; // only emit for confirmed assistant messages
       }
+      // Track part type for routing message.part.delta events (always field:"text")
+      if (part.id) state.partTypes.set(part.id as string, "text");
       return translateTextPartUpdated(part, state);
     case "step-start":
     case "step-finish":
@@ -108,32 +115,16 @@ function translateTextPartUpdated(
 
   // Strip reasoning content that was already emitted as a thinking event.
   // DeepSeek models duplicate reasoning into text parts.
-  const msgId = part.messageID as string;
-  const reasoningText = msgId
-    ? Array.from(state.reasoningPartContent.values()).join("")
-    : "";
+  const reasoningText = Array.from(state.reasoningPartContent.values()).join("");
   let effectiveText = newText;
   if (reasoningText && newText.startsWith(reasoningText)) {
     effectiveText = newText.slice(reasoningText.length);
   }
   if (!effectiveText) return null;
 
-  const prevText = state.textPartContent.get(partId) || "";
-  if (effectiveText.length <= prevText.length) return null;
-
-  const delta = effectiveText.slice(prevText.length);
-  state.textPartContent.set(partId, effectiveText);
-
-  if (!state.currentTextMessageId) {
-    state.currentTextMessageId = `msg_${Date.now()}_${++state.textMessageIdCounter}`;
-  }
-
-  return {
-    type: "textDelta",
-    content: delta,
-    partial: true,
-    messageId: state.currentTextMessageId,
-  };
+  // Track final text but don't emit — streaming is handled by message.part.delta.
+  // The control-plane accumulates from deltas and stores on session.idle.
+  return null;
 }
 
 /**
@@ -408,18 +399,26 @@ export function translateEvent(
 
   switch (event.type) {
     case "message.part.delta": {
-      // OpenCode streams text deltas as separate events:
-      // { type: "message.part.delta", properties: { messageID, partID, field, delta } }
-      // Only handle text field deltas for assistant messages.
+      // OpenCode 1.15+ emits ALL deltas with field:"text", regardless of whether
+      // the token is from a text part or a reasoning part. The part type (text vs
+      // reasoning) is determined by message.part.updated events tracked in
+      // state.partTypes.
+      //
+      // Event format: { type: "message.part.delta", properties: { messageID, partID, field, delta } }
       const messageId = props.messageID as string | undefined;
       const field = props.field as string | undefined;
       const delta = props.delta as string | undefined;
       const partId = props.partID as string | undefined;
 
-      if (field !== "reasoning") return null;
+      // Only text field deltas are emitted by OpenCode. "reasoning" never appears.
+      if (field !== "text" || !delta) return null;
 
-      // Reasoning deltas → thinking events
-      if (field === "reasoning" && delta) {
+      // Route delta based on part type tracked from message.part.updated events.
+      // If we haven't seen the part.updated yet, we can't determine routing — drop.
+      const partType = partId ? state.partTypes.get(partId) : undefined;
+      if (!partType) return null;
+
+      if (partType === "reasoning") {
         return {
           type: "thinking",
           thinkingId: partId || `thinking_${Date.now()}`,
@@ -428,7 +427,22 @@ export function translateEvent(
         };
       }
 
-      return null;
+      // Text delta — streaming only. Final text comes via message.part.updated.
+      if (!messageId) return null;
+      if (!state.assistantMessageIds.has(messageId)) {
+        state.assistantMessageIds.add(messageId);
+      }
+
+      if (!state.currentTextMessageId) {
+        state.currentTextMessageId = `msg_${Date.now()}_${++state.textMessageIdCounter}`;
+      }
+
+      return {
+        type: "textDelta",
+        content: delta,
+        partial: true,
+        messageId: state.currentTextMessageId,
+      };
     }
 
     case "message.part.updated": {

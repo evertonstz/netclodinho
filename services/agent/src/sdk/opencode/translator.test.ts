@@ -89,17 +89,68 @@ describe("OpenCode Translator", () => {
   });
 
   describe("translateEvent - message.part.delta", () => {
-    it("returns null for text deltas (now handled via message.part.updated)", () => {
+    it("translates text delta for assistant message", () => {
       state.assistantMessageIds.add("msg_assistant");
+      state.partTypes.set("part_1", "text");
       const result = translateEvent(
         { type: "message.part.delta", properties: { messageID: "msg_assistant", partID: "part_1", field: "text", delta: "Hello" } },
+        state
+      );
+      expect(result?.type).toBe("textDelta");
+      expect((result as { content: string }).content).toBe("Hello");
+      expect((result as { partial: boolean }).partial).toBe(true);
+    });
+
+    it("emits thinking event for field:text delta on a reasoning-typed part", () => {
+      // OpenCode 1.15+ emits ALL deltas with field:"text". The part type from
+      // message.part.updated determines whether it's text or reasoning.
+      state.assistantMessageIds.add("msg_assistant");
+      state.partTypes.set("part_reason", "reasoning");
+      const result = translateEvent(
+        {
+          type: "message.part.delta",
+          properties: { messageID: "msg_assistant", partID: "part_reason", field: "text", delta: "thinking..." },
+        },
+        state
+      );
+      expect(result).toEqual({
+        type: "thinking",
+        thinkingId: "part_reason",
+        content: "thinking...",
+        partial: true,
+      });
+    });
+
+    it("emits textDelta for field:text delta on a text-typed part", () => {
+      state.assistantMessageIds.add("msg_assistant");
+      state.partTypes.set("part_text", "text");
+      const result = translateEvent(
+        {
+          type: "message.part.delta",
+          properties: { messageID: "msg_assistant", partID: "part_text", field: "text", delta: "Hello" },
+        },
+        state
+      );
+      expect(result?.type).toBe("textDelta");
+      expect((result as { content: string }).content).toBe("Hello");
+      expect((result as { partial: boolean }).partial).toBe(true);
+    });
+
+    it("drops delta for unknown part type (part.updated not yet received)", () => {
+      state.assistantMessageIds.add("msg_assistant");
+      const result = translateEvent(
+        {
+          type: "message.part.delta",
+          properties: { messageID: "msg_assistant", partID: "part_unknown", field: "text", delta: "early" },
+        },
         state
       );
       expect(result).toBeNull();
     });
 
-    it("emits thinking event for reasoning deltas", () => {
+    it("drops delta with field:reasoning (OpenCode never emits this)", () => {
       state.assistantMessageIds.add("msg_assistant");
+      state.partTypes.set("part_1", "reasoning");
       const result = translateEvent(
         {
           type: "message.part.delta",
@@ -107,12 +158,7 @@ describe("OpenCode Translator", () => {
         },
         state
       );
-      expect(result).toEqual({
-        type: "thinking",
-        thinkingId: "part_1",
-        content: "thinking...",
-        partial: true,
-      });
+      expect(result).toBeNull();
     });
 
     it("finalizes active thinking on session idle", () => {
@@ -124,7 +170,8 @@ describe("OpenCode Translator", () => {
       expect(events[1]).toEqual({ type: "thinking", thinkingId: "prt_2", content: "", partial: false });
     });
 
-    it("drops delta when messageID missing", () => {
+    it("drops text delta when messageID missing (even with part type)", () => {
+      state.partTypes.set("part_1", "text");
       const result = translateEvent(
         {
           type: "message.part.delta",
