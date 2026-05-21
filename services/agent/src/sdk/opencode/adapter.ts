@@ -330,9 +330,27 @@ export class OpenCodeAdapter implements NetclodePromptBackend {
         const reader = eventResponse.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
+        const SSE_READ_TIMEOUT_MS = 30_000; // 30s without data = dead connection
 
         while (!this.interruptSignal && !completed) {
-          const { done, value } = await reader.read();
+          let done: boolean | undefined;
+          let value: Uint8Array | undefined;
+          try {
+            const result = await Promise.race([
+              reader.read(),
+              new Promise<{ done: boolean; value?: Uint8Array }>((_, reject) =>
+                setTimeout(() => reject(new Error(`SSE read timeout after ${SSE_READ_TIMEOUT_MS}ms`)), SSE_READ_TIMEOUT_MS)
+              ),
+            ]);
+            done = result.done;
+            value = result.value;
+          } catch (err) {
+            if (err instanceof Error && err.message.includes("SSE read timeout")) {
+              console.error("[opencode-adapter] SSE read timeout, breaking loop");
+              break;
+            }
+            throw err;
+          }
           if (done) break;
 
           buffer += decoder.decode(value, { stream: true });
