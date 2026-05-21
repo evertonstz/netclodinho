@@ -306,6 +306,7 @@ func (r *RedisStorage) UpdateSessionStatus(ctx context.Context, id string, statu
 
 // UpdateSessionField updates a single field of a session.
 func (r *RedisStorage) UpdateSessionField(ctx context.Context, id, field, value string) error {
+	slog.WarnContext(ctx, "[STATUS-WRITE] UpdateSessionField", "sessionID", id, "field", field, "value", value)
 	return r.client.HSet(ctx, sessionKey(id), field, value).Err()
 }
 
