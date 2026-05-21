@@ -1332,7 +1332,7 @@ func (m *Manager) List(ctx context.Context) ([]*pb.Session, error) {
 	for _, sb := range sandboxes {
 		sandboxMap[sb.SessionID] = sb
 	}
-	slog.DebugContext(ctx, "[STATUS] List() sandbox state", "sandboxCount", len(sandboxes), "sessionCount", len(m.sessions))
+	slog.DebugContext(ctx, "[STATUS] List() sandbox state", "sandboxCount", len(sandboxes), "sessionCount", len(m.sessions), "sandboxIDs", sandboxIDs(sandboxes), "sessionIDs", sessionIDs(m.sessions))
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -3586,4 +3586,20 @@ func (m *Manager) RevokeDockerToken(token string) {
 // Config returns the manager's configuration (read-only).
 func (m *Manager) Config() *config.Config {
 	return m.config
+}
+
+func sandboxIDs(sandboxes []k8s.SandboxInfo) []string {
+	ids := make([]string, len(sandboxes))
+	for i, sb := range sandboxes {
+		ids[i] = sb.SessionID
+	}
+	return ids
+}
+
+func sessionIDs(sessions map[string]*SessionState) []string {
+	ids := make([]string, 0, len(sessions))
+	for id := range sessions {
+		ids = append(ids, id)
+	}
+	return ids
 }
