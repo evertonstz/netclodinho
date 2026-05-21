@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -86,6 +87,14 @@ func (s *Server) ListenAndServe(ctx context.Context, httpAddr string) error {
 	mux.HandleFunc("POST /internal/validate-proxy-auth", s.handleValidateProxyAuth)
 	mux.HandleFunc("POST /agent-startup-log", s.handleAgentStartupLog)
 	mux.HandleFunc("GET /internal/session/{sessionID}/startup-logs", s.handleAgentStartupLogGet)
+
+	// Debug endpoints (gated by DEBUG_REST_EP env var)
+	if os.Getenv("DEBUG_REST_EP") == "true" {
+		slog.Warn("Debug REST endpoints enabled — set DEBUG_REST_EP=true only for troubleshooting")
+		mux.HandleFunc("POST /debug/session/{sessionID}/exec", s.handleDebugBoxExec)
+		mux.HandleFunc("GET /debug/session/{sessionID}/probe", s.handleDebugBoxProbe)
+		mux.HandleFunc("GET /debug/boxes", s.handleDebugListBoxes)
+	}
 
 	// Connect services (ClientService for iOS, AgentService for agents)
 	clientHandler := NewConnectClientServiceHandler(s.manager, s)
@@ -271,4 +280,66 @@ func (s *Server) Shutdown(ctx context.Context) error {
 // ActiveConnections returns the number of active Connect connections.
 func (s *Server) ActiveConnections() int64 {
 	return s.connCount.Load()
+}
+
+// ============================================================================
+// Debug endpoints (gated by DEBUG_REST_EP=true)
+// ============================================================================
+
+// handleDebugBoxProbe returns the status of a session's BoxLite box.
+// GET /debug/session/{sessionID}/probe
+func (s *Server) handleDebugBoxProbe(w http.ResponseWriter, r *http.Request) {
+	sessionID := r.PathValue("sessionID")
+	if sessionID == "" {
+		http.Error(w, "sessionID required", http.StatusBadRequest)
+		return
+	}
+	status, err := s.manager.Runtime().GetStatus(r.Context(), sessionID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(status)
+}
+
+// handleDebugBoxExec runs a command inside a session's BoxLite box.
+// POST /debug/session/{sessionID}/exec
+// Body: {"command": "ps", "args": ["aux"]}
+func (s *Server) handleDebugBoxExec(w http.ResponseWriter, r *http.Request) {
+	sessionID := r.PathValue("sessionID")
+	if sessionID == "" {
+		http.Error(w, "sessionID required", http.StatusBadRequest)
+		return
+	}
+	var req struct {
+		Command string   `json:"command"`
+		Args    []string `json:"args"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if req.Command == "" {
+		req.Command = "ps"
+	}
+	result, err := s.manager.Runtime().Exec(r.Context(), sessionID, req.Command, req.Args...)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
+}
+
+// handleDebugListBoxes returns all BoxLite boxes.
+// GET /debug/boxes
+func (s *Server) handleDebugListBoxes(w http.ResponseWriter, r *http.Request) {
+	boxes, err := s.manager.Runtime().ListSandboxes(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(boxes)
 }

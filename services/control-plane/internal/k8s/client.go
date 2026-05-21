@@ -70,7 +70,17 @@ type Runtime interface {
 	// and is ready. For BoxLite this closes the ready channel; for K8s this is a no-op.
 	NotifyAgentReady(sessionID string)
 
+	// Debug
+	Exec(ctx context.Context, sessionID string, command string, args ...string) (*ExecResult, error)
+
 	Close()
+}
+
+// ExecResult mirrors boxlite.ExecResult for the debug endpoint.
+type ExecResult struct {
+	ExitCode int    `json:"exitCode"`
+	Stdout   string `json:"stdout"`
+	Stderr   string `json:"stderr"`
 }
 
 // NewRuntime creates a new Kubernetes runtime with informer-based watching.

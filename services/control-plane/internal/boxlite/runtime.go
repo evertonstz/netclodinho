@@ -440,6 +440,26 @@ func (r *Runtime) GetStatus(ctx context.Context, sessionID string) (*k8s.Sandbox
 	}, nil
 }
 
+func (r *Runtime) Exec(ctx context.Context, sessionID string, command string, args ...string) (*k8s.ExecResult, error) {
+	box, ok := r.getBox(sessionID)
+	if !ok {
+		var err error
+		box, err = r.rt.Get(ctx, r.boxName(sessionID))
+		if err != nil || box == nil {
+			return nil, fmt.Errorf("box not found: %w", err)
+		}
+	}
+	result, err := box.Exec(ctx, command, args...)
+	if err != nil {
+		return nil, fmt.Errorf("exec: %w", err)
+	}
+	return &k8s.ExecResult{
+		ExitCode: result.ExitCode,
+		Stdout:   result.Stdout,
+		Stderr:   result.Stderr,
+	}, nil
+}
+
 func (r *Runtime) ListSandboxes(ctx context.Context) ([]k8s.SandboxInfo, error) {
 	infos, err := r.rt.ListInfo(ctx)
 	if err != nil {

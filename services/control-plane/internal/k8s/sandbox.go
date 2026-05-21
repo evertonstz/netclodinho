@@ -2087,5 +2087,9 @@ func (r *k8sRuntime) VerifyAgentToken(ctx context.Context, token string, audienc
 	return podName, nil
 }
 
+func (r *k8sRuntime) Exec(ctx context.Context, sessionID string, command string, args ...string) (*ExecResult, error) {
+	return nil, fmt.Errorf("exec not supported in K8s mode")
+}
+
 // Ensure k8sRuntime implements Runtime
 var _ Runtime = (*k8sRuntime)(nil)

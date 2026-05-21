@@ -275,6 +275,10 @@ func (m *mockRuntime) DeleteNetworkRestriction(ctx context.Context, sessionID st
 
 func (m *mockRuntime) NotifyAgentReady(_ string) {}
 
+func (m *mockRuntime) Exec(_ context.Context, _ string, _ string, _ ...string) (*k8s.ExecResult, error) {
+	return &k8s.ExecResult{ExitCode: 0, Stdout: "mock"}, nil
+}
+
 func (m *mockRuntime) VerifyAgentToken(ctx context.Context, token string, audiences []string) (string, error) {
 	// Mock implementation - return a fake pod name for testing
 	return "mock-pod-" + token[:8], nil

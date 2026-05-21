@@ -114,6 +114,11 @@ func (m *Manager) SetRuntime(runtime k8s.Runtime) {
 	m.k8s = runtime
 }
 
+// Runtime returns the underlying runtime (for debug endpoints).
+func (m *Manager) Runtime() k8s.Runtime {
+	return m.k8s
+}
+
 // SetGitHubClient injects the GitHub client after construction.
 func (m *Manager) SetGitHubClient(client *github.Client) {
 	m.githubClient = client
