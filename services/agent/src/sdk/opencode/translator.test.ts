@@ -200,7 +200,7 @@ describe("OpenCode Translator", () => {
 
     it("translates reasoning completion", () => {
       const result = translateMessagePartUpdated(
-        { type: "reasoning", id: "reason_1", text: "Full reasoning" },
+        { type: "reasoning", id: "reason_1", text: "Full reasoning", time: { start: 123, end: 456 } },
         undefined,
         state
       );
@@ -208,7 +208,7 @@ describe("OpenCode Translator", () => {
         type: "thinking",
         thinkingId: "reason_1",
         content: "Full reasoning",
-        partial: true,
+        partial: false,
       });
     });
 

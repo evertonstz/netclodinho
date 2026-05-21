@@ -164,18 +164,25 @@ function translateReasoningPart(
   const partId = part.id as string;
   const newContent = delta || (part.text as string) || "";
 
+  // Check if reasoning part is complete (OpenCode sets time.end on finish)
+  const timeEnd = (part.time as Record<string, unknown> | undefined)?.end;
+  const timeStart = (part.time as Record<string, unknown> | undefined)?.start;
+  // If part.time.end exists and no delta, reasoning is complete → partial: false
+  // If delta exists (streaming) or no time.end (still in progress) → partial: true
+  const isComplete = !!timeEnd && !delta;
+
   const prevContent = state.reasoningPartContent.get(partId) || "__unset__";
-  if (newContent === prevContent) return null; // no change from last emit
+  if (newContent === prevContent && !isComplete) return null; // no change from last emit
   state.reasoningPartContent.set(partId, newContent);
 
   // Emit even with empty content — OpenCode sends empty event first to
   // position the thinking bubble, then fills it later.
-  // Always emit as partial: true so the iOS app appends content.
+  // partial: false when part.time.end signals completion at the correct position.
   return {
     type: "thinking",
     thinkingId: partId || `thinking_${Date.now()}`,
     content: newContent,
-    partial: true,
+    partial: !isComplete,
   };
 }
 
@@ -220,6 +227,9 @@ function translateToolPart(
         if (!state.toolStartTimes.has(callId)) {
           state.toolStartTimes.set(callId, Date.now());
         }
+        // Split text: subsequent text deltas go to a new message bubble
+        state.currentTextMessageId = null;
+        state.currentTextPartId = null;
         return {
           type: "toolStart",
           tool: toolName,
@@ -230,9 +240,14 @@ function translateToolPart(
       return null;
 
     case "completed":
+      // Split text: text after tool goes to a new message bubble
+      state.currentTextMessageId = null;
+      state.currentTextPartId = null;
       return translateToolCompleted(toolName, callId, partState, normalizedInput, state);
 
     case "error":
+      state.currentTextMessageId = null;
+      state.currentTextPartId = null;
       return translateToolError(toolName, callId, partState, normalizedInput, state);
 
     default:
