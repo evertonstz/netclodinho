@@ -330,7 +330,7 @@ export class OpenCodeAdapter implements NetclodePromptBackend {
         const reader = eventResponse.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
-        const SSE_READ_TIMEOUT_MS = 30_000; // 30s without data = dead connection
+        const SSE_READ_TIMEOUT_MS = 15_000; // 15s without data = dead (heartbeat every 10s)
 
         while (!this.interruptSignal && !completed) {
           let done: boolean | undefined;
