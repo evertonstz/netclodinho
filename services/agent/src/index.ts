@@ -13,11 +13,12 @@ console.log(`[agent] Environment: ANTHROPIC_API_KEY=${process.env.ANTHROPIC_API_
 // Connect to control plane
 async function main() {
   try {
-    // Connect immediately - in warm pool mode, authenticates via Kubernetes ServiceAccount token
     await connectToControlPlane(controlPlaneUrl, sessionId);
+    // Stream ended — CP may have restarted. Reconnect.
+    console.log("[agent] Stream ended, reconnecting in 5s...");
+    setTimeout(main, 5000);
   } catch (error) {
     console.error("[agent] Error:", error);
-    // Restart after error
     setTimeout(main, 5000);
   }
 }
