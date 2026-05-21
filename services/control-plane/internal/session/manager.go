@@ -1326,6 +1326,7 @@ func (m *Manager) List(ctx context.Context) ([]*pb.Session, error) {
 	for _, sb := range sandboxes {
 		sandboxMap[sb.SessionID] = sb
 	}
+	slog.DebugContext(ctx, "[STATUS] List() sandbox state", "sandboxCount", len(sandboxes), "sessionCount", len(m.sessions))
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -3236,6 +3237,7 @@ func (m *Manager) RestoreSnapshot(ctx context.Context, sessionID, snapshotID str
 	slog.InfoContext(ctx, "Starting restore from snapshot", "sessionID", sessionID, "snapshotID", snapshotID)
 
 	// Update session status to indicate restore in progress
+	slog.WarnContext(ctx, "[STATUS] set PAUSED via RestoreSnapshot()", "sessionID", sessionID)
 	state.Session.Status = pb.SessionStatus_SESSION_STATUS_PAUSED
 	_ = m.storage.UpdateSessionStatus(ctx, sessionID, pb.SessionStatus_SESSION_STATUS_PAUSED)
 
