@@ -85,6 +85,7 @@ func (r *RedisStorage) Close() error {
 
 // SaveSession saves a session to Redis.
 func (r *RedisStorage) SaveSession(ctx context.Context, s *pb.Session) error {
+	slog.WarnContext(ctx, "[STATUS-WRITE] SaveSession (writes all fields)", "sessionID", s.Id, "status", s.Status.String())
 	pipe := r.client.TxPipeline()
 
 	pipe.SAdd(ctx, keySessionsAll, s.Id)
@@ -299,6 +300,7 @@ func (r *RedisStorage) GetAllSessions(ctx context.Context) ([]*pb.Session, error
 
 // UpdateSessionStatus updates the status of a session.
 func (r *RedisStorage) UpdateSessionStatus(ctx context.Context, id string, status pb.SessionStatus) error {
+	slog.WarnContext(ctx, "[STATUS-WRITE] UpdateSessionStatus", "sessionID", id, "newStatus", status.String())
 	return r.client.HSet(ctx, sessionKey(id), "status", status.String()).Err()
 }
 
