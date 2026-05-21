@@ -15,9 +15,6 @@ async function main() {
   try {
     // Connect immediately - in warm pool mode, authenticates via Kubernetes ServiceAccount token
     await connectToControlPlane(controlPlaneUrl, sessionId);
-    // Stream ended normally — server may have restarted or connection dropped. Reconnect.
-    console.log("[agent] Stream ended, reconnecting in 5s...");
-    setTimeout(main, 5000);
   } catch (error) {
     console.error("[agent] Error:", error);
     // Restart after error
