@@ -1129,6 +1129,7 @@ func (m *Manager) Pause(ctx context.Context, id string) (*pb.Session, error) {
 	m.mu.Lock()
 	state.ServiceFQDN = ""
 	state.Session.Status = pb.SessionStatus_SESSION_STATUS_PAUSED
+	slog.WarnContext(ctx, "[STATUS] set PAUSED via Pause()", "sessionID", id)
 	activeCount := 0
 	for _, s := range m.sessions {
 		if s.Session.Status == pb.SessionStatus_SESSION_STATUS_READY ||
