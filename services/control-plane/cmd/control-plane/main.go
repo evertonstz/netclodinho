@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	slogtrace "github.com/DataDog/dd-trace-go/contrib/log/slog/v2"
@@ -40,8 +41,20 @@ func main() {
 	defer profiler.Stop()
 
 	// Configure structured logging with Datadog trace correlation
+	// LOG_LEVEL env var: debug, info, warn, error (default: info)
+	logLevel := slog.LevelInfo
+	if lvl := os.Getenv("LOG_LEVEL"); lvl != "" {
+		switch strings.ToLower(lvl) {
+		case "debug":
+			logLevel = slog.LevelDebug
+		case "warn", "warning":
+			logLevel = slog.LevelWarn
+		case "error":
+			logLevel = slog.LevelError
+		}
+	}
 	logger := slog.New(slogtrace.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
+		Level: logLevel,
 	}))
 	slog.SetDefault(logger)
 

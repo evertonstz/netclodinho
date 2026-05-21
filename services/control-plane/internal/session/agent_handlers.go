@@ -71,6 +71,7 @@ func (m *Manager) handleTextDelta(ctx context.Context, sessionID string, state *
 	// Track when this message's content first arrived
 	if state.CurrentMessageID != messageID || state.CurrentMessageStartTime.IsZero() {
 		state.CurrentMessageStartTime = time.Now()
+		slog.DebugContext(ctx, "[EVENT-ORDER] message_start", "sessionID", sessionID, "messageID", messageID, "ts", state.CurrentMessageStartTime.Format(time.RFC3339Nano))
 	}
 
 	state.CurrentMessageID = messageID
@@ -99,6 +100,7 @@ func (m *Manager) handleTextDelta(ctx context.Context, sessionID string, state *
 		m.mu.Unlock()
 
 		if finalContent != "" && finalMessageID != "" {
+			slog.DebugContext(ctx, "[EVENT-ORDER] text_final", "sessionID", sessionID, "messageID", finalMessageID, "startTs", finalStartTime.Format(time.RFC3339Nano), "contentLen", len(finalContent))
 			m.appendMessage(ctx, sessionID, finalMessageID, pb.MessageRole_MESSAGE_ROLE_ASSISTANT, finalContent, finalStartTime)
 		}
 	}
@@ -130,6 +132,7 @@ func (m *Manager) appendMessage(ctx context.Context, sessionID string, messageID
 	if ts.IsZero() {
 		ts = time.Now()
 	}
+	slog.DebugContext(context.Background(), "[EVENT-ORDER] appendMessage", "sessionID", sessionID, "messageID", messageID, "ts", ts.Format(time.RFC3339Nano), "contentLen", len(content))
 	entry := &storage.StreamEntry{
 		Type:      storage.StreamEntryTypeEvent,
 		Partial:   false, // Final message
@@ -166,6 +169,9 @@ func (m *Manager) handleAgentEvent(ctx context.Context, sessionID string, state 
 			state.ToolStartTimes[toolUseId] = time.Now()
 			eventTimestamp = state.ToolStartTimes[toolUseId]
 			m.mu.Unlock()
+			slog.DebugContext(ctx, "[EVENT-ORDER] tool_start", "sessionID", sessionID, "toolUseId", toolUseId, "ts", eventTimestamp.Format(time.RFC3339Nano), "partial", partial)
+		} else {
+			slog.DebugContext(ctx, "[EVENT-ORDER] tool_start NO_ID", "sessionID", sessionID)
 		}
 	case pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_INPUT,
 		pb.AgentEventKind_AGENT_EVENT_KIND_TOOL_OUTPUT:
@@ -195,6 +201,7 @@ func (m *Manager) handleAgentEvent(ctx context.Context, sessionID string, state 
 			}
 			delete(state.ToolStartTimes, toolUseId)
 			m.mu.Unlock()
+			slog.DebugContext(ctx, "[EVENT-ORDER] tool_end", "sessionID", sessionID, "toolUseId", toolUseId, "ts", eventTimestamp.Format(time.RFC3339Nano), "partial", partial)
 		}
 	case pb.AgentEventKind_AGENT_EVENT_KIND_THINKING:
 		// Use the partial field from the proto - true for streaming deltas, false for final complete content
@@ -206,11 +213,16 @@ func (m *Manager) handleAgentEvent(ctx context.Context, sessionID string, state 
 		thinkingID := event.CorrelationId
 		if thinkingID != "" {
 			m.mu.Lock()
+			existed := true
 			if _, exists := state.ThinkingStartTimes[thinkingID]; !exists {
 				state.ThinkingStartTimes[thinkingID] = time.Now()
+				existed = false
 			}
 			eventTimestamp = state.ThinkingStartTimes[thinkingID]
 			m.mu.Unlock()
+			slog.DebugContext(ctx, "[EVENT-ORDER] thinking", "sessionID", sessionID, "thinkingID", thinkingID, "ts", eventTimestamp.Format(time.RFC3339Nano), "partial", partial, "wasTracked", existed)
+		} else {
+			slog.DebugContext(ctx, "[EVENT-ORDER] thinking NO_ID", "sessionID", sessionID, "partial", partial)
 		}
 	}
 
@@ -240,6 +252,7 @@ func (m *Manager) handleAgentResult(ctx context.Context, sessionID string, state
 	// Note: This may be empty if handleTextDelta already stored the message when partial=false arrived
 	// appendMessage both stores the message AND increments the message counter
 	if content != "" && messageID != "" {
+		slog.DebugContext(ctx, "[EVENT-ORDER] result_store", "sessionID", sessionID, "messageID", messageID, "startTs", messageStartTime.Format(time.RFC3339Nano), "contentLen", len(content))
 		m.appendMessage(ctx, sessionID, messageID, pb.MessageRole_MESSAGE_ROLE_ASSISTANT, content, messageStartTime)
 	}
 
