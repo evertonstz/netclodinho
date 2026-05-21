@@ -461,16 +461,20 @@ func (r *Runtime) Exec(ctx context.Context, sessionID string, command string, ar
 }
 
 func (r *Runtime) ListSandboxes(ctx context.Context) ([]k8s.SandboxInfo, error) {
-	infos, err := r.rt.ListInfo(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("list boxes: %w", err)
-	}
-	out := make([]k8s.SandboxInfo, 0, len(infos))
-	for _, info := range infos {
+	r.boxMu.RLock()
+	defer r.boxMu.RUnlock()
+
+	out := make([]k8s.SandboxInfo, 0, len(r.boxes))
+	for sessionID, box := range r.boxes {
+		info, err := box.Info(ctx)
+		if err != nil {
+			slog.Warn("BoxLite: failed to get box info, skipping", "sessionID", sessionID, "error", err)
+			continue
+		}
 		out = append(out, k8s.SandboxInfo{
-			SessionID:   sessionIDFromBoxName(info.Name),
-			ServiceFQDN: info.Name,
-			Ready:       info.State == boxlitesdk.StateRunning,
+			SessionID:   sessionID,
+			ServiceFQDN: r.boxName(sessionID),
+			Ready:       info.Running,
 		})
 	}
 	return out, nil
