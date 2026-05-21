@@ -313,106 +313,124 @@ export class OpenCodeAdapter implements NetclodePromptBackend {
     });
 
     const processEvents = async () => {
-      try {
-        const eventResponse = await fetch(eventUrl, {
-          headers: { Accept: "text/event-stream" },
-        });
+      const MAX_SSE_RECONNECTS = 3;
+      const SSE_READ_TIMEOUT_MS = 15_000; // 15s without data = dead (heartbeat every 10s)
 
-        if (!eventResponse.ok || !eventResponse.body) {
-          const err = new Error(`Failed to subscribe to events: ${eventResponse.statusText}`);
-          rejectConnected(err);
-          throw err;
+      for (let reconnectAttempt = 0; reconnectAttempt <= MAX_SSE_RECONNECTS; reconnectAttempt++) {
+        if (this.interruptSignal || completed) break;
+
+        if (reconnectAttempt > 0) {
+          console.log(`[opencode-adapter] SSE reconnect attempt ${reconnectAttempt}/${MAX_SSE_RECONNECTS}`);
+          // Brief delay before reconnect
+          await new Promise(r => setTimeout(r, 500));
         }
 
-        sseConnectionEstablished = true;
-        resolveConnected();
+        try {
+          const eventResponse = await fetch(eventUrl, {
+            headers: { Accept: "text/event-stream" },
+          });
 
-        const reader = eventResponse.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-        const SSE_READ_TIMEOUT_MS = 15_000; // 15s without data = dead (heartbeat every 10s)
-
-        while (!this.interruptSignal && !completed) {
-          let done: boolean | undefined;
-          let value: Uint8Array | undefined;
-          try {
-            const result = await Promise.race([
-              reader.read(),
-              new Promise<{ done: boolean; value?: Uint8Array }>((_, reject) =>
-                setTimeout(() => reject(new Error(`SSE read timeout after ${SSE_READ_TIMEOUT_MS}ms`)), SSE_READ_TIMEOUT_MS)
-              ),
-            ]);
-            done = result.done;
-            value = result.value;
-          } catch (err) {
-            if (err instanceof Error && err.message.includes("SSE read timeout")) {
-              console.error("[opencode-adapter] SSE read timeout, breaking loop");
-              break;
-            }
+          if (!eventResponse.ok || !eventResponse.body) {
+            const err = new Error(`Failed to subscribe to events: ${eventResponse.statusText}`);
+            if (reconnectAttempt === 0) rejectConnected(err);
             throw err;
           }
-          if (done) break;
 
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() || "";
+          if (reconnectAttempt === 0) {
+            sseConnectionEstablished = true;
+            resolveConnected();
+          }
 
-          for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              const data = line.slice(6);
-              if (data === "[DONE]") {
-                completed = true;
-                break;
+          const reader = eventResponse.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+          let timedOut = false;
+
+          while (!this.interruptSignal && !completed && !timedOut) {
+            let done: boolean | undefined;
+            let value: Uint8Array | undefined;
+            try {
+              const result = await Promise.race([
+                reader.read(),
+                new Promise<{ done: boolean; value?: Uint8Array }>((_, reject) =>
+                  setTimeout(() => reject(new Error(`SSE read timeout after ${SSE_READ_TIMEOUT_MS}ms`)), SSE_READ_TIMEOUT_MS)
+                ),
+              ]);
+              done = result.done;
+              value = result.value;
+            } catch (err) {
+              if (err instanceof Error && err.message.includes("SSE read timeout")) {
+                console.error("[opencode-adapter] SSE read timeout, reconnecting...");
+                timedOut = true;
+                reader.releaseLock();
+                continue; // goes to next reconnectAttempt
               }
-              try {
-                const event = JSON.parse(data);
-                const promptEvent = translateEvent(event, this.translatorState);
-                if (promptEvent) {
-                  if (promptEvent.type === "result" || promptEvent.type === "error") {
-                    // Finalize active thinking bubbles before completing
-                    for (const evt of finalizeActiveThinking(this.translatorState)) {
-                      eventQueue.push(evt);
-                    }
-                    completed = true;
-                  }
+              throw err;
+            }
+            if (done) break;
 
-                  if (resolveNextEvent) {
-                    resolveNextEvent(promptEvent);
-                    resolveNextEvent = null;
-                  } else {
-                    eventQueue.push(promptEvent);
-                  }
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+
+            for (const line of lines) {
+              if (line.startsWith("data: ")) {
+                const data = line.slice(6);
+                if (data === "[DONE]") {
+                  completed = true;
+                  break;
                 }
-              } catch (e) {
-                console.error("[opencode-adapter] Failed to parse event:", e, "data:", data);
+                try {
+                  const event = JSON.parse(data);
+                  const promptEvent = translateEvent(event, this.translatorState);
+                  if (promptEvent) {
+                    if (promptEvent.type === "result" || promptEvent.type === "error") {
+                      for (const evt of finalizeActiveThinking(this.translatorState)) {
+                        eventQueue.push(evt);
+                      }
+                      completed = true;
+                    }
+                    if (resolveNextEvent) {
+                      resolveNextEvent(promptEvent);
+                      resolveNextEvent = null;
+                    } else {
+                      eventQueue.push(promptEvent);
+                    }
+                  }
+                } catch (e) {
+                  console.error("[opencode-adapter] Failed to parse event:", e, "data:", data);
+                }
               }
             }
           }
-        }
 
-        reader.releaseLock();
-      } catch (error) {
-        console.error("[opencode-adapter] Event stream error:", error);
-        if (!sseConnectionEstablished) {
-          rejectConnected(error instanceof Error ? error : new Error(String(error)));
-        }
-        const errorEvent: PromptEvent = {
-          type: "error",
-          message: `Event stream error: ${error instanceof Error ? error.message : String(error)}`,
-          retryable: false,
-        };
-        if (resolveNextEvent) {
-          resolveNextEvent(errorEvent);
-          resolveNextEvent = null;
-        } else {
-          eventQueue.push(errorEvent);
-        }
-      } finally {
-        completed = true;
-        if (resolveNextEvent) {
-          resolveNextEvent(null);
+          reader.releaseLock();
+          if (!timedOut) break; // clean exit or error, don't reconnect
+
+        } catch (error) {
+          console.error("[opencode-adapter] Event stream error:", error);
+          if (!sseConnectionEstablished) {
+            rejectConnected(error instanceof Error ? error : new Error(String(error)));
+          }
+          if (reconnectAttempt >= MAX_SSE_RECONNECTS) {
+            const errorEvent: PromptEvent = {
+              type: "error",
+              message: `Event stream error: ${error instanceof Error ? error.message : String(error)}`,
+              retryable: false,
+            };
+            if (resolveNextEvent) {
+              resolveNextEvent(errorEvent);
+              resolveNextEvent = null;
+            } else {
+              eventQueue.push(errorEvent);
+            }
+            completed = true;
+          }
         }
       }
+
+      if (!completed) completed = true;
+      if (resolveNextEvent) resolveNextEvent(null);
     };
 
     const eventProcessor = processEvents();
