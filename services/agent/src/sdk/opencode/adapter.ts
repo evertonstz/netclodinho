@@ -32,7 +32,6 @@ export class OpenCodeAdapter implements NetclodePromptBackend {
     interrupt: true,
     toolStreaming: true,
     thinkingStreaming: true,
-    streamReconnect: true,
   });
 
   constructor(

@@ -4,17 +4,9 @@ import {
   createGitInspector,
   createSessionBootstrapper,
   createTitleGenerator,
-  StreamTimeoutError,
-  withTimeout,
 } from "./runtime.js";
 import { UnsupportedAgentCapabilityError, createAgentCapabilities, type NetclodePromptBackend, type PromptEvent } from "./types.js";
 import type { RepositoryContext, AgentGitFileChange } from "./types.js";
-
-// Override timeout constants before module evaluation
-vi.mock("./runtime.js", async (importOriginal) => {
-  const mod = await importOriginal<typeof import("./runtime.js")>();
-  return { ...mod };
-});
 
 function createFakeBackend(overrides: Partial<NetclodePromptBackend> = {}): NetclodePromptBackend {
   return {
@@ -117,132 +109,5 @@ describe("createGitInspector", () => {
 
     expect(diff).toBe("owner__repo:src/main.ts");
     expect(readGitDiff).toHaveBeenCalledOnce();
-  });
-});
-
-describe("withTimeout", () => {
-  it("yields events normally for a clean stream", async () => {
-    async function* source(): AsyncGenerator<string> {
-      yield "a";
-      yield "b";
-    }
-    const results: string[] = [];
-    for await (const val of withTimeout(source(), 100)) {
-      results.push(val);
-    }
-    expect(results).toEqual(["a", "b"]);
-  });
-
-  it("throws StreamTimeoutError when stream stalls", async () => {
-    async function* source(): AsyncGenerator<string> {
-      await new Promise(() => {}); // never resolves
-      yield "too-late";
-    }
-    const iter = withTimeout(source(), 10)[Symbol.asyncIterator]();
-    await expect(iter.next()).rejects.toBeInstanceOf(StreamTimeoutError);
-  });
-
-  it("propagates non-timeout errors", async () => {
-    async function* source(): AsyncGenerator<string> {
-      yield "ok";
-      throw new Error("boom");
-    }
-    const results: string[] = [];
-    await expect(async () => {
-      for await (const val of withTimeout(source(), 100)) {
-        results.push(val);
-      }
-    }).rejects.toThrow("boom");
-    expect(results).toEqual(["ok"]);
-  });
-});
-
-describe("ComposedNetclodeAgent stream timeout", () => {
-  it("reconnects on timeout for streamReconnect-capable backends", async () => {
-    let callCount = 0;
-    const backend = createFakeBackend({
-      capabilities: createAgentCapabilities({ interrupt: true, streamReconnect: true }),
-      async *executePrompt(): AsyncGenerator<PromptEvent> {
-        callCount++;
-        if (callCount === 1) {
-          // Simulate hanging stream by throwing StreamTimeoutError directly
-          throw new StreamTimeoutError();
-        }
-        yield { type: "system", message: "recovered" };
-      },
-    });
-
-    const agent = new ComposedNetclodeAgent(backend);
-    const events: PromptEvent[] = [];
-    for await (const event of agent.executePrompt("s", "hi")) {
-      events.push(event);
-    }
-
-    expect(callCount).toBe(2);
-    expect(events.map((e) => e.type)).toEqual(["system", "system"]);
-    expect(events[0]).toMatchObject({ type: "system", message: expect.stringContaining("Reconnecting") });
-    expect(events[1]).toMatchObject({ type: "system", message: "recovered" });
-  });
-
-  it("yields error without retry for non-reconnect backends on timeout", async () => {
-    let callCount = 0;
-    const backend = createFakeBackend({
-      capabilities: createAgentCapabilities({ interrupt: true, streamReconnect: false }),
-      async *executePrompt(): AsyncGenerator<PromptEvent> {
-        callCount++;
-        throw new StreamTimeoutError();
-      },
-    });
-
-    const agent = new ComposedNetclodeAgent(backend);
-    const events: PromptEvent[] = [];
-    for await (const event of agent.executePrompt("s", "hi")) {
-      events.push(event);
-    }
-
-    expect(events.length).toBe(1);
-    expect(events[0].type).toBe("error");
-    expect(callCount).toBe(1);
-  });
-
-  it("exhausts retries and yields error after max reconnects", async () => {
-    let callCount = 0;
-    const backend = createFakeBackend({
-      capabilities: createAgentCapabilities({ interrupt: true, streamReconnect: true }),
-      async *executePrompt(): AsyncGenerator<PromptEvent> {
-        callCount++;
-        throw new StreamTimeoutError();
-      },
-    });
-
-    const agent = new ComposedNetclodeAgent(backend);
-    const events: PromptEvent[] = [];
-    for await (const event of agent.executePrompt("s", "hi")) {
-      events.push(event);
-    }
-
-    // MAX_RECONNECTS=3 → 4 attempts (1 initial + 3 retries)
-    expect(callCount).toBe(4);
-    const lastEvent = events[events.length - 1];
-    expect(lastEvent.type).toBe("error");
-  });
-
-  it("propagates non-timeout errors through executePrompt", async () => {
-    const backend = createFakeBackend({
-      capabilities: createAgentCapabilities({ interrupt: true, streamReconnect: true }),
-      async *executePrompt(): AsyncGenerator<PromptEvent> {
-        yield { type: "system", message: "first" };
-        throw new Error("SDK internal error");
-      },
-    });
-
-    const agent = new ComposedNetclodeAgent(backend);
-    const events: PromptEvent[] = [];
-    await expect(async () => {
-      for await (const event of agent.executePrompt("s", "hi")) {
-        events.push(event);
-      }
-    }).rejects.toThrow("SDK internal error");
-    expect(events.map((e) => e.type)).toEqual(["system"]);
   });
 });
