@@ -25,6 +25,7 @@ export interface AgentCapabilities {
   gitDiff: boolean;
   toolStreaming: boolean;
   thinkingStreaming: boolean;
+  streamReconnect: boolean;
 }
 
 export const DEFAULT_AGENT_CAPABILITIES: AgentCapabilities = {
@@ -34,6 +35,7 @@ export const DEFAULT_AGENT_CAPABILITIES: AgentCapabilities = {
   gitDiff: false,
   toolStreaming: false,
   thinkingStreaming: false,
+  streamReconnect: false,
 };
 
 export type AgentCapabilityName = keyof AgentCapabilities;

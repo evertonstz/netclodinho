@@ -13,6 +13,7 @@ import type {
   GitInspector,
   NetclodeAgent,
   NetclodePromptBackend,
+  PromptEvent,
   PromptConfig,
   RepositoryContext,
   SessionBootstrapper,
@@ -138,6 +139,39 @@ export function createSessionBootstrapper(
   };
 }
 
+// --- Stream timeout helpers ---
+
+export class StreamTimeoutError extends Error {
+  constructor() {
+    super("Stream read timeout");
+    this.name = "StreamTimeoutError";
+  }
+}
+
+export const STREAM_READ_TIMEOUT_MS = 15_000;
+export const MAX_RECONNECTS = 3;
+export const RECONNECT_DELAY_MS = 500;
+
+function createTimeout(ms: number): Promise<never> {
+  return new Promise((_, reject) =>
+    setTimeout(() => reject(new StreamTimeoutError()), ms),
+  );
+}
+
+export async function* withTimeout<T>(
+  stream: AsyncGenerator<T>,
+  timeoutMs: number,
+): AsyncGenerator<T> {
+  const iterator = stream[Symbol.asyncIterator]();
+  while (true) {
+    const { value, done } = await Promise.race([
+      iterator.next(),
+      createTimeout(timeoutMs),
+    ]);
+    if (done) break;
+    yield value;
+  }
+}
 export class ComposedNetclodeAgent implements NetclodeAgent {
   readonly capabilities: AgentCapabilities;
 
@@ -160,15 +194,41 @@ export class ComposedNetclodeAgent implements NetclodeAgent {
     });
   }
 
-  async *executePrompt(sessionId: string, text: string, config?: PromptConfig) {
+  async *executePrompt(sessionId: string, text: string, config?: PromptConfig): AsyncGenerator<PromptEvent> {
     if (config?.repos && config.repos.length > 0 && this.sessionBootstrapper) {
       for await (const event of this.sessionBootstrapper.initializeSessionRepos(sessionId, config.repos, config.githubToken)) {
         yield event;
       }
     }
 
-    for await (const event of this.backend.executePrompt(sessionId, text, config)) {
-      yield event;
+    const canReconnect = this.backend.capabilities.streamReconnect;
+    const maxAttempts = canReconnect ? MAX_RECONNECTS + 1 : 1;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      if (attempt > 0) {
+        yield { type: "system", message: `Reconnecting stream (attempt ${attempt}/${MAX_RECONNECTS})...` };
+        await new Promise((r) => setTimeout(r, RECONNECT_DELAY_MS));
+      }
+
+      try {
+        for await (const event of withTimeout(
+          this.backend.executePrompt(sessionId, text, config),
+          STREAM_READ_TIMEOUT_MS,
+        )) {
+          yield event;
+        }
+        break;
+      } catch (error) {
+        if (error instanceof StreamTimeoutError) {
+          if (!canReconnect || attempt >= maxAttempts - 1) {
+            const errorEvent: PromptEvent = { type: "error", message: "Stream timed out and reconnects exhausted", retryable: false };
+            yield errorEvent;
+            break;
+          }
+          continue;
+        }
+        throw error;
+      }
     }
   }
 
