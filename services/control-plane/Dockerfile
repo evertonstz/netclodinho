@@ -31,7 +31,7 @@ RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w" -o control-plane ./cmd/co
 # Runtime image
 FROM debian:bookworm-slim
 
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libstdc++6 libgcc-s1 e2fsprogs && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libstdc++6 libgcc-s1 e2fsprogs bash curl && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /tmp/boxlite-runtime/ /runtime/
 COPY --from=builder /app/control-plane /control-plane

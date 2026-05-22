@@ -1,12 +1,14 @@
 /**
  * OpenCode backend
  *
- * Spawns opencode serve and communicates via REST API + SSE events.
+ * Uses @opencode-ai/sdk to manage the opencode server process and
+ * typed API calls (session create, prompt, abort, SSE events).
  */
 
-import { spawn, type ChildProcess } from "node:child_process";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { createOpencode, type OpencodeClient } from "@opencode-ai/sdk";
+import type { Config } from "@opencode-ai/sdk";
 import type { NetclodePromptBackend, SDKConfig, PromptConfig, PromptEvent } from "../types.js";
 import { createAgentCapabilities } from "../types.js";
 import { OpenCodeAuthMaterializer, type BackendAuthMaterializer } from "../auth-materializer.js";
@@ -21,13 +23,9 @@ import { getSdkSessionId, registerSession } from "../../services/session.js";
 import { WORKSPACE_DIR } from "../../constants.js";
 import { buildSystemPromptText } from "../../utils/system-prompt.js";
 import { getOpenCodeProvider } from "../secret-materialization.js";
+
 const OPENCODE_PORT = 4096;
 const OPENCODE_HOST = "127.0.0.1";
-
-interface OpenCodeServer {
-  url: string;
-  process: ChildProcess;
-}
 
 export class OpenCodeAdapter implements NetclodePromptBackend {
   readonly capabilities = createAgentCapabilities({
@@ -41,7 +39,8 @@ export class OpenCodeAdapter implements NetclodePromptBackend {
   ) {}
 
   private config: SDKConfig | null = null;
-  private server: OpenCodeServer | null = null;
+  private sdkClient: OpencodeClient | null = null;
+  private sdkServer: { url: string; close: () => void } | null = null;
   private interruptSignal = false;
   private ollamaUrl: string | null = null;
   private translatorState: TranslatorState = createTranslatorState();
@@ -51,41 +50,27 @@ export class OpenCodeAdapter implements NetclodePromptBackend {
     this.ollamaUrl = config.ollamaUrl || null;
     console.log("[opencode-backend] Initializing with model:", config.model, "ollamaUrl:", this.ollamaUrl);
     await this.authMaterializer.materialize(config);
-
     await this.startServer();
   }
 
-  private async startServer(): Promise<void> {
-    if (this.server) {
-      console.log("[opencode-adapter] Server already running at", this.server.url);
-      return;
-    }
+  // ── Provider config ──────────────────────────────────────────────────────
 
-    const startTime = Date.now();
-    console.log("[opencode-adapter] Starting opencode serve...");
-
-    const args = ["serve", `--hostname=${OPENCODE_HOST}`, `--port=${OPENCODE_PORT}`];
-
+  /** Build the provider config object passed to createOpencode. */
+  private buildProviderConfig(): Record<string, unknown> {
     const model = this.config?.model || "anthropic/claude-sonnet-4-0";
     const thinkingLevel = this.config?.reasoningEffort;
     const providerId = this.config ? getOpenCodeProvider(this.config) : "anthropic";
     const [, modelName = model] = model.includes("/") ? model.split("/", 2) : [providerId, model];
     const thinkingBudget = thinkingLevel === "max" ? 32000 : thinkingLevel === "high" ? 16000 : 0;
 
-    const isZenModel = providerId === "opencode";
-    const isCopilotModel = providerId === "github-copilot";
-
-    let providerConfig: Record<string, unknown> = {};
+    const providerConfig: Record<string, unknown> = {};
 
     if (thinkingBudget > 0) {
       providerConfig[providerId] = {
         models: {
           [modelName]: {
             options: {
-              thinking: {
-                type: "enabled",
-                budgetTokens: thinkingBudget,
-              },
+              thinking: { type: "enabled", budgetTokens: thinkingBudget },
             },
           },
         },
@@ -94,31 +79,45 @@ export class OpenCodeAdapter implements NetclodePromptBackend {
 
     if (providerId === "ollama" && this.ollamaUrl) {
       console.log("[opencode-adapter] Configuring Ollama provider with URL:", this.ollamaUrl);
-      // Ollama requires @ai-sdk/openai-compatible with /v1 endpoint
       const ollamaBaseUrl = this.ollamaUrl.endsWith("/v1")
         ? this.ollamaUrl
         : this.ollamaUrl.replace(/\/$/, "") + "/v1";
       providerConfig["ollama"] = {
         npm: "@ai-sdk/openai-compatible",
         name: "Ollama",
-        options: {
-          baseURL: ollamaBaseUrl,
-        },
+        options: { baseURL: ollamaBaseUrl },
         models: {
           [modelName]: {
             name: modelName,
             tools: true,
-            // reasoning: true enables thinking mode for compatible models
             reasoning: true,
           },
         },
       };
     }
 
-    const opencodeConfig = {
+    return providerConfig;
+  }
+
+  // ── Server lifecycle ─────────────────────────────────────────────────────
+
+  private async startServer(): Promise<void> {
+    if (this.sdkServer) {
+      console.log("[opencode-adapter] Server already running at", this.sdkServer.url);
+      return;
+    }
+
+    console.log("[opencode-adapter] Starting opencode serve via SDK...");
+
+    const model = this.config?.model || "anthropic/claude-sonnet-4-0";
+    const providerId = this.config ? getOpenCodeProvider(this.config) : "anthropic";
+    const isZenModel = providerId === "opencode";
+    const isCopilotModel = providerId === "github-copilot";
+    const providerConfigObj = this.buildProviderConfig();
+
+    const opencodeConfig: Record<string, unknown> = {
       model,
       logLevel: "INFO",
-      // Reference our custom instructions file (written at executePrompt time)
       instructions: [".netclode-instructions.md"],
       permission: {
         edit: "allow",
@@ -127,103 +126,47 @@ export class OpenCodeAdapter implements NetclodePromptBackend {
         mcp: "allow",
         question: "deny",
       },
-      ...(Object.keys(providerConfig).length > 0 && { provider: providerConfig }),
     };
 
-    const proc = spawn("opencode", args, {
-      env: {
-        ...process.env,
-        OPENCODE_CONFIG_CONTENT: JSON.stringify(opencodeConfig),
-        ANTHROPIC_API_KEY: this.config?.anthropicApiKey || process.env.ANTHROPIC_API_KEY,
-        ...(this.config?.openaiApiKey && { OPENAI_API_KEY: this.config.openaiApiKey }),
-        ...(this.config?.mistralApiKey && { MISTRAL_API_KEY: this.config.mistralApiKey }),
-        ...(this.config?.openRouterApiKey && { OPENROUTER_API_KEY: this.config.openRouterApiKey }),
-        // OpenCode Zen API key: use configured key, or "public" for free tier if Zen model
-        ...(this.config?.openCodeApiKey
-          ? { OPENCODE_API_KEY: this.config.openCodeApiKey }
-          : isZenModel && { OPENCODE_API_KEY: "public" }),
-        // Z.AI API key for GLM-4.7 models (models.dev uses ZHIPU_API_KEY)
-        ...(this.config?.zaiApiKey && { ZHIPU_API_KEY: this.config.zaiApiKey }),
-        OPENCODE_DISABLE_DEFAULT_PLUGINS: "true",
-        // Disable models fetch except for providers that discover models dynamically
-        ...(!isZenModel && !isCopilotModel && { OPENCODE_DISABLE_MODELS_FETCH: "true" }),
-      },
-      stdio: ["pipe", "pipe", "pipe"],
-      cwd: WORKSPACE_DIR,
+    if (Object.keys(providerConfigObj).length > 0) {
+      opencodeConfig["provider"] = providerConfigObj;
+    }
+
+    // The SDK passes config via OPENCODE_CONFIG_CONTENT.
+    // API keys flow through process.env which the server inherits.
+    // BoxLite substitutes OAuth placeholders at the HTTP layer.
+    process.env.ANTHROPIC_API_KEY = this.config?.anthropicApiKey || process.env.ANTHROPIC_API_KEY;
+    if (this.config?.openaiApiKey) process.env.OPENAI_API_KEY = this.config.openaiApiKey;
+    if (this.config?.mistralApiKey) process.env.MISTRAL_API_KEY = this.config.mistralApiKey;
+    if (this.config?.openRouterApiKey) process.env.OPENROUTER_API_KEY = this.config.openRouterApiKey;
+    if (this.config?.openCodeApiKey) {
+      process.env.OPENCODE_API_KEY = this.config.openCodeApiKey;
+    } else if (isZenModel) {
+      process.env.OPENCODE_API_KEY = "public";
+    }
+    if (this.config?.zaiApiKey) process.env.ZHIPU_API_KEY = this.config.zaiApiKey;
+    process.env.OPENCODE_DISABLE_DEFAULT_PLUGINS = "true";
+    if (!isZenModel && !isCopilotModel) {
+      process.env.OPENCODE_DISABLE_MODELS_FETCH = "true";
+    }
+
+    const { client, server } = await createOpencode({
+      hostname: OPENCODE_HOST,
+      port: OPENCODE_PORT,
+      timeout: 60_000,
+      config: opencodeConfig as Config,
     });
 
-    const url = await new Promise<string>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        proc.kill();
-        reject(new Error("Timeout waiting for opencode server to start"));
-      }, 60000);
-
-      let stdout = "";
-      let stderr = "";
-      let resolved = false;
-
-      const doResolve = (url: string) => {
-        if (resolved) return;
-        resolved = true;
-        clearInterval(pollInterval);
-        clearTimeout(timeout);
-        resolve(url);
-      };
-
-      proc.stdout?.on("data", (chunk) => {
-        stdout += chunk.toString();
-        console.log("[opencode-adapter] stdout:", chunk.toString().trim());
-      });
-
-      proc.stderr?.on("data", (chunk) => {
-        stderr += chunk.toString();
-        console.error("[opencode-adapter] stderr:", chunk.toString().trim());
-      });
-
-      proc.on("exit", (code) => {
-        if (resolved) return;
-        clearInterval(pollInterval);
-        clearTimeout(timeout);
-        reject(new Error(`opencode serve exited with code ${code}\nstdout: ${stdout}\nstderr: ${stderr}`));
-      });
-
-      proc.on("error", (error) => {
-        if (resolved) return;
-        clearInterval(pollInterval);
-        clearTimeout(timeout);
-        reject(error);
-      });
-
-      let pollCount = 0;
-      const pollInterval = setInterval(async () => {
-        if (resolved) return;
-        pollCount++;
-        const elapsed = Date.now() - startTime;
-        if (pollCount === 1 || pollCount % 50 === 0) {
-          console.log(`[opencode-adapter] Health check attempt ${pollCount}, elapsed ${elapsed}ms`);
-        }
-        try {
-          const res = await fetch(`http://${OPENCODE_HOST}:${OPENCODE_PORT}/session`, {
-            method: "GET",
-            signal: AbortSignal.timeout(1000),
-          });
-          if (res.ok) {
-            console.log(`[opencode-adapter] Server responded to health check after ${pollCount} attempts, ${elapsed}ms`);
-            doResolve(`http://${OPENCODE_HOST}:${OPENCODE_PORT}`);
-          }
-        } catch {
-          // Server not ready yet
-        }
-      }, 200);
-    });
-
-    this.server = { url, process: proc };
-    console.log("[opencode-adapter] Server started at:", url);
+    this.sdkClient = client;
+    this.sdkServer = server;
+    console.log("[opencode-adapter] Server started at:", server.url);
   }
 
+  // ── Instructions file ────────────────────────────────────────────────────
+
   /**
-   * Write custom instructions file to workspace
-   * OpenCode reads this via the `instructions` config field
+   * Write custom instructions file to workspace.
+   * OpenCode reads this via the `instructions` config field.
    */
   private async writeInstructionsFile(currentGitRepos: string[]): Promise<void> {
     const systemPromptText = buildSystemPromptText({ currentGitRepos });
@@ -237,32 +180,35 @@ export class OpenCodeAdapter implements NetclodePromptBackend {
     }
   }
 
+  // ── Session abort ────────────────────────────────────────────────────────
+
   private async abortSession(sessionId: string | undefined): Promise<void> {
-    if (!this.server || !sessionId) return;
+    if (!this.sdkClient || !sessionId) return;
 
     try {
-      const response = await fetch(`${this.server.url}/session/${sessionId}/abort`, {
-        method: "POST",
-        headers: { "x-opencode-directory": WORKSPACE_DIR },
+      await this.sdkClient.session.abort({
+        path: { id: sessionId },
+        query: { directory: WORKSPACE_DIR },
       });
-
-      if (response.ok) {
-        console.log(`[opencode-adapter] Session ${sessionId} aborted`);
-      } else {
-        console.warn(`[opencode-adapter] Failed to abort session: ${response.statusText}`);
-      }
+      console.log(`[opencode-adapter] Session ${sessionId} aborted via SDK`);
     } catch (error) {
       console.error("[opencode-adapter] Error aborting session:", error);
     }
   }
 
-  async *executePrompt(sessionId: string, text: string, promptConfig?: PromptConfig): AsyncGenerator<PromptEvent> {
-    if (!this.server) {
+  // ── Prompt execution ─────────────────────────────────────────────────────
+
+  async *executePrompt(
+    sessionId: string,
+    text: string,
+    promptConfig?: PromptConfig,
+  ): AsyncGenerator<PromptEvent> {
+    if (!this.sdkClient || !this.sdkServer) {
       throw new Error("OpenCode server not initialized");
     }
 
     console.log(
-      `[opencode-adapter] ExecutePrompt (session=${sessionId}): "${text.slice(0, 100)}${text.length > 100 ? "..." : ""}"`
+      `[opencode-adapter] ExecutePrompt (session=${sessionId}): "${text.slice(0, 100)}${text.length > 100 ? "..." : ""}"`,
     );
 
     // Write instructions file with system prompt (includes repo info when available)
@@ -273,22 +219,13 @@ export class OpenCodeAdapter implements NetclodePromptBackend {
     let ocSessionId = getSdkSessionId(sessionId);
 
     if (!ocSessionId) {
-      const createResponse = await fetch(`${this.server.url}/session`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-opencode-directory": WORKSPACE_DIR,
-        },
-        body: JSON.stringify({}),
+      const result = await this.sdkClient.session.create({
+        query: { directory: WORKSPACE_DIR },
       });
-
-      if (!createResponse.ok) {
-        const errorText = await createResponse.text();
-        throw new Error(`Failed to create OpenCode session: ${createResponse.statusText} - ${errorText}`);
+      if (!result.data?.id) {
+        throw new Error("Failed to create OpenCode session: no id returned");
       }
-
-      const sessionData = (await createResponse.json()) as { id: string };
-      ocSessionId = sessionData.id;
+      ocSessionId = result.data.id;
       registerSession(sessionId, ocSessionId);
       console.log(`[opencode-adapter] Created OpenCode session: ${ocSessionId}`);
     } else {
@@ -298,201 +235,66 @@ export class OpenCodeAdapter implements NetclodePromptBackend {
     // Clear interrupt signal and reset translator state
     this.clearInterruptSignal();
 
-    const eventQueue: PromptEvent[] = [];
-    let resolveNextEvent: ((value: PromptEvent | null) => void) | null = null;
-    let completed = false;
+    // Subscribe to SSE events before sending prompt
+    let events: Awaited<ReturnType<typeof this.sdkClient.event.subscribe>>;
+    try {
+      events = await this.sdkClient.event.subscribe({
+        query: { directory: WORKSPACE_DIR },
+      });
+    } catch (error) {
+      yield {
+        type: "error",
+        message: `Failed to subscribe to events: ${error instanceof Error ? error.message : String(error)}`,
+        retryable: false,
+      };
+      return;
+    }
+    console.log("[opencode-adapter] SSE subscription established, sending prompt");
 
-    const eventUrl = `${this.server.url}/event?directory=${encodeURIComponent(WORKSPACE_DIR)}`;
-
-    let resolveConnected!: () => void;
-    let rejectConnected!: (err: Error) => void;
-    let sseConnectionEstablished = false;
-    const sseConnected = new Promise<void>((res, rej) => {
-      resolveConnected = res;
-      rejectConnected = rej;
+    // Send prompt asynchronously
+    const promptPromise = this.sdkClient.session.promptAsync({
+      path: { id: ocSessionId },
+      query: { directory: WORKSPACE_DIR },
+      body: { parts: [{ type: "text", text }] },
     });
 
-    const processEvents = async () => {
-      const MAX_SSE_RECONNECTS = 3;
-      const SSE_READ_TIMEOUT_MS = 15_000; // 15s without data = dead (heartbeat every 10s)
-
-      for (let reconnectAttempt = 0; reconnectAttempt <= MAX_SSE_RECONNECTS; reconnectAttempt++) {
-        if (this.interruptSignal || completed) break;
-
-        if (reconnectAttempt > 0) {
-          console.log(`[opencode-adapter] SSE reconnect attempt ${reconnectAttempt}/${MAX_SSE_RECONNECTS}`);
-          // Brief delay before reconnect
-          await new Promise(r => setTimeout(r, 500));
+    // Stream events from SSE, yielding translated PromptEvent values
+    try {
+      for await (const event of events.stream) {
+        if (this.interruptSignal) {
+          await this.abortSession(ocSessionId);
+          yield { type: "system", message: "interrupted" };
+          return;
         }
 
-        try {
-          const eventResponse = await fetch(eventUrl, {
-            headers: { Accept: "text/event-stream" },
-          });
-
-          if (!eventResponse.ok || !eventResponse.body) {
-            const err = new Error(`Failed to subscribe to events: ${eventResponse.statusText}`);
-            if (reconnectAttempt === 0) rejectConnected(err);
-            throw err;
-          }
-
-          if (reconnectAttempt === 0) {
-            sseConnectionEstablished = true;
-            resolveConnected();
-          }
-
-          const reader = eventResponse.body.getReader();
-          const decoder = new TextDecoder();
-          let buffer = "";
-          let timedOut = false;
-
-          while (!this.interruptSignal && !completed && !timedOut) {
-            let done: boolean | undefined;
-            let value: Uint8Array | undefined;
-            try {
-              const result = await Promise.race([
-                reader.read(),
-                new Promise<{ done: boolean; value?: Uint8Array }>((_, reject) =>
-                  setTimeout(() => reject(new Error(`SSE read timeout after ${SSE_READ_TIMEOUT_MS}ms`)), SSE_READ_TIMEOUT_MS)
-                ),
-              ]);
-              done = result.done;
-              value = result.value;
-            } catch (err) {
-              if (err instanceof Error && err.message.includes("SSE read timeout")) {
-                console.error("[opencode-adapter] SSE read timeout, reconnecting...");
-                timedOut = true;
-                reader.releaseLock();
-                continue; // goes to next reconnectAttempt
-              }
-              throw err;
-            }
-            if (done) break;
-
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split("\n");
-            buffer = lines.pop() || "";
-
-            for (const line of lines) {
-              if (line.startsWith("data: ")) {
-                const data = line.slice(6);
-                if (data === "[DONE]") {
-                  completed = true;
-                  break;
-                }
-                try {
-                  const event = JSON.parse(data);
-                  const promptEvent = translateEvent(event, this.translatorState);
-                  if (promptEvent) {
-                    if (promptEvent.type === "result" || promptEvent.type === "error") {
-                      for (const evt of finalizeActiveThinking(this.translatorState)) {
-                        eventQueue.push(evt);
-                      }
-                      completed = true;
-                    }
-                    if (resolveNextEvent) {
-                      resolveNextEvent(promptEvent);
-                      resolveNextEvent = null;
-                    } else {
-                      eventQueue.push(promptEvent);
-                    }
-                  }
-                } catch (e) {
-                  console.error("[opencode-adapter] Failed to parse event:", e, "data:", data);
-                }
-              }
+        const promptEvent = translateEvent(event, this.translatorState);
+        if (promptEvent) {
+          if (promptEvent.type === "result" || promptEvent.type === "error") {
+            for (const evt of finalizeActiveThinking(this.translatorState)) {
+              yield evt;
             }
           }
-
-          reader.releaseLock();
-          if (!timedOut) break; // clean exit or error, don't reconnect
-
-        } catch (error) {
-          console.error("[opencode-adapter] Event stream error:", error);
-          if (!sseConnectionEstablished) {
-            rejectConnected(error instanceof Error ? error : new Error(String(error)));
-          }
-          if (reconnectAttempt >= MAX_SSE_RECONNECTS) {
-            const errorEvent: PromptEvent = {
-              type: "error",
-              message: `Event stream error: ${error instanceof Error ? error.message : String(error)}`,
-              retryable: false,
-            };
-            if (resolveNextEvent) {
-              resolveNextEvent(errorEvent);
-              resolveNextEvent = null;
-            } else {
-              eventQueue.push(errorEvent);
-            }
-            completed = true;
-          }
+          yield promptEvent;
         }
-      }
-
-      if (!completed) completed = true;
-      if (resolveNextEvent) resolveNextEvent(null);
-    };
-
-    const eventProcessor = processEvents();
-
-    try {
-      await sseConnected;
-    } catch (error) {
-      yield {
-        type: "error",
-        message: `Failed to connect to OpenCode event stream: ${error instanceof Error ? error.message : String(error)}`,
-        retryable: false,
-      };
-      return;
-    }
-    console.log("[opencode-adapter] SSE connection established, sending prompt");
-
-    try {
-      const promptResponse = await fetch(`${this.server.url}/session/${ocSessionId}/prompt_async`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-opencode-directory": WORKSPACE_DIR,
-        },
-        body: JSON.stringify({
-          parts: [{ type: "text", text }],
-        }),
-      });
-
-      if (!promptResponse.ok) {
-        const errorText = await promptResponse.text();
-        throw new Error(`Failed to send prompt: ${promptResponse.statusText} - ${errorText}`);
       }
     } catch (error) {
+      console.error("[opencode-adapter] Event stream error:", error);
       yield {
         type: "error",
-        message: `Failed to send prompt: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Event stream error: ${error instanceof Error ? error.message : String(error)}`,
         retryable: false,
       };
-      return;
     }
 
-    while (!completed || eventQueue.length > 0) {
-      if (this.interruptSignal) {
-        await this.abortSession(ocSessionId);
-        yield { type: "system", message: "interrupted" };
-        return;
-      }
-
-      if (eventQueue.length > 0) {
-        yield eventQueue.shift()!;
-      } else if (!completed) {
-        const event = await new Promise<PromptEvent | null>((resolve) => {
-          resolveNextEvent = resolve;
-        });
-        if (event) {
-          yield event;
-        }
-      }
+    // Ensure prompt sent completion doesn't throw unhandled
+    try {
+      await promptPromise;
+    } catch (error) {
+      console.error("[opencode-adapter] promptAsync error:", error);
     }
-
-    await eventProcessor;
   }
+
+  // ── Interrupt ────────────────────────────────────────────────────────────
 
   setInterruptSignal(): void {
     this.interruptSignal = true;
@@ -512,12 +314,15 @@ export class OpenCodeAdapter implements NetclodePromptBackend {
     return this.interruptSignal;
   }
 
+  // ── Shutdown ─────────────────────────────────────────────────────────────
+
   async shutdown(): Promise<void> {
     console.log("[opencode-backend] Shutting down...");
 
-    if (this.server) {
-      this.server.process.kill();
-      this.server = null;
+    if (this.sdkServer) {
+      this.sdkServer.close(); // internally calls proc.kill()
+      this.sdkServer = null;
+      this.sdkClient = null;
     }
 
     resetTranslatorState(this.translatorState);
