@@ -15,13 +15,13 @@ import SwiftProtobuf
 // incompatible with the version of SwiftProtobuf to which you are linking.
 // Please ensure that you are building against the same version of the API
 // that was used to generate this file.
-fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAPIVersionCheck {
+fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAPIVersionCheck {
   struct _2: SwiftProtobuf.ProtobufAPIVersion_2 {}
   typealias Version = _2
 }
 
 /// RepoAccess defines the permission level for repository operations.
-public enum Netclode_V1_RepoAccess: SwiftProtobuf.Enum, Swift.CaseIterable {
+public nonisolated enum Netclode_V1_RepoAccess: SwiftProtobuf.Enum, Swift.CaseIterable {
   public typealias RawValue = Int
   case unspecified // = 0
 
@@ -64,7 +64,7 @@ public enum Netclode_V1_RepoAccess: SwiftProtobuf.Enum, Swift.CaseIterable {
 }
 
 /// SdkType defines which agent SDK to use for the session.
-public enum Netclode_V1_SdkType: SwiftProtobuf.Enum, Swift.CaseIterable {
+public nonisolated enum Netclode_V1_SdkType: SwiftProtobuf.Enum, Swift.CaseIterable {
   public typealias RawValue = Int
   case unspecified // = 0
 
@@ -79,6 +79,9 @@ public enum Netclode_V1_SdkType: SwiftProtobuf.Enum, Swift.CaseIterable {
 
   /// OpenAI Codex SDK
   case codex // = 4
+
+  /// Pi Agent Core (multi-provider)
+  case pi // = 5
   case UNRECOGNIZED(Int)
 
   public init() {
@@ -92,6 +95,7 @@ public enum Netclode_V1_SdkType: SwiftProtobuf.Enum, Swift.CaseIterable {
     case 2: self = .opencode
     case 3: self = .copilot
     case 4: self = .codex
+    case 5: self = .pi
     default: self = .UNRECOGNIZED(rawValue)
     }
   }
@@ -103,6 +107,7 @@ public enum Netclode_V1_SdkType: SwiftProtobuf.Enum, Swift.CaseIterable {
     case .opencode: return 2
     case .copilot: return 3
     case .codex: return 4
+    case .pi: return 5
     case .UNRECOGNIZED(let i): return i
     }
   }
@@ -114,12 +119,13 @@ public enum Netclode_V1_SdkType: SwiftProtobuf.Enum, Swift.CaseIterable {
     .opencode,
     .copilot,
     .codex,
+    .pi,
   ]
 
 }
 
 /// CopilotBackend defines which backend to use for Copilot SDK sessions.
-public enum Netclode_V1_CopilotBackend: SwiftProtobuf.Enum, Swift.CaseIterable {
+public nonisolated enum Netclode_V1_CopilotBackend: SwiftProtobuf.Enum, Swift.CaseIterable {
   public typealias RawValue = Int
   case unspecified // = 0
 
@@ -162,7 +168,7 @@ public enum Netclode_V1_CopilotBackend: SwiftProtobuf.Enum, Swift.CaseIterable {
 }
 
 /// SessionStatus represents the lifecycle state of a session.
-public enum Netclode_V1_SessionStatus: SwiftProtobuf.Enum, Swift.CaseIterable {
+public nonisolated enum Netclode_V1_SessionStatus: SwiftProtobuf.Enum, Swift.CaseIterable {
   public typealias RawValue = Int
   case unspecified // = 0
   case creating // = 1
@@ -221,7 +227,7 @@ public enum Netclode_V1_SessionStatus: SwiftProtobuf.Enum, Swift.CaseIterable {
 }
 
 /// GitFileStatus represents the type of change to a file.
-public enum Netclode_V1_GitFileStatus: SwiftProtobuf.Enum, Swift.CaseIterable {
+public nonisolated enum Netclode_V1_GitFileStatus: SwiftProtobuf.Enum, Swift.CaseIterable {
   public typealias RawValue = Int
   case unspecified // = 0
   case modified // = 1
@@ -284,7 +290,7 @@ public enum Netclode_V1_GitFileStatus: SwiftProtobuf.Enum, Swift.CaseIterable {
 }
 
 /// Session represents a coding session with an AI agent.
-public struct Netclode_V1_Session: Sendable {
+public nonisolated struct Netclode_V1_Session: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -354,6 +360,15 @@ public struct Netclode_V1_Session: Sendable {
   /// Whether this session has Tailscale network access enabled
   public var tailnetEnabled: Bool = false
 
+  public var resources: Netclode_V1_SandboxResources {
+    get {_resources ?? Netclode_V1_SandboxResources()}
+    set {_resources = newValue}
+  }
+  /// Returns true if `resources` has been explicitly set.
+  public var hasResources: Bool {self._resources != nil}
+  /// Clears the value of `resources`. Subsequent reads from it will return its default value.
+  public mutating func clearResources() {self._resources = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -364,53 +379,52 @@ public struct Netclode_V1_Session: Sendable {
   fileprivate var _sdkType: Netclode_V1_SdkType? = nil
   fileprivate var _model: String? = nil
   fileprivate var _copilotBackend: Netclode_V1_CopilotBackend? = nil
+  fileprivate var _resources: Netclode_V1_SandboxResources? = nil
 }
 
 /// SessionSummary includes session data plus metadata for list views.
-public struct Netclode_V1_SessionSummary: Sendable {
+public nonisolated struct Netclode_V1_SessionSummary: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   public var session: Netclode_V1_Session {
-    get {_session ?? Netclode_V1_Session()}
-    set {_session = newValue}
+    get {_storage._session ?? Netclode_V1_Session()}
+    set {_uniqueStorage()._session = newValue}
   }
   /// Returns true if `session` has been explicitly set.
-  public var hasSession: Bool {self._session != nil}
+  public var hasSession: Bool {_storage._session != nil}
   /// Clears the value of `session`. Subsequent reads from it will return its default value.
-  public mutating func clearSession() {self._session = nil}
+  public mutating func clearSession() {_uniqueStorage()._session = nil}
 
   public var messageCount: Int32 {
-    get {_messageCount ?? 0}
-    set {_messageCount = newValue}
+    get {_storage._messageCount ?? 0}
+    set {_uniqueStorage()._messageCount = newValue}
   }
   /// Returns true if `messageCount` has been explicitly set.
-  public var hasMessageCount: Bool {self._messageCount != nil}
+  public var hasMessageCount: Bool {_storage._messageCount != nil}
   /// Clears the value of `messageCount`. Subsequent reads from it will return its default value.
-  public mutating func clearMessageCount() {self._messageCount = nil}
+  public mutating func clearMessageCount() {_uniqueStorage()._messageCount = nil}
 
   /// Cursor for resuming
   public var lastStreamID: String {
-    get {_lastStreamID ?? String()}
-    set {_lastStreamID = newValue}
+    get {_storage._lastStreamID ?? String()}
+    set {_uniqueStorage()._lastStreamID = newValue}
   }
   /// Returns true if `lastStreamID` has been explicitly set.
-  public var hasLastStreamID: Bool {self._lastStreamID != nil}
+  public var hasLastStreamID: Bool {_storage._lastStreamID != nil}
   /// Clears the value of `lastStreamID`. Subsequent reads from it will return its default value.
-  public mutating func clearLastStreamID() {self._lastStreamID = nil}
+  public mutating func clearLastStreamID() {_uniqueStorage()._lastStreamID = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _session: Netclode_V1_Session? = nil
-  fileprivate var _messageCount: Int32? = nil
-  fileprivate var _lastStreamID: String? = nil
+  fileprivate var _storage = _StorageClass.defaultInstance
 }
 
 /// SessionConfig contains configuration passed to the agent on registration.
-public struct Netclode_V1_SessionConfig: @unchecked Sendable {
+public nonisolated struct Netclode_V1_SessionConfig: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -601,6 +615,16 @@ public struct Netclode_V1_SessionConfig: @unchecked Sendable {
   /// Clears the value of `githubCopilotOauthTokenExpires`. Subsequent reads from it will return its default value.
   public mutating func clearGithubCopilotOauthTokenExpires() {_uniqueStorage()._githubCopilotOauthTokenExpires = nil}
 
+  /// OpenRouter API key (multi-provider gateway, for OpenCode SDK sessions)
+  public var openrouterApiKey: String {
+    get {_storage._openrouterApiKey ?? String()}
+    set {_uniqueStorage()._openrouterApiKey = newValue}
+  }
+  /// Returns true if `openrouterApiKey` has been explicitly set.
+  public var hasOpenrouterApiKey: Bool {_storage._openrouterApiKey != nil}
+  /// Clears the value of `openrouterApiKey`. Subsequent reads from it will return its default value.
+  public mutating func clearOpenrouterApiKey() {_uniqueStorage()._openrouterApiKey = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -610,7 +634,7 @@ public struct Netclode_V1_SessionConfig: @unchecked Sendable {
 
 /// StreamEntry represents a single entry in the unified session stream.
 /// All content flows through this type - messages, events, terminal output, etc.
-public struct Netclode_V1_StreamEntry: @unchecked Sendable {
+public nonisolated struct Netclode_V1_StreamEntry: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -678,7 +702,7 @@ public struct Netclode_V1_StreamEntry: @unchecked Sendable {
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public enum OneOf_Payload: Equatable, Sendable {
+  public nonisolated enum OneOf_Payload: Equatable, Sendable {
     /// All agent content (messages, thinking, tools)
     case event(Netclode_V1_AgentEvent)
     /// Terminal data
@@ -695,7 +719,7 @@ public struct Netclode_V1_StreamEntry: @unchecked Sendable {
 }
 
 /// TerminalOutput represents terminal output data.
-public struct Netclode_V1_TerminalOutput: Sendable {
+public nonisolated struct Netclode_V1_TerminalOutput: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -708,7 +732,7 @@ public struct Netclode_V1_TerminalOutput: Sendable {
 }
 
 /// Error represents a structured error response.
-public struct Netclode_V1_Error: Sendable {
+public nonisolated struct Netclode_V1_Error: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -737,7 +761,7 @@ public struct Netclode_V1_Error: Sendable {
 
 /// InProgressState contains accumulated streaming state for late-joining clients.
 /// Returned when opening a session that's currently RUNNING.
-public struct Netclode_V1_InProgressState: Sendable {
+public nonisolated struct Netclode_V1_InProgressState: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -757,7 +781,7 @@ public struct Netclode_V1_InProgressState: Sendable {
 }
 
 /// InProgressTool contains accumulated state for a tool in progress.
-public struct Netclode_V1_InProgressTool: Sendable {
+public nonisolated struct Netclode_V1_InProgressTool: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -777,7 +801,7 @@ public struct Netclode_V1_InProgressTool: Sendable {
 }
 
 /// Snapshot represents a point-in-time snapshot of session workspace and conversation.
-public struct Netclode_V1_Snapshot: Sendable {
+public nonisolated struct Netclode_V1_Snapshot: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -814,7 +838,7 @@ public struct Netclode_V1_Snapshot: Sendable {
 }
 
 /// GitHubRepo represents a GitHub repository from the user's account.
-public struct Netclode_V1_GitHubRepo: Sendable {
+public nonisolated struct Netclode_V1_GitHubRepo: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -842,7 +866,7 @@ public struct Netclode_V1_GitHubRepo: Sendable {
 }
 
 /// GitFileChange represents a changed file from git status.
-public struct Netclode_V1_GitFileChange: Sendable {
+public nonisolated struct Netclode_V1_GitFileChange: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -882,7 +906,7 @@ public struct Netclode_V1_GitFileChange: Sendable {
 }
 
 /// ModelInfo represents an AI model available for use.
-public struct Netclode_V1_ModelInfo: Sendable {
+public nonisolated struct Netclode_V1_ModelInfo: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -952,7 +976,7 @@ public struct Netclode_V1_ModelInfo: Sendable {
 }
 
 /// CopilotAuthStatus represents GitHub Copilot authentication state.
-public struct Netclode_V1_CopilotAuthStatus: Sendable {
+public nonisolated struct Netclode_V1_CopilotAuthStatus: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -986,7 +1010,7 @@ public struct Netclode_V1_CopilotAuthStatus: Sendable {
 }
 
 /// CopilotPremiumQuota represents GitHub Copilot premium request quota.
-public struct Netclode_V1_CopilotPremiumQuota: Sendable {
+public nonisolated struct Netclode_V1_CopilotPremiumQuota: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1014,7 +1038,7 @@ public struct Netclode_V1_CopilotPremiumQuota: Sendable {
 }
 
 /// SandboxResources defines resource allocation for a session's sandbox VM.
-public struct Netclode_V1_SandboxResources: Sendable {
+public nonisolated struct Netclode_V1_SandboxResources: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1041,31 +1065,31 @@ public struct Netclode_V1_SandboxResources: Sendable {
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
-fileprivate let _protobuf_package = "netclode.v1"
+fileprivate nonisolated let _protobuf_package = "netclode.v1"
 
-extension Netclode_V1_RepoAccess: SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_RepoAccess: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0REPO_ACCESS_UNSPECIFIED\0\u{1}REPO_ACCESS_READ\0\u{1}REPO_ACCESS_WRITE\0")
 }
 
-extension Netclode_V1_SdkType: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0SDK_TYPE_UNSPECIFIED\0\u{1}SDK_TYPE_CLAUDE\0\u{1}SDK_TYPE_OPENCODE\0\u{1}SDK_TYPE_COPILOT\0\u{1}SDK_TYPE_CODEX\0")
+nonisolated extension Netclode_V1_SdkType: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0SDK_TYPE_UNSPECIFIED\0\u{1}SDK_TYPE_CLAUDE\0\u{1}SDK_TYPE_OPENCODE\0\u{1}SDK_TYPE_COPILOT\0\u{1}SDK_TYPE_CODEX\0\u{1}SDK_TYPE_PI\0")
 }
 
-extension Netclode_V1_CopilotBackend: SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_CopilotBackend: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0COPILOT_BACKEND_UNSPECIFIED\0\u{1}COPILOT_BACKEND_GITHUB\0\u{1}COPILOT_BACKEND_ANTHROPIC\0")
 }
 
-extension Netclode_V1_SessionStatus: SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_SessionStatus: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0SESSION_STATUS_UNSPECIFIED\0\u{1}SESSION_STATUS_CREATING\0\u{1}SESSION_STATUS_RESUMING\0\u{1}SESSION_STATUS_READY\0\u{1}SESSION_STATUS_RUNNING\0\u{1}SESSION_STATUS_PAUSED\0\u{1}SESSION_STATUS_ERROR\0\u{1}SESSION_STATUS_INTERRUPTED\0")
 }
 
-extension Netclode_V1_GitFileStatus: SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_GitFileStatus: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0GIT_FILE_STATUS_UNSPECIFIED\0\u{1}GIT_FILE_STATUS_MODIFIED\0\u{1}GIT_FILE_STATUS_ADDED\0\u{1}GIT_FILE_STATUS_DELETED\0\u{1}GIT_FILE_STATUS_RENAMED\0\u{1}GIT_FILE_STATUS_UNTRACKED\0\u{1}GIT_FILE_STATUS_COPIED\0\u{1}GIT_FILE_STATUS_IGNORED\0\u{1}GIT_FILE_STATUS_UNMERGED\0")
 }
 
-extension Netclode_V1_Session: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_Session: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Session"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}name\0\u{1}status\0\u{1}repos\0\u{3}repo_access\0\u{3}created_at\0\u{3}last_active_at\0\u{3}sdk_type\0\u{1}model\0\u{3}copilot_backend\0\u{3}tailnet_enabled\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}name\0\u{1}status\0\u{1}repos\0\u{3}repo_access\0\u{3}created_at\0\u{3}last_active_at\0\u{3}sdk_type\0\u{1}model\0\u{3}copilot_backend\0\u{3}tailnet_enabled\0\u{1}resources\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1084,6 +1108,7 @@ extension Netclode_V1_Session: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
       case 9: try { try decoder.decodeSingularStringField(value: &self._model) }()
       case 10: try { try decoder.decodeSingularEnumField(value: &self._copilotBackend) }()
       case 11: try { try decoder.decodeSingularBoolField(value: &self.tailnetEnabled) }()
+      case 12: try { try decoder.decodeSingularMessageField(value: &self._resources) }()
       default: break
       }
     }
@@ -1127,6 +1152,9 @@ extension Netclode_V1_Session: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
     if self.tailnetEnabled != false {
       try visitor.visitSingularBoolField(value: self.tailnetEnabled, fieldNumber: 11)
     }
+    try { if let v = self._resources {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 12)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1142,58 +1170,99 @@ extension Netclode_V1_Session: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
     if lhs._model != rhs._model {return false}
     if lhs._copilotBackend != rhs._copilotBackend {return false}
     if lhs.tailnetEnabled != rhs.tailnetEnabled {return false}
+    if lhs._resources != rhs._resources {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Netclode_V1_SessionSummary: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_SessionSummary: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SessionSummary"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}session\0\u{3}message_count\0\u{3}last_stream_id\0")
 
+  fileprivate class _StorageClass {
+    var _session: Netclode_V1_Session? = nil
+    var _messageCount: Int32? = nil
+    var _lastStreamID: String? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _session = source._session
+      _messageCount = source._messageCount
+      _lastStreamID = source._lastStreamID
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._session) }()
-      case 2: try { try decoder.decodeSingularInt32Field(value: &self._messageCount) }()
-      case 3: try { try decoder.decodeSingularStringField(value: &self._lastStreamID) }()
-      default: break
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularMessageField(value: &_storage._session) }()
+        case 2: try { try decoder.decodeSingularInt32Field(value: &_storage._messageCount) }()
+        case 3: try { try decoder.decodeSingularStringField(value: &_storage._lastStreamID) }()
+        default: break
+        }
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._session {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    try { if let v = self._messageCount {
-      try visitor.visitSingularInt32Field(value: v, fieldNumber: 2)
-    } }()
-    try { if let v = self._lastStreamID {
-      try visitor.visitSingularStringField(value: v, fieldNumber: 3)
-    } }()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      try { if let v = _storage._session {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+      } }()
+      try { if let v = _storage._messageCount {
+        try visitor.visitSingularInt32Field(value: v, fieldNumber: 2)
+      } }()
+      try { if let v = _storage._lastStreamID {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 3)
+      } }()
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Netclode_V1_SessionSummary, rhs: Netclode_V1_SessionSummary) -> Bool {
-    if lhs._session != rhs._session {return false}
-    if lhs._messageCount != rhs._messageCount {return false}
-    if lhs._lastStreamID != rhs._lastStreamID {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._session != rhs_storage._session {return false}
+        if _storage._messageCount != rhs_storage._messageCount {return false}
+        if _storage._lastStreamID != rhs_storage._lastStreamID {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Netclode_V1_SessionConfig: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_SessionConfig: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SessionConfig"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_id\0\u{3}workspace_dir\0\u{3}github_token\0\u{1}repos\0\u{3}repo_access\0\u{3}control_plane_url\0\u{3}sdk_type\0\u{1}model\0\u{3}copilot_backend\0\u{3}github_copilot_token\0\u{3}codex_access_token\0\u{3}codex_id_token\0\u{3}openai_api_key\0\u{3}codex_refresh_token\0\u{3}reasoning_effort\0\u{3}mistral_api_key\0\u{3}ollama_url\0\u{3}opencode_api_key\0\u{3}zai_api_key\0\u{3}github_copilot_oauth_access_token\0\u{3}github_copilot_oauth_refresh_token\0\u{3}github_copilot_oauth_token_expires\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_id\0\u{3}workspace_dir\0\u{3}github_token\0\u{1}repos\0\u{3}repo_access\0\u{3}control_plane_url\0\u{3}sdk_type\0\u{1}model\0\u{3}copilot_backend\0\u{3}github_copilot_token\0\u{3}codex_access_token\0\u{3}codex_id_token\0\u{3}openai_api_key\0\u{3}codex_refresh_token\0\u{3}reasoning_effort\0\u{3}mistral_api_key\0\u{3}ollama_url\0\u{3}opencode_api_key\0\u{3}zai_api_key\0\u{3}github_copilot_oauth_access_token\0\u{3}github_copilot_oauth_refresh_token\0\u{3}github_copilot_oauth_token_expires\0\u{3}openrouter_api_key\0")
 
   fileprivate class _StorageClass {
     var _sessionID: String = String()
@@ -1218,6 +1287,7 @@ extension Netclode_V1_SessionConfig: SwiftProtobuf.Message, SwiftProtobuf._Messa
     var _githubCopilotOauthAccessToken: String? = nil
     var _githubCopilotOauthRefreshToken: String? = nil
     var _githubCopilotOauthTokenExpires: String? = nil
+    var _openrouterApiKey: String? = nil
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -1250,6 +1320,7 @@ extension Netclode_V1_SessionConfig: SwiftProtobuf.Message, SwiftProtobuf._Messa
       _githubCopilotOauthAccessToken = source._githubCopilotOauthAccessToken
       _githubCopilotOauthRefreshToken = source._githubCopilotOauthRefreshToken
       _githubCopilotOauthTokenExpires = source._githubCopilotOauthTokenExpires
+      _openrouterApiKey = source._openrouterApiKey
     }
   }
 
@@ -1290,6 +1361,7 @@ extension Netclode_V1_SessionConfig: SwiftProtobuf.Message, SwiftProtobuf._Messa
         case 20: try { try decoder.decodeSingularStringField(value: &_storage._githubCopilotOauthAccessToken) }()
         case 21: try { try decoder.decodeSingularStringField(value: &_storage._githubCopilotOauthRefreshToken) }()
         case 22: try { try decoder.decodeSingularStringField(value: &_storage._githubCopilotOauthTokenExpires) }()
+        case 23: try { try decoder.decodeSingularStringField(value: &_storage._openrouterApiKey) }()
         default: break
         }
       }
@@ -1368,6 +1440,9 @@ extension Netclode_V1_SessionConfig: SwiftProtobuf.Message, SwiftProtobuf._Messa
       try { if let v = _storage._githubCopilotOauthTokenExpires {
         try visitor.visitSingularStringField(value: v, fieldNumber: 22)
       } }()
+      try { if let v = _storage._openrouterApiKey {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 23)
+      } }()
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -1399,6 +1474,7 @@ extension Netclode_V1_SessionConfig: SwiftProtobuf.Message, SwiftProtobuf._Messa
         if _storage._githubCopilotOauthAccessToken != rhs_storage._githubCopilotOauthAccessToken {return false}
         if _storage._githubCopilotOauthRefreshToken != rhs_storage._githubCopilotOauthRefreshToken {return false}
         if _storage._githubCopilotOauthTokenExpires != rhs_storage._githubCopilotOauthTokenExpires {return false}
+        if _storage._openrouterApiKey != rhs_storage._openrouterApiKey {return false}
         return true
       }
       if !storagesAreEqual {return false}
@@ -1408,7 +1484,7 @@ extension Netclode_V1_SessionConfig: SwiftProtobuf.Message, SwiftProtobuf._Messa
   }
 }
 
-extension Netclode_V1_StreamEntry: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_StreamEntry: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".StreamEntry"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}timestamp\0\u{1}partial\0\u{1}event\0\u{3}terminal_output\0\u{3}session_update\0\u{1}error\0")
 
@@ -1566,7 +1642,7 @@ extension Netclode_V1_StreamEntry: SwiftProtobuf.Message, SwiftProtobuf._Message
   }
 }
 
-extension Netclode_V1_TerminalOutput: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_TerminalOutput: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".TerminalOutput"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}data\0")
 
@@ -1596,7 +1672,7 @@ extension Netclode_V1_TerminalOutput: SwiftProtobuf.Message, SwiftProtobuf._Mess
   }
 }
 
-extension Netclode_V1_Error: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_Error: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Error"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}code\0\u{1}message\0\u{3}session_id\0\u{1}details\0")
 
@@ -1645,7 +1721,7 @@ extension Netclode_V1_Error: SwiftProtobuf.Message, SwiftProtobuf._MessageImplem
   }
 }
 
-extension Netclode_V1_InProgressState: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_InProgressState: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".InProgressState"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}messages\0\u{1}thinking\0\u{1}tools\0")
 
@@ -1685,7 +1761,7 @@ extension Netclode_V1_InProgressState: SwiftProtobuf.Message, SwiftProtobuf._Mes
   }
 }
 
-extension Netclode_V1_InProgressTool: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_InProgressTool: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".InProgressTool"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}tool\0\u{1}input\0\u{1}output\0")
 
@@ -1725,7 +1801,7 @@ extension Netclode_V1_InProgressTool: SwiftProtobuf.Message, SwiftProtobuf._Mess
   }
 }
 
-extension Netclode_V1_Snapshot: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_Snapshot: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Snapshot"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}session_id\0\u{1}name\0\u{3}created_at\0\u{3}size_bytes\0\u{3}turn_number\0\u{3}message_count\0\u{3}stream_id\0")
 
@@ -1794,7 +1870,7 @@ extension Netclode_V1_Snapshot: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
   }
 }
 
-extension Netclode_V1_GitHubRepo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_GitHubRepo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GitHubRepo"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{3}full_name\0\u{1}private\0\u{1}description\0")
 
@@ -1843,7 +1919,7 @@ extension Netclode_V1_GitHubRepo: SwiftProtobuf.Message, SwiftProtobuf._MessageI
   }
 }
 
-extension Netclode_V1_GitFileChange: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_GitFileChange: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GitFileChange"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{1}status\0\u{1}staged\0\u{3}lines_added\0\u{3}lines_removed\0\u{1}repo\0")
 
@@ -1902,7 +1978,7 @@ extension Netclode_V1_GitFileChange: SwiftProtobuf.Message, SwiftProtobuf._Messa
   }
 }
 
-extension Netclode_V1_ModelInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_ModelInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ModelInfo"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}name\0\u{1}provider\0\u{3}billing_multiplier\0\u{1}capabilities\0\u{3}reasoning_effort\0\u{1}downloaded\0\u{3}size_bytes\0")
 
@@ -1971,7 +2047,7 @@ extension Netclode_V1_ModelInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
   }
 }
 
-extension Netclode_V1_CopilotAuthStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_CopilotAuthStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CopilotAuthStatus"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}is_authenticated\0\u{3}auth_type\0\u{1}login\0")
 
@@ -2015,7 +2091,7 @@ extension Netclode_V1_CopilotAuthStatus: SwiftProtobuf.Message, SwiftProtobuf._M
   }
 }
 
-extension Netclode_V1_CopilotPremiumQuota: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_CopilotPremiumQuota: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CopilotPremiumQuota"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}used\0\u{1}limit\0\u{1}remaining\0\u{3}reset_at\0")
 
@@ -2064,7 +2140,7 @@ extension Netclode_V1_CopilotPremiumQuota: SwiftProtobuf.Message, SwiftProtobuf.
   }
 }
 
-extension Netclode_V1_SandboxResources: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_SandboxResources: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SandboxResources"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}vcpus\0\u{3}memory_mb\0\u{3}disk_size_gb\0")
 

@@ -75,6 +75,7 @@ enum SdkType: String, Codable, CaseIterable, Sendable {
     case opencode
     case copilot
     case codex
+    case pi
 
     var displayName: String {
         switch self {
@@ -82,6 +83,7 @@ enum SdkType: String, Codable, CaseIterable, Sendable {
         case .opencode: "OpenCode"
         case .copilot: "GitHub Copilot"
         case .codex: "OpenAI Codex"
+        case .pi: "Pi"
         }
     }
 
@@ -91,6 +93,7 @@ enum SdkType: String, Codable, CaseIterable, Sendable {
         case .opencode: "Multi-provider support"
         case .copilot: "GitHub Copilot"
         case .codex: "OpenAI Codex SDK"
+        case .pi: "Pi agent framework"
         }
     }
 }

@@ -8,7 +8,7 @@
 
 import type { JsonObject } from "@bufbuild/protobuf";
 
-export type SdkType = "claude" | "opencode" | "copilot" | "codex";
+export type SdkType = "claude" | "opencode" | "copilot" | "codex" | "pi";
 
 /**
  * Backend for Copilot sessions.

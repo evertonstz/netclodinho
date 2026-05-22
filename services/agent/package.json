@@ -19,6 +19,7 @@
     "@github/copilot-sdk": "^0.1.23",
     "@openai/codex-sdk": "^0.101.0",
     "@opencode-ai/sdk": "^1.15.5",
+    "@earendil-works/pi-agent-core": "^0.75.4",
     "node-pty": "^1.0.0",
     "undici": "^7.22.0"
   },

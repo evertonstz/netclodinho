@@ -15,13 +15,13 @@ import SwiftProtobuf
 // incompatible with the version of SwiftProtobuf to which you are linking.
 // Please ensure that you are building against the same version of the API
 // that was used to generate this file.
-fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAPIVersionCheck {
+fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAPIVersionCheck {
   struct _2: SwiftProtobuf.ProtobufAPIVersion_2 {}
   typealias Version = _2
 }
 
 /// AgentEventKind identifies the type of event.
-public enum Netclode_V1_AgentEventKind: SwiftProtobuf.Enum, Swift.CaseIterable {
+public nonisolated enum Netclode_V1_AgentEventKind: SwiftProtobuf.Enum, Swift.CaseIterable {
   public typealias RawValue = Int
   case unspecified // = 0
 
@@ -118,7 +118,7 @@ public enum Netclode_V1_AgentEventKind: SwiftProtobuf.Enum, Swift.CaseIterable {
 }
 
 /// MessageRole identifies the sender of a message.
-public enum Netclode_V1_MessageRole: SwiftProtobuf.Enum, Swift.CaseIterable {
+public nonisolated enum Netclode_V1_MessageRole: SwiftProtobuf.Enum, Swift.CaseIterable {
   public typealias RawValue = Int
   case unspecified // = 0
   case user // = 1
@@ -157,7 +157,7 @@ public enum Netclode_V1_MessageRole: SwiftProtobuf.Enum, Swift.CaseIterable {
 }
 
 /// RepoCloneStage represents the stage of repository cloning.
-public enum Netclode_V1_RepoCloneStage: SwiftProtobuf.Enum, Swift.CaseIterable {
+public nonisolated enum Netclode_V1_RepoCloneStage: SwiftProtobuf.Enum, Swift.CaseIterable {
   public typealias RawValue = Int
   case unspecified // = 0
 
@@ -212,7 +212,7 @@ public enum Netclode_V1_RepoCloneStage: SwiftProtobuf.Enum, Swift.CaseIterable {
 }
 
 /// AgentEvent represents events emitted during agent execution.
-public struct Netclode_V1_AgentEvent: Sendable {
+public nonisolated struct Netclode_V1_AgentEvent: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -300,7 +300,7 @@ public struct Netclode_V1_AgentEvent: Sendable {
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   /// Event-specific payload
-  public enum OneOf_Payload: Equatable, Sendable {
+  public nonisolated enum OneOf_Payload: Equatable, Sendable {
     case message(Netclode_V1_MessagePayload)
     case thinking(Netclode_V1_ThinkingPayload)
     case toolStart(Netclode_V1_ToolStartPayload)
@@ -317,7 +317,7 @@ public struct Netclode_V1_AgentEvent: Sendable {
 }
 
 /// MessagePayload contains data for user/assistant messages.
-public struct Netclode_V1_MessagePayload: Sendable {
+public nonisolated struct Netclode_V1_MessagePayload: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -334,7 +334,7 @@ public struct Netclode_V1_MessagePayload: Sendable {
 }
 
 /// ThinkingPayload contains data for agent thinking/reasoning events.
-public struct Netclode_V1_ThinkingPayload: Sendable {
+public nonisolated struct Netclode_V1_ThinkingPayload: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -351,7 +351,7 @@ public struct Netclode_V1_ThinkingPayload: Sendable {
 }
 
 /// ToolStartPayload contains data for tool invocation start.
-public struct Netclode_V1_ToolStartPayload: Sendable {
+public nonisolated struct Netclode_V1_ToolStartPayload: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -377,7 +377,7 @@ public struct Netclode_V1_ToolStartPayload: Sendable {
 }
 
 /// ToolInputPayload contains data for tool input (streaming or complete).
-public struct Netclode_V1_ToolInputPayload: Sendable {
+public nonisolated struct Netclode_V1_ToolInputPayload: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -412,7 +412,7 @@ public struct Netclode_V1_ToolInputPayload: Sendable {
 }
 
 /// ToolOutputPayload contains data for tool output (streaming or complete).
-public struct Netclode_V1_ToolOutputPayload: Sendable {
+public nonisolated struct Netclode_V1_ToolOutputPayload: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -447,7 +447,7 @@ public struct Netclode_V1_ToolOutputPayload: Sendable {
 }
 
 /// ToolEndPayload contains data for tool execution completion.
-public struct Netclode_V1_ToolEndPayload: Sendable {
+public nonisolated struct Netclode_V1_ToolEndPayload: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -495,7 +495,7 @@ public struct Netclode_V1_ToolEndPayload: Sendable {
 }
 
 /// PortExposedPayload contains data for port exposure events.
-public struct Netclode_V1_PortExposedPayload: Sendable {
+public nonisolated struct Netclode_V1_PortExposedPayload: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -532,7 +532,7 @@ public struct Netclode_V1_PortExposedPayload: Sendable {
 }
 
 /// PortUnexposedPayload contains data for port removal events.
-public struct Netclode_V1_PortUnexposedPayload: Sendable {
+public nonisolated struct Netclode_V1_PortUnexposedPayload: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -546,7 +546,7 @@ public struct Netclode_V1_PortUnexposedPayload: Sendable {
 }
 
 /// RepoClonePayload contains data for repository clone progress events.
-public struct Netclode_V1_RepoClonePayload: Sendable {
+public nonisolated struct Netclode_V1_RepoClonePayload: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -567,21 +567,21 @@ public struct Netclode_V1_RepoClonePayload: Sendable {
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
-fileprivate let _protobuf_package = "netclode.v1"
+fileprivate nonisolated let _protobuf_package = "netclode.v1"
 
-extension Netclode_V1_AgentEventKind: SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_AgentEventKind: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0AGENT_EVENT_KIND_UNSPECIFIED\0\u{1}AGENT_EVENT_KIND_MESSAGE\0\u{1}AGENT_EVENT_KIND_THINKING\0\u{1}AGENT_EVENT_KIND_TOOL_START\0\u{1}AGENT_EVENT_KIND_TOOL_INPUT\0\u{1}AGENT_EVENT_KIND_TOOL_OUTPUT\0\u{1}AGENT_EVENT_KIND_TOOL_END\0\u{1}AGENT_EVENT_KIND_PORT_EXPOSED\0\u{1}AGENT_EVENT_KIND_REPO_CLONE\0\u{1}AGENT_EVENT_KIND_AGENT_DISCONNECTED\0\u{1}AGENT_EVENT_KIND_AGENT_RECONNECTED\0\u{1}AGENT_EVENT_KIND_PORT_UNEXPOSED\0")
 }
 
-extension Netclode_V1_MessageRole: SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_MessageRole: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0MESSAGE_ROLE_UNSPECIFIED\0\u{1}MESSAGE_ROLE_USER\0\u{1}MESSAGE_ROLE_ASSISTANT\0")
 }
 
-extension Netclode_V1_RepoCloneStage: SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_RepoCloneStage: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0REPO_CLONE_STAGE_UNSPECIFIED\0\u{1}REPO_CLONE_STAGE_STARTING\0\u{1}REPO_CLONE_STAGE_CLONING\0\u{1}REPO_CLONE_STAGE_DONE\0\u{1}REPO_CLONE_STAGE_ERROR\0")
 }
 
-extension Netclode_V1_AgentEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_AgentEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AgentEvent"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}kind\0\u{3}correlation_id\0\u{1}message\0\u{1}thinking\0\u{3}tool_start\0\u{3}tool_input\0\u{3}tool_output\0\u{3}tool_end\0\u{3}port_exposed\0\u{3}repo_clone\0\u{3}port_unexposed\0")
 
@@ -777,7 +777,7 @@ extension Netclode_V1_AgentEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageI
   }
 }
 
-extension Netclode_V1_MessagePayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_MessagePayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".MessagePayload"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}role\0\u{1}content\0")
 
@@ -812,7 +812,7 @@ extension Netclode_V1_MessagePayload: SwiftProtobuf.Message, SwiftProtobuf._Mess
   }
 }
 
-extension Netclode_V1_ThinkingPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_ThinkingPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ThinkingPayload"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}content\0\u{1}partial\0")
 
@@ -847,7 +847,7 @@ extension Netclode_V1_ThinkingPayload: SwiftProtobuf.Message, SwiftProtobuf._Mes
   }
 }
 
-extension Netclode_V1_ToolStartPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_ToolStartPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ToolStartPayload"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}tool\0\u{3}parent_tool_use_id\0")
 
@@ -886,7 +886,7 @@ extension Netclode_V1_ToolStartPayload: SwiftProtobuf.Message, SwiftProtobuf._Me
   }
 }
 
-extension Netclode_V1_ToolInputPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_ToolInputPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ToolInputPayload"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}delta\0\u{1}input\0")
 
@@ -925,7 +925,7 @@ extension Netclode_V1_ToolInputPayload: SwiftProtobuf.Message, SwiftProtobuf._Me
   }
 }
 
-extension Netclode_V1_ToolOutputPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_ToolOutputPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ToolOutputPayload"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}delta\0\u{1}output\0")
 
@@ -964,7 +964,7 @@ extension Netclode_V1_ToolOutputPayload: SwiftProtobuf.Message, SwiftProtobuf._M
   }
 }
 
-extension Netclode_V1_ToolEndPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_ToolEndPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ToolEndPayload"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}success\0\u{1}error\0\u{3}duration_ms\0\u{1}result\0")
 
@@ -1013,7 +1013,7 @@ extension Netclode_V1_ToolEndPayload: SwiftProtobuf.Message, SwiftProtobuf._Mess
   }
 }
 
-extension Netclode_V1_PortExposedPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_PortExposedPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PortExposedPayload"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}port\0\u{1}process\0\u{3}preview_url\0")
 
@@ -1057,7 +1057,7 @@ extension Netclode_V1_PortExposedPayload: SwiftProtobuf.Message, SwiftProtobuf._
   }
 }
 
-extension Netclode_V1_PortUnexposedPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_PortUnexposedPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PortUnexposedPayload"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}port\0")
 
@@ -1087,7 +1087,7 @@ extension Netclode_V1_PortUnexposedPayload: SwiftProtobuf.Message, SwiftProtobuf
   }
 }
 
-extension Netclode_V1_RepoClonePayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_RepoClonePayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RepoClonePayload"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}repo\0\u{1}stage\0\u{1}message\0")
 

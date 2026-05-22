@@ -23,6 +23,7 @@ enum SdkType {
   SDK_TYPE_OPENCODE = 2;         // OpenCode SDK (multi-provider)
   SDK_TYPE_COPILOT = 3;          // GitHub Copilot SDK
   SDK_TYPE_CODEX = 4;            // OpenAI Codex SDK
+  SDK_TYPE_PI = 5;              // Pi Agent Core (multi-provider)
 }
 
 // CopilotBackend defines which backend to use for Copilot SDK sessions.

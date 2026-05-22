@@ -15,13 +15,13 @@ import SwiftProtobuf
 // incompatible with the version of SwiftProtobuf to which you are linking.
 // Please ensure that you are building against the same version of the API
 // that was used to generate this file.
-fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAPIVersionCheck {
+fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAPIVersionCheck {
   struct _2: SwiftProtobuf.ProtobufAPIVersion_2 {}
   typealias Version = _2
 }
 
 /// ClientMessage is the union of all client-to-server messages.
-public struct Netclode_V1_ClientMessage: Sendable {
+public nonisolated struct Netclode_V1_ClientMessage: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -217,7 +217,7 @@ public struct Netclode_V1_ClientMessage: Sendable {
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public enum OneOf_Message: Equatable, Sendable {
+  public nonisolated enum OneOf_Message: Equatable, Sendable {
     case createSession(Netclode_V1_CreateSessionRequest)
     case listSessions(Netclode_V1_ListSessionsRequest)
     case openSession(Netclode_V1_OpenSessionRequest)
@@ -251,7 +251,7 @@ public struct Netclode_V1_ClientMessage: Sendable {
 }
 
 /// ServerMessage is the union of all server-to-client messages.
-public struct Netclode_V1_ServerMessage: Sendable {
+public nonisolated struct Netclode_V1_ServerMessage: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -433,7 +433,7 @@ public struct Netclode_V1_ServerMessage: Sendable {
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public enum OneOf_Message: Equatable, Sendable {
+  public nonisolated enum OneOf_Message: Equatable, Sendable {
     case sessionCreated(Netclode_V1_SessionCreatedResponse)
     case sessionUpdated(Netclode_V1_SessionUpdatedResponse)
     case sessionDeleted(Netclode_V1_SessionDeletedResponse)
@@ -467,7 +467,7 @@ public struct Netclode_V1_ServerMessage: Sendable {
 }
 
 /// NetworkConfig controls network access for a session's sandbox.
-public struct Netclode_V1_NetworkConfig: Sendable {
+public nonisolated struct Netclode_V1_NetworkConfig: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -482,7 +482,7 @@ public struct Netclode_V1_NetworkConfig: Sendable {
   public init() {}
 }
 
-public struct Netclode_V1_CreateSessionRequest: Sendable {
+public nonisolated struct Netclode_V1_CreateSessionRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -595,7 +595,7 @@ public struct Netclode_V1_CreateSessionRequest: Sendable {
   fileprivate var _resources: Netclode_V1_SandboxResources? = nil
 }
 
-public struct Netclode_V1_ListSessionsRequest: Sendable {
+public nonisolated struct Netclode_V1_ListSessionsRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -616,7 +616,7 @@ public struct Netclode_V1_ListSessionsRequest: Sendable {
   fileprivate var _requestID: String? = nil
 }
 
-public struct Netclode_V1_OpenSessionRequest: Sendable {
+public nonisolated struct Netclode_V1_OpenSessionRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -661,7 +661,7 @@ public struct Netclode_V1_OpenSessionRequest: Sendable {
   fileprivate var _limit: Int32? = nil
 }
 
-public struct Netclode_V1_ResumeSessionRequest: Sendable {
+public nonisolated struct Netclode_V1_ResumeSessionRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -684,7 +684,7 @@ public struct Netclode_V1_ResumeSessionRequest: Sendable {
   fileprivate var _requestID: String? = nil
 }
 
-public struct Netclode_V1_PauseSessionRequest: Sendable {
+public nonisolated struct Netclode_V1_PauseSessionRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -707,7 +707,7 @@ public struct Netclode_V1_PauseSessionRequest: Sendable {
   fileprivate var _requestID: String? = nil
 }
 
-public struct Netclode_V1_DeleteSessionRequest: Sendable {
+public nonisolated struct Netclode_V1_DeleteSessionRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -730,7 +730,7 @@ public struct Netclode_V1_DeleteSessionRequest: Sendable {
   fileprivate var _requestID: String? = nil
 }
 
-public struct Netclode_V1_DeleteAllSessionsRequest: Sendable {
+public nonisolated struct Netclode_V1_DeleteAllSessionsRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -751,7 +751,7 @@ public struct Netclode_V1_DeleteAllSessionsRequest: Sendable {
   fileprivate var _requestID: String? = nil
 }
 
-public struct Netclode_V1_SendPromptRequest: Sendable {
+public nonisolated struct Netclode_V1_SendPromptRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -769,14 +769,24 @@ public struct Netclode_V1_SendPromptRequest: Sendable {
 
   public var text: String = String()
 
+  public var model: String {
+    get {_model ?? String()}
+    set {_model = newValue}
+  }
+  /// Returns true if `model` has been explicitly set.
+  public var hasModel: Bool {self._model != nil}
+  /// Clears the value of `model`. Subsequent reads from it will return its default value.
+  public mutating func clearModel() {self._model = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _requestID: String? = nil
+  fileprivate var _model: String? = nil
 }
 
-public struct Netclode_V1_InterruptPromptRequest: Sendable {
+public nonisolated struct Netclode_V1_InterruptPromptRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -799,7 +809,7 @@ public struct Netclode_V1_InterruptPromptRequest: Sendable {
   fileprivate var _requestID: String? = nil
 }
 
-public struct Netclode_V1_TerminalInputRequest: Sendable {
+public nonisolated struct Netclode_V1_TerminalInputRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -824,7 +834,7 @@ public struct Netclode_V1_TerminalInputRequest: Sendable {
   fileprivate var _requestID: String? = nil
 }
 
-public struct Netclode_V1_TerminalResizeRequest: Sendable {
+public nonisolated struct Netclode_V1_TerminalResizeRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -851,7 +861,7 @@ public struct Netclode_V1_TerminalResizeRequest: Sendable {
   fileprivate var _requestID: String? = nil
 }
 
-public struct Netclode_V1_ExposePortRequest: Sendable {
+public nonisolated struct Netclode_V1_ExposePortRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -876,7 +886,7 @@ public struct Netclode_V1_ExposePortRequest: Sendable {
   fileprivate var _requestID: String? = nil
 }
 
-public struct Netclode_V1_UnexposePortRequest: Sendable {
+public nonisolated struct Netclode_V1_UnexposePortRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -901,7 +911,7 @@ public struct Netclode_V1_UnexposePortRequest: Sendable {
   fileprivate var _requestID: String? = nil
 }
 
-public struct Netclode_V1_SyncRequest: Sendable {
+public nonisolated struct Netclode_V1_SyncRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -922,7 +932,7 @@ public struct Netclode_V1_SyncRequest: Sendable {
   fileprivate var _requestID: String? = nil
 }
 
-public struct Netclode_V1_ListGitHubReposRequest: Sendable {
+public nonisolated struct Netclode_V1_ListGitHubReposRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -943,7 +953,7 @@ public struct Netclode_V1_ListGitHubReposRequest: Sendable {
   fileprivate var _requestID: String? = nil
 }
 
-public struct Netclode_V1_GitStatusRequest: Sendable {
+public nonisolated struct Netclode_V1_GitStatusRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -966,7 +976,7 @@ public struct Netclode_V1_GitStatusRequest: Sendable {
   fileprivate var _requestID: String? = nil
 }
 
-public struct Netclode_V1_GitDiffRequest: Sendable {
+public nonisolated struct Netclode_V1_GitDiffRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1000,7 +1010,7 @@ public struct Netclode_V1_GitDiffRequest: Sendable {
   fileprivate var _file: String? = nil
 }
 
-public struct Netclode_V1_ListModelsRequest: Sendable {
+public nonisolated struct Netclode_V1_ListModelsRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1035,7 +1045,7 @@ public struct Netclode_V1_ListModelsRequest: Sendable {
   fileprivate var _copilotBackend: Netclode_V1_CopilotBackend? = nil
 }
 
-public struct Netclode_V1_GetCopilotStatusRequest: Sendable {
+public nonisolated struct Netclode_V1_GetCopilotStatusRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1056,7 +1066,7 @@ public struct Netclode_V1_GetCopilotStatusRequest: Sendable {
   fileprivate var _requestID: String? = nil
 }
 
-public struct Netclode_V1_ListSnapshotsRequest: Sendable {
+public nonisolated struct Netclode_V1_ListSnapshotsRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1079,7 +1089,7 @@ public struct Netclode_V1_ListSnapshotsRequest: Sendable {
   fileprivate var _requestID: String? = nil
 }
 
-public struct Netclode_V1_RestoreSnapshotRequest: Sendable {
+public nonisolated struct Netclode_V1_RestoreSnapshotRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1104,7 +1114,7 @@ public struct Netclode_V1_RestoreSnapshotRequest: Sendable {
   fileprivate var _requestID: String? = nil
 }
 
-public struct Netclode_V1_UpdateRepoAccessRequest: Sendable {
+public nonisolated struct Netclode_V1_UpdateRepoAccessRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1130,7 +1140,7 @@ public struct Netclode_V1_UpdateRepoAccessRequest: Sendable {
   fileprivate var _requestID: String? = nil
 }
 
-public struct Netclode_V1_GetResourceLimitsRequest: Sendable {
+public nonisolated struct Netclode_V1_GetResourceLimitsRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1151,39 +1161,38 @@ public struct Netclode_V1_GetResourceLimitsRequest: Sendable {
   fileprivate var _requestID: String? = nil
 }
 
-public struct Netclode_V1_SessionCreatedResponse: Sendable {
+public nonisolated struct Netclode_V1_SessionCreatedResponse: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   public var session: Netclode_V1_Session {
-    get {_session ?? Netclode_V1_Session()}
-    set {_session = newValue}
+    get {_storage._session ?? Netclode_V1_Session()}
+    set {_uniqueStorage()._session = newValue}
   }
   /// Returns true if `session` has been explicitly set.
-  public var hasSession: Bool {self._session != nil}
+  public var hasSession: Bool {_storage._session != nil}
   /// Clears the value of `session`. Subsequent reads from it will return its default value.
-  public mutating func clearSession() {self._session = nil}
+  public mutating func clearSession() {_uniqueStorage()._session = nil}
 
   /// Echoed from request for correlation
   public var requestID: String {
-    get {_requestID ?? String()}
-    set {_requestID = newValue}
+    get {_storage._requestID ?? String()}
+    set {_uniqueStorage()._requestID = newValue}
   }
   /// Returns true if `requestID` has been explicitly set.
-  public var hasRequestID: Bool {self._requestID != nil}
+  public var hasRequestID: Bool {_storage._requestID != nil}
   /// Clears the value of `requestID`. Subsequent reads from it will return its default value.
-  public mutating func clearRequestID() {self._requestID = nil}
+  public mutating func clearRequestID() {_uniqueStorage()._requestID = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _session: Netclode_V1_Session? = nil
-  fileprivate var _requestID: String? = nil
+  fileprivate var _storage = _StorageClass.defaultInstance
 }
 
-public struct Netclode_V1_SessionUpdatedResponse: Sendable {
+public nonisolated struct Netclode_V1_SessionUpdatedResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1204,7 +1213,7 @@ public struct Netclode_V1_SessionUpdatedResponse: Sendable {
   fileprivate var _session: Netclode_V1_Session? = nil
 }
 
-public struct Netclode_V1_SessionDeletedResponse: Sendable {
+public nonisolated struct Netclode_V1_SessionDeletedResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1227,7 +1236,7 @@ public struct Netclode_V1_SessionDeletedResponse: Sendable {
   fileprivate var _requestID: String? = nil
 }
 
-public struct Netclode_V1_SessionsDeletedAllResponse: Sendable {
+public nonisolated struct Netclode_V1_SessionsDeletedAllResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1250,7 +1259,7 @@ public struct Netclode_V1_SessionsDeletedAllResponse: Sendable {
   fileprivate var _requestID: String? = nil
 }
 
-public struct Netclode_V1_SessionListResponse: Sendable {
+public nonisolated struct Netclode_V1_SessionListResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1273,7 +1282,7 @@ public struct Netclode_V1_SessionListResponse: Sendable {
   fileprivate var _requestID: String? = nil
 }
 
-public struct Netclode_V1_SessionStateResponse: @unchecked Sendable {
+public nonisolated struct Netclode_V1_SessionStateResponse: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1335,7 +1344,7 @@ public struct Netclode_V1_SessionStateResponse: @unchecked Sendable {
   fileprivate var _storage = _StorageClass.defaultInstance
 }
 
-public struct Netclode_V1_SyncResponse: Sendable {
+public nonisolated struct Netclode_V1_SyncResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1370,7 +1379,7 @@ public struct Netclode_V1_SyncResponse: Sendable {
 
 /// StreamEntryResponse wraps a StreamEntry for real-time push notifications.
 /// This is the unified type for all session stream updates (messages, events, terminal output, etc.)
-public struct Netclode_V1_StreamEntryResponse: Sendable {
+public nonisolated struct Netclode_V1_StreamEntryResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1393,7 +1402,7 @@ public struct Netclode_V1_StreamEntryResponse: Sendable {
   fileprivate var _entry: Netclode_V1_StreamEntry? = nil
 }
 
-public struct Netclode_V1_PortExposedResponse: Sendable {
+public nonisolated struct Netclode_V1_PortExposedResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1420,7 +1429,7 @@ public struct Netclode_V1_PortExposedResponse: Sendable {
   fileprivate var _requestID: String? = nil
 }
 
-public struct Netclode_V1_PortUnexposedResponse: Sendable {
+public nonisolated struct Netclode_V1_PortUnexposedResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1445,7 +1454,7 @@ public struct Netclode_V1_PortUnexposedResponse: Sendable {
   fileprivate var _requestID: String? = nil
 }
 
-public struct Netclode_V1_GitHubReposResponse: Sendable {
+public nonisolated struct Netclode_V1_GitHubReposResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1468,7 +1477,7 @@ public struct Netclode_V1_GitHubReposResponse: Sendable {
   fileprivate var _requestID: String? = nil
 }
 
-public struct Netclode_V1_GitStatusResponse: Sendable {
+public nonisolated struct Netclode_V1_GitStatusResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1493,7 +1502,7 @@ public struct Netclode_V1_GitStatusResponse: Sendable {
   fileprivate var _requestID: String? = nil
 }
 
-public struct Netclode_V1_GitDiffResponse: Sendable {
+public nonisolated struct Netclode_V1_GitDiffResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1520,7 +1529,7 @@ public struct Netclode_V1_GitDiffResponse: Sendable {
 
 /// ErrorResponse is the unified error type for all error conditions.
 /// Replaces SessionErrorResponse, AgentErrorResponse, PortErrorResponse, GitErrorResponse.
-public struct Netclode_V1_ErrorResponse: Sendable {
+public nonisolated struct Netclode_V1_ErrorResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1553,7 +1562,7 @@ public struct Netclode_V1_ErrorResponse: Sendable {
   fileprivate var _requestID: String? = nil
 }
 
-public struct Netclode_V1_ModelsResponse: Sendable {
+public nonisolated struct Netclode_V1_ModelsResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1588,7 +1597,7 @@ public struct Netclode_V1_ModelsResponse: Sendable {
   fileprivate var _sdkType: Netclode_V1_SdkType? = nil
 }
 
-public struct Netclode_V1_CopilotStatusResponse: Sendable {
+public nonisolated struct Netclode_V1_CopilotStatusResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1632,7 +1641,7 @@ public struct Netclode_V1_CopilotStatusResponse: Sendable {
 }
 
 /// SnapshotCreatedResponse is pushed to clients when an auto-snapshot is created after a turn.
-public struct Netclode_V1_SnapshotCreatedResponse: Sendable {
+public nonisolated struct Netclode_V1_SnapshotCreatedResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1655,7 +1664,7 @@ public struct Netclode_V1_SnapshotCreatedResponse: Sendable {
   fileprivate var _snapshot: Netclode_V1_Snapshot? = nil
 }
 
-public struct Netclode_V1_SnapshotListResponse: Sendable {
+public nonisolated struct Netclode_V1_SnapshotListResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1682,7 +1691,7 @@ public struct Netclode_V1_SnapshotListResponse: Sendable {
 }
 
 /// SnapshotRestoredResponse is sent after workspace and messages are restored.
-public struct Netclode_V1_SnapshotRestoredResponse: Sendable {
+public nonisolated struct Netclode_V1_SnapshotRestoredResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1711,7 +1720,7 @@ public struct Netclode_V1_SnapshotRestoredResponse: Sendable {
 }
 
 /// RepoAccessUpdatedResponse is sent after repo access level is updated.
-public struct Netclode_V1_RepoAccessUpdatedResponse: Sendable {
+public nonisolated struct Netclode_V1_RepoAccessUpdatedResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1739,7 +1748,7 @@ public struct Netclode_V1_RepoAccessUpdatedResponse: Sendable {
 
 /// ResourceLimitsResponse contains the maximum sandbox resource allocation.
 /// Values are the maximum allowed per session (50% of host resources).
-public struct Netclode_V1_ResourceLimitsResponse: Sendable {
+public nonisolated struct Netclode_V1_ResourceLimitsResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1774,9 +1783,9 @@ public struct Netclode_V1_ResourceLimitsResponse: Sendable {
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
-fileprivate let _protobuf_package = "netclode.v1"
+fileprivate nonisolated let _protobuf_package = "netclode.v1"
 
-extension Netclode_V1_ClientMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_ClientMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ClientMessage"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}create_session\0\u{3}list_sessions\0\u{3}open_session\0\u{3}resume_session\0\u{3}pause_session\0\u{3}delete_session\0\u{3}delete_all_sessions\0\u{3}send_prompt\0\u{3}interrupt_prompt\0\u{3}terminal_input\0\u{3}terminal_resize\0\u{3}expose_port\0\u{1}sync\0\u{3}list_github_repos\0\u{3}git_status\0\u{3}git_diff\0\u{3}list_models\0\u{3}get_copilot_status\0\u{3}list_snapshots\0\u{3}restore_snapshot\0\u{3}update_repo_access\0\u{3}get_resource_limits\0\u{3}unexpose_port\0")
 
@@ -2200,7 +2209,7 @@ extension Netclode_V1_ClientMessage: SwiftProtobuf.Message, SwiftProtobuf._Messa
   }
 }
 
-extension Netclode_V1_ServerMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_ServerMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ServerMessage"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_created\0\u{3}session_updated\0\u{3}session_deleted\0\u{3}sessions_deleted_all\0\u{3}session_list\0\u{3}session_state\0\u{3}sync_response\0\u{3}stream_entry\0\u{4}\u{5}port_exposed\0\u{3}github_repos\0\u{3}git_status\0\u{3}git_diff\0\u{1}error\0\u{1}models\0\u{3}copilot_status\0\u{3}snapshot_created\0\u{3}snapshot_list\0\u{3}snapshot_restored\0\u{3}repo_access_updated\0\u{3}resource_limits\0\u{3}port_unexposed\0")
 
@@ -2590,7 +2599,7 @@ extension Netclode_V1_ServerMessage: SwiftProtobuf.Message, SwiftProtobuf._Messa
   }
 }
 
-extension Netclode_V1_NetworkConfig: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_NetworkConfig: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".NetworkConfig"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}tailnet_access\0")
 
@@ -2620,7 +2629,7 @@ extension Netclode_V1_NetworkConfig: SwiftProtobuf.Message, SwiftProtobuf._Messa
   }
 }
 
-extension Netclode_V1_CreateSessionRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_CreateSessionRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CreateSessionRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0\u{1}name\0\u{1}repos\0\u{3}repo_access\0\u{3}initial_prompt\0\u{3}sdk_type\0\u{1}model\0\u{3}copilot_backend\0\u{3}network_config\0\u{1}resources\0")
 
@@ -2699,7 +2708,7 @@ extension Netclode_V1_CreateSessionRequest: SwiftProtobuf.Message, SwiftProtobuf
   }
 }
 
-extension Netclode_V1_ListSessionsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_ListSessionsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ListSessionsRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0")
 
@@ -2733,7 +2742,7 @@ extension Netclode_V1_ListSessionsRequest: SwiftProtobuf.Message, SwiftProtobuf.
   }
 }
 
-extension Netclode_V1_OpenSessionRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_OpenSessionRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".OpenSessionRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0\u{3}session_id\0\u{3}after_stream_id\0\u{1}limit\0")
 
@@ -2782,7 +2791,7 @@ extension Netclode_V1_OpenSessionRequest: SwiftProtobuf.Message, SwiftProtobuf._
   }
 }
 
-extension Netclode_V1_ResumeSessionRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_ResumeSessionRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ResumeSessionRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0\u{3}session_id\0")
 
@@ -2821,7 +2830,7 @@ extension Netclode_V1_ResumeSessionRequest: SwiftProtobuf.Message, SwiftProtobuf
   }
 }
 
-extension Netclode_V1_PauseSessionRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_PauseSessionRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PauseSessionRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0\u{3}session_id\0")
 
@@ -2860,7 +2869,7 @@ extension Netclode_V1_PauseSessionRequest: SwiftProtobuf.Message, SwiftProtobuf.
   }
 }
 
-extension Netclode_V1_DeleteSessionRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_DeleteSessionRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DeleteSessionRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0\u{3}session_id\0")
 
@@ -2899,7 +2908,7 @@ extension Netclode_V1_DeleteSessionRequest: SwiftProtobuf.Message, SwiftProtobuf
   }
 }
 
-extension Netclode_V1_DeleteAllSessionsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_DeleteAllSessionsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DeleteAllSessionsRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0")
 
@@ -2933,9 +2942,9 @@ extension Netclode_V1_DeleteAllSessionsRequest: SwiftProtobuf.Message, SwiftProt
   }
 }
 
-extension Netclode_V1_SendPromptRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_SendPromptRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SendPromptRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0\u{3}session_id\0\u{1}text\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0\u{3}session_id\0\u{1}text\0\u{1}model\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2946,6 +2955,7 @@ extension Netclode_V1_SendPromptRequest: SwiftProtobuf.Message, SwiftProtobuf._M
       case 1: try { try decoder.decodeSingularStringField(value: &self._requestID) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.sessionID) }()
       case 3: try { try decoder.decodeSingularStringField(value: &self.text) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self._model) }()
       default: break
       }
     }
@@ -2965,6 +2975,9 @@ extension Netclode_V1_SendPromptRequest: SwiftProtobuf.Message, SwiftProtobuf._M
     if !self.text.isEmpty {
       try visitor.visitSingularStringField(value: self.text, fieldNumber: 3)
     }
+    try { if let v = self._model {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 4)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -2972,12 +2985,13 @@ extension Netclode_V1_SendPromptRequest: SwiftProtobuf.Message, SwiftProtobuf._M
     if lhs._requestID != rhs._requestID {return false}
     if lhs.sessionID != rhs.sessionID {return false}
     if lhs.text != rhs.text {return false}
+    if lhs._model != rhs._model {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Netclode_V1_InterruptPromptRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_InterruptPromptRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".InterruptPromptRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0\u{3}session_id\0")
 
@@ -3016,7 +3030,7 @@ extension Netclode_V1_InterruptPromptRequest: SwiftProtobuf.Message, SwiftProtob
   }
 }
 
-extension Netclode_V1_TerminalInputRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_TerminalInputRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".TerminalInputRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0\u{3}session_id\0\u{1}data\0")
 
@@ -3060,7 +3074,7 @@ extension Netclode_V1_TerminalInputRequest: SwiftProtobuf.Message, SwiftProtobuf
   }
 }
 
-extension Netclode_V1_TerminalResizeRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_TerminalResizeRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".TerminalResizeRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0\u{3}session_id\0\u{1}cols\0\u{1}rows\0")
 
@@ -3109,7 +3123,7 @@ extension Netclode_V1_TerminalResizeRequest: SwiftProtobuf.Message, SwiftProtobu
   }
 }
 
-extension Netclode_V1_ExposePortRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_ExposePortRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ExposePortRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0\u{3}session_id\0\u{1}port\0")
 
@@ -3153,7 +3167,7 @@ extension Netclode_V1_ExposePortRequest: SwiftProtobuf.Message, SwiftProtobuf._M
   }
 }
 
-extension Netclode_V1_UnexposePortRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_UnexposePortRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UnexposePortRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0\u{3}session_id\0\u{1}port\0")
 
@@ -3197,7 +3211,7 @@ extension Netclode_V1_UnexposePortRequest: SwiftProtobuf.Message, SwiftProtobuf.
   }
 }
 
-extension Netclode_V1_SyncRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_SyncRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SyncRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0")
 
@@ -3231,7 +3245,7 @@ extension Netclode_V1_SyncRequest: SwiftProtobuf.Message, SwiftProtobuf._Message
   }
 }
 
-extension Netclode_V1_ListGitHubReposRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_ListGitHubReposRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ListGitHubReposRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0")
 
@@ -3265,7 +3279,7 @@ extension Netclode_V1_ListGitHubReposRequest: SwiftProtobuf.Message, SwiftProtob
   }
 }
 
-extension Netclode_V1_GitStatusRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_GitStatusRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GitStatusRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0\u{3}session_id\0")
 
@@ -3304,7 +3318,7 @@ extension Netclode_V1_GitStatusRequest: SwiftProtobuf.Message, SwiftProtobuf._Me
   }
 }
 
-extension Netclode_V1_GitDiffRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_GitDiffRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GitDiffRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0\u{3}session_id\0\u{1}file\0")
 
@@ -3348,7 +3362,7 @@ extension Netclode_V1_GitDiffRequest: SwiftProtobuf.Message, SwiftProtobuf._Mess
   }
 }
 
-extension Netclode_V1_ListModelsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_ListModelsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ListModelsRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0\u{3}sdk_type\0\u{3}copilot_backend\0")
 
@@ -3392,7 +3406,7 @@ extension Netclode_V1_ListModelsRequest: SwiftProtobuf.Message, SwiftProtobuf._M
   }
 }
 
-extension Netclode_V1_GetCopilotStatusRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_GetCopilotStatusRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetCopilotStatusRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0")
 
@@ -3426,7 +3440,7 @@ extension Netclode_V1_GetCopilotStatusRequest: SwiftProtobuf.Message, SwiftProto
   }
 }
 
-extension Netclode_V1_ListSnapshotsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_ListSnapshotsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ListSnapshotsRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0\u{3}session_id\0")
 
@@ -3465,7 +3479,7 @@ extension Netclode_V1_ListSnapshotsRequest: SwiftProtobuf.Message, SwiftProtobuf
   }
 }
 
-extension Netclode_V1_RestoreSnapshotRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_RestoreSnapshotRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RestoreSnapshotRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0\u{3}session_id\0\u{3}snapshot_id\0")
 
@@ -3509,7 +3523,7 @@ extension Netclode_V1_RestoreSnapshotRequest: SwiftProtobuf.Message, SwiftProtob
   }
 }
 
-extension Netclode_V1_UpdateRepoAccessRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_UpdateRepoAccessRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UpdateRepoAccessRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0\u{3}session_id\0\u{3}repo_access\0")
 
@@ -3553,7 +3567,7 @@ extension Netclode_V1_UpdateRepoAccessRequest: SwiftProtobuf.Message, SwiftProto
   }
 }
 
-extension Netclode_V1_GetResourceLimitsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_GetResourceLimitsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetResourceLimitsRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0")
 
@@ -3587,46 +3601,84 @@ extension Netclode_V1_GetResourceLimitsRequest: SwiftProtobuf.Message, SwiftProt
   }
 }
 
-extension Netclode_V1_SessionCreatedResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_SessionCreatedResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SessionCreatedResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}session\0\u{3}request_id\0")
 
+  fileprivate class _StorageClass {
+    var _session: Netclode_V1_Session? = nil
+    var _requestID: String? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _session = source._session
+      _requestID = source._requestID
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._session) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self._requestID) }()
-      default: break
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularMessageField(value: &_storage._session) }()
+        case 2: try { try decoder.decodeSingularStringField(value: &_storage._requestID) }()
+        default: break
+        }
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._session {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    try { if let v = self._requestID {
-      try visitor.visitSingularStringField(value: v, fieldNumber: 2)
-    } }()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      try { if let v = _storage._session {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+      } }()
+      try { if let v = _storage._requestID {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 2)
+      } }()
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Netclode_V1_SessionCreatedResponse, rhs: Netclode_V1_SessionCreatedResponse) -> Bool {
-    if lhs._session != rhs._session {return false}
-    if lhs._requestID != rhs._requestID {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._session != rhs_storage._session {return false}
+        if _storage._requestID != rhs_storage._requestID {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Netclode_V1_SessionUpdatedResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_SessionUpdatedResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SessionUpdatedResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}session\0")
 
@@ -3660,7 +3712,7 @@ extension Netclode_V1_SessionUpdatedResponse: SwiftProtobuf.Message, SwiftProtob
   }
 }
 
-extension Netclode_V1_SessionDeletedResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_SessionDeletedResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SessionDeletedResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_id\0\u{3}request_id\0")
 
@@ -3699,7 +3751,7 @@ extension Netclode_V1_SessionDeletedResponse: SwiftProtobuf.Message, SwiftProtob
   }
 }
 
-extension Netclode_V1_SessionsDeletedAllResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_SessionsDeletedAllResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SessionsDeletedAllResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}deleted_ids\0\u{3}request_id\0")
 
@@ -3738,7 +3790,7 @@ extension Netclode_V1_SessionsDeletedAllResponse: SwiftProtobuf.Message, SwiftPr
   }
 }
 
-extension Netclode_V1_SessionListResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_SessionListResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SessionListResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}sessions\0\u{3}request_id\0")
 
@@ -3777,7 +3829,7 @@ extension Netclode_V1_SessionListResponse: SwiftProtobuf.Message, SwiftProtobuf.
   }
 }
 
-extension Netclode_V1_SessionStateResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_SessionStateResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SessionStateResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}session\0\u{1}entries\0\u{3}has_more\0\u{3}last_stream_id\0\u{3}in_progress\0\u{3}request_id\0")
 
@@ -3882,7 +3934,7 @@ extension Netclode_V1_SessionStateResponse: SwiftProtobuf.Message, SwiftProtobuf
   }
 }
 
-extension Netclode_V1_SyncResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_SyncResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SyncResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}sessions\0\u{3}server_time\0\u{3}request_id\0")
 
@@ -3926,7 +3978,7 @@ extension Netclode_V1_SyncResponse: SwiftProtobuf.Message, SwiftProtobuf._Messag
   }
 }
 
-extension Netclode_V1_StreamEntryResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_StreamEntryResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".StreamEntryResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_id\0\u{1}entry\0")
 
@@ -3965,7 +4017,7 @@ extension Netclode_V1_StreamEntryResponse: SwiftProtobuf.Message, SwiftProtobuf.
   }
 }
 
-extension Netclode_V1_PortExposedResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_PortExposedResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PortExposedResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_id\0\u{1}port\0\u{3}preview_url\0\u{3}request_id\0")
 
@@ -4014,7 +4066,7 @@ extension Netclode_V1_PortExposedResponse: SwiftProtobuf.Message, SwiftProtobuf.
   }
 }
 
-extension Netclode_V1_PortUnexposedResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_PortUnexposedResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PortUnexposedResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_id\0\u{1}port\0\u{3}request_id\0")
 
@@ -4058,7 +4110,7 @@ extension Netclode_V1_PortUnexposedResponse: SwiftProtobuf.Message, SwiftProtobu
   }
 }
 
-extension Netclode_V1_GitHubReposResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_GitHubReposResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GitHubReposResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}repos\0\u{3}request_id\0")
 
@@ -4097,7 +4149,7 @@ extension Netclode_V1_GitHubReposResponse: SwiftProtobuf.Message, SwiftProtobuf.
   }
 }
 
-extension Netclode_V1_GitStatusResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_GitStatusResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GitStatusResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_id\0\u{1}files\0\u{3}request_id\0")
 
@@ -4141,7 +4193,7 @@ extension Netclode_V1_GitStatusResponse: SwiftProtobuf.Message, SwiftProtobuf._M
   }
 }
 
-extension Netclode_V1_GitDiffResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_GitDiffResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GitDiffResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_id\0\u{1}diff\0\u{3}request_id\0")
 
@@ -4185,7 +4237,7 @@ extension Netclode_V1_GitDiffResponse: SwiftProtobuf.Message, SwiftProtobuf._Mes
   }
 }
 
-extension Netclode_V1_ErrorResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_ErrorResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ErrorResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}error\0\u{3}request_id\0")
 
@@ -4224,7 +4276,7 @@ extension Netclode_V1_ErrorResponse: SwiftProtobuf.Message, SwiftProtobuf._Messa
   }
 }
 
-extension Netclode_V1_ModelsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_ModelsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ModelsResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}models\0\u{3}request_id\0\u{3}sdk_type\0")
 
@@ -4268,7 +4320,7 @@ extension Netclode_V1_ModelsResponse: SwiftProtobuf.Message, SwiftProtobuf._Mess
   }
 }
 
-extension Netclode_V1_CopilotStatusResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_CopilotStatusResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CopilotStatusResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}auth\0\u{1}quota\0\u{3}request_id\0")
 
@@ -4312,7 +4364,7 @@ extension Netclode_V1_CopilotStatusResponse: SwiftProtobuf.Message, SwiftProtobu
   }
 }
 
-extension Netclode_V1_SnapshotCreatedResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_SnapshotCreatedResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SnapshotCreatedResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_id\0\u{1}snapshot\0")
 
@@ -4351,7 +4403,7 @@ extension Netclode_V1_SnapshotCreatedResponse: SwiftProtobuf.Message, SwiftProto
   }
 }
 
-extension Netclode_V1_SnapshotListResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_SnapshotListResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SnapshotListResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_id\0\u{1}snapshots\0\u{3}request_id\0")
 
@@ -4395,7 +4447,7 @@ extension Netclode_V1_SnapshotListResponse: SwiftProtobuf.Message, SwiftProtobuf
   }
 }
 
-extension Netclode_V1_SnapshotRestoredResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_SnapshotRestoredResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SnapshotRestoredResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_id\0\u{3}snapshot_id\0\u{3}messages_restored\0\u{3}request_id\0")
 
@@ -4444,7 +4496,7 @@ extension Netclode_V1_SnapshotRestoredResponse: SwiftProtobuf.Message, SwiftProt
   }
 }
 
-extension Netclode_V1_RepoAccessUpdatedResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_RepoAccessUpdatedResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RepoAccessUpdatedResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_id\0\u{3}repo_access\0\u{3}request_id\0")
 
@@ -4488,7 +4540,7 @@ extension Netclode_V1_RepoAccessUpdatedResponse: SwiftProtobuf.Message, SwiftPro
   }
 }
 
-extension Netclode_V1_ResourceLimitsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_ResourceLimitsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ResourceLimitsResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}max_vcpus\0\u{3}max_memory_mb\0\u{3}default_vcpus\0\u{3}default_memory_mb\0\u{3}request_id\0")
 

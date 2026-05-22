@@ -126,7 +126,7 @@ ARG TARGETARCH
 RUN useradd -m -u 1000 -d /agent agent && \
     echo 'agent ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/agent && \
     chmod 0440 /etc/sudoers.d/agent && \
-    mkdir -p /agent /opt/agent && \
+    mkdir -p /agent /opt/agent /agent/.pi/agent && \
     chown -R agent:agent /agent /opt/agent
 
 # Install bun (multi-arch)

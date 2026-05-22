@@ -15,13 +15,13 @@ import SwiftProtobuf
 // incompatible with the version of SwiftProtobuf to which you are linking.
 // Please ensure that you are building against the same version of the API
 // that was used to generate this file.
-fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAPIVersionCheck {
+fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAPIVersionCheck {
   struct _2: SwiftProtobuf.ProtobufAPIVersion_2 {}
   typealias Version = _2
 }
 
 /// AgentMessage is sent from agent to control plane.
-public struct Netclode_V1_AgentMessage: Sendable {
+public nonisolated struct Netclode_V1_AgentMessage: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -84,7 +84,7 @@ public struct Netclode_V1_AgentMessage: Sendable {
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public enum OneOf_Message: Equatable, Sendable {
+  public nonisolated enum OneOf_Message: Equatable, Sendable {
     /// Registration - sent first when agent connects
     case register(Netclode_V1_AgentRegister)
     /// Streaming responses during prompt execution
@@ -104,7 +104,7 @@ public struct Netclode_V1_AgentMessage: Sendable {
 }
 
 /// ControlPlaneMessage is sent from control plane to agent.
-public struct Netclode_V1_ControlPlaneMessage: Sendable {
+public nonisolated struct Netclode_V1_ControlPlaneMessage: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -194,7 +194,7 @@ public struct Netclode_V1_ControlPlaneMessage: Sendable {
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public enum OneOf_Message: Equatable, Sendable {
+  public nonisolated enum OneOf_Message: Equatable, Sendable {
     /// Acknowledgment of registration
     case registered(Netclode_V1_AgentRegistered)
     /// Execute a prompt
@@ -221,7 +221,7 @@ public struct Netclode_V1_ControlPlaneMessage: Sendable {
 
 /// SessionAssigned is sent to warm pool agents when a session is bound.
 /// This replaces the HTTP polling approach for instant session start.
-public struct Netclode_V1_SessionAssigned: Sendable {
+public nonisolated struct Netclode_V1_SessionAssigned: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -247,7 +247,7 @@ public struct Netclode_V1_SessionAssigned: Sendable {
 }
 
 /// AgentRegister is sent first by the agent to identify itself.
-public struct Netclode_V1_AgentRegister: Sendable {
+public nonisolated struct Netclode_V1_AgentRegister: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -295,7 +295,7 @@ public struct Netclode_V1_AgentRegister: Sendable {
 }
 
 /// AgentStreamResponse contains streaming output during prompt execution.
-public struct Netclode_V1_AgentStreamResponse: Sendable {
+public nonisolated struct Netclode_V1_AgentStreamResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -349,7 +349,7 @@ public struct Netclode_V1_AgentStreamResponse: Sendable {
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public enum OneOf_Response: Equatable, Sendable {
+  public nonisolated enum OneOf_Response: Equatable, Sendable {
     /// Streaming text output
     case textDelta(Netclode_V1_AgentTextDelta)
     /// Tool/command/thinking events
@@ -367,7 +367,7 @@ public struct Netclode_V1_AgentStreamResponse: Sendable {
 }
 
 /// AgentTextDelta contains a chunk of streaming text output.
-public struct Netclode_V1_AgentTextDelta: Sendable {
+public nonisolated struct Netclode_V1_AgentTextDelta: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -387,7 +387,7 @@ public struct Netclode_V1_AgentTextDelta: Sendable {
 }
 
 /// AgentSystemMessage contains system-level messages from the agent.
-public struct Netclode_V1_AgentSystemMessage: Sendable {
+public nonisolated struct Netclode_V1_AgentSystemMessage: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -401,7 +401,7 @@ public struct Netclode_V1_AgentSystemMessage: Sendable {
 }
 
 /// AgentResult contains the final result after prompt completion.
-public struct Netclode_V1_AgentResult: Sendable {
+public nonisolated struct Netclode_V1_AgentResult: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -421,7 +421,7 @@ public struct Netclode_V1_AgentResult: Sendable {
 }
 
 /// AgentError indicates an error during prompt execution.
-public struct Netclode_V1_AgentError: Sendable {
+public nonisolated struct Netclode_V1_AgentError: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -438,7 +438,7 @@ public struct Netclode_V1_AgentError: Sendable {
 }
 
 /// AgentTerminalOutput contains terminal output from the agent.
-public struct Netclode_V1_AgentTerminalOutput: Sendable {
+public nonisolated struct Netclode_V1_AgentTerminalOutput: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -452,7 +452,7 @@ public struct Netclode_V1_AgentTerminalOutput: Sendable {
 }
 
 /// AgentTitleResponse contains the generated session title.
-public struct Netclode_V1_AgentTitleResponse: Sendable {
+public nonisolated struct Netclode_V1_AgentTitleResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -469,7 +469,7 @@ public struct Netclode_V1_AgentTitleResponse: Sendable {
 }
 
 /// AgentGitStatusResponse contains git status results.
-public struct Netclode_V1_AgentGitStatusResponse: Sendable {
+public nonisolated struct Netclode_V1_AgentGitStatusResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -486,7 +486,7 @@ public struct Netclode_V1_AgentGitStatusResponse: Sendable {
 }
 
 /// AgentGitDiffResponse contains git diff results.
-public struct Netclode_V1_AgentGitDiffResponse: Sendable {
+public nonisolated struct Netclode_V1_AgentGitDiffResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -503,7 +503,7 @@ public struct Netclode_V1_AgentGitDiffResponse: Sendable {
 }
 
 /// AgentRegistered is sent in response to AgentRegister.
-public struct Netclode_V1_AgentRegistered: Sendable {
+public nonisolated struct Netclode_V1_AgentRegistered: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -540,7 +540,7 @@ public struct Netclode_V1_AgentRegistered: Sendable {
 }
 
 /// ExecutePromptRequest asks the agent to execute a prompt.
-public struct Netclode_V1_ExecutePromptRequest: Sendable {
+public nonisolated struct Netclode_V1_ExecutePromptRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -554,7 +554,7 @@ public struct Netclode_V1_ExecutePromptRequest: Sendable {
 }
 
 /// InterruptRequest asks the agent to interrupt the current operation.
-public struct Netclode_V1_InterruptRequest: Sendable {
+public nonisolated struct Netclode_V1_InterruptRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -565,7 +565,7 @@ public struct Netclode_V1_InterruptRequest: Sendable {
 }
 
 /// GenerateTitleRequest asks the agent to generate a session title.
-public struct Netclode_V1_GenerateTitleRequest: Sendable {
+public nonisolated struct Netclode_V1_GenerateTitleRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -582,7 +582,7 @@ public struct Netclode_V1_GenerateTitleRequest: Sendable {
 }
 
 /// GetGitStatusRequest asks the agent for git status.
-public struct Netclode_V1_GetGitStatusRequest: Sendable {
+public nonisolated struct Netclode_V1_GetGitStatusRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -596,7 +596,7 @@ public struct Netclode_V1_GetGitStatusRequest: Sendable {
 }
 
 /// GetGitDiffRequest asks the agent for git diff.
-public struct Netclode_V1_GetGitDiffRequest: Sendable {
+public nonisolated struct Netclode_V1_GetGitDiffRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -622,7 +622,7 @@ public struct Netclode_V1_GetGitDiffRequest: Sendable {
 }
 
 /// AgentTerminalInput contains terminal input for the agent.
-public struct Netclode_V1_AgentTerminalInput: Sendable {
+public nonisolated struct Netclode_V1_AgentTerminalInput: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -649,7 +649,7 @@ public struct Netclode_V1_AgentTerminalInput: Sendable {
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public enum OneOf_Input: Equatable, Sendable {
+  public nonisolated enum OneOf_Input: Equatable, Sendable {
     /// Keyboard input data
     case data(String)
     /// Terminal resize event
@@ -661,7 +661,7 @@ public struct Netclode_V1_AgentTerminalInput: Sendable {
 }
 
 /// AgentTerminalResize contains terminal dimensions.
-public struct Netclode_V1_AgentTerminalResize: Sendable {
+public nonisolated struct Netclode_V1_AgentTerminalResize: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -679,7 +679,7 @@ public struct Netclode_V1_AgentTerminalResize: Sendable {
 
 /// UpdateGitCredentials tells the agent to update its git credentials.
 /// Sent when the user changes the repo access level mid-session.
-public struct Netclode_V1_UpdateGitCredentials: Sendable {
+public nonisolated struct Netclode_V1_UpdateGitCredentials: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -697,9 +697,9 @@ public struct Netclode_V1_UpdateGitCredentials: Sendable {
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
-fileprivate let _protobuf_package = "netclode.v1"
+fileprivate nonisolated let _protobuf_package = "netclode.v1"
 
-extension Netclode_V1_AgentMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_AgentMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AgentMessage"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}register\0\u{3}prompt_response\0\u{3}terminal_output\0\u{3}title_response\0\u{3}git_status_response\0\u{3}git_diff_response\0")
 
@@ -834,7 +834,7 @@ extension Netclode_V1_AgentMessage: SwiftProtobuf.Message, SwiftProtobuf._Messag
   }
 }
 
-extension Netclode_V1_ControlPlaneMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_ControlPlaneMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ControlPlaneMessage"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}registered\0\u{3}execute_prompt\0\u{1}interrupt\0\u{3}generate_title\0\u{3}get_git_status\0\u{3}get_git_diff\0\u{3}terminal_input\0\u{3}update_git_credentials\0\u{3}session_assigned\0")
 
@@ -1020,7 +1020,7 @@ extension Netclode_V1_ControlPlaneMessage: SwiftProtobuf.Message, SwiftProtobuf.
   }
 }
 
-extension Netclode_V1_SessionAssigned: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_SessionAssigned: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SessionAssigned"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_id\0\u{1}config\0")
 
@@ -1059,7 +1059,7 @@ extension Netclode_V1_SessionAssigned: SwiftProtobuf.Message, SwiftProtobuf._Mes
   }
 }
 
-extension Netclode_V1_AgentRegister: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_AgentRegister: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AgentRegister"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_id\0\u{1}version\0\u{3}pod_name\0\u{3}k8s_token\0")
 
@@ -1108,7 +1108,7 @@ extension Netclode_V1_AgentRegister: SwiftProtobuf.Message, SwiftProtobuf._Messa
   }
 }
 
-extension Netclode_V1_AgentStreamResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_AgentStreamResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AgentStreamResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}text_delta\0\u{1}event\0\u{3}system_message\0\u{1}result\0\u{1}error\0")
 
@@ -1226,7 +1226,7 @@ extension Netclode_V1_AgentStreamResponse: SwiftProtobuf.Message, SwiftProtobuf.
   }
 }
 
-extension Netclode_V1_AgentTextDelta: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_AgentTextDelta: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AgentTextDelta"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}content\0\u{1}partial\0\u{3}message_id\0")
 
@@ -1266,7 +1266,7 @@ extension Netclode_V1_AgentTextDelta: SwiftProtobuf.Message, SwiftProtobuf._Mess
   }
 }
 
-extension Netclode_V1_AgentSystemMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_AgentSystemMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AgentSystemMessage"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}message\0")
 
@@ -1296,7 +1296,7 @@ extension Netclode_V1_AgentSystemMessage: SwiftProtobuf.Message, SwiftProtobuf._
   }
 }
 
-extension Netclode_V1_AgentResult: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_AgentResult: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AgentResult"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}input_tokens\0\u{3}output_tokens\0\u{3}total_turns\0")
 
@@ -1336,7 +1336,7 @@ extension Netclode_V1_AgentResult: SwiftProtobuf.Message, SwiftProtobuf._Message
   }
 }
 
-extension Netclode_V1_AgentError: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_AgentError: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AgentError"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}message\0\u{1}retryable\0")
 
@@ -1371,7 +1371,7 @@ extension Netclode_V1_AgentError: SwiftProtobuf.Message, SwiftProtobuf._MessageI
   }
 }
 
-extension Netclode_V1_AgentTerminalOutput: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_AgentTerminalOutput: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AgentTerminalOutput"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}data\0")
 
@@ -1401,7 +1401,7 @@ extension Netclode_V1_AgentTerminalOutput: SwiftProtobuf.Message, SwiftProtobuf.
   }
 }
 
-extension Netclode_V1_AgentTitleResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_AgentTitleResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AgentTitleResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0\u{1}title\0")
 
@@ -1436,7 +1436,7 @@ extension Netclode_V1_AgentTitleResponse: SwiftProtobuf.Message, SwiftProtobuf._
   }
 }
 
-extension Netclode_V1_AgentGitStatusResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_AgentGitStatusResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AgentGitStatusResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0\u{1}files\0")
 
@@ -1471,7 +1471,7 @@ extension Netclode_V1_AgentGitStatusResponse: SwiftProtobuf.Message, SwiftProtob
   }
 }
 
-extension Netclode_V1_AgentGitDiffResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_AgentGitDiffResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AgentGitDiffResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0\u{1}diff\0")
 
@@ -1506,7 +1506,7 @@ extension Netclode_V1_AgentGitDiffResponse: SwiftProtobuf.Message, SwiftProtobuf
   }
 }
 
-extension Netclode_V1_AgentRegistered: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_AgentRegistered: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AgentRegistered"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}success\0\u{1}error\0\u{1}config\0")
 
@@ -1550,7 +1550,7 @@ extension Netclode_V1_AgentRegistered: SwiftProtobuf.Message, SwiftProtobuf._Mes
   }
 }
 
-extension Netclode_V1_ExecutePromptRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_ExecutePromptRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ExecutePromptRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}text\0")
 
@@ -1580,7 +1580,7 @@ extension Netclode_V1_ExecutePromptRequest: SwiftProtobuf.Message, SwiftProtobuf
   }
 }
 
-extension Netclode_V1_InterruptRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_InterruptRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".InterruptRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
@@ -1599,7 +1599,7 @@ extension Netclode_V1_InterruptRequest: SwiftProtobuf.Message, SwiftProtobuf._Me
   }
 }
 
-extension Netclode_V1_GenerateTitleRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_GenerateTitleRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GenerateTitleRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0\u{1}prompt\0")
 
@@ -1634,7 +1634,7 @@ extension Netclode_V1_GenerateTitleRequest: SwiftProtobuf.Message, SwiftProtobuf
   }
 }
 
-extension Netclode_V1_GetGitStatusRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_GetGitStatusRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetGitStatusRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0")
 
@@ -1664,7 +1664,7 @@ extension Netclode_V1_GetGitStatusRequest: SwiftProtobuf.Message, SwiftProtobuf.
   }
 }
 
-extension Netclode_V1_GetGitDiffRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_GetGitDiffRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetGitDiffRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_id\0\u{1}file\0")
 
@@ -1703,7 +1703,7 @@ extension Netclode_V1_GetGitDiffRequest: SwiftProtobuf.Message, SwiftProtobuf._M
   }
 }
 
-extension Netclode_V1_AgentTerminalInput: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_AgentTerminalInput: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AgentTerminalInput"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}data\0\u{1}resize\0")
 
@@ -1765,7 +1765,7 @@ extension Netclode_V1_AgentTerminalInput: SwiftProtobuf.Message, SwiftProtobuf._
   }
 }
 
-extension Netclode_V1_AgentTerminalResize: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_AgentTerminalResize: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AgentTerminalResize"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}cols\0\u{1}rows\0")
 
@@ -1800,7 +1800,7 @@ extension Netclode_V1_AgentTerminalResize: SwiftProtobuf.Message, SwiftProtobuf.
   }
 }
 
-extension Netclode_V1_UpdateGitCredentials: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Netclode_V1_UpdateGitCredentials: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UpdateGitCredentials"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}github_token\0\u{3}repo_access\0")
 

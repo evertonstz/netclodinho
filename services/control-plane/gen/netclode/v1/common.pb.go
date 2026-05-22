@@ -81,6 +81,7 @@ const (
 	SdkType_SDK_TYPE_OPENCODE    SdkType = 2 // OpenCode SDK (multi-provider)
 	SdkType_SDK_TYPE_COPILOT     SdkType = 3 // GitHub Copilot SDK
 	SdkType_SDK_TYPE_CODEX       SdkType = 4 // OpenAI Codex SDK
+	SdkType_SDK_TYPE_PI          SdkType = 5 // Pi Agent Core (multi-provider)
 )
 
 // Enum value maps for SdkType.
@@ -91,6 +92,7 @@ var (
 		2: "SDK_TYPE_OPENCODE",
 		3: "SDK_TYPE_COPILOT",
 		4: "SDK_TYPE_CODEX",
+		5: "SDK_TYPE_PI",
 	}
 	SdkType_value = map[string]int32{
 		"SDK_TYPE_UNSPECIFIED": 0,
@@ -98,6 +100,7 @@ var (
 		"SDK_TYPE_OPENCODE":    2,
 		"SDK_TYPE_COPILOT":     3,
 		"SDK_TYPE_CODEX":       4,
+		"SDK_TYPE_PI":          5,
 	}
 )
 
@@ -1841,13 +1844,14 @@ const file_netclode_v1_common_proto_rawDesc = "" +
 	"RepoAccess\x12\x1b\n" +
 	"\x17REPO_ACCESS_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10REPO_ACCESS_READ\x10\x01\x12\x15\n" +
-	"\x11REPO_ACCESS_WRITE\x10\x02*y\n" +
+	"\x11REPO_ACCESS_WRITE\x10\x02*\x8a\x01\n" +
 	"\aSdkType\x12\x18\n" +
 	"\x14SDK_TYPE_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fSDK_TYPE_CLAUDE\x10\x01\x12\x15\n" +
 	"\x11SDK_TYPE_OPENCODE\x10\x02\x12\x14\n" +
 	"\x10SDK_TYPE_COPILOT\x10\x03\x12\x12\n" +
-	"\x0eSDK_TYPE_CODEX\x10\x04*l\n" +
+	"\x0eSDK_TYPE_CODEX\x10\x04\x12\x0f\n" +
+	"\vSDK_TYPE_PI\x10\x05*l\n" +
 	"\x0eCopilotBackend\x12\x1f\n" +
 	"\x1bCOPILOT_BACKEND_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16COPILOT_BACKEND_GITHUB\x10\x01\x12\x1d\n" +

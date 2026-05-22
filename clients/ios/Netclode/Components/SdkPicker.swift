@@ -70,6 +70,8 @@ extension SdkType {
             return Image("github-mark")
         case .codex:
             return Image("openai-logo")
+        case .pi:
+            return Image(systemName: "function")
         }
     }
 
@@ -80,6 +82,7 @@ extension SdkType {
         case .opencode: return "OpenCode"
         case .copilot: return "Copilot"
         case .codex: return "Codex"
+        case .pi: return "Pi"
         }
     }
 }

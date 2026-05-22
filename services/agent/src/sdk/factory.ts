@@ -10,6 +10,7 @@ import { ClaudeSDKAdapter } from "./claude/index.js";
 import { OpenCodeAdapter } from "./opencode/index.js";
 import { CopilotAdapter } from "./copilot/index.js";
 import { CodexAdapter } from "./codex/index.js";
+import { PiAdapter } from "./pi/index.js";
 import {
   ComposedNetclodeAgent,
   createGitInspector,
@@ -29,6 +30,7 @@ const defaultBackendFactories: Record<SdkType, PromptBackendFactory> = {
   opencode: () => new OpenCodeAdapter(),
   copilot: () => new CopilotAdapter(),
   codex: () => new CodexAdapter(),
+  pi: () => new PiAdapter(),
 };
 
 function resolveBackendFactory(
@@ -84,6 +86,10 @@ export function parseSdkType(sdkTypeStr: string | undefined): SdkType {
     case "CODEX":
     case "codex":
       return "codex";
+    case "SDK_TYPE_PI":
+    case "PI":
+    case "pi":
+      return "pi";
     case "SDK_TYPE_CLAUDE":
     case "CLAUDE":
     case "claude":
