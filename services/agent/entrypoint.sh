@@ -103,6 +103,7 @@ exec su -s /bin/bash agent -c "
     export MISE_CACHE_DIR=/agent/.cache/mise
     export XDG_CONFIG_HOME=/agent/.local/config
     export PATH='/agent/.local/share/mise/shims:/opt/mise/bin:/opt/node/bin:/usr/local/bin:/usr/bin:/bin'
+    export NODE_USE_SYSTEM_CA=1
     cd /opt/agent
     echo '==== AGENT START $(date) ====' >> /agent/agent.log
     echo '--- ENV ---' >> /agent/agent.log

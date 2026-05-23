@@ -190,6 +190,7 @@ ENV MISE_DATA_DIR=/agent/.local/share/mise
 ENV MISE_CACHE_DIR=/agent/.cache/mise
 ENV XDG_CONFIG_HOME=/agent/.local/config
 ENV PATH="/agent/.local/share/mise/shims:/opt/mise/bin:/opt/node/bin:/opt:${PATH}"
+ENV NODE_USE_SYSTEM_CA=1
 
 EXPOSE 3002
 
