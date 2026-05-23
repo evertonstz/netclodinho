@@ -68,9 +68,3 @@ export function createNetclodeAgentFactory(
 }
 
 
-
-/**
- * Transitional compatibility helpers. Prefer createNetclodeAgent in new code.
- */
-export const createSDKAdapter = createNetclodeAgent;
-export const createSDKAdapterFactory = createNetclodeAgentFactory;

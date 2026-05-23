@@ -126,8 +126,3 @@ export class CodexAuthMaterializer implements BackendAuthMaterializer {
   }
 }
 
-export function selectPrimarySecretDecision(
-  decisions: SecretMaterializationDecision[],
-): SecretMaterializationDecision | undefined {
-  return decisions[0];
-}

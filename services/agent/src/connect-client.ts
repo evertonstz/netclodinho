@@ -30,7 +30,6 @@ import {
   AgentEventSchema,
   ToolStartPayloadSchema,
   ToolInputPayloadSchema,
-  ToolOutputPayloadSchema,
   ToolEndPayloadSchema,
   ThinkingPayloadSchema,
   RepoClonePayloadSchema,

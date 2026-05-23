@@ -45,8 +45,6 @@ export {
   createNetclodeAgent,
   createNetclodeAgentFactory,
   createPromptBackend,
-  createSDKAdapter,
-  createSDKAdapterFactory,
 } from "./factory.js";
 
 // Adapters
