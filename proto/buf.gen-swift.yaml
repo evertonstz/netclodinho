@@ -1,0 +1,19 @@
+version: v2
+managed:
+  enabled: true
+  override:
+    - file_option: go_package_prefix
+      value: github.com/angristan/netclode/services/control-plane/gen
+plugins:
+  # Swift protobuf
+  - remote: buf.build/apple/swift
+    out: ../clients/ios/Netclode/Generated
+    opt:
+      - Visibility=Public
+  # Swift Connect
+  - remote: buf.build/connectrpc/swift
+    out: ../clients/ios/Netclode/Generated
+    opt:
+      - GenerateAsyncMethods=true
+      - GenerateCallbackMethods=false
+      - Visibility=Public

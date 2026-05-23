@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "generate": "cd ../../proto && buf generate",
+    "generate": "cd ../../proto && buf generate --template buf.gen-ts.yaml",
     "prebuild": "npm run generate",
     "dev": "tsx watch src/index.ts",
     "build": "esbuild src/index.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/agent.js",

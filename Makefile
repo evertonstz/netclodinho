@@ -27,7 +27,9 @@ proto: proto-setup ## Generate code from proto files
 	@mkdir -p services/control-plane/gen
 	@mkdir -p services/agent/gen
 	@mkdir -p clients/ios/Netclode/Generated
-	cd proto && buf generate
+	cd proto && buf generate --template buf.gen-go.yaml
+	cd proto && buf generate --template buf.gen-ts.yaml
+	cd proto && buf generate --template buf.gen-swift.yaml
 
 proto-lint: proto-setup ## Lint proto files
 	cd proto && buf lint

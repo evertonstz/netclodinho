@@ -1,0 +1,16 @@
+version: v2
+managed:
+  enabled: true
+  override:
+    - file_option: go_package_prefix
+      value: github.com/angristan/netclode/services/control-plane/gen
+plugins:
+  # TypeScript/ES (Protobuf-ES v2)
+  - remote: buf.build/bufbuild/es:v2.2.0
+    out: ../services/agent/gen
+    opt:
+      - target=ts
+  # Custom: generates SdkType string union + exhaustive mapping functions
+  - local: ["npx", "tsx", "protoc-gen-netclode-enums.ts"]
+    out: ../services/agent/gen
+    opt: target=ts
