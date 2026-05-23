@@ -2475,6 +2475,8 @@ func (m *Manager) ListModels(ctx context.Context, sdkType pb.SdkType, copilotBac
 	case pb.SdkType_SDK_TYPE_CODEX:
 		// Return OpenAI models with "gpt-codex" family
 		return m.fetchCodexModels(ctx)
+	case pb.SdkType_SDK_TYPE_PI:
+		return m.fetchPiModels(ctx)
 	default:
 		return m.fetchModelsFromModelsDev(ctx, "anthropic")
 	}
@@ -2654,6 +2656,62 @@ func (m *Manager) fetchOpenCodeModels(ctx context.Context) []*pb.ModelInfo {
 	}
 
 	slog.InfoContext(ctx, "fetchOpenCodeModels returning", "totalModels", len(models))
+	return models
+}
+
+// fetchPiModels fetches models for Pi SDK based on configured API keys.
+// Pi supports Anthropic, OpenAI, Mistral, OpenRouter, and GitHub Copilot (OAuth).
+// Returns models with provider-prefixed IDs (e.g., "anthropic/claude-sonnet-4-0").
+func (m *Manager) fetchPiModels(ctx context.Context) []*pb.ModelInfo {
+	slog.InfoContext(ctx, "fetchPiModels called",
+		"hasAnthropicKey", m.config.AnthropicAPIKey != "",
+		"hasOpenAIKey", m.config.OpenAIAPIKey != "",
+		"hasMistralKey", m.config.MistralAPIKey != "",
+		"hasOpenRouterKey", m.config.OpenRouterAPIKey != "",
+		"hasCopilotOAuth", m.config.GitHubCopilotOAuthAccessToken != "")
+
+	var models []*pb.ModelInfo
+
+	// Anthropic models
+	if m.config.AnthropicAPIKey != "" {
+		anthropicModels := m.fetchOpenCodeModelsForProvider(ctx, "anthropic")
+		slog.InfoContext(ctx, "Fetched Pi Anthropic models", "count", len(anthropicModels))
+		models = append(models, anthropicModels...)
+	}
+
+	// OpenAI models
+	if m.config.OpenAIAPIKey != "" {
+		openaiModels := m.fetchOpenCodeModelsForProvider(ctx, "openai")
+		slog.InfoContext(ctx, "Fetched Pi OpenAI models", "count", len(openaiModels))
+		models = append(models, openaiModels...)
+	}
+
+	// Mistral models
+	if m.config.MistralAPIKey != "" {
+		mistralModels := m.fetchOpenCodeModelsForProvider(ctx, "mistral")
+		slog.InfoContext(ctx, "Fetched Pi Mistral models", "count", len(mistralModels))
+		models = append(models, mistralModels...)
+	}
+
+	// OpenRouter models
+	if m.config.OpenRouterAPIKey != "" {
+		openrouterModels := m.fetchOpenCodeModelsForProvider(ctx, "openrouter")
+		slog.InfoContext(ctx, "Fetched Pi OpenRouter models", "count", len(openrouterModels))
+		models = append(models, openrouterModels...)
+	}
+
+	// GitHub Copilot models (OAuth)
+	if m.config.GitHubCopilotOAuthAccessToken != "" {
+		copilotModels := m.fetchCopilotModels(ctx, m.config.GitHubCopilotOAuthAccessToken)
+		slog.InfoContext(ctx, "Fetched Pi Copilot models", "count", len(copilotModels))
+		models = append(models, copilotModels...)
+	}
+
+	if len(models) == 0 {
+		slog.WarnContext(ctx, "No Pi credentials configured (need ANTHROPIC_API_KEY, OPENAI_API_KEY, MISTRAL_API_KEY, OPENROUTER_API_KEY, or GITHUB_COPILOT_OAUTH_ACCESS_TOKEN)")
+	}
+
+	slog.InfoContext(ctx, "fetchPiModels returning", "totalModels", len(models))
 	return models
 }
 
