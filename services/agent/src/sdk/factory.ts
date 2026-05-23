@@ -67,36 +67,7 @@ export function createNetclodeAgentFactory(
   return (config: NetclodeAgentConfig) => createNetclodeAgent(config, dependencies);
 }
 
-/**
- * Get SDK type from proto enum string.
- */
-export function parseSdkType(sdkTypeStr: string | undefined): SdkType {
-  if (!sdkTypeStr) return "claude";
 
-  switch (sdkTypeStr) {
-    case "SDK_TYPE_OPENCODE":
-    case "OPENCODE":
-    case "opencode":
-      return "opencode";
-    case "SDK_TYPE_COPILOT":
-    case "COPILOT":
-    case "copilot":
-      return "copilot";
-    case "SDK_TYPE_CODEX":
-    case "CODEX":
-    case "codex":
-      return "codex";
-    case "SDK_TYPE_PI":
-    case "PI":
-    case "pi":
-      return "pi";
-    case "SDK_TYPE_CLAUDE":
-    case "CLAUDE":
-    case "claude":
-    default:
-      return "claude";
-  }
-}
 
 /**
  * Transitional compatibility helpers. Prefer createNetclodeAgent in new code.

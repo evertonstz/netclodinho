@@ -47,7 +47,6 @@ export {
   createPromptBackend,
   createSDKAdapter,
   createSDKAdapterFactory,
-  parseSdkType,
 } from "./factory.js";
 
 // Adapters

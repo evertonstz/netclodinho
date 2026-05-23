@@ -3,11 +3,11 @@ import { ClaudeSDKAdapter } from "./claude/index.js";
 import { CodexAdapter } from "./codex/index.js";
 import { CopilotAdapter } from "./copilot/index.js";
 import { OpenCodeAdapter } from "./opencode/index.js";
+import { PiAdapter } from "./pi/index.js";
 import {
   createNetclodeAgent,
   createNetclodeAgentFactory,
   createPromptBackend,
-  parseSdkType,
 } from "./factory.js";
 import { createAgentCapabilities, type NetclodePromptBackend, type SDKConfig } from "./types.js";
 
@@ -21,34 +21,12 @@ function makeConfig(overrides: Partial<SDKConfig> = {}): SDKConfig {
 }
 
 describe("backend factory", () => {
-  describe("parseSdkType", () => {
-    it("returns 'claude' for undefined", () => {
-      expect(parseSdkType(undefined)).toBe("claude");
-    });
-
-    it("returns 'claude' for empty string", () => {
-      expect(parseSdkType("")).toBe("claude");
-    });
-
-    it("parses all known SDK types", () => {
-      expect(parseSdkType("SDK_TYPE_CLAUDE")).toBe("claude");
-      expect(parseSdkType("SDK_TYPE_OPENCODE")).toBe("opencode");
-      expect(parseSdkType("SDK_TYPE_COPILOT")).toBe("copilot");
-      expect(parseSdkType("SDK_TYPE_CODEX")).toBe("codex");
-    });
-
-    it("returns 'claude' for unknown values (default)", () => {
-      expect(parseSdkType("unknown")).toBe("claude");
-      expect(parseSdkType("GPT")).toBe("claude");
-      expect(parseSdkType("gemini")).toBe("claude");
-    });
-  });
-
   it("creates the expected default prompt backend for each sdk type", () => {
     expect(createPromptBackend("claude")).toBeInstanceOf(ClaudeSDKAdapter);
     expect(createPromptBackend("opencode")).toBeInstanceOf(OpenCodeAdapter);
     expect(createPromptBackend("copilot")).toBeInstanceOf(CopilotAdapter);
     expect(createPromptBackend("codex")).toBeInstanceOf(CodexAdapter);
+    expect(createPromptBackend("pi")).toBeInstanceOf(PiAdapter);
   });
 
   it("creates a composed Netclode agent with injected dependencies", async () => {

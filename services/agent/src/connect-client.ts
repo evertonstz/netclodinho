@@ -78,6 +78,8 @@ function parseSdkTypeFromProto(protoSdkType: ProtoSdkType | undefined): SdkType 
       return "copilot";
     case ProtoSdkType.CODEX:
       return "codex";
+    case ProtoSdkType.PI:
+      return "pi";
     case ProtoSdkType.CLAUDE:
     case ProtoSdkType.UNSPECIFIED:
     default:
