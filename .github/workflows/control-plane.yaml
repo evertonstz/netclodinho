@@ -101,15 +101,13 @@ jobs:
             type=sha
             type=raw,value=tip,enable={{is_default_branch}}
             type=raw,value=stable,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
-      # Copy proto/ into the build context for Docker
-      - name: Prepare Docker build context
-        run: cp -r proto services/control-plane/proto
 
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: services/control-plane
+          context: .
           file: services/control-plane/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
