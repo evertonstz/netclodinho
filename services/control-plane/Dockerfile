@@ -12,26 +12,28 @@ ARG BUF_VERSION=1.51.0
 RUN curl -sSL "https://github.com/bufbuild/buf/releases/download/v${BUF_VERSION}/buf-Linux-x86_64" -o /usr/local/bin/buf && chmod +x /usr/local/bin/buf
 
 # Copy go mod files plus the vendored BoxLite SDK source first so `go mod download`
-# can resolve the local replace target. Paths are relative to repo root (monorepo context).
+# can resolve the local replace target. Using fully-qualified monorepo paths.
 COPY services/control-plane/go.mod services/control-plane/go.sum ./
 COPY services/control-plane/third_party/boxlite-go-sdk ./third_party/boxlite-go-sdk
 RUN go mod download
 
 # Download the BoxLite native library and runtime assets at build time.
 RUN set -eux; \
-    mkdir -p /tmp/boxlite-runtime; \
-    ARCH=$(if [ "$(uname -m)" = "aarch64" ]; then echo "arm64"; else echo "x86_64"; fi); \
-    if [ "$ARCH" = "arm64" ]; then \
-      curl -fsSL "${BOXLITE_RELEASE_URL}/boxlite-arm64-runtime.tgz" -o /tmp/boxlite-runtime.tgz; \
-    else \
-      curl -fsSL "${BOXLITE_RELEASE_URL}/boxlite-x86_64-runtime.tgz" -o /tmp/boxlite-runtime.tgz; \
-    fi; \
+    mkdir -p /tmp/boxlite-c /tmp/boxlite-runtime; \
+    curl -fsSL "$BOXLITE_RELEASE_URL/boxlite-c-v0.8.2-linux-x64-gnu.tar.gz" -o /tmp/boxlite-c.tgz; \
+    tar -xzf /tmp/boxlite-c.tgz -C /tmp/boxlite-c --strip-components=1; \
+    cp /tmp/boxlite-c/include/boxlite.h ./third_party/boxlite-go-sdk/boxlite.h; \
+    cp /tmp/boxlite-c/lib/libboxlite.a ./third_party/boxlite-go-sdk/libboxlite.a; \
+    curl -fsSL "$BOXLITE_RELEASE_URL/boxlite-runtime-v0.8.2-linux-x64-gnu.tar.gz" -o /tmp/boxlite-runtime.tgz; \
     tar -xzf /tmp/boxlite-runtime.tgz -C /tmp/boxlite-runtime --strip-components=1
 
 # Copy the control-plane source.
 COPY services/control-plane/ .
 
-# Generate Go proto code (gen/ is gitignored, proto/ is at repo root).
+# Copy proto files for code generation.
+COPY proto/ /proto/
+
+# Generate Go proto code (gen/ is gitignored).
 RUN buf generate --template /proto/buf.gen.yaml --path /proto/netclode/v1
 
 RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w" -o control-plane ./cmd/control-plane
