@@ -33,8 +33,8 @@ COPY services/control-plane/ .
 # Copy proto files for code generation.
 COPY proto/ /proto/
 
-# Generate Go proto code (gen/ is gitignored).
-RUN buf generate --template /proto/buf.gen.yaml --path /proto/netclode/v1
+# Generate Go proto code (gen/ is gitignored, Go-only config).
+RUN buf generate --template /proto/buf.gen-go.yaml --path /proto/netclode/v1
 
 RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w" -o control-plane ./cmd/control-plane
 
