@@ -111,11 +111,37 @@ export function getSecretMaterializationDecisions(config: SDKConfig): SecretMate
         reason: "Codex API mode uses OPENAI_API_KEY from env for standard outbound HTTPS requests.",
       }];
 
+    case "pi": {
+      const provider = getOpenCodeProvider(config);
+      if (provider === "github-copilot") {
+        if (isOpenCodeCopilotOAuthMode(config)) {
+          return [{
+            credential: "github-copilot-oauth",
+            mode: "direct-file",
+            source: "session-config",
+            reason: "Pi GitHub Copilot OAuth persists credentials in auth.json with BoxLite placeholder tokens.",
+          }];
+        }
+        return [{
+          credential: "github-copilot-oauth",
+          mode: "none",
+          source: "none",
+          reason: "GitHub Copilot model selected but OAuth tokens are not configured.",
+        }];
+      }
+      return [{
+        credential: provider,
+        mode: "placeholder-header",
+        source: "env",
+        reason: `Pi ${provider} models use runtime-provided provider env placeholders and allowlisted outbound hosts.`,
+      }];
+    }
+
     default:
       return [];
-  }
 }
 
+}
 export function logSecretMaterialization(adapterName: string, config: SDKConfig): void {
   for (const decision of getSecretMaterializationDecisions(config)) {
     console.log(

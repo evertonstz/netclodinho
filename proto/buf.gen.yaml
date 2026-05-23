@@ -23,6 +23,10 @@ plugins:
     opt:
       - target=ts
   # Swift protobuf (SwiftProtobuf messages)
+  # Custom: generates SdkType string union + exhaustive mapping functions
+  - local: ["npx", "tsx", "protoc-gen-netclode-enums.ts"]
+    out: ../services/agent/gen
+    opt: target=ts
   - remote: buf.build/apple/swift
     out: ../clients/ios/Netclode/Generated
     opt:

@@ -1,0 +1,17 @@
+{
+  "name": "proto",
+  "version": "1.0.0",
+  "description": "Protobuf definitions for Netclode's Connect RPC APIs. Uses [Buf](https://buf.build/) for code generation across Go, TypeScript, and Swift.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@bufbuild/protoplugin": "^2.12.0",
+    "tsx": "^4.22.3"
+  }
+}

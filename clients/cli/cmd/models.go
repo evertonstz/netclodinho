@@ -42,10 +42,12 @@ func runModels(cmd *cobra.Command, args []string) error {
 		sdkType = pb.SdkType_SDK_TYPE_COPILOT
 	case "codex":
 		sdkType = pb.SdkType_SDK_TYPE_CODEX
+	case "pi":
+		sdkType = pb.SdkType_SDK_TYPE_PI
 	case "claude", "":
 		sdkType = pb.SdkType_SDK_TYPE_CLAUDE
 	default:
-		return fmt.Errorf("invalid SDK type: %s (use 'claude', 'opencode', 'copilot', or 'codex')", modelsSdkType)
+		return fmt.Errorf("invalid SDK type: %s (use 'claude', 'opencode', 'copilot', 'codex', or 'pi')", modelsSdkType)
 	}
 
 	models, err := c.ListModels(ctx, sdkType, nil)

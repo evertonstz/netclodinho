@@ -57,7 +57,7 @@ import {
   type RepositoryContext,
   UnsupportedAgentCapabilityError,
 } from "./sdk/index.js";
-import { SdkType as ProtoSdkType } from "../gen/netclode/v1/common_pb.js";
+import { sdkTypeFromProto } from "../gen/netclode/v1/common.enums.js";
 import { WORKSPACE_DIR } from "./constants.js";
 
 // Track if a prompt is currently running (to prevent concurrent prompts)
@@ -66,25 +66,7 @@ let isPromptRunning = false;
 // Current composed Netclode runtime for the session
 let currentAgent: NetclodeAgent | null = null;
 
-/**
- * Convert proto SdkType enum to internal SdkType string
- */
-function parseSdkTypeFromProto(protoSdkType: ProtoSdkType | undefined): SdkType {
-  switch (protoSdkType) {
-    case ProtoSdkType.OPENCODE:
-      return "opencode";
-    case ProtoSdkType.COPILOT:
-      return "copilot";
-    case ProtoSdkType.CODEX:
-      return "codex";
-    case ProtoSdkType.PI:
-      return "pi";
-    case ProtoSdkType.CLAUDE:
-    case ProtoSdkType.UNSPECIFIED:
-    default:
-      return "claude";
-  }
-}
+
 
 /**
  * Convert proto CopilotBackend enum to internal CopilotBackend string
@@ -315,7 +297,7 @@ function getCurrentRepositoryContext(): RepositoryContext | undefined {
 
 function buildNetclodeAgentConfig(config: SessionConfig) {
   return {
-    sdkType: parseSdkTypeFromProto(config.sdkType),
+    sdkType: sdkTypeFromProto(config.sdkType),
     workspaceDir: WORKSPACE_DIR,
     anthropicApiKey: process.env.ANTHROPIC_API_KEY || "",
     githubCopilotToken: process.env.GITHUB_COPILOT_TOKEN || "",

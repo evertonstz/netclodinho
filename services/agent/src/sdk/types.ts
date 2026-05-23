@@ -7,13 +7,10 @@
  */
 
 import type { JsonObject } from "@bufbuild/protobuf";
+import type { SdkTypeType, CopilotBackendType } from "../../gen/netclode/v1/common.enums.js";
 
-export type SdkType = "claude" | "opencode" | "copilot" | "codex" | "pi";
-
-/**
- * Backend for Copilot sessions.
- */
-export type CopilotBackend = "github" | "anthropic";
+export type SdkType = SdkTypeType;
+export type CopilotBackend = CopilotBackendType;
 
 /**
  * Explicit capability declaration for Netclode backends/runtime.

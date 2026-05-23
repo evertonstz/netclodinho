@@ -2435,6 +2435,15 @@ func (m *Manager) getAllowedSecretForHost(sdkType pb.SdkType, host string) (secr
 			{hosts: []string{"api.openai.com"}, secretKey: "codex_access", placeholder: "NETCLODE_PLACEHOLDER_openai"},
 		}
 
+	case pb.SdkType_SDK_TYPE_PI:
+		allowedMappings = []hostMapping{
+			{hosts: []string{"api.anthropic.com"}, secretKey: "anthropic", placeholder: "NETCLODE_PLACEHOLDER_anthropic"},
+			{hosts: []string{"api.openai.com"}, secretKey: "openai", placeholder: "NETCLODE_PLACEHOLDER_openai"},
+			{hosts: []string{"api.mistral.ai"}, secretKey: "mistral", placeholder: "NETCLODE_PLACEHOLDER_mistral"},
+			{hosts: []string{"openrouter.ai", "api.openrouter.ai"}, secretKey: "openrouter", placeholder: "NETCLODE_PLACEHOLDER_openrouter"},
+			{hosts: []string{"api.github.com", "api.githubcopilot.com", "api.individual.githubcopilot.com", "copilot-proxy.githubusercontent.com"}, secretKey: "github_copilot_oauth", placeholder: "NETCLODE_PLACEHOLDER_github_copilot_oauth"},
+		}
+
 	default:
 		// Default to Claude behavior
 		allowedMappings = []hostMapping{

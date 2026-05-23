@@ -77,6 +77,10 @@ type sandboxCreateSpec struct {
 
 func sdkAllowedMappings(sdkType pb.SdkType) []secretMapping {
 	switch sdkType {
+	case pb.SdkType_SDK_TYPE_CLAUDE:
+		return []secretMapping{
+			{"anthropic", "NETCLODE_PLACEHOLDER_anthropic", []string{"api.anthropic.com"}},
+		}
 	case pb.SdkType_SDK_TYPE_OPENCODE:
 		return []secretMapping{
 			{"anthropic", "NETCLODE_PLACEHOLDER_anthropic", []string{"api.anthropic.com"}},
@@ -95,12 +99,19 @@ func sdkAllowedMappings(sdkType pb.SdkType) []secretMapping {
 		}
 	case pb.SdkType_SDK_TYPE_CODEX:
 		return []secretMapping{
-			// API mode: OPENAI_API_KEY env
 			{"codex_access", "NETCLODE_PLACEHOLDER_openai", []string{"api.openai.com"}},
-			// OAuth mode: tokens written to ~/.codex/auth.json, substituted in-flight
 			{"codex_oauth_access", "NETCLODE_PLACEHOLDER_codex_oauth_access", []string{"api.openai.com"}},
 			{"codex_oauth_id", "NETCLODE_PLACEHOLDER_codex_oauth_id", []string{"api.openai.com"}},
 			{"codex_oauth_refresh", "NETCLODE_PLACEHOLDER_codex_oauth_refresh", []string{"api.openai.com"}},
+		}
+	case pb.SdkType_SDK_TYPE_PI:
+		return []secretMapping{
+			{"anthropic", "NETCLODE_PLACEHOLDER_anthropic", []string{"api.anthropic.com"}},
+			{"openai", "NETCLODE_PLACEHOLDER_openai", []string{"api.openai.com"}},
+			{"mistral", "NETCLODE_PLACEHOLDER_mistral", []string{"api.mistral.ai"}},
+			{"openrouter", "NETCLODE_PLACEHOLDER_openrouter", []string{"openrouter.ai", "api.openrouter.ai"}},
+			{"github_copilot_oauth_access", "NETCLODE_PLACEHOLDER_github_copilot_oauth_access", []string{"api.github.com", "api.githubcopilot.com", "api.individual.githubcopilot.com", "copilot-proxy.githubusercontent.com"}},
+			{"github_copilot_oauth_refresh", "NETCLODE_PLACEHOLDER_github_copilot_oauth_refresh", []string{"api.github.com", "api.githubcopilot.com", "api.individual.githubcopilot.com", "copilot-proxy.githubusercontent.com"}},
 		}
 	default:
 		return []secretMapping{{"anthropic", "NETCLODE_PLACEHOLDER_anthropic", []string{"api.anthropic.com"}}}
