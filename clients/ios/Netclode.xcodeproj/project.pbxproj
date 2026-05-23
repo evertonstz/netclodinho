@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		012E207D37B5BCC784E16341 /* NetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0F90B6BE00E0FCF9DDE1C4 /* NetworkMonitor.swift */; };
-		A10000000000000000000200 /* SpeechService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000200 /* SpeechService.swift */; };
 		2F48185A735B29EDA66CBCF4 /* MessageQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = F77D885E40DDA412EA4A8EB1 /* MessageQueue.swift */; };
 		42A9338E97E6C71371809DD2 /* AppStateCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB110327863973131E7B68E5 /* AppStateCoordinator.swift */; };
 		A10000000000000000000001 /* NetclodeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000001 /* NetclodeApp.swift */; };
@@ -73,6 +72,7 @@
 		A10000000000000000000098 /* ProviderLogo.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000098 /* ProviderLogo.swift */; };
 		A10000000000000000000099 /* SdkPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000099 /* SdkPicker.swift */; };
 		A10000000000000000000100 /* SyntaxHighlighter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000100 /* SyntaxHighlighter.swift */; };
+		A10000000000000000000200 /* SpeechService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000200 /* SpeechService.swift */; };
 		A543EC685A195D406156E1D8 /* SessionCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12DBC1BE0A00A0DBAE848A4C /* SessionCache.swift */; };
 		D10000000000000000000002 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = P20000000000000000000001 /* SwiftTerm */; };
 		D10000000000000000000003 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = P20000000000000000000002 /* MarkdownUI */; };
@@ -100,7 +100,6 @@
 		12DBC1BE0A00A0DBAE848A4C /* SessionCache.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SessionCache.swift; sourceTree = "<group>"; };
 		4CAF6A8D5A8196F805E063AA /* ConnectionStateManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ConnectionStateManager.swift; sourceTree = "<group>"; };
 		5D0F90B6BE00E0FCF9DDE1C4 /* NetworkMonitor.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
-		B10000000000000000000200 /* SpeechService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechService.swift; sourceTree = "<group>"; };
 		AB110327863973131E7B68E5 /* AppStateCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppStateCoordinator.swift; sourceTree = "<group>"; };
 		B10000000000000000000001 /* NetclodeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetclodeApp.swift; sourceTree = "<group>"; };
 		B10000000000000000000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -165,6 +164,7 @@
 		B10000000000000000000098 /* ProviderLogo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderLogo.swift; sourceTree = "<group>"; };
 		B10000000000000000000099 /* SdkPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SdkPicker.swift; sourceTree = "<group>"; };
 		B10000000000000000000100 /* SyntaxHighlighter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyntaxHighlighter.swift; sourceTree = "<group>"; };
+		B10000000000000000000200 /* SpeechService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechService.swift; sourceTree = "<group>"; };
 		C10000000000000000000001 /* Netclode.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Netclode.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CDB084D9964A7CA4C0002B95 /* ConnectionBanner.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ConnectionBanner.swift; sourceTree = "<group>"; };
 		F77D885E40DDA412EA4A8EB1 /* MessageQueue.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MessageQueue.swift; sourceTree = "<group>"; };
@@ -202,7 +202,6 @@
 			children = (
 				CDB084D9964A7CA4C0002B95 /* ConnectionBanner.swift */,
 			);
-			name = Connection;
 			path = Connection;
 			sourceTree = "<group>";
 		};
@@ -797,7 +796,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Netclode/Preview Content\"";
-				DEVELOPMENT_TEAM = 8ZMUZY4VF3;
+				DEVELOPMENT_TEAM = U6H4CZ22DD;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Netclode/Info.plist;
@@ -831,7 +830,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Netclode/Preview Content\"";
-				DEVELOPMENT_TEAM = 8ZMUZY4VF3;
+				DEVELOPMENT_TEAM = U6H4CZ22DD;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Netclode/Info.plist;

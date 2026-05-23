@@ -591,6 +591,7 @@ final class ConnectService {
         case .opencode: return .opencode
         case .copilot: return .copilot
         case .codex: return .codex
+        case .pi: return .pi
         case .unspecified, .UNRECOGNIZED: return .claude
         }
     }
@@ -615,6 +616,7 @@ final class ConnectService {
         case .opencode: return .opencode
         case .copilot: return .copilot
         case .codex: return .codex
+        case .pi: return .pi
         }
     }
 

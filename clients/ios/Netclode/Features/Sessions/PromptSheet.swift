@@ -16,6 +16,7 @@ struct PromptSheet: View {
     @State private var selectedOpenCodeModelId: String = UnifiedModelsStore.defaultOpenCodeModelId
     @State private var selectedCopilotModelId: String = UnifiedModelsStore.defaultCopilotModelId
     @State private var selectedCodexModelId: String = UnifiedModelsStore.defaultCodexModelId
+    @State private var selectedPiModelId: String = UnifiedModelsStore.defaultPiModelId
     @State private var isSubmitting = false
     @State private var canSubmit = false
     @State private var showModelDropdown = false
@@ -50,6 +51,8 @@ struct PromptSheet: View {
             return $selectedCopilotModelId
         case .codex:
             return $selectedCodexModelId
+        case .pi:
+            return $selectedPiModelId
         }
     }
 
@@ -577,6 +580,8 @@ struct PromptSheet: View {
             modelParam = selectedCopilotModelId
         case .codex:
             modelParam = selectedCodexModelId
+        case .pi:
+            modelParam = selectedPiModelId
         }
 
         // Build network config (only if tailnet access is requested)

@@ -16,6 +16,7 @@ final class UnifiedModelsStore {
     private(set) var opencodeState = SdkModelState()
     private(set) var copilotState = SdkModelState()
     private(set) var codexState = SdkModelState()
+    private(set) var piState = SdkModelState()
 
     /// Copilot-specific status (auth & quota)
     private(set) var copilotStatus: CopilotStatus?
@@ -30,6 +31,7 @@ final class UnifiedModelsStore {
     static let defaultOpenCodeModelId = "anthropic/claude-sonnet-4-5"
     static let defaultCopilotModelId = "claude-sonnet-4.5"
     static let defaultCodexModelId = "gpt-5.2-codex:oauth:high"
+    static let defaultPiModelId = "anthropic/claude-sonnet-4-20250514"
 
     // MARK: - Accessors
 
@@ -54,6 +56,7 @@ final class UnifiedModelsStore {
         case .opencode: return opencodeState
         case .copilot: return copilotState
         case .codex: return codexState
+        case .pi: return piState
         }
     }
 
@@ -78,6 +81,10 @@ final class UnifiedModelsStore {
             codexState.models = models
             codexState.isLoading = false
             codexState.errorMessage = nil
+        case .pi:
+            piState.models = models
+            piState.isLoading = false
+            piState.errorMessage = nil
         }
     }
 
@@ -88,6 +95,7 @@ final class UnifiedModelsStore {
         case .opencode: opencodeState.isLoading = loading
         case .copilot: copilotState.isLoading = loading
         case .codex: codexState.isLoading = loading
+        case .pi: piState.isLoading = loading
         }
     }
 
@@ -106,6 +114,9 @@ final class UnifiedModelsStore {
         case .codex:
             codexState.errorMessage = error
             codexState.isLoading = false
+        case .pi:
+            piState.errorMessage = error
+            piState.isLoading = false
         }
     }
 
@@ -145,6 +156,7 @@ final class UnifiedModelsStore {
         case .opencode: return defaultOpenCodeModelId
         case .copilot: return defaultCopilotModelId
         case .codex: return defaultCodexModelId
+        case .pi: return defaultPiModelId
         }
     }
 }
