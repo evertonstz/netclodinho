@@ -166,18 +166,10 @@ func parseSessionStatus(s string) pb.SessionStatus {
 
 // parseSdkType converts a string to pb.SdkType enum.
 func parseSdkType(s string) pb.SdkType {
-	switch s {
-	case "SDK_TYPE_CLAUDE":
-		return pb.SdkType_SDK_TYPE_CLAUDE
-	case "SDK_TYPE_OPENCODE":
-		return pb.SdkType_SDK_TYPE_OPENCODE
-	case "SDK_TYPE_COPILOT":
-		return pb.SdkType_SDK_TYPE_COPILOT
-	case "SDK_TYPE_CODEX":
-		return pb.SdkType_SDK_TYPE_CODEX
-	default:
-		return pb.SdkType_SDK_TYPE_UNSPECIFIED
+	if v, ok := sdkTypeMappings[s]; ok {
+		return v
 	}
+	return pb.SdkType_SDK_TYPE_UNSPECIFIED
 }
 
 func parseRepoAccess(s string) pb.RepoAccess {

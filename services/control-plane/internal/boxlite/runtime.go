@@ -574,18 +574,7 @@ func (r *Runtime) ExposePort(_ context.Context, _ string, _ int) error {
 func (r *Runtime) UnexposePort(_ context.Context, _ string, _ int) error { return nil }
 
 func sdkTypeFromEnv(env map[string]string) pb.SdkType {
-	switch env["SDK_TYPE"] {
-	case "SDK_TYPE_OPENCODE":
-		return pb.SdkType_SDK_TYPE_OPENCODE
-	case "SDK_TYPE_COPILOT":
-		return pb.SdkType_SDK_TYPE_COPILOT
-	case "SDK_TYPE_CODEX":
-		return pb.SdkType_SDK_TYPE_CODEX
-	case "SDK_TYPE_PI":
-		return pb.SdkType_SDK_TYPE_PI
-	default:
-		return pb.SdkType_SDK_TYPE_CLAUDE
-	}
+	return sdkTypeFromString(env["SDK_TYPE"])
 }
 
 func shouldExposeGuestPlaceholderEnv(name string) bool {

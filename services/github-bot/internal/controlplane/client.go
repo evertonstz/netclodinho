@@ -355,16 +355,8 @@ func (c *Client) RecoverSession(ctx context.Context, sessionID string) (*RunSess
 
 // ParseSdkType converts a string SDK type to protobuf enum.
 func ParseSdkType(s string) pb.SdkType {
-	switch strings.ToLower(s) {
-	case "claude":
-		return pb.SdkType_SDK_TYPE_CLAUDE
-	case "opencode":
-		return pb.SdkType_SDK_TYPE_OPENCODE
-	case "copilot":
-		return pb.SdkType_SDK_TYPE_COPILOT
-	case "codex":
-		return pb.SdkType_SDK_TYPE_CODEX
-	default:
-		return pb.SdkType_SDK_TYPE_CLAUDE
+	if v, ok := sdkTypeLowerMappings[strings.ToLower(s)]; ok {
+		return v
 	}
+	return pb.SdkType_SDK_TYPE_CLAUDE
 }
