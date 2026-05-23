@@ -1,0 +1,22 @@
+# Docker-specific buf config. Identical to proto/buf.gen-go.yaml except
+# out paths are relative to the build WORKDIR (/app = services/control-plane),
+# not relative to proto/. Used by the Dockerfile to self-contain proto generation.
+version: v2
+managed:
+  enabled: true
+  override:
+    - file_option: go_package_prefix
+      value: github.com/angristan/netclode/services/control-plane/gen
+plugins:
+  # Go protobuf
+  - remote: buf.build/protocolbuffers/go
+    out: gen
+    opt: paths=source_relative
+  # Go gRPC
+  - remote: buf.build/grpc/go
+    out: gen
+    opt: paths=source_relative
+  # Go Connect
+  - remote: buf.build/connectrpc/go
+    out: gen
+    opt: paths=source_relative
