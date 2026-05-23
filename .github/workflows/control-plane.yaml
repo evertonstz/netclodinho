@@ -20,6 +20,10 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository_owner }}/netclode-control-plane
 
+concurrency:
+  group: control-plane-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test-and-build:
     name: Test & Build
