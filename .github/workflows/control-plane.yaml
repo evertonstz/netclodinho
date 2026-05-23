@@ -8,11 +8,13 @@ on:
       - 'v*'
     paths:
       - "services/control-plane/**"
+      - "proto/**"
       - ".github/workflows/control-plane.yaml"
   pull_request:
     branches: [main, master]
     paths:
       - "services/control-plane/**"
+      - "proto/**"
 
 env:
   REGISTRY: ghcr.io
@@ -38,6 +40,14 @@ jobs:
         with:
           go-version-file: services/control-plane/go.mod
           cache-dependency-path: services/control-plane/go.sum
+
+      - name: Install buf
+        run: |
+          curl -sSL "https://github.com/bufbuild/buf/releases/download/v1.51.0/buf-Linux-x86_64" -o /usr/local/bin/buf
+          chmod +x /usr/local/bin/buf
+
+      - name: Generate proto code
+        run: cd proto && buf generate
 
       - name: Cache BoxLite native library
         id: cache-boxlite
@@ -91,13 +101,15 @@ jobs:
             type=sha
             type=raw,value=tip,enable={{is_default_branch}}
             type=raw,value=stable,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+      # Copy proto/ into the build context for Docker
+      - name: Prepare Docker build context
+        run: cp -r proto services/control-plane/proto
 
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: services/control-plane
           file: services/control-plane/Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
