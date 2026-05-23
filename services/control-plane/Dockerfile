@@ -6,6 +6,9 @@ ARG BOXLITE_VERSION=v0.8.2
 ARG BOXLITE_RELEASE_URL=https://github.com/boxlite-ai/boxlite/releases/download/${BOXLITE_VERSION}
 
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential ca-certificates curl git && rm -rf /var/lib/apt/lists/*
+# Install buf for proto code generation
+ARG BUF_VERSION=1.51.0
+RUN curl -sSL "https://github.com/bufbuild/buf/releases/download/v${BUF_VERSION}/buf-Linux-x86_64" -o /usr/local/bin/buf && chmod +x /usr/local/bin/buf
 
 # Copy go mod files plus the vendored BoxLite SDK source first so `go mod download`
 # can resolve the local replace target.
@@ -25,6 +28,9 @@ RUN set -eux; \
 
 # Copy the rest of the source and build.
 COPY . .
+
+# Generate Go proto code (gen/ is gitignored)
+RUN cd proto && buf generate
 
 RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w" -o control-plane ./cmd/control-plane
 

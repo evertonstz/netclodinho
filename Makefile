@@ -72,21 +72,21 @@ deploy: ## Wait for CI then rollout control-plane
 	gh run watch $$(gh run list --limit 1 --json databaseId --jq '.[0].databaseId') --exit-status
 	$(MAKE) rollout-control-plane
 
-test-ios: ## Run iOS unit tests
+test-ios: proto ## Run iOS unit tests
 	cd clients/ios && xcodebuild test -scheme NetclodeTests -destination 'platform=macOS' -quiet
 
-run-macos: ## Build and run macOS (Catalyst) app
+run-macos: proto ## Build and run macOS (Catalyst) app
 	cd clients/ios && xcodebuild -scheme Netclode -destination 'platform=macOS,variant=Mac Catalyst' -derivedDataPath .build $(XCODE_SIGN_ARGS) build
 	open clients/ios/.build/Build/Products/Debug-maccatalyst/Netclode.app
 
 SIMULATOR ?= iPhone 16 Pro
-run-ios: ## Build and run iOS simulator app (SIMULATOR="iPhone 16 Pro")
+run-ios: proto ## Build and run iOS simulator app (SIMULATOR="iPhone 16 Pro")
 	xcrun simctl boot "$(SIMULATOR)" 2>/dev/null || true
 	cd clients/ios && xcodebuild -scheme Netclode -destination 'platform=iOS Simulator,name=$(SIMULATOR)' -derivedDataPath .build $(XCODE_SIGN_ARGS) build
 	xcrun simctl install "$(SIMULATOR)" clients/ios/.build/Build/Products/Debug-iphonesimulator/Netclode.app
 	xcrun simctl launch "$(SIMULATOR)" com.netclode.ios
 
-run-device: ## Build and run on connected iPhone
+run-device: proto ## Build and run on connected iPhone
 	cd clients/ios && xcodebuild -scheme Netclode -destination 'generic/platform=iOS' -derivedDataPath .build $(XCODE_SIGN_ARGS) -allowProvisioningDeviceRegistration build
 	xcrun devicectl device install app --device "$(shell xcrun devicectl list devices 2>/dev/null | grep iPhone | grep -oE '[0-9A-F-]{36}' | head -1)" clients/ios/.build/Build/Products/Debug-iphoneos/Netclode.app
 	xcrun devicectl device process launch --device "$(shell xcrun devicectl list devices 2>/dev/null | grep iPhone | grep -oE '[0-9A-F-]{36}' | head -1)" com.netclode.ios

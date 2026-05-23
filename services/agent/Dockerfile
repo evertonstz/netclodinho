@@ -44,9 +44,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends python3 && rm -
 
 WORKDIR /build
 
-# Install esbuild for bundling
-RUN npm install -g esbuild
-
+# esbuild + buf are installed via npm install (devDeps)
 # =============================================================================
 # Global tool installs (cached layer — expensive, rarely changes)
 # =============================================================================
@@ -95,10 +93,11 @@ RUN --mount=type=cache,target=/root/.npm npm install
 # =============================================================================
 # Agent source copy + bundle
 # =============================================================================
+COPY proto/ /build/proto/
 COPY services/agent /build/services/agent
 
-# Bundle agent
-RUN esbuild src/index.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/agent.js
+# Bundle agent (prebuild runs buf generate first)
+RUN npm run build
 
 # Remove devDependencies
 RUN npm prune --omit=dev

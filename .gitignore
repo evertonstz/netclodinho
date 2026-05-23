@@ -64,3 +64,8 @@ secrets/
 services/control-plane/third_party/boxlite-go-sdk/boxlite.h
 services/control-plane/third_party/boxlite-go-sdk/libboxlite.a
 services/control-plane/control-plane
+
+# Generated proto code (rebuilt by buf generate during build)
+services/control-plane/gen/
+services/agent/gen/
+clients/ios/Netclode/Generated/

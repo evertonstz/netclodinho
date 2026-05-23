@@ -3,6 +3,8 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
+    "generate": "cd ../../proto && buf generate",
+    "prebuild": "npm run generate",
     "dev": "tsx watch src/index.ts",
     "build": "esbuild src/index.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/agent.js",
     "start": "node dist/agent.js",
@@ -26,6 +28,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.15",
+    "@bufbuild/buf": "^1.69.0",
     "@bufbuild/protoplugin": "^2.12.0",
     "@types/node": "^25.2.3",
     "esbuild": "^0.27.3",
