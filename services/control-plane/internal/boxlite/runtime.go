@@ -581,6 +581,8 @@ func sdkTypeFromEnv(env map[string]string) pb.SdkType {
 		return pb.SdkType_SDK_TYPE_COPILOT
 	case "SDK_TYPE_CODEX":
 		return pb.SdkType_SDK_TYPE_CODEX
+	case "SDK_TYPE_PI":
+		return pb.SdkType_SDK_TYPE_PI
 	default:
 		return pb.SdkType_SDK_TYPE_CLAUDE
 	}
