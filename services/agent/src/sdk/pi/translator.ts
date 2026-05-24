@@ -95,6 +95,8 @@ export interface PiTranslatorState {
   closedThinking: Set<string>;
   /** Set of thinking IDs currently open (started, not yet ended). */
   openThinking: Set<string>;
+  /** Set of tool call IDs currently in progress (toolStart emitted, toolEnd not yet). */
+  openTools: Set<string>;
   /** Map of toolCallId → epoch ms start time. */
   toolStartTimes: Map<string, number>;
 }
@@ -105,6 +107,7 @@ export function createPiTranslatorState(): PiTranslatorState {
     startedToolIds: new Set(),
     closedThinking: new Set(),
     openThinking: new Set(),
+    openTools: new Set(),
     toolStartTimes: new Map(),
   };
 }
@@ -114,6 +117,7 @@ export function resetPiTranslatorState(state: PiTranslatorState): void {
   state.startedToolIds.clear();
   state.closedThinking.clear();
   state.openThinking.clear();
+  state.openTools.clear();
   state.toolStartTimes.clear();
 }
 
@@ -131,6 +135,24 @@ export function flushOpenThinking(state: PiTranslatorState): PromptEvent[] {
   return events;
 }
 
+export function flushOpenTools(state: PiTranslatorState): PromptEvent[] {
+  const events: PromptEvent[] = [];
+  for (const toolUseId of state.openTools) {
+    let toolName = "unknown";
+    for (const [, info] of state.contentIndexToTool) {
+      if (info.id === toolUseId) { toolName = info.name; break; }
+    }
+    const startTime = state.toolStartTimes.get(toolUseId);
+    events.push({
+      type: "toolEnd",
+      tool: toolName,
+      toolUseId,
+      error: "Tool call interrupted",
+      durationMs: startTime ? Date.now() - startTime : undefined,
+    });
+  }
+  return events;
+}
 // ── Main translator ────────────────────────────────────────────────────────
 
 export function translatePiEvent(
@@ -233,6 +255,7 @@ function translateMessageUpdate(
         state.contentIndexToTool.set(ci, toolInfo);
         if (!state.startedToolIds.has(toolInfo.id)) {
           state.startedToolIds.add(toolInfo.id);
+          state.openTools.add(toolInfo.id);
           return {
             type: "toolStart",
             tool: toolInfo.name,
@@ -264,6 +287,7 @@ function translateMessageUpdate(
 
         if (!state.startedToolIds.has(tc.id)) {
           state.startedToolIds.add(tc.id);
+          state.openTools.add(tc.id);
           return {
             type: "toolStart",
             tool: tc.name,
@@ -315,8 +339,8 @@ function translateToolExecutionEnd(
   const durationMs = startTime ? Date.now() - startTime : undefined;
 
   state.startedToolIds.delete(event.toolCallId);
+  state.openTools.delete(event.toolCallId);
   state.toolStartTimes.delete(event.toolCallId);
-
   let resultStr: string | undefined;
   let errorStr: string | undefined;
 

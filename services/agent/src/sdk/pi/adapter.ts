@@ -23,6 +23,7 @@ import {
   resetPiTranslatorState,
   translatePiEvent,
   flushOpenThinking,
+  flushOpenTools,
   type PiTranslatorState,
   type PiAgentEvent,
 } from "./translator.js";
@@ -176,6 +177,10 @@ export class PiAdapter implements NetclodePromptBackend {
 
     // Close any thinking bubbles still open from the previous prompt
     for (const evt of flushOpenThinking(this.translatorState)) {
+      yield evt;
+    }
+
+    for (const evt of flushOpenTools(this.translatorState)) {
       yield evt;
     }
 
