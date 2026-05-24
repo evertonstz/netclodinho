@@ -97,13 +97,12 @@ export interface PiTranslatorState {
   openThinking: Set<string>;
   /** Set of tool call IDs currently in progress (toolStart emitted, toolEnd not yet). */
   openTools: Set<string>;
+  /** Current text message ID — changes when tools happen between text blocks. */
+  currentTextMessageId: string | null;
+  textMessageIdCounter: number;
   /** Map of toolCallId → epoch ms start time. */
   toolStartTimes: Map<string, number>;
-  /**
-   * Map of contentIndex → generated thinkingId.
-   * Ensures the same ID is used across thinking_start / thinking_delta / thinking_end
-   * for a single block, and that IDs are unique across prompts (incorporates Date.now()).
-   */
+  /** Map of contentIndex → generated thinkingId. */
   thinkingIdByIndex: Map<number, string>;
 }
 
@@ -114,6 +113,9 @@ export function createPiTranslatorState(): PiTranslatorState {
     closedThinking: new Set(),
     openThinking: new Set(),
     openTools: new Set(),
+
+    currentTextMessageId: null,
+    textMessageIdCounter: 0,
     toolStartTimes: new Map(),
     thinkingIdByIndex: new Map(),
   };
@@ -125,6 +127,7 @@ export function resetPiTranslatorState(state: PiTranslatorState): void {
   state.closedThinking.clear();
   state.openThinking.clear();
   state.openTools.clear();
+  state.currentTextMessageId = null;
   state.toolStartTimes.clear();
   state.thinkingIdByIndex.clear();
 }
@@ -178,16 +181,21 @@ export function translatePiEvent(
       return translateToolExecutionEnd(event, state);
 
     case "agent_end":
+      state.currentTextMessageId = null;
       return translateAgentEnd(event);
 
     case "agent_start":
-    case "turn_start":
     case "turn_end":
     case "message_start":
     case "message_end":
     case "tool_execution_update":
       // Internal lifecycle events — no user-visible prompt event.
       return null;
+
+    case "turn_start":
+      state.currentTextMessageId = null;
+      return null;
+
 
     default:
       return null;
@@ -206,10 +214,14 @@ function translateMessageUpdate(
   switch (evt.type) {
     case "text_delta":
       if (!evt.delta) return null;
+      if (!state.currentTextMessageId) {
+        state.currentTextMessageId = `msg_${Date.now()}_${++state.textMessageIdCounter}`;
+      }
       return {
         type: "textDelta",
         content: evt.delta,
         partial: true,
+        messageId: state.currentTextMessageId,
       };
 
     case "thinking_start": {
@@ -222,6 +234,7 @@ function translateMessageUpdate(
         state.thinkingIdByIndex.set(evt.contentIndex, thinkingId);
       }
       state.openThinking.add(thinkingId);
+      state.currentTextMessageId = null;
       return {
         type: "thinking",
         thinkingId,
@@ -258,6 +271,7 @@ function translateMessageUpdate(
 
     case "toolcall_start": {
       if (evt.contentIndex === undefined) return null;
+      state.currentTextMessageId = null;
       const ci = evt.contentIndex;
 
       // Try to extract tool id/name from the partial message content
@@ -339,6 +353,7 @@ function translateToolExecutionStart(
 ): PromptEvent | null {
   if (!event.toolCallId) return null;
   state.toolStartTimes.set(event.toolCallId, Date.now());
+  state.currentTextMessageId = null;
   return null; // toolStart emitted via message_update / toolcall_end
 }
 
@@ -389,7 +404,6 @@ function translateAgentEnd(event: PiAgentEvent): PromptEvent | null {
   let totalTurns = 0;
 
   for (const msg of messages) {
-    // usage is a top-level field on assistant messages in the Pi SDK.
     const msgAny = msg as unknown as Record<string, unknown>;
     const usage = msgAny.usage as Record<string, unknown> | undefined;
     if (usage && typeof usage === "object") {
@@ -402,3 +416,4 @@ function translateAgentEnd(event: PiAgentEvent): PromptEvent | null {
 
   return { type: "result", inputTokens, outputTokens, totalTurns };
 }
+
