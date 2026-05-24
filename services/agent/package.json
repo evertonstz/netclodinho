@@ -20,6 +20,7 @@
     "@connectrpc/connect": "^2.1.1",
     "@connectrpc/connect-node": "^2.1.1",
     "@earendil-works/pi-agent-core": "^0.75.4",
+    "@earendil-works/pi-coding-agent": "^0.75.5",
     "@github/copilot-sdk": "^0.1.23",
     "@openai/codex-sdk": "^0.101.0",
     "@opencode-ai/sdk": "^1.15.5",
