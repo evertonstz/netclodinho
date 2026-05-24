@@ -134,20 +134,17 @@ final class MessageRouter {
             if partial {
                 chatStore.appendAssistantPartial(sessionId: sessionId, delta: content, messageId: messageId)
             } else {
-                // Final message - only add if we don't already have an assistant message being built
-                // (the content was already accumulated via partials)
+                // Final message — append unless it duplicates the last assistant message.
+                // (If partials already built this text, skip. If tools happened
+                // between, last message won't be the same text.)
                 let existingMessages = chatStore.messages(for: sessionId)
-                let hasStreamingAssistant = existingMessages.last?.role == .assistant
-                if !hasStreamingAssistant {
-                    // No streaming in progress - this is a complete message (no partials were sent)
+                let lastAssistantContent = existingMessages.last(where: { $0.role == .assistant })?.content
+                if lastAssistantContent != content {
                     chatStore.appendMessage(
                         sessionId: sessionId,
                         message: ChatMessage(role: .assistant, content: content)
                     )
                 }
-                // If hasStreamingAssistant, the content is already there from partials - nothing to do
-            }
-
         case .agentEvent(let sessionId, let event):
             // Handle thinking events specially for streaming
             if case .thinking(let thinkingEvent) = event {
