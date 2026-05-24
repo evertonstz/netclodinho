@@ -93,6 +93,8 @@ export interface PiTranslatorState {
   startedToolIds: Set<string>;
   /** Set of thinking IDs that have been marked partial=false already. */
   closedThinking: Set<string>;
+  /** Set of thinking IDs currently open (started, not yet ended). */
+  openThinking: Set<string>;
   /** Map of toolCallId → epoch ms start time. */
   toolStartTimes: Map<string, number>;
 }
@@ -102,6 +104,7 @@ export function createPiTranslatorState(): PiTranslatorState {
     contentIndexToTool: new Map(),
     startedToolIds: new Set(),
     closedThinking: new Set(),
+    openThinking: new Set(),
     toolStartTimes: new Map(),
   };
 }
@@ -110,7 +113,22 @@ export function resetPiTranslatorState(state: PiTranslatorState): void {
   state.contentIndexToTool.clear();
   state.startedToolIds.clear();
   state.closedThinking.clear();
+  state.openThinking.clear();
   state.toolStartTimes.clear();
+}
+
+/** Return close events for any thinking blocks that are still open. */
+export function flushOpenThinking(state: PiTranslatorState): PromptEvent[] {
+  const events: PromptEvent[] = [];
+  for (const thinkingId of state.openThinking) {
+    events.push({
+      type: "thinking",
+      thinkingId,
+      content: "",
+      partial: false,
+    });
+  }
+  return events;
 }
 
 // ── Main translator ────────────────────────────────────────────────────────
@@ -167,6 +185,7 @@ function translateMessageUpdate(
     case "thinking_start": {
       if (evt.contentIndex === undefined) return null;
       const thinkingId = `pi-thinking-${evt.contentIndex}`;
+      state.openThinking.add(thinkingId);
       return {
         type: "thinking",
         thinkingId,
@@ -192,6 +211,7 @@ function translateMessageUpdate(
       const thinkingId = `pi-thinking-${evt.contentIndex}`;
       if (state.closedThinking.has(thinkingId)) return null;
       state.closedThinking.add(thinkingId);
+      state.openThinking.delete(thinkingId);
       return {
         type: "thinking",
         thinkingId,
