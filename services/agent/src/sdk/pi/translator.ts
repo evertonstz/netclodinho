@@ -10,10 +10,13 @@
  *   turn_end → ... → agent_end
  *
  * message_update carries an AssistantMessageEvent with deltas:
- *   - text_delta     → text streaming
- *   - thinking_delta → thinking/reasoning streaming
- *   - toolcall_delta → tool arg streaming (delta + contentIndex)
- *   - toolcall_end   → final tool call (ToolCall with id, name, args)
+ *   - text_delta        → text streaming
+ *   - thinking_start    → thinking block opened (partial=true, empty content)
+ *   - thinking_delta    → thinking/reasoning content delta
+ *   - thinking_end      → thinking block closed (partial=false)
+ *   - toolcall_start    → tool call block opened (→ toolStart)
+ *   - toolcall_delta    → tool arg delta (indexed by contentIndex)
+ *   - toolcall_end      → final tool call (registers id/name; → toolStart if needed)
  */
 
 import type { JsonObject } from "@bufbuild/protobuf";
@@ -92,8 +95,6 @@ export interface PiTranslatorState {
   closedThinking: Set<string>;
   /** Map of toolCallId → epoch ms start time. */
   toolStartTimes: Map<string, number>;
-  /** Tracks partially accumulated tool args strings by contentIndex. */
-  pendingArgs: Map<number, string>;
 }
 
 export function createPiTranslatorState(): PiTranslatorState {
@@ -102,7 +103,6 @@ export function createPiTranslatorState(): PiTranslatorState {
     startedToolIds: new Set(),
     closedThinking: new Set(),
     toolStartTimes: new Map(),
-    pendingArgs: new Map(),
   };
 }
 
@@ -111,7 +111,6 @@ export function resetPiTranslatorState(state: PiTranslatorState): void {
   state.startedToolIds.clear();
   state.closedThinking.clear();
   state.toolStartTimes.clear();
-  state.pendingArgs.clear();
 }
 
 // ── Main translator ────────────────────────────────────────────────────────
@@ -165,9 +164,21 @@ function translateMessageUpdate(
         partial: true,
       };
 
+    case "thinking_start": {
+      if (evt.contentIndex === undefined) return null;
+      const thinkingId = `pi-thinking-${evt.contentIndex}`;
+      return {
+        type: "thinking",
+        thinkingId,
+        content: "",
+        partial: true,
+      };
+    }
+
     case "thinking_delta": {
       if (!evt.delta) return null;
-      const thinkingId = "pi-thinking-0";
+      if (evt.contentIndex === undefined) return null;
+      const thinkingId = `pi-thinking-${evt.contentIndex}`;
       return {
         type: "thinking",
         thinkingId,
@@ -176,52 +187,53 @@ function translateMessageUpdate(
       };
     }
 
-    case "toolcall_delta": {
+    case "thinking_end": {
       if (evt.contentIndex === undefined) return null;
+      const thinkingId = `pi-thinking-${evt.contentIndex}`;
+      if (state.closedThinking.has(thinkingId)) return null;
+      state.closedThinking.add(thinkingId);
+      return {
+        type: "thinking",
+        thinkingId,
+        content: evt.content ?? "",
+        partial: false,
+      };
+    }
 
+    case "toolcall_start": {
+      if (evt.contentIndex === undefined) return null;
       const ci = evt.contentIndex;
-      const existing = state.contentIndexToTool.get(ci);
 
-      // If we haven't seen this tool yet, try to extract id/name from
-      // the partial message content (populated when toolcall_end arrives
-      // or when the ToolCall block is partially constructed).
-      if (!existing) {
-        const toolInfo = extractToolInfo(event.message as PiAgentMessage | undefined, ci);
-        if (toolInfo) {
-          state.contentIndexToTool.set(ci, toolInfo);
-        }
-      }
-
-      // Emit toolStart on first delta for this content index
-      const currentTool = state.contentIndexToTool.get(ci);
-      if (currentTool && !state.startedToolIds.has(currentTool.id)) {
-        state.startedToolIds.add(currentTool.id);
-        // Yield toolStart before the first arg delta
-        // We'll yield it immediately, then this delta goes as toolInput
-        // But we can only yield one event at a time from this function.
-        // Instead, emit toolStart first; the next delta will be toolInput.
-        // To handle this cleanly, emit toolStart + queue the current delta.
-        // For now, just emit toolStart — the delta will be handled next call.
-      }
-
-      // Stream delta as toolInput if we know the tool ID
-      const tool = state.contentIndexToTool.get(ci);
-      if (tool && evt.delta) {
-        // Accumulate delta to avoid sending the full accumulated string each time
-        const prev = state.pendingArgs.get(ci) || "";
-        const newPortion = evt.delta.slice(prev.length);
-        state.pendingArgs.set(ci, evt.delta);
-
-        if (newPortion) {
+      // Try to extract tool id/name from the partial message content
+      const toolInfo = extractToolInfo(
+        event.message as PiAgentMessage | undefined,
+        ci,
+      );
+      if (toolInfo) {
+        state.contentIndexToTool.set(ci, toolInfo);
+        if (!state.startedToolIds.has(toolInfo.id)) {
+          state.startedToolIds.add(toolInfo.id);
           return {
-            type: "toolInput",
-            toolUseId: tool.id,
-            inputDelta: newPortion,
+            type: "toolStart",
+            tool: toolInfo.name,
+            toolUseId: toolInfo.id,
           };
         }
       }
-
       return null;
+    }
+
+    case "toolcall_delta": {
+      if (evt.contentIndex === undefined) return null;
+      const ci = evt.contentIndex;
+      // toolcall_start always arrives before deltas in all Pi providers.
+      const tool = state.contentIndexToTool.get(ci);
+      if (!tool || !evt.delta) return null;
+      return {
+        type: "toolInput",
+        toolUseId: tool.id,
+        inputDelta: evt.delta,
+      };
     }
 
     case "toolcall_end": {
@@ -319,13 +331,12 @@ function translateAgentEnd(event: PiAgentEvent): PromptEvent | null {
   let totalTurns = 0;
 
   for (const msg of messages) {
-    const content = msg.content;
-    if (typeof content !== "object" || !content) continue;
-    const c = content as Record<string, unknown>;
-    if (typeof c.usage === "object" && c.usage) {
-      const usage = c.usage as Record<string, unknown>;
-      inputTokens += (usage.input_tokens as number) ?? (usage.inputTokens as number) ?? 0;
-      outputTokens += (usage.output_tokens as number) ?? (usage.outputTokens as number) ?? 0;
+    // usage is a top-level field on assistant messages in the Pi SDK.
+    const msgAny = msg as unknown as Record<string, unknown>;
+    const usage = msgAny.usage as Record<string, unknown> | undefined;
+    if (usage && typeof usage === "object") {
+      inputTokens += (usage.inputTokens as number) ?? 0;
+      outputTokens += (usage.outputTokens as number) ?? 0;
     }
   }
 
