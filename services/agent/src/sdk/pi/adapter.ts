@@ -15,7 +15,12 @@ import * as fs from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { Agent } from "@earendil-works/pi-agent-core";
 import { getModel } from "@earendil-works/pi-ai";
-import { createCodingTools } from "@earendil-works/pi-coding-agent";
+import {
+  createCodingTools,
+  createGrepTool,
+  createFindTool,
+  createLsTool,
+} from "@earendil-works/pi-coding-agent";
 import type { NetclodePromptBackend, SDKConfig, PromptConfig, PromptEvent } from "../types.js";
 import { createAgentCapabilities } from "../types.js";
 import { buildOpenCodeAuthContent } from "../auth-materializer.js";
@@ -119,7 +124,12 @@ export class PiAdapter implements NetclodePromptBackend {
           ? "medium" as const
           : "off" as const;
 
-    const codingTools = createCodingTools(WORKSPACE_DIR);
+    const tools = [
+      ...createCodingTools(WORKSPACE_DIR),
+      createGrepTool(WORKSPACE_DIR),
+      createFindTool(WORKSPACE_DIR),
+      createLsTool(WORKSPACE_DIR),
+    ];
     const agent = new Agent({
       initialState: {
         systemPrompt:
@@ -128,7 +138,7 @@ export class PiAdapter implements NetclodePromptBackend {
           "Work step by step. Be thorough.",
         model,
         thinkingLevel,
-        tools: codingTools,
+        tools,
       },
       getApiKey: (providerName: string) => {
         // Only handle GitHub Copilot OAuth — other providers use env vars
