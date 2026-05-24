@@ -27,6 +27,7 @@ export interface TranslatorState {
   currentTextMessageId: string | null;
   textMessageIdCounter: number;
   lastUsage: { inputTokens: number; outputTokens: number } | null;
+  textWasStreamed: boolean;
 }
 
 /**
@@ -41,9 +42,11 @@ export function createTranslatorState(): TranslatorState {
     currentTextMessageId: null,
     textMessageIdCounter: 0,
     lastUsage: null,
-  };
-}
+    textWasStreamed: false,
 
+  };
+
+}
 /**
  * Reset translator state for a new prompt
  */
@@ -53,6 +56,7 @@ export function resetTranslatorState(state: TranslatorState): void {
   state.currentThinkingId = null;
   state.currentTextMessageId = null;
   state.lastUsage = null;
+  state.textWasStreamed = false;
 }
 
 /**
@@ -64,6 +68,7 @@ export function translateMessageDelta(
 ): PromptEvent | null {
   const textContent = data.deltaContent || data.content;
   if (!textContent) return null;
+  state.textWasStreamed = true;
 
   if (!state.currentTextMessageId) {
     state.currentTextMessageId = `msg_${Date.now()}_${++state.textMessageIdCounter}`;
@@ -89,7 +94,7 @@ export function translateMessage(
 
   return {
     type: "textDelta",
-    content: data.content || "",
+    content: state.textWasStreamed ? "" : (data.content || ""),
     partial: false,
     messageId,
   };
@@ -268,3 +273,4 @@ export function translateEvent(
       return null;
   }
 }
+
