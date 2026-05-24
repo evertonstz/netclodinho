@@ -99,6 +99,12 @@ export interface PiTranslatorState {
   openTools: Set<string>;
   /** Map of toolCallId → epoch ms start time. */
   toolStartTimes: Map<string, number>;
+  /**
+   * Map of contentIndex → generated thinkingId.
+   * Ensures the same ID is used across thinking_start / thinking_delta / thinking_end
+   * for a single block, and that IDs are unique across prompts (incorporates Date.now()).
+   */
+  thinkingIdByIndex: Map<number, string>;
 }
 
 export function createPiTranslatorState(): PiTranslatorState {
@@ -109,6 +115,7 @@ export function createPiTranslatorState(): PiTranslatorState {
     openThinking: new Set(),
     openTools: new Set(),
     toolStartTimes: new Map(),
+    thinkingIdByIndex: new Map(),
   };
 }
 
@@ -119,6 +126,7 @@ export function resetPiTranslatorState(state: PiTranslatorState): void {
   state.openThinking.clear();
   state.openTools.clear();
   state.toolStartTimes.clear();
+  state.thinkingIdByIndex.clear();
 }
 
 /** Return close events for any thinking blocks that are still open. */
@@ -206,7 +214,13 @@ function translateMessageUpdate(
 
     case "thinking_start": {
       if (evt.contentIndex === undefined) return null;
-      const thinkingId = `pi-thinking-${evt.contentIndex}`;
+      let thinkingId = state.thinkingIdByIndex.get(evt.contentIndex);
+      if (!thinkingId) {
+        // Generate a unique ID that won't collide across prompts.
+        // contentIndex alone isn't sufficient — DeepSeek always uses index 0.
+        thinkingId = `pi-thinking-${Date.now()}-${evt.contentIndex}`;
+        state.thinkingIdByIndex.set(evt.contentIndex, thinkingId);
+      }
       state.openThinking.add(thinkingId);
       return {
         type: "thinking",
@@ -219,7 +233,7 @@ function translateMessageUpdate(
     case "thinking_delta": {
       if (!evt.delta) return null;
       if (evt.contentIndex === undefined) return null;
-      const thinkingId = `pi-thinking-${evt.contentIndex}`;
+      const thinkingId = state.thinkingIdByIndex.get(evt.contentIndex) ?? `pi-thinking-${evt.contentIndex}`;
       return {
         type: "thinking",
         thinkingId,
@@ -230,7 +244,7 @@ function translateMessageUpdate(
 
     case "thinking_end": {
       if (evt.contentIndex === undefined) return null;
-      const thinkingId = `pi-thinking-${evt.contentIndex}`;
+      const thinkingId = state.thinkingIdByIndex.get(evt.contentIndex) ?? `pi-thinking-${evt.contentIndex}`;
       if (state.closedThinking.has(thinkingId)) return null;
       state.closedThinking.add(thinkingId);
       state.openThinking.delete(thinkingId);

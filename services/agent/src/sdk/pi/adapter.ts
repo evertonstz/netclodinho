@@ -237,6 +237,13 @@ export class PiAdapter implements NetclodePromptBackend {
 
       if (promptError) {
         const err = promptError as Error;
+        // Close any thinking/tool bubbles still open (stream may have errored mid-flight)
+        for (const evt of flushOpenThinking(this.translatorState)) {
+          yield evt;
+        }
+        for (const evt of flushOpenTools(this.translatorState)) {
+          yield evt;
+        }
         yield {
           type: "error",
           message: err.message,
