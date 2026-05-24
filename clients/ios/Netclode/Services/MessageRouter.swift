@@ -145,6 +145,7 @@ final class MessageRouter {
                         message: ChatMessage(role: .assistant, content: content)
                     )
                 }
+            }
         case .agentEvent(let sessionId, let event):
             // Handle thinking events specially for streaming
             if case .thinking(let thinkingEvent) = event {
