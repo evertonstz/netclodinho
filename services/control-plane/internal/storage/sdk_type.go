@@ -16,6 +16,9 @@ var sdkTypeMappings = map[string]pb.SdkType{
 
 func init() {
 	for name := range pb.SdkType_value {
+		if name == "SDK_TYPE_UNSPECIFIED" {
+			continue
+		}
 		if _, ok := sdkTypeMappings[name]; !ok {
 			panic("sdkTypeMappings missing proto value: " + name)
 		}

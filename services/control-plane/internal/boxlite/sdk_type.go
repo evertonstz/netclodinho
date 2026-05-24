@@ -19,6 +19,9 @@ func init() {
 	// pb.SdkType_value is map[string]int32 — name → number.
 	// Missing in our map → panic at startup → caught by tests/CI.
 	for name := range pb.SdkType_value {
+		if name == "SDK_TYPE_UNSPECIFIED" {
+			continue
+		}
 		if _, ok := sdkTypeStringMappings[name]; !ok {
 			panic("sdkTypeStringMappings missing proto value: " + name)
 		}
