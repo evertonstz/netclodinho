@@ -386,7 +386,6 @@ struct ChatView: View {
         lastKnownStatus = session?.status
         let wasAtBottom = UserDefaults.standard.object(forKey: scrollStateKey) as? Bool ?? true
         isAtBottom = wasAtBottom
-        if isAtBottom { scrollToBottom(animated: false) }
         if let status = session?.status {
             withAnimation {
                 showStatusPill = true
