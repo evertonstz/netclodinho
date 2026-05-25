@@ -390,7 +390,7 @@ struct ChatView: View {
     
     private var scrollContent: some View {
         ScrollView(.vertical) {
-            VStack(spacing: Theme.Spacing.sm) {
+            LazyVStack(spacing: Theme.Spacing.sm) {
                 // Scroll position tracker
                 GeometryReader { geo in
                     Color.clear

@@ -45,6 +45,10 @@ mkdir -p /agent
 touch /agent/agent.log
 chown agent:agent /agent/agent.log 2>/dev/null || true
 chmod 640 /agent/agent.log
+# Restore sudo setuid bit (BoxLite strips it for security)
+if [ -f /usr/bin/sudo ]; then
+    chmod u+s /usr/bin/sudo || true
+fi
 
 # ── Startup log shipper ───────────────────────────────────────────────────────
 # Capture early startup info and POST it to the control-plane immediately so
