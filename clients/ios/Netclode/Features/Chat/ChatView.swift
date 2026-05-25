@@ -79,8 +79,8 @@ struct ChatView: View {
     // Status pill visibility
     @State private var showStatusPill = false
     @State private var lastKnownStatus: SessionStatus?
-    @State private var lastScrollOffset: CGFloat = 0
-    @State private var isScrollingUp = false
+    @State private var isAtBottom = true
+    @State private var isScrollDisabled = false
     @State private var hideStatusPillTask: Task<Void, Never>?
     
     // Track content visibility for fade-in animation
@@ -89,6 +89,9 @@ struct ChatView: View {
     // Store scroll proxy for programmatic scrolling
     @State private var scrollProxy: ScrollViewProxy?
 
+
+    /// Key for persisting scroll position across sessions
+    private var scrollStateKey: String { "chat.scroll.atBottom.\(sessionId)" }
     var messages: [ChatMessage] {
         chatStore.messages(for: sessionId)
     }
@@ -262,7 +265,7 @@ struct ChatView: View {
 
     var body: some View {
         mainContent
-            .safeAreaInset(edge: .bottom) {
+            .safeAreaInset(edge: .bottom, spacing: 0) {
                 ChatInputBar(
                     text: $inputText,
                     isProcessing: isProcessing,
@@ -273,6 +276,22 @@ struct ChatView: View {
                     hasQueuedMessage: hasQueuedMessage
                 )
             }
+            .overlay(alignment: .bottomTrailing) {
+                if !isAtBottom {
+                    Button {
+                        scrollToBottom()
+                    } label: {
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 44, height: 44)
+                            .glassEffect(.regular.interactive(), in: Circle())
+                    }
+                    .padding(.trailing, Theme.Spacing.md)
+                    .padding(.bottom, Theme.Spacing.md + 60)
+                }
+            }
+            .animation(.snappy, value: isAtBottom)
             .overlay(alignment: .top) { statusPillOverlay }
             .animation(.snappy, value: showStatusPill)
             .onChange(of: session?.status) { _, newStatus in
@@ -283,6 +302,9 @@ struct ChatView: View {
             }
             .onChange(of: isInputFocused) { _, focused in
                 handleInputFocusChange(focused)
+            }
+            .onChange(of: isAtBottom) { _, atBottom in
+                UserDefaults.standard.set(atBottom, forKey: scrollStateKey)
             }
     }
     
@@ -352,7 +374,7 @@ struct ChatView: View {
             hideStatusPillTask = Task {
                 try? await Task.sleep(for: .seconds(2))
                 guard !Task.isCancelled else { return }
-                if !isScrollingUp {
+                if isAtBottom {
                     withAnimation {
                         showStatusPill = false
                     }
@@ -360,9 +382,11 @@ struct ChatView: View {
             }
         }
     }
-    
     private func handleSessionAppear() async {
         lastKnownStatus = session?.status
+        let wasAtBottom = UserDefaults.standard.object(forKey: scrollStateKey) as? Bool ?? true
+        isAtBottom = wasAtBottom
+        if isAtBottom { scrollToBottom(animated: false) }
         if let status = session?.status {
             withAnimation {
                 showStatusPill = true
@@ -372,7 +396,7 @@ struct ChatView: View {
                 hideStatusPillTask = Task {
                     try? await Task.sleep(for: .seconds(2))
                     guard !Task.isCancelled else { return }
-                    if !isScrollingUp {
+                    if isAtBottom {
                         withAnimation {
                             showStatusPill = false
                         }
@@ -391,28 +415,16 @@ struct ChatView: View {
     private var scrollContent: some View {
         ScrollView(.vertical) {
             LazyVStack(spacing: Theme.Spacing.sm) {
-                // Scroll position tracker
-                GeometryReader { geo in
-                    Color.clear
-                        .preference(
-                            key: ScrollOffsetKey.self,
-                            value: geo.frame(in: .named("scroll")).minY
-                        )
-                }
-                .frame(height: 0)
-                
                 ForEach(cachedTimeline) { item in
                     timelineItemView(item)
                         .id(item.id)
                 }
 
-                // Streaming indicator (shows at end when processing)
                 if isProcessing {
                     StreamingIndicator()
                         .id("streaming")
                 }
 
-                // Scroll anchor
                 Color.clear
                     .frame(height: 1)
                     .id("bottom")
@@ -420,30 +432,30 @@ struct ChatView: View {
             .padding()
         }
         .defaultScrollAnchor(.bottom)
-        .coordinateSpace(name: "scroll")
-        .onPreferenceChange(ScrollOffsetKey.self) { offset in
-            let scrollingUp = offset > lastScrollOffset
-            if scrollingUp != isScrollingUp {
-                isScrollingUp = scrollingUp
-                // Only hide on scroll for .ready status - other statuses stay visible
-                let shouldShow = scrollingUp || session?.status != .ready
-                withAnimation(.snappy) {
-                    showStatusPill = shouldShow
-                }
-            }
-            lastScrollOffset = offset
+        .scrollDisabled(isScrollDisabled)
+        .onScrollPhaseChange { _, newPhase, context in
+            guard newPhase == .idle || newPhase == .decelerating else { return }
+            let g = context.geometry
+            let maxY = g.contentSize.height - g.containerSize.height + g.contentInsets.bottom
+            isAtBottom = (maxY - g.contentOffset.y) <= 280
         }
         .scrollDismissesKeyboard(.interactively)
     }
     
     private func scrollToBottom(animated: Bool = true) {
         guard let proxy = scrollProxy else { return }
-        if animated {
-            withAnimation(.glassSpring) {
+        isAtBottom = true
+        isScrollDisabled = true
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(150))
+            isScrollDisabled = false
+            if animated {
+                withAnimation(.glassSpring) {
+                    proxy.scrollTo("bottom", anchor: .bottom)
+                }
+            } else {
                 proxy.scrollTo("bottom", anchor: .bottom)
             }
-        } else {
-            proxy.scrollTo("bottom", anchor: .bottom)
         }
     }
 
@@ -672,19 +684,18 @@ struct ChatView: View {
         lastRepoOrderSignature = currentRepoOrderSignature
         
         cachedTimeline = computeTimeline()
+        if isAtBottom {
+            scrollToBottom(animated: false)
+        }
     }
     
 
 }
 
+
 // MARK: - Scroll Offset Key
 
-struct ScrollOffsetKey: PreferenceKey {
-    nonisolated(unsafe) static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}
+
 
 // MARK: - Status Pill
 
