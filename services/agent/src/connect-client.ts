@@ -564,6 +564,7 @@ async function handleControlPlaneMessage(
       break;
 
     case "terminalInput":
+      console.log("[terminal-debug] received terminalInput for session", sessionId, "case:", msg.message.value.input.case);
       handleTerminalInputMessage(msg.message.value, sessionId);
       break;
 

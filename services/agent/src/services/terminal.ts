@@ -69,16 +69,16 @@ async function getOrCreateSocket(sessionId: string, tabId: string = "0"): Promis
 export function writeToTerminal(data: string, sessionId: string = "default"): void {
   const key = sessionKey(sessionId);
   const sock = activeSockets.get(key);
+  console.log("[terminal-debug] writeToTerminal sessionId=%s key=%s hasSock=%s len=%d", sessionId, key, !!sock, data.length);
   if (sock) {
     sock.writeInput(data);
   } else {
-    // Lazy connect on first write
     getOrCreateSocket(sessionId).then((s) => s.writeInput(data));
   }
 }
-
 /** Resize the terminal */
 export async function resizeTerminal(cols: number, rows: number, sessionId: string = "default"): Promise<void> {
+  console.log("[terminal-debug] resizeTerminal sessionId=%s cols=%d rows=%d", sessionId, cols, rows);
   const sock = await getOrCreateSocket(sessionId);
   sock.writeResize({ cols, rows });
 }
