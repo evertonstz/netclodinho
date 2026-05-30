@@ -820,7 +820,9 @@ function handleTerminalInputMessage(
       handleTerminalInput(input.input.value, sessionId);
       break;
     case "resize":
-      resizeTerminal(input.input.value.cols, input.input.value.rows, sessionId);
+      if (input.input.value.cols > 0 && input.input.value.rows > 0) {
+        resizeTerminal(input.input.value.cols, input.input.value.rows, sessionId);
+      }
       break;
   }
 }

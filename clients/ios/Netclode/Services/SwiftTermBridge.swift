@@ -126,7 +126,9 @@ final class SwiftTermBridge: TerminalViewDelegate {
         Task { @MainActor in
             self.cols = newCols
             self.rows = newRows
-            self.connectService?.send(.terminalResize(sessionId: self.sessionId, cols: newCols, rows: newRows))
+            if newCols > 0, newRows > 0 {
+                self.connectService?.send(.terminalResize(sessionId: self.sessionId, cols: newCols, rows: newRows))
+            }
             
             // Feed pending data after first valid size is received
             // This ensures buffered content renders with correct column width
