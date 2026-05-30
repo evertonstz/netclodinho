@@ -641,25 +641,24 @@ func (c *ConnectConnection) handleTerminalInput(ctx context.Context, sessionID, 
 	if sessionID == "" {
 		return connect.NewError(connect.CodeInvalidArgument, errSessionIDRequired)
 	}
+	slog.Info("terminal-input: received", "sessionID", sessionID, "len", len(data))
 	if data == "" {
 		return nil // Empty input is a no-op
 	}
-
 	return c.manager.SendTerminalInput(ctx, sessionID, data)
 }
-
 var errInvalidTerminalDimensions = errors.New("cols and rows must be positive integers")
-
 func (c *ConnectConnection) handleTerminalResize(ctx context.Context, req *pb.TerminalResizeRequest) error {
 	if req.SessionId == "" {
 		return connect.NewError(connect.CodeInvalidArgument, errSessionIDRequired)
 	}
+	slog.Info("terminal-resize: received", "sessionID", req.SessionId, "cols", req.Cols, "rows", req.Rows)
 	if req.Cols <= 0 || req.Rows <= 0 {
 		return connect.NewError(connect.CodeInvalidArgument, errInvalidTerminalDimensions)
 	}
-
 	return c.manager.ResizeTerminal(ctx, req.SessionId, int(req.Cols), int(req.Rows))
 }
+
 
 func (c *ConnectConnection) handleSync(ctx context.Context) error {
 	sessions, err := c.manager.GetAllWithMeta(ctx)
