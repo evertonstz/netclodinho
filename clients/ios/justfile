@@ -1,0 +1,2 @@
+gen-proto:
+    cd ../../proto && buf generate --template buf.gen-swift.yaml

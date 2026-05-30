@@ -50,6 +50,7 @@ coverage/
 # iOS
 *.xcworkspace
 *.xcuserdata
+*.xcuserdatad
 Pods/
 clients/ios/.build/
 
