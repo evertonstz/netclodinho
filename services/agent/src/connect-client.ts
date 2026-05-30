@@ -564,7 +564,7 @@ async function handleControlPlaneMessage(
       break;
 
     case "terminalInput":
-      handleTerminalInputMessage(msg.message.value);
+      handleTerminalInputMessage(msg.message.value, sessionId);
       break;
 
     case "updateGitCredentials":
@@ -809,15 +809,18 @@ async function handleGetGitDiff(
 /**
  * Handle terminal input from control plane
  */
-function handleTerminalInputMessage(input: {
-  input: { case: "data"; value: string } | { case: "resize"; value: { cols: number; rows: number } } | { case: undefined; value?: undefined };
-}): void {
+function handleTerminalInputMessage(
+  input: {
+    input: { case: "data"; value: string } | { case: "resize"; value: { cols: number; rows: number } } | { case: undefined; value?: undefined };
+  },
+  sessionId: string,
+): void {
   switch (input.input.case) {
     case "data":
-      handleTerminalInput(input.input.value);
+      handleTerminalInput(input.input.value, sessionId);
       break;
     case "resize":
-      resizeTerminal(input.input.value.cols, input.input.value.rows);
+      resizeTerminal(input.input.value.cols, input.input.value.rows, sessionId);
       break;
   }
 }
