@@ -1,11 +1,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { EventEmitter } from "node:events";
-
-const mockSocket = new EventEmitter();
-mockSocket.writeInput = vi.fn();
-mockSocket.writeResize = vi.fn();
-mockSocket.writeFrame = vi.fn();
-mockSocket.close = vi.fn();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockSocket = Object.assign(new EventEmitter(), {
+  writeInput: vi.fn(),
+  writeResize: vi.fn(),
+  writeFrame: vi.fn(),
+  close: vi.fn(),
+}) as EventEmitter & {
+  writeInput: ReturnType<typeof vi.fn>;
+  writeResize: ReturnType<typeof vi.fn>;
+  writeFrame: ReturnType<typeof vi.fn>;
+  close: ReturnType<typeof vi.fn>;
+};
 
 vi.mock("./zmx-service.js", () => ({
   getZmxService: () => ({
