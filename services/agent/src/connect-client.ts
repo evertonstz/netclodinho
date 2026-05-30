@@ -43,7 +43,7 @@ import {
 } from "../gen/netclode/v1/common_pb.js";
 
 // Import modular services
-import { handleTerminalInput, resizeTerminal, setTerminalOutputCallback } from "./services/terminal.js";
+import { handleTerminalInput, resizeTerminal, setTerminalOutputCallback, getTerminalHistory } from "./services/terminal.js";
 import { configureGitCredentials } from "./git.js";
 
 // Import backend/runtime abstraction layer
@@ -423,12 +423,24 @@ export async function connectToControlPlane(
       );
     }
   });
-
+  // Replay zmx terminal history if session was persisted (restores visual state)
+  if (sessionId) {
+    getTerminalHistory(sessionId).then((history) => {
+      if (history && connection) {
+        connection.send(
+          create(AgentMessageSchema, {
+            message: {
+              case: "terminalOutput",
+              value: create(AgentTerminalOutputSchema, { data: history }),
+            },
+          })
+        );
+      }
+    }).catch(() => { /* zmx not installed or session not found — skip */ });
+  }
   // Track current session ID - may be assigned later in warm pool mode
   let currentSessionId = sessionId;
-
   try {
-    // Start bidirectional stream
     const stream = client.connect(messageGenerator());
 
     connection = {

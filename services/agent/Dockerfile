@@ -36,9 +36,8 @@ FROM base AS builder
 
 ARG TARGETARCH
 
-# Install Python for node-gyp (required by node-pty) and Node via mise
-RUN apt-get update && apt-get install -y --no-install-recommends python3 && rm -rf /var/lib/apt/lists/* && \
-    mise install node@24 && \
+# Install Node via mise (zmx replaces node-pty — no Python/node-gyp needed)
+RUN mise install node@24 && \
     mise use -g node@24 && \
     mise reshim
 
@@ -136,6 +135,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends unzip && \
     mv /tmp/bun-linux-*/bun /opt/bun && \
     chmod +x /opt/bun && \
     rm -rf /tmp/bun.zip /tmp/bun-linux-* /var/lib/apt/lists/*
+# Install zmx (terminal session manager, replaces node-pty/tmux)
+ARG ZMX_VERSION=0.6.0
+RUN ZMX_ARCH=$([ "$TARGETARCH" = "arm64" ] && echo "aarch64" || echo "x86_64") && \
+    curl -fsSL "https://zmx.sh/a/zmx-${ZMX_VERSION}-linux-${ZMX_ARCH}.tar.gz" -o /tmp/zmx.tar.gz && \
+    tar xzf /tmp/zmx.tar.gz -C /usr/local/bin && \
+    rm /tmp/zmx.tar.gz
 
 # Copy stable binaries
 COPY --from=builder /usr/local/bin/opencode /usr/local/bin/opencode

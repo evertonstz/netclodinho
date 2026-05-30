@@ -86,11 +86,9 @@ struct ChatView: View {
     // Track content visibility for fade-in animation
     @State private var isContentVisible = false
     
-    // Store scroll proxy for programmatic scrolling
-    @State private var scrollProxy: ScrollViewProxy?
+    @State private var scrollPosition = ScrollPosition(idType: UUID.self)
 
-
-    /// Key for persisting scroll position across sessions
+    private var scrollViewIDKey: String { "chat.scroll.viewID.\(sessionId)" }
     private var scrollStateKey: String { "chat.scroll.atBottom.\(sessionId)" }
     var messages: [ChatMessage] {
         chatStore.messages(for: sessionId)
@@ -309,24 +307,21 @@ struct ChatView: View {
     }
     
     private var mainContent: some View {
-        ScrollViewReader { proxy in
-            scrollContent
-                .opacity(isContentVisible ? 1 : 0)
-                .onAppear { scrollProxy = proxy }
-                .onChange(of: messages.count) { updateTimelineIfNeeded() }
-                .onChange(of: messages.last?.content) { updateTimelineIfNeeded() }
-                .onChange(of: events.count) { updateTimelineIfNeeded() }
-                .onChange(of: thinkingContentLength) { updateTimelineIfNeeded() }
-                .onChange(of: isProcessing) { updateTimelineIfNeeded() }
-                .onChange(of: sessionReposSignature) { updateTimelineIfNeeded() }
-                .onChange(of: toolInputContentLength) { updateTimelineIfNeeded() }
-                .onChange(of: cachedTimeline.isEmpty) { _, isEmpty in
-                    handleTimelineChange(isEmpty)
-                }
-                .task(id: sessionId) {
-                    await handleSessionChange()
-                }
-        }
+        scrollContent
+            .opacity(isContentVisible ? 1 : 0)
+            .onChange(of: messages.count) { updateTimelineIfNeeded() }
+            .onChange(of: messages.last?.content) { updateTimelineIfNeeded() }
+            .onChange(of: events.count) { updateTimelineIfNeeded() }
+            .onChange(of: thinkingContentLength) { updateTimelineIfNeeded() }
+            .onChange(of: isProcessing) { updateTimelineIfNeeded() }
+            .onChange(of: sessionReposSignature) { updateTimelineIfNeeded() }
+            .onChange(of: toolInputContentLength) { updateTimelineIfNeeded() }
+            .onChange(of: cachedTimeline.isEmpty) { _, isEmpty in
+                handleTimelineChange(isEmpty)
+            }
+            .task(id: sessionId) {
+                await handleSessionChange()
+            }
     }
     
     @ViewBuilder
@@ -351,9 +346,14 @@ struct ChatView: View {
     }
     
     private func handleSessionChange() async {
+        // Restore saved scroll state before populating timeline
+        // to prevent updateTimelineIfNeeded from spuriously scrolling to bottom.
+        let wasAtBottom = UserDefaults.standard.object(forKey: scrollStateKey) as? Bool ?? true
+        isAtBottom = wasAtBottom
+
         isContentVisible = false
         updateTimelineIfNeeded()
-        
+
         if !cachedTimeline.isEmpty {
             withAnimation(.easeOut(duration: 0.20)) {
                 isContentVisible = true
@@ -384,8 +384,15 @@ struct ChatView: View {
     }
     private func handleSessionAppear() async {
         lastKnownStatus = session?.status
-        let wasAtBottom = UserDefaults.standard.object(forKey: scrollStateKey) as? Bool ?? true
-        isAtBottom = wasAtBottom
+        // Restore scroll position from previous session.
+        // isAtBottom was already restored in handleSessionChange; only handle non-bottom case here.
+        if !isAtBottom,
+           let savedIDString = UserDefaults.standard.string(forKey: scrollViewIDKey),
+           let savedID = UUID(uuidString: savedIDString) {
+            // Defer until ScrollView is laid out
+            try? await Task.sleep(for: .milliseconds(300))
+            scrollPosition.scrollTo(id: savedID)
+        }
         if let status = session?.status {
             withAnimation {
                 showStatusPill = true
@@ -424,25 +431,27 @@ struct ChatView: View {
                         .id("streaming")
                 }
 
-                Color.clear
-                    .frame(height: 1)
-                    .id("bottom")
             }
-            .padding()
+            .scrollTargetLayout()
         }
+        .contentMargins(.all, Theme.Spacing.md)
         .defaultScrollAnchor(.bottom)
         .scrollDisabled(isScrollDisabled)
+        .scrollPosition($scrollPosition)
         .onScrollPhaseChange { _, newPhase, context in
             guard newPhase == .idle || newPhase == .decelerating else { return }
             let g = context.geometry
             let maxY = g.contentSize.height - g.containerSize.height + g.contentInsets.bottom
             isAtBottom = (maxY - g.contentOffset.y) <= 280
+            // Save top-visible message ID for session restore
+            if let viewID = scrollPosition.viewID(type: UUID.self) {
+                UserDefaults.standard.set(viewID.uuidString, forKey: scrollViewIDKey)
+            }
         }
         .scrollDismissesKeyboard(.interactively)
     }
     
     private func scrollToBottom(animated: Bool = true) {
-        guard let proxy = scrollProxy else { return }
         isAtBottom = true
         isScrollDisabled = true
         Task { @MainActor in
@@ -450,10 +459,10 @@ struct ChatView: View {
             isScrollDisabled = false
             if animated {
                 withAnimation(.glassSpring) {
-                    proxy.scrollTo("bottom", anchor: .bottom)
+                    scrollPosition.scrollTo(edge: .bottom)
                 }
             } else {
-                proxy.scrollTo("bottom", anchor: .bottom)
+                scrollPosition.scrollTo(edge: .bottom)
             }
         }
     }
