@@ -22,7 +22,7 @@ func newRedisBacked(t *testing.T) (*Manager, *mockRuntime) {
 
 	cfg := &config.Config{
 		Port:        3000,
-		RuntimeMode: "docker",
+		RuntimeMode: config.RuntimeModeBoxlite,
 		RedisURL:    "redis://" + mr.Addr(),
 	}
 	store, err := storage.NewRedisStorage(context.Background(), cfg)
