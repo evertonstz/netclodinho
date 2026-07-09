@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	dockerclient "github.com/moby/moby/client"
 
 	"github.com/angristan/netclode/services/control-plane/internal/config"
@@ -326,5 +327,126 @@ func TestImageLocalSkipsPull(t *testing.T) {
 	// Image is confirmed local — ensureImage must return nil without pulling.
 	if err := rt.ensureImage(context.Background()); err != nil {
 		t.Errorf("ensureImage() returned error for locally-present image: %v", err)
+	}
+}
+
+// TestDeleteSandbox verifies that DeleteSandbox stops the container but leaves
+// it and its volume intact (D-01 stop-and-keep — pause path, not full teardown).
+//
+// Daemon-gated; skips cleanly when no daemon or required image absent.
+func TestDeleteSandbox(t *testing.T) {
+	const network = "netclode_default"
+	const image = "netclode-agent:local"
+
+	cfg := &config.Config{
+		RuntimeMode:   config.RuntimeModeDocker,
+		DockerNetwork: network,
+		AgentImage:    image,
+	}
+
+	rt, err := NewRuntime(cfg)
+	if err != nil {
+		t.Skipf("docker daemon not reachable, skipping: %v", err)
+	}
+	defer rt.Close()
+
+	if _, inspectErr := rt.client.ImageInspect(context.Background(), image); inspectErr != nil {
+		t.Skipf("agent image %q not present locally; skipping integration test: %v", image, inspectErr)
+	}
+
+	sessionID := "test-deletesandbox"
+
+	t.Cleanup(func() {
+		ctx := context.Background()
+		_, _ = rt.client.ContainerRemove(ctx, containerName(sessionID), dockerclient.ContainerRemoveOptions{Force: true})
+		_, _ = rt.client.VolumeRemove(ctx, volumeName(sessionID), dockerclient.VolumeRemoveOptions{Force: true})
+	})
+
+	// Create the sandbox first.
+	if err := rt.CreateSandbox(context.Background(), sessionID, map[string]string{}, nil); err != nil {
+		t.Fatalf("CreateSandbox() setup failed: %v", err)
+	}
+
+	// DeleteSandbox should stop the container.
+	if err := rt.DeleteSandbox(context.Background(), sessionID); err != nil {
+		t.Fatalf("DeleteSandbox() returned unexpected error: %v", err)
+	}
+
+	// Container must still exist (just stopped — D-01).
+	inspectResult, err := rt.client.ContainerInspect(context.Background(), containerName(sessionID), dockerclient.ContainerInspectOptions{})
+	if err != nil {
+		t.Fatalf("ContainerInspect() after DeleteSandbox failed: %v — container should still exist (D-01)", err)
+	}
+	if inspectResult.Container.State != nil && inspectResult.Container.State.Running {
+		t.Errorf("container should be stopped after DeleteSandbox, but State.Running = true")
+	}
+
+	// Volume must still exist (D-01).
+	if _, err := rt.client.VolumeInspect(context.Background(), volumeName(sessionID), dockerclient.VolumeInspectOptions{}); err != nil {
+		t.Errorf("VolumeInspect() after DeleteSandbox failed: %v — volume should still exist (D-01)", err)
+	}
+
+	// Idempotent: calling DeleteSandbox on an already-stopped container must return nil.
+	if err := rt.DeleteSandbox(context.Background(), sessionID); err != nil {
+		t.Errorf("DeleteSandbox() on already-stopped container returned error: %v (should be idempotent)", err)
+	}
+}
+
+// TestDeletePVC verifies that DeletePVC force-removes the container and its workspace
+// volume (D-01/D-07 full teardown path).
+//
+// Daemon-gated; skips cleanly when no daemon or required image absent.
+func TestDeletePVC(t *testing.T) {
+	const network = "netclode_default"
+	const image = "netclode-agent:local"
+
+	cfg := &config.Config{
+		RuntimeMode:   config.RuntimeModeDocker,
+		DockerNetwork: network,
+		AgentImage:    image,
+	}
+
+	rt, err := NewRuntime(cfg)
+	if err != nil {
+		t.Skipf("docker daemon not reachable, skipping: %v", err)
+	}
+	defer rt.Close()
+
+	if _, inspectErr := rt.client.ImageInspect(context.Background(), image); inspectErr != nil {
+		t.Skipf("agent image %q not present locally; skipping integration test: %v", image, inspectErr)
+	}
+
+	sessionID := "test-deletepvc"
+
+	t.Cleanup(func() {
+		ctx := context.Background()
+		_, _ = rt.client.ContainerRemove(ctx, containerName(sessionID), dockerclient.ContainerRemoveOptions{Force: true})
+		_, _ = rt.client.VolumeRemove(ctx, volumeName(sessionID), dockerclient.VolumeRemoveOptions{Force: true})
+	})
+
+	// Create the sandbox first.
+	if err := rt.CreateSandbox(context.Background(), sessionID, map[string]string{}, nil); err != nil {
+		t.Fatalf("CreateSandbox() setup failed: %v", err)
+	}
+
+	// DeletePVC should force-remove the container and volume.
+	if err := rt.DeletePVC(context.Background(), sessionID); err != nil {
+		t.Fatalf("DeletePVC() returned unexpected error: %v", err)
+	}
+
+	// Container must no longer exist.
+	_, err = rt.client.ContainerInspect(context.Background(), containerName(sessionID), dockerclient.ContainerInspectOptions{})
+	if err == nil {
+		t.Errorf("ContainerInspect() after DeletePVC succeeded — container should be gone")
+	} else if !cerrdefs.IsNotFound(err) {
+		t.Errorf("ContainerInspect() after DeletePVC returned unexpected error (want not-found): %v", err)
+	}
+
+	// Volume must no longer exist.
+	_, err = rt.client.VolumeInspect(context.Background(), volumeName(sessionID), dockerclient.VolumeInspectOptions{})
+	if err == nil {
+		t.Errorf("VolumeInspect() after DeletePVC succeeded — volume should be gone")
+	} else if !cerrdefs.IsNotFound(err) {
+		t.Errorf("VolumeInspect() after DeletePVC returned unexpected error (want not-found): %v", err)
 	}
 }
