@@ -632,3 +632,79 @@ func TestDeletePVC(t *testing.T) {
 		t.Errorf("VolumeInspect() after DeletePVC returned unexpected error (want not-found): %v", err)
 	}
 }
+
+// TestOrphanCleanup verifies CleanupOrphans removes containers and volumes whose sessionID
+// is NOT in the known set, while leaving known sessions untouched (DEVX-02, D-06, D-07).
+//
+// Daemon-gated; skips cleanly when no daemon or required image absent.
+func TestOrphanCleanup(t *testing.T) {
+	const network = "netclode_default"
+	const image = "netclode-agent:local"
+
+	cfg := &config.Config{
+		RuntimeMode:   config.RuntimeModeDocker,
+		DockerNetwork: network,
+		AgentImage:    image,
+	}
+
+	rt, err := NewRuntime(cfg)
+	if err != nil {
+		t.Skipf("docker daemon not reachable, skipping: %v", err)
+	}
+	defer rt.Close()
+
+	if _, inspectErr := rt.client.ImageInspect(context.Background(), image); inspectErr != nil {
+		t.Skipf("agent image %q not present locally; skipping integration test: %v", image, inspectErr)
+	}
+
+	orphanID := "test-orphan"
+	knownID := "test-known"
+
+	t.Cleanup(func() {
+		ctx := context.Background()
+		// Force-remove both in case a test assertion failed mid-way.
+		_, _ = rt.client.ContainerRemove(ctx, containerName(orphanID), dockerclient.ContainerRemoveOptions{Force: true})
+		_, _ = rt.client.VolumeRemove(ctx, volumeName(orphanID), dockerclient.VolumeRemoveOptions{Force: true})
+		_, _ = rt.client.ContainerRemove(ctx, containerName(knownID), dockerclient.ContainerRemoveOptions{Force: true})
+		_, _ = rt.client.VolumeRemove(ctx, volumeName(knownID), dockerclient.VolumeRemoveOptions{Force: true})
+	})
+
+	// Create both sandboxes.
+	if err := rt.CreateSandbox(context.Background(), orphanID, map[string]string{}, nil); err != nil {
+		t.Fatalf("CreateSandbox(orphan) failed: %v", err)
+	}
+	if err := rt.CreateSandbox(context.Background(), knownID, map[string]string{}, nil); err != nil {
+		t.Fatalf("CreateSandbox(known) failed: %v", err)
+	}
+
+	// CleanupOrphans with only knownID in the known set — orphanID should be removed.
+	knownSessionIDs := map[string]bool{knownID: true}
+	if err := rt.CleanupOrphans(context.Background(), knownSessionIDs); err != nil {
+		t.Fatalf("CleanupOrphans() returned error: %v", err)
+	}
+
+	// Orphan container and volume must be gone.
+	_, err = rt.client.ContainerInspect(context.Background(), containerName(orphanID), dockerclient.ContainerInspectOptions{})
+	if err == nil {
+		t.Errorf("orphan container %q still exists after CleanupOrphans — expected not-found", containerName(orphanID))
+	} else if !cerrdefs.IsNotFound(err) {
+		t.Errorf("ContainerInspect(orphan) returned unexpected error: %v", err)
+	}
+
+	_, err = rt.client.VolumeInspect(context.Background(), volumeName(orphanID), dockerclient.VolumeInspectOptions{})
+	if err == nil {
+		t.Errorf("orphan volume %q still exists after CleanupOrphans — expected not-found", volumeName(orphanID))
+	} else if !cerrdefs.IsNotFound(err) {
+		t.Errorf("VolumeInspect(orphan) returned unexpected error: %v", err)
+	}
+
+	// Known session container and volume must still exist.
+	_, err = rt.client.ContainerInspect(context.Background(), containerName(knownID), dockerclient.ContainerInspectOptions{})
+	if err != nil {
+		t.Errorf("known container %q was incorrectly removed by CleanupOrphans: %v", containerName(knownID), err)
+	}
+	_, err = rt.client.VolumeInspect(context.Background(), volumeName(knownID), dockerclient.VolumeInspectOptions{})
+	if err != nil {
+		t.Errorf("known volume %q was incorrectly removed by CleanupOrphans: %v", volumeName(knownID), err)
+	}
+}
