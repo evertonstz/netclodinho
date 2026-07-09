@@ -179,6 +179,25 @@ func run() error {
 		return fmt.Errorf("init manager: %w", err)
 	}
 
+	// Startup orphan cleanup for the Docker Engine runtime (DEVX-02, D-08).
+	// CleanupOrphans is not on the k8s.Runtime interface — reached via concrete-type assertion
+	// so the interface is not modified (project constraint).
+	// Runs AFTER manager.Initialize so all storage sessions are already loaded.
+	if dr, ok := runtime.(*docker.Runtime); ok {
+		sessions, err := store.GetAllSessions(ctx)
+		if err != nil {
+			slog.Warn("Docker orphan cleanup: failed to list sessions, skipping", "error", err)
+		} else {
+			knownSessionIDs := make(map[string]bool, len(sessions))
+			for _, s := range sessions {
+				knownSessionIDs[s.Id] = true
+			}
+			if err := dr.CleanupOrphans(ctx, knownSessionIDs); err != nil {
+				slog.Warn("Docker orphan cleanup failed", "error", err)
+			}
+		}
+	}
+
 	// Create HTTP/Connect server
 	server := api.NewServer(manager)
 

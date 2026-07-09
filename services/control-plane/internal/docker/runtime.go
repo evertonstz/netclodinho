@@ -397,6 +397,49 @@ func (r *Runtime) Exec(_ context.Context, _ string, _ string, _ ...string) (*k8s
 }
 
 // ---------------------------------------------------------------------------
+// CleanupOrphans — startup-time orphan removal (D-06, D-07, D-08, DEVX-02).
+// ---------------------------------------------------------------------------
+
+// CleanupOrphans removes managed containers (and their workspace volumes) whose
+// sessionID is not a key in knownSessionIDs.
+//
+// Must be called once at startup — after manager.Initialize loads all storage sessions —
+// via a type assertion in main.go (D-08: startup only, no periodic sweep).
+// The k8s.Runtime interface is NOT modified; this is a concrete *Runtime method.
+//
+// Orphan definition (D-06): a managed-labeled container in this stack's network scope
+// whose session-id label has no record in persistent storage.
+//
+// Individual removal failures are logged and skipped (log-and-continue per D-06/D-07);
+// a stuck orphan must never abort the control plane startup (T-02-08 mitigated).
+func (r *Runtime) CleanupOrphans(ctx context.Context, knownSessionIDs map[string]bool) error {
+	sandboxes, err := r.ListSandboxes(ctx)
+	if err != nil {
+		return fmt.Errorf("list sandboxes for orphan cleanup: %w", err)
+	}
+
+	for _, sb := range sandboxes {
+		if knownSessionIDs[sb.SessionID] {
+			continue // known session — keep
+		}
+		slog.Info("Docker: removing orphan container", "sessionID", sb.SessionID)
+
+		// Remove container (Force:true handles both running and stopped orphans).
+		if _, err := r.client.ContainerRemove(ctx, containerName(sb.SessionID), dockerclient.ContainerRemoveOptions{Force: true}); err != nil && !cerrdefs.IsNotFound(err) {
+			slog.Warn("Docker: failed to remove orphan container", "sessionID", sb.SessionID, "error", err)
+			// log-and-continue — attempt volume removal regardless
+		}
+
+		// Remove workspace volume (D-07: orphan cleanup removes container AND volume).
+		if _, err := r.client.VolumeRemove(ctx, volumeName(sb.SessionID), dockerclient.VolumeRemoveOptions{Force: true}); err != nil && !cerrdefs.IsNotFound(err) {
+			slog.Warn("Docker: failed to remove orphan volume", "sessionID", sb.SessionID, "error", err)
+			// log-and-continue — a stuck volume never aborts startup (T-02-08)
+		}
+	}
+	return nil
+}
+
+// ---------------------------------------------------------------------------
 // No-ops — harmless to ignore (mirrors boxlite disposition exactly).
 // ---------------------------------------------------------------------------
 
