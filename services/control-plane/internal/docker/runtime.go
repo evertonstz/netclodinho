@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/mount"
 	dockerclient "github.com/moby/moby/client"
@@ -296,12 +297,42 @@ func (r *Runtime) GetStatus(_ context.Context, _ string) (*k8s.SandboxStatusInfo
 	return nil, fmt.Errorf("%w: GetStatus not yet implemented (Phase 2)", ErrNotSupported)
 }
 
-func (r *Runtime) DeleteSandbox(_ context.Context, _ string) error {
-	return fmt.Errorf("%w: DeleteSandbox not yet implemented (Phase 2)", ErrNotSupported)
+// DeleteSandbox stops the container but keeps it and its volume for pause/resume (D-01).
+//
+// Full teardown (container + volume removal) is performed by DeletePVC.
+// The manager's full-delete chain calls DeleteSandbox then DeletePVC in sequence
+// (manager.go:1179-1185). Returning nil on not-found makes DeleteSandbox idempotent.
+func (r *Runtime) DeleteSandbox(ctx context.Context, sessionID string) error {
+	if _, err := r.client.ContainerStop(ctx, containerName(sessionID), dockerclient.ContainerStopOptions{}); err != nil {
+		if cerrdefs.IsNotFound(err) {
+			return nil // already gone; not an error (idempotent)
+		}
+		return fmt.Errorf("container stop: %w", err)
+	}
+	slog.Info("Docker: container stopped", "sessionID", sessionID)
+	return nil
 }
 
-func (r *Runtime) DeletePVC(_ context.Context, _ string) error {
-	return fmt.Errorf("%w: DeletePVC not yet implemented (Phase 2)", ErrNotSupported)
+// DeletePVC force-removes the container and its workspace volume (D-01, D-07).
+//
+// Force:true handles both running and stopped containers without error (Pitfall 6).
+// Container removal continues to volume removal even when the container is already gone —
+// the volume must always be cleaned up. Volume removal error is surfaced to the caller.
+func (r *Runtime) DeletePVC(ctx context.Context, sessionID string) error {
+	if _, err := r.client.ContainerRemove(ctx, containerName(sessionID), dockerclient.ContainerRemoveOptions{
+		Force: true,
+	}); err != nil && !cerrdefs.IsNotFound(err) {
+		// Log and continue — volume must still be removed even if container removal fails.
+		slog.Warn("Docker: container remove failed", "sessionID", sessionID, "error", err)
+	}
+
+	if _, err := r.client.VolumeRemove(ctx, volumeName(sessionID), dockerclient.VolumeRemoveOptions{
+		Force: true,
+	}); err != nil && !cerrdefs.IsNotFound(err) {
+		return fmt.Errorf("volume remove: %w", err)
+	}
+	slog.Info("Docker: container and volume removed", "sessionID", sessionID)
+	return nil
 }
 
 func (r *Runtime) ListSandboxes(_ context.Context) ([]k8s.SandboxInfo, error) {
