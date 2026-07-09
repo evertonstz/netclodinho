@@ -392,6 +392,92 @@ func TestDeleteSandbox(t *testing.T) {
 	}
 }
 
+// TestListSandboxes verifies ListSandboxes returns label-filtered results including stopped
+// containers from the daemon directly (SESS-05, D-05 daemon-as-source-of-truth, D-11 network scope).
+//
+// Daemon-gated; skips cleanly when no daemon or required image absent.
+func TestListSandboxes(t *testing.T) {
+	const network = "netclode_default"
+	const image = "netclode-agent:local"
+
+	cfg := &config.Config{
+		RuntimeMode:   config.RuntimeModeDocker,
+		DockerNetwork: network,
+		AgentImage:    image,
+	}
+
+	rt, err := NewRuntime(cfg)
+	if err != nil {
+		t.Skipf("docker daemon not reachable, skipping: %v", err)
+	}
+	defer rt.Close()
+
+	if _, inspectErr := rt.client.ImageInspect(context.Background(), image); inspectErr != nil {
+		t.Skipf("agent image %q not present locally; skipping integration test: %v", image, inspectErr)
+	}
+
+	sessionID := "test-listsandboxes"
+
+	t.Cleanup(func() {
+		ctx := context.Background()
+		_, _ = rt.client.ContainerRemove(ctx, containerName(sessionID), dockerclient.ContainerRemoveOptions{Force: true})
+		_, _ = rt.client.VolumeRemove(ctx, volumeName(sessionID), dockerclient.VolumeRemoveOptions{Force: true})
+	})
+
+	// Create a sandbox — it should appear in ListSandboxes with Ready:true.
+	if err := rt.CreateSandbox(context.Background(), sessionID, map[string]string{}, nil); err != nil {
+		t.Fatalf("CreateSandbox() setup failed: %v", err)
+	}
+
+	sandboxes, err := rt.ListSandboxes(context.Background())
+	if err != nil {
+		t.Fatalf("ListSandboxes() returned error: %v", err)
+	}
+
+	// Find the created sessionID in the list.
+	var found *k8s.SandboxInfo
+	for i := range sandboxes {
+		if sandboxes[i].SessionID == sessionID {
+			found = &sandboxes[i]
+			break
+		}
+	}
+	if found == nil {
+		t.Fatalf("ListSandboxes() did not include sessionID %q in results (len=%d)", sessionID, len(sandboxes))
+	}
+	if !found.Ready {
+		t.Errorf("ListSandboxes() entry for running container: Ready = false, want true")
+	}
+	if found.ServiceFQDN != containerName(sessionID) {
+		t.Errorf("ListSandboxes() ServiceFQDN = %q, want %q", found.ServiceFQDN, containerName(sessionID))
+	}
+
+	// Stop via DeleteSandbox (stop-only, D-01) — stopped containers must still appear (All:true).
+	if err := rt.DeleteSandbox(context.Background(), sessionID); err != nil {
+		t.Fatalf("DeleteSandbox() setup failed: %v", err)
+	}
+
+	sandboxes, err = rt.ListSandboxes(context.Background())
+	if err != nil {
+		t.Fatalf("ListSandboxes() after stop returned error: %v", err)
+	}
+
+	// Stopped container must still appear (All:true) with Ready:false (D-05, D-02 tri-state).
+	found = nil
+	for i := range sandboxes {
+		if sandboxes[i].SessionID == sessionID {
+			found = &sandboxes[i]
+			break
+		}
+	}
+	if found == nil {
+		t.Fatalf("ListSandboxes() did not include stopped sessionID %q — All:true required (D-05)", sessionID)
+	}
+	if found.Ready {
+		t.Errorf("ListSandboxes() entry for stopped container: Ready = true, want false")
+	}
+}
+
 // TestGetStatus verifies GetStatus returns the correct tri-state for running, stopped, and
 // non-existent containers (SESS-04, D-02 accurate tri-state — no BoxLite quirk).
 //
