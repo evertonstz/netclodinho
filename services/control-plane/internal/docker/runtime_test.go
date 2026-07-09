@@ -392,6 +392,102 @@ func TestDeleteSandbox(t *testing.T) {
 	}
 }
 
+// TestGetStatus verifies GetStatus returns the correct tri-state for running, stopped, and
+// non-existent containers (SESS-04, D-02 accurate tri-state — no BoxLite quirk).
+//
+// Daemon-gated; skips cleanly when no daemon or required image absent.
+func TestGetStatus(t *testing.T) {
+	const network = "netclode_default"
+	const image = "netclode-agent:local"
+
+	cfg := &config.Config{
+		RuntimeMode:   config.RuntimeModeDocker,
+		DockerNetwork: network,
+		AgentImage:    image,
+	}
+
+	rt, err := NewRuntime(cfg)
+	if err != nil {
+		t.Skipf("docker daemon not reachable, skipping: %v", err)
+	}
+	defer rt.Close()
+
+	if _, inspectErr := rt.client.ImageInspect(context.Background(), image); inspectErr != nil {
+		t.Skipf("agent image %q not present locally; skipping integration test: %v", image, inspectErr)
+	}
+
+	sessionID := "test-getstatus"
+
+	t.Cleanup(func() {
+		ctx := context.Background()
+		_, _ = rt.client.ContainerRemove(ctx, containerName(sessionID), dockerclient.ContainerRemoveOptions{Force: true})
+		_, _ = rt.client.VolumeRemove(ctx, volumeName(sessionID), dockerclient.VolumeRemoveOptions{Force: true})
+	})
+
+	// Before creating: GetStatus should return Exists:false.
+	status, err := rt.GetStatus(context.Background(), sessionID)
+	if err != nil {
+		t.Fatalf("GetStatus() on non-existent container returned error: %v", err)
+	}
+	if status.Exists {
+		t.Errorf("GetStatus() before create: Exists = true, want false")
+	}
+	if status.Ready {
+		t.Errorf("GetStatus() before create: Ready = true, want false")
+	}
+
+	// Create the sandbox — container should now be running.
+	if err := rt.CreateSandbox(context.Background(), sessionID, map[string]string{}, nil); err != nil {
+		t.Fatalf("CreateSandbox() setup failed: %v", err)
+	}
+
+	// Running: GetStatus should return Exists:true, Ready:true.
+	status, err = rt.GetStatus(context.Background(), sessionID)
+	if err != nil {
+		t.Fatalf("GetStatus() on running container returned error: %v", err)
+	}
+	if !status.Exists {
+		t.Errorf("GetStatus() on running container: Exists = false, want true")
+	}
+	if !status.Ready {
+		t.Errorf("GetStatus() on running container: Ready = false, want true")
+	}
+	if status.ServiceFQDN != containerName(sessionID) {
+		t.Errorf("GetStatus() ServiceFQDN = %q, want %q", status.ServiceFQDN, containerName(sessionID))
+	}
+
+	// Stop via DeleteSandbox (stop-only, D-01).
+	if err := rt.DeleteSandbox(context.Background(), sessionID); err != nil {
+		t.Fatalf("DeleteSandbox() setup failed: %v", err)
+	}
+
+	// Stopped: GetStatus should return Exists:true, Ready:false (D-02 tri-state, not Exists:false).
+	status, err = rt.GetStatus(context.Background(), sessionID)
+	if err != nil {
+		t.Fatalf("GetStatus() on stopped container returned error: %v", err)
+	}
+	if !status.Exists {
+		t.Errorf("GetStatus() on stopped container: Exists = false, want true (D-02 forbids BoxLite quirk)")
+	}
+	if status.Ready {
+		t.Errorf("GetStatus() on stopped container: Ready = true, want false")
+	}
+
+	// Force-remove via DeletePVC — container and volume should be gone.
+	if err := rt.DeletePVC(context.Background(), sessionID); err != nil {
+		t.Fatalf("DeletePVC() setup failed: %v", err)
+	}
+
+	// Not found: GetStatus should return Exists:false (via cerrdefs.IsNotFound).
+	status, err = rt.GetStatus(context.Background(), sessionID)
+	if err != nil {
+		t.Fatalf("GetStatus() on deleted container returned error: %v", err)
+	}
+	if status.Exists {
+		t.Errorf("GetStatus() on deleted container: Exists = true, want false")
+	}
+}
+
 // TestDeletePVC verifies that DeletePVC force-removes the container and its workspace
 // volume (D-01/D-07 full teardown path).
 //
