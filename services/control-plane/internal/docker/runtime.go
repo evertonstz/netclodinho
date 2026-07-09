@@ -1,14 +1,19 @@
 // Package docker provides a k8s.Runtime implementation backed by the
 // Docker Engine API via github.com/moby/moby/client.
 //
-// Phase 1: stub only — all lifecycle methods return ErrNotSupported.
-// Docker daemon is Pinged at NewRuntime to validate socket/config wiring.
+// Phase 1: struct, config wiring, daemon Ping.
+// Phase 2 (plan 01): primitives — name helpers, label constants, ready-channel
+// machinery, GetPVCName, and ensureImage (inspect-then-pull, DEVX-03).
+// CreateSandbox / DeleteSandbox / GetStatus / ListSandboxes are still stubs.
 package docker
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"log/slog"
+	"sync"
 	"time"
 
 	dockerclient "github.com/moby/moby/client"
@@ -17,15 +22,45 @@ import (
 	"github.com/angristan/netclode/services/control-plane/internal/k8s"
 )
 
-// ErrNotSupported is returned by all lifecycle methods in the Phase 1 stub.
-// Phase 2 will replace these with real Docker Engine API implementations.
-var ErrNotSupported = errors.New("operation not supported in Docker Engine runtime (Phase 1 stub)")
+// ErrNotSupported is returned by lifecycle methods not yet implemented.
+var ErrNotSupported = errors.New("operation not supported in Docker Engine runtime")
+
+// ---------------------------------------------------------------------------
+// Name constants and helpers.
+// ---------------------------------------------------------------------------
+
+const (
+	sandboxNamePrefix = "netclode-"
+
+	// Container and volume label keys (reverse-DNS, scoped by network — D-11).
+	labelManagedBy = "com.netclode.managed"
+	labelSessionID = "com.netclode.session-id"
+	labelNetwork   = "com.netclode.network"
+)
+
+// containerName and volumeName share the same string value.
+// Docker namespaces (containers vs volumes) prevent collision (D-12).
+func containerName(sessionID string) string { return sandboxNamePrefix + sessionID }
+func volumeName(sessionID string) string    { return sandboxNamePrefix + sessionID }
+
+// ---------------------------------------------------------------------------
+// Runtime struct.
+// ---------------------------------------------------------------------------
 
 // Runtime implements k8s.Runtime using the Docker Engine API.
-// Phase 1: validates config/daemon wiring via Ping at startup; all lifecycle methods return ErrNotSupported.
 type Runtime struct {
 	cfg    *config.Config
 	client *dockerclient.Client
+
+	// Ready-channel machinery — mirrors BoxLite exactly.
+	readyMu       sync.Mutex
+	readyChannels map[string][]chan struct{}
+
+	// Optional in-memory sessionID → containerID cache.
+	// Daemon labels are the source of truth (D-05); this is a perf optimisation only.
+	// Protected by cacheMu; always fall back to ContainerInspect/ContainerList on miss.
+	cacheMu        sync.RWMutex
+	containerCache map[string]string // sessionID → containerID
 }
 
 // NewRuntime creates a Docker Engine runtime.
@@ -38,7 +73,7 @@ func NewRuntime(cfg *config.Config) (*Runtime, error) {
 
 	// Start with FromEnv so DOCKER_CERT_PATH / DOCKER_TLS_VERIFY are still honoured.
 	// When an explicit DockerHost is set, append WithHost AFTER FromEnv so it wins
-	// (client.New applies opts in order; last host-setting opt takes precedence — Pitfall 4).
+	// (client.New applies opts in order; last host-setting opt takes precedence).
 	opts := []dockerclient.Opt{dockerclient.FromEnv}
 	if cfg.DockerHost != "" {
 		opts = append(opts, dockerclient.WithHost(cfg.DockerHost))
@@ -62,7 +97,12 @@ func NewRuntime(cfg *config.Config) (*Runtime, error) {
 		return nil, fmt.Errorf("ping docker daemon: %w (check DOCKER_HOST or /var/run/docker.sock mount)", err)
 	}
 
-	return &Runtime{cfg: cfg, client: cli}, nil
+	return &Runtime{
+		cfg:            cfg,
+		client:         cli,
+		readyChannels:  make(map[string][]chan struct{}),
+		containerCache: make(map[string]string),
+	}, nil
 }
 
 // Close shuts down the Docker client connection.
@@ -72,19 +112,99 @@ func (r *Runtime) Close() { _ = r.client.Close() }
 var _ k8s.Runtime = (*Runtime)(nil)
 
 // ---------------------------------------------------------------------------
-// k8s.Runtime lifecycle methods — Phase 2 will implement these.
+// Ready-channel machinery — mirrors BoxLite exactly (plans 01 primitives).
+// ---------------------------------------------------------------------------
+
+// watchReadyCh registers and returns a new ready channel for the session.
+func (r *Runtime) watchReadyCh(sessionID string) <-chan struct{} {
+	ch := make(chan struct{})
+	r.readyMu.Lock()
+	r.readyChannels[sessionID] = append(r.readyChannels[sessionID], ch)
+	r.readyMu.Unlock()
+	return ch
+}
+
+// WatchSandboxReady registers a callback that fires once NotifyAgentReady is called
+// for the given sessionID. The callback receives (sessionID, containerFQDN, nil).
+func (r *Runtime) WatchSandboxReady(sessionID string, callback k8s.SandboxReadyCallback) {
+	ch := r.watchReadyCh(sessionID)
+	go func() {
+		<-ch
+		callback(sessionID, containerName(sessionID), nil)
+	}()
+}
+
+// NotifyAgentReady closes all ready channels registered for sessionID,
+// triggering any WatchSandboxReady callbacks and unblocking any WaitForReady calls.
+// Calling it for an unknown sessionID is a safe no-op.
+func (r *Runtime) NotifyAgentReady(sessionID string) {
+	r.readyMu.Lock()
+	defer r.readyMu.Unlock()
+	for _, ch := range r.readyChannels[sessionID] {
+		close(ch)
+	}
+	delete(r.readyChannels, sessionID)
+}
+
+// WaitForReady blocks until the agent is ready, the context is cancelled, or the
+// timeout elapses. On success it returns the container FQDN (containerName(sessionID)).
+func (r *Runtime) WaitForReady(ctx context.Context, sessionID string, timeout time.Duration) (string, error) {
+	ch := r.watchReadyCh(sessionID)
+	select {
+	case <-ch:
+		return containerName(sessionID), nil
+	case <-time.After(timeout):
+		return "", fmt.Errorf("timed out waiting for agent (session %s)", sessionID)
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
+}
+
+// ---------------------------------------------------------------------------
+// ensureImage — inspect-then-pull helper (DEVX-03, plan 01 primitive).
+// ---------------------------------------------------------------------------
+
+// ensureImage checks whether cfg.AgentImage is present locally; pulls only if missing.
+// Pull uses a generous independent 10-minute timeout so a slow registry does not
+// cascade into session-creation failures (D-10).
+// Drains the pull response before returning so the daemon completes the pull.
+func (r *Runtime) ensureImage(ctx context.Context) error {
+	if _, err := r.client.ImageInspect(ctx, r.cfg.AgentImage); err == nil {
+		return nil // image exists locally — skip pull (DEVX-03)
+	}
+
+	slog.Info("Docker: image not found locally, pulling", "image", r.cfg.AgentImage)
+	pullCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	defer cancel()
+
+	resp, err := r.client.ImagePull(pullCtx, r.cfg.AgentImage, dockerclient.ImagePullOptions{})
+	if err != nil {
+		return fmt.Errorf("image pull %s: %w", r.cfg.AgentImage, err)
+	}
+	// Wait drains the response to EOF so the daemon completes the pull.
+	if err := resp.Wait(pullCtx); err != nil {
+		return fmt.Errorf("image pull drain %s: %w", r.cfg.AgentImage, err)
+	}
+	slog.Info("Docker: image pull complete", "image", r.cfg.AgentImage)
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// GetPVCName — implemented (plan 01 primitive).
+// ---------------------------------------------------------------------------
+
+// GetPVCName returns the Docker volume name for the given sessionID.
+// For the Docker runtime the volume and container share the same name (D-12).
+func (r *Runtime) GetPVCName(_ context.Context, sessionID string) (string, error) {
+	return containerName(sessionID), nil
+}
+
+// ---------------------------------------------------------------------------
+// k8s.Runtime lifecycle methods — stubs for Phase 2 plans 02-03.
 // ---------------------------------------------------------------------------
 
 func (r *Runtime) CreateSandbox(_ context.Context, _ string, _ map[string]string, _ *k8s.SandboxResourceConfig) error {
-	return fmt.Errorf("%w: CreateSandbox not yet implemented (Phase 2)", ErrNotSupported)
-}
-
-func (r *Runtime) WaitForReady(_ context.Context, _ string, _ time.Duration) (string, error) {
-	return "", fmt.Errorf("%w: WaitForReady not yet implemented (Phase 2)", ErrNotSupported)
-}
-
-func (r *Runtime) WatchSandboxReady(_ string, _ k8s.SandboxReadyCallback) {
-	// Phase 2: no-op in stub; callback is never invoked.
+	return fmt.Errorf("%w: CreateSandbox not yet implemented (Phase 2 plan 02)", ErrNotSupported)
 }
 
 func (r *Runtime) GetStatus(_ context.Context, _ string) (*k8s.SandboxStatusInfo, error) {
@@ -132,7 +252,6 @@ func (r *Runtime) ConfigureTailnetAccess(_ context.Context, _ string, _ bool) er
 func (r *Runtime) WaitForRestoreJob(_ context.Context, _, _ string, _ time.Duration) error {
 	return nil
 }
-func (r *Runtime) NotifyAgentReady(_ string) {}
 
 // ---------------------------------------------------------------------------
 // ErrNotSupported — warm pool, snapshots, tailscale, K8s-specific operations.
@@ -167,33 +286,33 @@ func (r *Runtime) ExposePort(_ context.Context, _ string, _ int) error {
 }
 
 func (r *Runtime) CreateVolumeSnapshot(_ context.Context, _, _ string) error {
-	return fmt.Errorf("%w: snapshots not supported in Docker Engine runtime (Phase 1 stub)", ErrNotSupported)
+	return fmt.Errorf("%w: snapshots not supported in Docker Engine runtime", ErrNotSupported)
 }
 
 func (r *Runtime) WaitForSnapshotReady(_ context.Context, _, _ string, _ time.Duration) error {
-	return fmt.Errorf("%w: snapshots not supported in Docker Engine runtime (Phase 1 stub)", ErrNotSupported)
+	return fmt.Errorf("%w: snapshots not supported in Docker Engine runtime", ErrNotSupported)
 }
 
 func (r *Runtime) DeleteVolumeSnapshot(_ context.Context, _, _ string) error {
-	return fmt.Errorf("%w: snapshots not supported in Docker Engine runtime (Phase 1 stub)", ErrNotSupported)
+	return fmt.Errorf("%w: snapshots not supported in Docker Engine runtime", ErrNotSupported)
 }
 
 func (r *Runtime) ListVolumeSnapshots(_ context.Context, _ string) ([]k8s.VolumeSnapshotInfo, error) {
-	return nil, fmt.Errorf("%w: snapshots not supported in Docker Engine runtime (Phase 1 stub)", ErrNotSupported)
+	return nil, fmt.Errorf("%w: snapshots not supported in Docker Engine runtime", ErrNotSupported)
 }
 
 func (r *Runtime) RestoreFromSnapshot(_ context.Context, _, _ string) (string, error) {
-	return "", fmt.Errorf("%w: snapshots not supported in Docker Engine runtime (Phase 1 stub)", ErrNotSupported)
+	return "", fmt.Errorf("%w: snapshots not supported in Docker Engine runtime", ErrNotSupported)
 }
 
 func (r *Runtime) CreatePVCFromSnapshot(_ context.Context, _, _ string) (string, error) {
-	return "", fmt.Errorf("%w: snapshots not supported in Docker Engine runtime (Phase 1 stub)", ErrNotSupported)
-}
-
-func (r *Runtime) GetPVCName(_ context.Context, _ string) (string, error) {
-	return "", fmt.Errorf("%w: GetPVCName not yet implemented (Phase 2)", ErrNotSupported)
+	return "", fmt.Errorf("%w: snapshots not supported in Docker Engine runtime", ErrNotSupported)
 }
 
 func (r *Runtime) VerifyAgentToken(_ context.Context, _ string, _ []string) (string, error) {
 	return "", fmt.Errorf("%w: use Manager.LookupDockerToken instead", ErrNotSupported)
 }
+
+// io is used by ensureImage drain fallback path (kept to prevent unused-import errors
+// during dead-code analysis; Wait is the primary drain path).
+var _ = io.Discard
