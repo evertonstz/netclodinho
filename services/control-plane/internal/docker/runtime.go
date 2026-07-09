@@ -359,8 +359,37 @@ func (r *Runtime) DeletePVC(ctx context.Context, sessionID string) error {
 	return nil
 }
 
-func (r *Runtime) ListSandboxes(_ context.Context) ([]k8s.SandboxInfo, error) {
-	return nil, fmt.Errorf("%w: ListSandboxes not yet implemented (Phase 2)", ErrNotSupported)
+// ListSandboxes queries the Docker daemon via labels (D-05 — daemon is source of truth).
+// All:true is required so stopped containers are included; this enables the manager's
+// Initialize reconciliation to correctly mark paused sessions across restarts (D-02/D-05).
+// Filters on both labelManagedBy AND labelNetwork (D-11) so two Netclode stacks on one
+// daemon never adopt each other's containers.
+func (r *Runtime) ListSandboxes(ctx context.Context) ([]k8s.SandboxInfo, error) {
+	f := make(dockerclient.Filters).
+		Add("label", labelManagedBy+"=netclode").
+		Add("label", labelNetwork+"="+r.cfg.DockerNetwork)
+
+	res, err := r.client.ContainerList(ctx, dockerclient.ContainerListOptions{
+		All:     true, // include stopped containers (D-05, pause/resume tri-state)
+		Filters: f,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("container list: %w", err)
+	}
+
+	out := make([]k8s.SandboxInfo, 0, len(res.Items))
+	for _, c := range res.Items {
+		sessionID := c.Labels[labelSessionID]
+		if sessionID == "" {
+			continue // skip containers with missing session-id label
+		}
+		out = append(out, k8s.SandboxInfo{
+			SessionID:   sessionID,
+			ServiceFQDN: containerName(sessionID),
+			Ready:       c.State == "running",
+		})
+	}
+	return out, nil
 }
 
 func (r *Runtime) Exec(_ context.Context, _ string, _ string, _ ...string) (*k8s.ExecResult, error) {
