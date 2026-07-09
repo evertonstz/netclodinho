@@ -11,7 +11,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"sync"
 	"time"
@@ -313,6 +312,3 @@ func (r *Runtime) VerifyAgentToken(_ context.Context, _ string, _ []string) (str
 	return "", fmt.Errorf("%w: use Manager.LookupDockerToken instead", ErrNotSupported)
 }
 
-// io is used by ensureImage drain fallback path (kept to prevent unused-import errors
-// during dead-code analysis; Wait is the primary drain path).
-var _ = io.Discard
