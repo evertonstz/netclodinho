@@ -126,6 +126,76 @@ func TestEffectiveBoxliteHomeDir(t *testing.T) {
 	}
 }
 
+func TestLoadWithRuntimeMode(t *testing.T) {
+	tests := []struct {
+		name     string
+		envValue string
+		want     RuntimeMode
+	}{
+		{
+			name:     "default",
+			envValue: "",
+			want:     RuntimeModeKubernetes,
+		},
+		{
+			name:     "boxlite",
+			envValue: "boxlite",
+			want:     RuntimeModeBoxlite,
+		},
+		{
+			name:     "docker",
+			envValue: "docker",
+			want:     RuntimeModeDocker,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			os.Unsetenv("RUNTIME_MODE")
+			if tt.envValue != "" {
+				os.Setenv("RUNTIME_MODE", tt.envValue)
+				defer os.Unsetenv("RUNTIME_MODE")
+			}
+
+			cfg := Load()
+			if cfg.RuntimeMode != tt.want {
+				t.Errorf("RuntimeMode = %q, want %q", cfg.RuntimeMode, tt.want)
+			}
+		})
+	}
+}
+
+func TestValidate_UnknownMode(t *testing.T) {
+	cfg := &Config{RuntimeMode: "invalid"}
+	if err := cfg.Validate(); err == nil {
+		t.Error("Validate() should return a non-nil error for an unknown RuntimeMode")
+	}
+}
+
+func TestValidate_KnownModes(t *testing.T) {
+	for _, mode := range []RuntimeMode{RuntimeModeKubernetes, RuntimeModeBoxlite, RuntimeModeDocker} {
+		cfg := &Config{RuntimeMode: mode}
+		if err := cfg.Validate(); err != nil {
+			t.Errorf("Validate() returned error for known mode %q: %v", mode, err)
+		}
+	}
+}
+
+func TestLoadWithDockerFields(t *testing.T) {
+	os.Setenv("DOCKER_NETWORK", "netclode_default")
+	defer os.Unsetenv("DOCKER_NETWORK")
+	os.Setenv("DOCKER_HOST", "unix:///var/run/docker.sock")
+	defer os.Unsetenv("DOCKER_HOST")
+
+	cfg := Load()
+	if cfg.DockerNetwork != "netclode_default" {
+		t.Errorf("DockerNetwork = %q, want %q", cfg.DockerNetwork, "netclode_default")
+	}
+	if cfg.DockerHost != "unix:///var/run/docker.sock" {
+		t.Errorf("DockerHost = %q, want %q", cfg.DockerHost, "unix:///var/run/docker.sock")
+	}
+}
+
 func TestLoadWithMaxActiveSessions(t *testing.T) {
 	// Test default (was changed from 2 to 5)
 	os.Unsetenv("MAX_ACTIVE_SESSIONS")
