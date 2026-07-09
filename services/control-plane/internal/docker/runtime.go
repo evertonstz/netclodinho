@@ -4,7 +4,7 @@
 // Phase 1: struct, config wiring, daemon Ping.
 // Phase 2 (plan 01): primitives — name helpers, label constants, ready-channel
 // machinery, GetPVCName, and ensureImage (inspect-then-pull, DEVX-03).
-// CreateSandbox / DeleteSandbox / GetStatus / ListSandboxes are still stubs.
+// Phase 2 (plan 02): CreateSandbox, DeleteSandbox, DeletePVC — container lifecycle.
 package docker
 
 import (
@@ -15,6 +15,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/mount"
 	dockerclient "github.com/moby/moby/client"
 
 	"github.com/angristan/netclode/services/control-plane/internal/config"
@@ -202,8 +204,92 @@ func (r *Runtime) GetPVCName(_ context.Context, sessionID string) (string, error
 // k8s.Runtime lifecycle methods — stubs for Phase 2 plans 02-03.
 // ---------------------------------------------------------------------------
 
-func (r *Runtime) CreateSandbox(_ context.Context, _ string, _ map[string]string, _ *k8s.SandboxResourceConfig) error {
-	return fmt.Errorf("%w: CreateSandbox not yet implemented (Phase 2 plan 02)", ErrNotSupported)
+// CreateSandbox boots the agent container for a new session (SESS-01, DEVX-03).
+//
+// Resume path (D-03): if env contains k8s.ExistingPVCEnvKey, the container already
+// exists (stopped). Start it as-is — image and env are fixed at original create time.
+//
+// Full-create path: ensureImage → VolumeCreate → ContainerCreate → NetworkConnect →
+// ContainerStart. On NetworkConnect or ContainerStart failure, the partially-created
+// container is force-removed (best-effort) before returning the wrapped error.
+func (r *Runtime) CreateSandbox(ctx context.Context, sessionID string, env map[string]string, _ *k8s.SandboxResourceConfig) error {
+	// Resume path (D-03): ExistingPVCEnvKey present → start existing stopped container.
+	if existingName, ok := env[k8s.ExistingPVCEnvKey]; ok && existingName != "" {
+		slog.Info("Docker: resuming existing container", "sessionID", sessionID, "container", existingName)
+		if _, err := r.client.ContainerStart(ctx, existingName, dockerclient.ContainerStartOptions{}); err != nil {
+			return fmt.Errorf("container start (resume): %w", err)
+		}
+		return nil
+	}
+
+	// Image availability: inspect first, pull only if missing (D-09, D-10).
+	if err := r.ensureImage(ctx); err != nil {
+		return err
+	}
+
+	// 1. Create named workspace volume (explicit create allows labels — audit + D-11).
+	labels := map[string]string{
+		labelManagedBy: "netclode",
+		labelSessionID: sessionID,
+		labelNetwork:   r.cfg.DockerNetwork,
+	}
+	if _, err := r.client.VolumeCreate(ctx, dockerclient.VolumeCreateOptions{
+		Name:   volumeName(sessionID),
+		Labels: labels,
+	}); err != nil {
+		return fmt.Errorf("volume create: %w", err)
+	}
+
+	// 2. Build env slice from map.
+	envSlice := make([]string, 0, len(env))
+	for k, v := range env {
+		envSlice = append(envSlice, k+"="+v)
+	}
+
+	// 3. Create container (no network at create time — NetworkConnect is done post-create).
+	// RestartPolicyDisabled per D-04: control plane is the single lifecycle authority.
+	// Typed Mounts not legacy Binds per CLAUDE.md. Target /agent is the agent's writable home.
+	result, err := r.client.ContainerCreate(ctx, dockerclient.ContainerCreateOptions{
+		Name:  containerName(sessionID),
+		Image: r.cfg.AgentImage,
+		Config: &container.Config{
+			Env:    envSlice,
+			Labels: labels,
+		},
+		HostConfig: &container.HostConfig{
+			RestartPolicy: container.RestartPolicy{Name: container.RestartPolicyDisabled},
+			Mounts: []mount.Mount{
+				{
+					Type:   mount.TypeVolume,
+					Source: volumeName(sessionID),
+					Target: "/agent",
+				},
+			},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("container create: %w", err)
+	}
+
+	// 4. Join compose network AFTER create.
+	// NetworkMode does not join a named compose network; NetworkConnect is the correct API (CLAUDE.md).
+	if _, err := r.client.NetworkConnect(ctx, r.cfg.DockerNetwork, dockerclient.NetworkConnectOptions{
+		Container: result.ID,
+	}); err != nil {
+		// Best-effort cleanup: remove the partially-created container.
+		_, _ = r.client.ContainerRemove(ctx, result.ID, dockerclient.ContainerRemoveOptions{Force: true})
+		return fmt.Errorf("network connect: %w", err)
+	}
+
+	// 5. Start the container.
+	if _, err := r.client.ContainerStart(ctx, result.ID, dockerclient.ContainerStartOptions{}); err != nil {
+		// Best-effort cleanup: remove the partially-created container.
+		_, _ = r.client.ContainerRemove(ctx, result.ID, dockerclient.ContainerRemoveOptions{Force: true})
+		return fmt.Errorf("container start: %w", err)
+	}
+
+	slog.Info("Docker: container started", "sessionID", sessionID, "containerID", result.ID)
+	return nil
 }
 
 func (r *Runtime) GetStatus(_ context.Context, _ string) (*k8s.SandboxStatusInfo, error) {

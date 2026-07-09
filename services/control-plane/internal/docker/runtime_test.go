@@ -6,7 +6,10 @@ import (
 	"testing"
 	"time"
 
+	dockerclient "github.com/moby/moby/client"
+
 	"github.com/angristan/netclode/services/control-plane/internal/config"
+	"github.com/angristan/netclode/services/control-plane/internal/k8s"
 )
 
 // TestNewRuntime_MissingNetwork verifies that NewRuntime returns a non-nil error
@@ -149,6 +152,138 @@ func TestWaitForReady_Timeout(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "timed out") {
 		t.Errorf("WaitForReady() error = %q, want it to contain \"timed out\"", err.Error())
+	}
+}
+
+// TestCreateSandbox verifies CreateSandbox end-to-end: creates the container with the
+// agent image, workspace volume, labels, and network attachment (SESS-01, DEVX-03).
+//
+// The test is daemon-gated: if NewRuntime fails (no daemon), it skips cleanly.
+// When a daemon IS present but the required network/image are absent, it also skips.
+//
+// t.Cleanup force-removes any residue to avoid name conflicts on re-run (Pitfall 5).
+func TestCreateSandbox(t *testing.T) {
+	const network = "netclode_default"
+	const image = "netclode-agent:local"
+
+	cfg := &config.Config{
+		RuntimeMode:   config.RuntimeModeDocker,
+		DockerNetwork: network,
+		AgentImage:    image,
+	}
+
+	rt, err := NewRuntime(cfg)
+	if err != nil {
+		t.Skipf("docker daemon not reachable, skipping: %v", err)
+	}
+	defer rt.Close()
+
+	// Skip if the agent image is not present locally (DEVX-03: no pull in tests).
+	if _, inspectErr := rt.client.ImageInspect(context.Background(), image); inspectErr != nil {
+		t.Skipf("agent image %q not present locally; skipping integration test: %v", image, inspectErr)
+	}
+
+	sessionID := "test-createsandbox"
+
+	// Register cleanup BEFORE creating the sandbox to ensure cleanup runs even on failure.
+	t.Cleanup(func() {
+		ctx := context.Background()
+		_, _ = rt.client.ContainerRemove(ctx, containerName(sessionID), dockerclient.ContainerRemoveOptions{Force: true})
+		_, _ = rt.client.VolumeRemove(ctx, volumeName(sessionID), dockerclient.VolumeRemoveOptions{Force: true})
+	})
+
+	env := map[string]string{
+		"SESSION_ID": sessionID,
+	}
+
+	if err := rt.CreateSandbox(context.Background(), sessionID, env, nil); err != nil {
+		t.Fatalf("CreateSandbox() returned unexpected error: %v", err)
+	}
+
+	// Verify the container exists and is running.
+	inspectResult, err := rt.client.ContainerInspect(context.Background(), containerName(sessionID), dockerclient.ContainerInspectOptions{})
+	if err != nil {
+		t.Fatalf("ContainerInspect() after CreateSandbox failed: %v", err)
+	}
+	if inspectResult.Container.State == nil || !inspectResult.Container.State.Running {
+		t.Errorf("container %q should be running after CreateSandbox, got state: %+v", containerName(sessionID), inspectResult.Container.State)
+	}
+
+	// Verify the workspace volume is mounted at /agent.
+	foundMount := false
+	for _, m := range inspectResult.Container.Mounts {
+		if m.Destination == "/agent" && m.Name == volumeName(sessionID) {
+			foundMount = true
+			break
+		}
+	}
+	if !foundMount {
+		t.Errorf("container should have volume %q mounted at /agent; mounts: %+v", volumeName(sessionID), inspectResult.Container.Mounts)
+	}
+
+	// Verify the container is attached to the compose network.
+	if _, ok := inspectResult.Container.NetworkSettings.Networks[network]; !ok {
+		t.Errorf("container should be on network %q; networks: %v", network, inspectResult.Container.NetworkSettings.Networks)
+	}
+}
+
+// TestCreateSandboxResume verifies the resume path: when ExistingPVCEnvKey is set,
+// CreateSandbox starts an existing stopped container without creating a new one.
+//
+// Daemon-gated; skips cleanly when no daemon or required image/network absent.
+func TestCreateSandboxResume(t *testing.T) {
+	const network = "netclode_default"
+	const image = "netclode-agent:local"
+
+	cfg := &config.Config{
+		RuntimeMode:   config.RuntimeModeDocker,
+		DockerNetwork: network,
+		AgentImage:    image,
+	}
+
+	rt, err := NewRuntime(cfg)
+	if err != nil {
+		t.Skipf("docker daemon not reachable, skipping: %v", err)
+	}
+	defer rt.Close()
+
+	if _, inspectErr := rt.client.ImageInspect(context.Background(), image); inspectErr != nil {
+		t.Skipf("agent image %q not present locally; skipping integration test: %v", image, inspectErr)
+	}
+
+	sessionID := "test-resumesandbox"
+
+	t.Cleanup(func() {
+		ctx := context.Background()
+		_, _ = rt.client.ContainerRemove(ctx, containerName(sessionID), dockerclient.ContainerRemoveOptions{Force: true})
+		_, _ = rt.client.VolumeRemove(ctx, volumeName(sessionID), dockerclient.VolumeRemoveOptions{Force: true})
+	})
+
+	// First create a sandbox normally so the container exists.
+	if err := rt.CreateSandbox(context.Background(), sessionID, map[string]string{}, nil); err != nil {
+		t.Fatalf("initial CreateSandbox() failed: %v", err)
+	}
+
+	// Stop the container to simulate a paused session.
+	if _, err := rt.client.ContainerStop(context.Background(), containerName(sessionID), dockerclient.ContainerStopOptions{}); err != nil {
+		t.Fatalf("ContainerStop() setup failed: %v", err)
+	}
+
+	// Resume: pass ExistingPVCEnvKey pointing to the existing container name.
+	resumeEnv := map[string]string{
+		k8s.ExistingPVCEnvKey: containerName(sessionID),
+	}
+	if err := rt.CreateSandbox(context.Background(), sessionID, resumeEnv, nil); err != nil {
+		t.Fatalf("CreateSandbox(resume) returned unexpected error: %v", err)
+	}
+
+	// Verify the container is running again.
+	inspectResult, err := rt.client.ContainerInspect(context.Background(), containerName(sessionID), dockerclient.ContainerInspectOptions{})
+	if err != nil {
+		t.Fatalf("ContainerInspect() after resume failed: %v", err)
+	}
+	if inspectResult.Container.State == nil || !inspectResult.Container.State.Running {
+		t.Errorf("container should be running after resume, got state: %+v", inspectResult.Container.State)
 	}
 }
 
