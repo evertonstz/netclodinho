@@ -14,6 +14,7 @@ require (
 	github.com/boxlite-ai/boxlite/sdks/go v0.8.2
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
+	github.com/moby/moby/client v0.5.0
 	github.com/redis/go-redis/v9 v9.17.3
 	golang.org/x/net v0.50.0
 	google.golang.org/grpc v1.79.3
@@ -76,7 +77,6 @@ require (
 	github.com/minio/simdjson-go v0.4.5 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/moby/api v1.55.0 // indirect
-	github.com/moby/moby/client v0.5.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
