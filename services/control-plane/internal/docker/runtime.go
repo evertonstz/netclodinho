@@ -293,8 +293,32 @@ func (r *Runtime) CreateSandbox(ctx context.Context, sessionID string, env map[s
 	return nil
 }
 
-func (r *Runtime) GetStatus(_ context.Context, _ string) (*k8s.SandboxStatusInfo, error) {
-	return nil, fmt.Errorf("%w: GetStatus not yet implemented (Phase 2)", ErrNotSupported)
+// GetStatus reports accurate tri-state per D-02 — the BoxLite Exists:info.Running quirk
+// is explicitly forbidden.
+//
+// running  → Exists:true, Ready:true, ServiceFQDN=containerName(sessionID)
+// stopped  → Exists:true, Ready:false  (must NOT return Exists:false — manager reconciliation
+//
+//	treats "exists but not ready" as PAUSED, see manager.go ~264-270)
+//
+// not-found → Exists:false (cerrdefs.IsNotFound branch only)
+func (r *Runtime) GetStatus(ctx context.Context, sessionID string) (*k8s.SandboxStatusInfo, error) {
+	res, err := r.client.ContainerInspect(ctx, containerName(sessionID), dockerclient.ContainerInspectOptions{})
+	if err != nil {
+		if cerrdefs.IsNotFound(err) {
+			return &k8s.SandboxStatusInfo{Exists: false}, nil
+		}
+		return nil, fmt.Errorf("inspect container: %w", err)
+	}
+	if res.Container.State != nil && res.Container.State.Running {
+		return &k8s.SandboxStatusInfo{
+			Exists:      true,
+			Ready:       true,
+			ServiceFQDN: containerName(sessionID),
+		}, nil
+	}
+	// Stopped but exists — D-02: must return Exists:true so manager reconciliation marks PAUSED.
+	return &k8s.SandboxStatusInfo{Exists: true, Ready: false}, nil
 }
 
 // DeleteSandbox stops the container but keeps it and its volume for pause/resume (D-01).
