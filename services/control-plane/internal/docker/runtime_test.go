@@ -179,6 +179,52 @@ func TestWaitForReady_Timeout(t *testing.T) {
 	}
 }
 
+// TestWaitForReady_TimeoutEmbedsLogs verifies DEVX-01: on a WaitForReady timeout the
+// returned error embeds a bounded tail of the container's startup logs, produced by the
+// best-effort captureStartupLogs helper.
+//
+// Constructing a live "never-ready" container deterministically is impractical (a real
+// agent image signals ready quickly), so per the plan's documented alternative this test
+// takes the daemon-gated approach:
+//   - captureStartupLogs for a NON-EXISTENT container must return "" and never error
+//     (best-effort contract — a missing container must not fail the caller).
+//   - WaitForReady against a session with no NotifyAgentReady must time out with an error
+//     whose message includes the "recent container logs" framing added for DEVX-01.
+//
+// Daemon-gated: needs a real client so captureStartupLogs can call ContainerLogs. Skips
+// cleanly when no daemon is reachable. MUST FAIL / not compile against the current code
+// (captureStartupLogs does not exist and the timeout error lacks the log framing).
+func TestWaitForReady_TimeoutEmbedsLogs(t *testing.T) {
+	cfg := &config.Config{
+		RuntimeMode:   config.RuntimeModeDocker,
+		DockerNetwork: "netclode_default",
+	}
+
+	rt, err := NewRuntime(cfg)
+	if err != nil {
+		t.Skipf("docker daemon not reachable, skipping: %v", err)
+	}
+	defer rt.Close()
+
+	// Best-effort: captureStartupLogs must return "" (not error) for a container that
+	// does not exist — mirrors the file's cerrdefs.IsNotFound tolerance style.
+	if logs := rt.captureStartupLogs(context.Background(), "nosuchsession-devx01"); logs != "" {
+		t.Errorf("captureStartupLogs() for non-existent container = %q, want \"\" (best-effort)", logs)
+	}
+
+	// Timeout error must include the DEVX-01 "recent container logs" framing.
+	_, err = rt.WaitForReady(context.Background(), "nosuchsession-devx01", 50*time.Millisecond)
+	if err == nil {
+		t.Fatal("WaitForReady() should return an error on timeout")
+	}
+	if !strings.Contains(err.Error(), "timed out") {
+		t.Errorf("WaitForReady() error = %q, want it to contain \"timed out\"", err.Error())
+	}
+	if !strings.Contains(err.Error(), "recent container logs") {
+		t.Errorf("WaitForReady() timeout error = %q, want it to embed the DEVX-01 \"recent container logs\" tail", err.Error())
+	}
+}
+
 // TestCreateSandbox verifies CreateSandbox end-to-end: creates the container with the
 // agent image, workspace volume, labels, and network attachment (SESS-01, DEVX-03).
 //
