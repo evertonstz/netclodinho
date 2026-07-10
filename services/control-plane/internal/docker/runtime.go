@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -213,6 +214,18 @@ func (r *Runtime) GetPVCName(_ context.Context, sessionID string) (string, error
 // Full-create path: ensureImage → VolumeCreate → ContainerCreate → NetworkConnect →
 // ContainerStart. On NetworkConnect or ContainerStart failure, the partially-created
 // container is force-removed (best-effort) before returning the wrapped error.
+// resolveAgentCPURL returns the control-plane URL the agent uses to call back.
+// It returns the configured DockerAgentCPURL verbatim when set (D-02); otherwise it
+// defaults to the compose service DNS name http://control-plane:<Port>. Unlike
+// BoxLite's autoDetectCPURL, no network probe is needed on the compose network — the
+// default is a static DNS name. Daemon-free so it is unit-testable.
+func (r *Runtime) resolveAgentCPURL() string {
+	if url := strings.TrimSpace(r.cfg.DockerAgentCPURL); url != "" {
+		return url
+	}
+	return fmt.Sprintf("http://control-plane:%d", r.cfg.Port)
+}
+
 func (r *Runtime) CreateSandbox(ctx context.Context, sessionID string, env map[string]string, _ *k8s.SandboxResourceConfig) error {
 	// Resume path (D-03): ExistingPVCEnvKey present → start existing stopped container.
 	if existingName, ok := env[k8s.ExistingPVCEnvKey]; ok && existingName != "" {
@@ -240,6 +253,13 @@ func (r *Runtime) CreateSandbox(ctx context.Context, sessionID string, env map[s
 	}); err != nil {
 		return fmt.Errorf("volume create: %w", err)
 	}
+
+	// Agent reachability (D-02/D-03): inject the control-plane URL and SESSION_ID so
+	// the agent can call back over the compose network. AGENT_SESSION_TOKEN already
+	// arrives from the manager (docker mode). CONTROL_PLANE_URL defaults to the compose
+	// service DNS name; SESSION_ID is idempotent (already set by the manager).
+	env["CONTROL_PLANE_URL"] = r.resolveAgentCPURL()
+	env["SESSION_ID"] = sessionID
 
 	// 2. Build env slice from map.
 	envSlice := make([]string, 0, len(env))

@@ -95,6 +95,29 @@ func TestGetPVCName(t *testing.T) {
 	}
 }
 
+// TestResolveAgentCPURL verifies the CP-URL resolution: empty DockerAgentCPURL
+// yields the compose-DNS default http://control-plane:<Port>; a configured value
+// is used verbatim. No daemon required — uses a Runtime literal.
+func TestResolveAgentCPURL(t *testing.T) {
+	t.Run("default compose DNS when unset", func(t *testing.T) {
+		rt := &Runtime{
+			cfg: &config.Config{Port: 3000, DockerAgentCPURL: ""},
+		}
+		if got := rt.resolveAgentCPURL(); got != "http://control-plane:3000" {
+			t.Errorf("resolveAgentCPURL() = %q, want %q", got, "http://control-plane:3000")
+		}
+	})
+
+	t.Run("configured value verbatim", func(t *testing.T) {
+		rt := &Runtime{
+			cfg: &config.Config{Port: 3000, DockerAgentCPURL: "http://custom:8080"},
+		}
+		if got := rt.resolveAgentCPURL(); got != "http://custom:8080" {
+			t.Errorf("resolveAgentCPURL() = %q, want %q", got, "http://custom:8080")
+		}
+	})
+}
+
 // TestReadyChannelNotify verifies that WatchSandboxReady + NotifyAgentReady fire
 // the callback with the expected FQDN. No daemon required — uses a Runtime literal.
 func TestReadyChannelNotify(t *testing.T) {
