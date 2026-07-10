@@ -196,6 +196,27 @@ func TestLoadWithDockerFields(t *testing.T) {
 	}
 }
 
+func TestLoadWithDockerAgentCPURL(t *testing.T) {
+	// Set: DOCKER_AGENT_CP_URL is read verbatim into cfg.DockerAgentCPURL.
+	t.Run("set", func(t *testing.T) {
+		t.Setenv("DOCKER_AGENT_CP_URL", "http://cp.example:9000")
+		cfg := Load()
+		if cfg.DockerAgentCPURL != "http://cp.example:9000" {
+			t.Errorf("DockerAgentCPURL = %q, want %q", cfg.DockerAgentCPURL, "http://cp.example:9000")
+		}
+	})
+
+	// Unset: default is empty string (compose-DNS default is resolved in the
+	// runtime, not in Load(), because it depends on cfg.Port).
+	t.Run("unset", func(t *testing.T) {
+		os.Unsetenv("DOCKER_AGENT_CP_URL")
+		cfg := Load()
+		if cfg.DockerAgentCPURL != "" {
+			t.Errorf("DockerAgentCPURL = %q, want empty string when unset", cfg.DockerAgentCPURL)
+		}
+	})
+}
+
 func TestLoadWithMaxActiveSessions(t *testing.T) {
 	// Test default (was changed from 2 to 5)
 	os.Unsetenv("MAX_ACTIVE_SESSIONS")

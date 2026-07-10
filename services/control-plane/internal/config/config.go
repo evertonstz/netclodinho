@@ -78,8 +78,9 @@ type Config struct {
 	RuntimeMode RuntimeMode
 
 	// Docker Engine runtime settings (only used when RuntimeMode == "docker")
-	DockerNetwork string // Docker compose network name sandboxes join (required in docker mode)
-	DockerHost    string // Override Docker daemon socket/URL; empty = client.FromEnv default
+	DockerNetwork    string // Docker compose network name sandboxes join (required in docker mode)
+	DockerHost       string // Override Docker daemon socket/URL; empty = client.FromEnv default
+	DockerAgentCPURL string // URL agents inside Docker containers use to reach control-plane; empty = compose-DNS default resolved in runtime
 
 	// Boxlite runtime settings (only used when RuntimeMode == "boxlite")
 	BoxliteHomeDir             string // BoxLite home directory for the embedded runtime
@@ -140,8 +141,9 @@ func Load() *Config {
 		RuntimeMode: RuntimeMode(getEnv("RUNTIME_MODE", "kubernetes")),
 
 		// Docker Engine runtime settings
-		DockerNetwork: getEnv("DOCKER_NETWORK", ""),
-		DockerHost:    getEnv("DOCKER_HOST", ""),
+		DockerNetwork:    getEnv("DOCKER_NETWORK", ""),
+		DockerHost:       getEnv("DOCKER_HOST", ""),
+		DockerAgentCPURL: getEnv("DOCKER_AGENT_CP_URL", ""),
 
 		// Boxlite runtime settings
 		BoxliteHomeDir:             getEnv("BOXLITE_HOME_DIR", ""),
