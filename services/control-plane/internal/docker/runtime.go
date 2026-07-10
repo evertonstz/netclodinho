@@ -8,15 +8,18 @@
 package docker
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"strings"
 	"sync"
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
+	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/mount"
 	dockerclient "github.com/moby/moby/client"
@@ -157,7 +160,12 @@ func (r *Runtime) WaitForReady(ctx context.Context, sessionID string, timeout ti
 	case <-ch:
 		return containerName(sessionID), nil
 	case <-time.After(timeout):
-		return "", fmt.Errorf("timed out waiting for agent (session %s)", sessionID)
+		// DEVX-01: fold a bounded tail of the container's startup logs into the timeout
+		// error so a "agent crashed on boot" / "token never arrived" failure is diagnosable.
+		// captureStartupLogs is best-effort — it returns "" (never errors) if logs are
+		// unavailable, so the timeout error is always well-formed.
+		logs := r.captureStartupLogs(ctx, sessionID)
+		return "", fmt.Errorf("timed out waiting for agent (session %s); recent container logs:\n%s", sessionID, logs)
 	case <-ctx.Done():
 		return "", ctx.Err()
 	}
@@ -412,8 +420,87 @@ func (r *Runtime) ListSandboxes(ctx context.Context) ([]k8s.SandboxInfo, error) 
 	return out, nil
 }
 
-func (r *Runtime) Exec(_ context.Context, _ string, _ string, _ ...string) (*k8s.ExecResult, error) {
-	return nil, fmt.Errorf("%w: Exec not yet implemented (Phase 2)", ErrNotSupported)
+// Exec runs a one-shot command in the live sandbox container and returns the buffered
+// stdout, stderr, and exit code (TERM-02). It matches BoxLite's ExecResult shaping
+// (boxlite/runtime.go:463-471): command + args are passed straight through as argv with
+// NO sh -c wrapping (D-06 — no shell-injection surface, T-03-04).
+//
+// The exec is non-TTY, so its output stream is multiplexed with 8-byte frame headers and
+// MUST be demuxed with stdcopy.StdCopy — a raw io.Copy garbles it (D-06). The hijacked
+// connection is closed on every path via defer (D-07), and the stream is drained to
+// completion before ExecInspect so the exit code is finalized (D-07).
+//
+// Method names are the verified moby client v0.5.0 post-split names ExecCreate /
+// ExecAttach / ExecInspect — NOT the pre-split ContainerExec* names. ExecAttach itself
+// starts the exec (postHijacked), so no separate ExecStart call is needed.
+func (r *Runtime) Exec(ctx context.Context, sessionID string, command string, args ...string) (*k8s.ExecResult, error) {
+	cmd := append([]string{command}, args...) // argv passthrough, no shell wrapping (D-06)
+
+	created, err := r.client.ExecCreate(ctx, containerName(sessionID), dockerclient.ExecCreateOptions{
+		Cmd:          cmd,
+		AttachStdout: true,
+		AttachStderr: true,
+		TTY:          false, // D-06: non-TTY buffered one-shot
+	})
+	if err != nil {
+		return nil, fmt.Errorf("exec create: %w", err)
+	}
+
+	resp, err := r.client.ExecAttach(ctx, created.ID, dockerclient.ExecAttachOptions{TTY: false})
+	if err != nil {
+		return nil, fmt.Errorf("exec attach: %w", err)
+	}
+	defer resp.Close() // D-07: runs on every path (success and error) — no leaked hijack
+
+	var stdout, stderr bytes.Buffer
+	// D-06: demux the multiplexed non-TTY stream (raw io.Copy would garble it).
+	// D-07: drain fully before ExecInspect so the exit code is finalized.
+	if _, err := stdcopy.StdCopy(&stdout, &stderr, resp.Reader); err != nil && !errors.Is(err, io.EOF) {
+		return nil, fmt.Errorf("exec stream demux: %w", err)
+	}
+	_ = resp.CloseWrite() // D-07: half-close the write side explicitly after drain
+
+	ins, err := r.client.ExecInspect(ctx, created.ID, dockerclient.ExecInspectOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("exec inspect: %w", err)
+	}
+
+	return &k8s.ExecResult{
+		ExitCode: ins.ExitCode,
+		Stdout:   stdout.String(),
+		Stderr:   stderr.String(),
+	}, nil
+}
+
+// captureStartupLogs returns a bounded tail of the container's combined stdout+stderr
+// startup logs for the given session (DEVX-01, D-08). It is fully best-effort: it returns
+// "" on ANY error (missing container, log-fetch failure, demux error) so a caller — the
+// WaitForReady timeout branch — is never failed because logs could not be fetched. This
+// mirrors the cerrdefs.IsNotFound tolerance style used elsewhere in this file.
+//
+// The agent container is non-TTY, so its log stream is multiplexed exactly like the exec
+// stream and must be demuxed with the same stdcopy.StdCopy (a raw read is garbled). The
+// Tail is bounded to 50 lines (D-08 discretion) to limit both log volume and the
+// information disclosure surface (T-03-06).
+func (r *Runtime) captureStartupLogs(ctx context.Context, sessionID string) string {
+	if r.client == nil {
+		return "" // best-effort — no daemon client (e.g. daemon-free Runtime literal)
+	}
+	rc, err := r.client.ContainerLogs(ctx, containerName(sessionID), dockerclient.ContainerLogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Tail:       "50", // D-08: bounded tail
+	})
+	if err != nil {
+		return "" // best-effort — never fail the caller
+	}
+	defer rc.Close()
+
+	var out bytes.Buffer
+	// Combine stdout+stderr into one buffer — the timeout diagnostic wants everything
+	// the container emitted, not split streams.
+	_, _ = stdcopy.StdCopy(&out, &out, rc)
+	return out.String()
 }
 
 // ---------------------------------------------------------------------------
