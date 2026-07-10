@@ -476,6 +476,15 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 		"ANTHROPIC_API_KEY": m.config.AnthropicAPIKey,
 	}
 
+	// Docker mode: thread a manager-issued per-session token into the container
+	// env so the agent can authenticate back to the control-plane (D-03, SESS-02).
+	// IssueDockerToken produces a stored, single-use 32-byte hex token whose
+	// redemption/lookup half is already wired into the agent auth path. Boxlite
+	// mode is untouched — it injects its own token inside its runtime.
+	if m.config.IsDockerEngineMode() {
+		env["AGENT_SESSION_TOKEN"] = m.IssueDockerToken(sessionID)
+	}
+
 	// Inject per-session Codex OAuth tokens as BoxLite secret carriers.
 	// The runtime strips these before building the guest env and registers them
 	// as per-session BoxLite secrets so tokens are substituted in-flight.
@@ -2111,12 +2120,15 @@ func (m *Manager) SendTerminalInput(ctx context.Context, sessionID, data string)
 	m.mu.RLock()
 	agent, ok := m.agents[sessionID]
 	m.mu.RUnlock()
-
 	if !ok {
+		slog.Warn("terminal: no agent connected", "sessionID", sessionID)
 		return fmt.Errorf("no agent connected for session %s", sessionID)
 	}
-
-	return agent.SendTerminalInput(data)
+	err := agent.SendTerminalInput(data)
+	if err != nil {
+		slog.Warn("terminal: send to agent failed", "sessionID", sessionID, "error", err)
+	}
+	return err
 }
 
 // ResizeTerminal resizes the agent terminal.
