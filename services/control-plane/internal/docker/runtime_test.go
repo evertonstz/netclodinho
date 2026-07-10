@@ -297,6 +297,87 @@ func TestCreateSandbox(t *testing.T) {
 	}
 }
 
+// TestCreateSandbox_InjectsAgentEnv closes RESEARCH.md Open Question 1: the manager's
+// inline env map (AGENT_SESSION_TOKEN threaded in per plan 03-01 Task 2) has no clean
+// unit seam, so the honest coverage point is the integration path. This test creates a
+// real container with a fixed AGENT_SESSION_TOKEN, then inspects the running container's
+// env via ContainerInspect and asserts both AGENT_SESSION_TOKEN (verbatim value) and a
+// CONTROL_PLANE_URL entry (defaulting to http://control-plane:<Port> per plan 03-01 Task 3).
+//
+// Daemon+image-gated: skips cleanly (t.Skipf) when no daemon or the agent image is absent
+// — no always-pass stub. The assertion reads container.Config.Env directly.
+func TestCreateSandbox_InjectsAgentEnv(t *testing.T) {
+	const network = "netclode_default"
+	const image = "netclode-agent:local"
+	const wantToken = "test-agent-session-token-abc123"
+
+	cfg := &config.Config{
+		RuntimeMode:   config.RuntimeModeDocker,
+		DockerNetwork: network,
+		AgentImage:    image,
+		Port:          3000,
+		// DockerAgentCPURL left empty → resolveAgentCPURL defaults to compose DNS.
+	}
+	wantCPURL := "http://control-plane:3000"
+
+	rt, err := NewRuntime(cfg)
+	if err != nil {
+		t.Skipf("docker daemon not reachable, skipping: %v", err)
+	}
+	defer rt.Close()
+
+	if _, inspectErr := rt.client.ImageInspect(context.Background(), image); inspectErr != nil {
+		t.Skipf("agent image %q not present locally; skipping integration test: %v", image, inspectErr)
+	}
+
+	sessionID := "test-injectsagentenv"
+
+	// Register cleanup BEFORE creating the sandbox to ensure cleanup runs even on failure.
+	t.Cleanup(func() {
+		ctx := context.Background()
+		_, _ = rt.client.ContainerRemove(ctx, containerName(sessionID), dockerclient.ContainerRemoveOptions{Force: true})
+		_, _ = rt.client.VolumeRemove(ctx, volumeName(sessionID), dockerclient.VolumeRemoveOptions{Force: true})
+	})
+
+	// Simulate what the manager threads in for docker mode: the agent session token plus
+	// the session id. CreateSandbox is expected to add CONTROL_PLANE_URL (and re-set SESSION_ID).
+	env := map[string]string{
+		"AGENT_SESSION_TOKEN": wantToken,
+		"SESSION_ID":          sessionID,
+	}
+
+	if err := rt.CreateSandbox(context.Background(), sessionID, env, nil); err != nil {
+		t.Fatalf("CreateSandbox() returned unexpected error: %v", err)
+	}
+
+	// Inspect the created container and read its env (runtime.go ContainerInspect idiom).
+	inspectResult, err := rt.client.ContainerInspect(context.Background(), containerName(sessionID), dockerclient.ContainerInspectOptions{})
+	if err != nil {
+		t.Fatalf("ContainerInspect() after CreateSandbox failed: %v", err)
+	}
+	if inspectResult.Container.Config == nil {
+		t.Fatal("ContainerInspect() returned nil Config — cannot assert env")
+	}
+
+	// Assert both AGENT_SESSION_TOKEN=<value> and CONTROL_PLANE_URL=<default> are present
+	// in the container's actual env, read directly from container.Config.Env.
+	var gotToken, gotCPURL bool
+	for _, e := range inspectResult.Container.Config.Env {
+		if e == "AGENT_SESSION_TOKEN="+wantToken {
+			gotToken = true
+		}
+		if e == "CONTROL_PLANE_URL="+wantCPURL {
+			gotCPURL = true
+		}
+	}
+	if !gotToken {
+		t.Errorf("container env missing %q; env: %v", "AGENT_SESSION_TOKEN="+wantToken, inspectResult.Container.Config.Env)
+	}
+	if !gotCPURL {
+		t.Errorf("container env missing %q; env: %v", "CONTROL_PLANE_URL="+wantCPURL, inspectResult.Container.Config.Env)
+	}
+}
+
 // TestCreateSandboxResume verifies the resume path: when ExistingPVCEnvKey is set,
 // CreateSandbox starts an existing stopped container without creating a new one.
 //
