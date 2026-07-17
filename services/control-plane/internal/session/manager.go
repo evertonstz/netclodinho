@@ -2121,7 +2121,11 @@ func (m *Manager) SendTerminalInput(ctx context.Context, sessionID, data string)
 	agent, ok := m.agents[sessionID]
 	m.mu.RUnlock()
 	if !ok {
-		slog.Warn("terminal: no agent connected", "sessionID", sessionID)
+		// Expected transient during pause/reconnect/resume churn — a client may
+		// type into a terminal whose agent is briefly disconnected. Logging Warn
+		// per input frame floods logs for a client-recoverable condition, so this
+		// is Debug. The returned error still surfaces the condition to the caller.
+		slog.Debug("terminal: no agent connected", "sessionID", sessionID)
 		return fmt.Errorf("no agent connected for session %s", sessionID)
 	}
 	err := agent.SendTerminalInput(data)
