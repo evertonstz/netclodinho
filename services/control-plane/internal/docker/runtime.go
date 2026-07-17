@@ -556,6 +556,10 @@ func (r *Runtime) collectSensitiveEnvValues(ctx context.Context, sessionID strin
 // (AGENT_SESSION_TOKEN, ANTHROPIC_API_KEY, ...). If the agent echoes its environment on
 // boot those values would otherwise be copied verbatim into the returned/logged timeout
 // error. Values of sensitively-named env vars are scrubbed to "***" before returning.
+//
+// Stream labeling (WR-05): stdout and stderr are demuxed into separate buffers and
+// emitted as labeled sections. Preserving the stdout/stderr distinction is often the key
+// signal for a boot failure — "crashed on boot" (stderr) vs "printed usage" (stdout).
 func (r *Runtime) captureStartupLogs(ctx context.Context, sessionID string) string {
 	if r.client == nil {
 		return "" // best-effort — no daemon client (e.g. daemon-free Runtime literal)
@@ -570,10 +574,22 @@ func (r *Runtime) captureStartupLogs(ctx context.Context, sessionID string) stri
 	}
 	defer rc.Close()
 
+	// Demux into separate buffers so the stdout/stderr distinction is preserved (WR-05).
+	var stdout, stderr bytes.Buffer
+	_, _ = stdcopy.StdCopy(&stdout, &stderr, rc)
+
 	var out bytes.Buffer
-	// Combine stdout+stderr into one buffer — the timeout diagnostic wants everything
-	// the container emitted, not split streams.
-	_, _ = stdcopy.StdCopy(&out, &out, rc)
+	if stdout.Len() > 0 {
+		out.WriteString("[stdout]\n")
+		out.Write(stdout.Bytes())
+		if stdout.Bytes()[stdout.Len()-1] != '\n' {
+			out.WriteByte('\n')
+		}
+	}
+	if stderr.Len() > 0 {
+		out.WriteString("[stderr]\n")
+		out.Write(stderr.Bytes())
+	}
 
 	// Scrub secret env values before the logs escape into an error/log sink (WR-02).
 	return redactSecrets(out.String(), r.collectSensitiveEnvValues(ctx, sessionID))
