@@ -42,6 +42,12 @@ const (
 	labelManagedBy = "com.netclode.managed"
 	labelSessionID = "com.netclode.session-id"
 	labelNetwork   = "com.netclode.network"
+
+	// execTimeout bounds a single one-shot Exec (WR-03). BoxLite's Exec is a bounded
+	// one-shot; without an independent bound a command that never closes its output
+	// stream (daemonizes, blocks on stdin) would wedge StdCopy indefinitely when the
+	// caller passes context.Background().
+	execTimeout = 60 * time.Second
 )
 
 // containerName and volumeName share the same string value.
@@ -433,7 +439,14 @@ func (r *Runtime) ListSandboxes(ctx context.Context) ([]k8s.SandboxInfo, error) 
 // Method names are the verified moby client v0.5.0 post-split names ExecCreate /
 // ExecAttach / ExecInspect — NOT the pre-split ContainerExec* names. ExecAttach itself
 // starts the exec (postHijacked), so no separate ExecStart call is needed.
+//
+// The exec is bounded by an independent execTimeout (WR-03): a wedged command that never
+// closes its output stream would otherwise block StdCopy forever when the caller passes
+// context.Background(). On timeout the derived context is cancelled, unblocking the drain.
 func (r *Runtime) Exec(ctx context.Context, sessionID string, command string, args ...string) (*k8s.ExecResult, error) {
+	ctx, cancel := context.WithTimeout(ctx, execTimeout)
+	defer cancel()
+
 	cmd := append([]string{command}, args...) // argv passthrough, no shell wrapping (D-06)
 
 	created, err := r.client.ExecCreate(ctx, containerName(sessionID), dockerclient.ExecCreateOptions{
