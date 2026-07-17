@@ -472,6 +472,62 @@ func (r *Runtime) Exec(ctx context.Context, sessionID string, command string, ar
 	}, nil
 }
 
+// sensitiveEnvKeyFragments identifies container env var names whose *values* must be
+// scrubbed from any startup-log output before it is logged or returned in an error.
+// Matched case-insensitively as substrings (T-03-06 information disclosure). Agent
+// runtimes frequently print their environment or a startup banner on boot, so a live
+// AGENT_SESSION_TOKEN or ANTHROPIC_API_KEY can otherwise leak verbatim into control-plane
+// logs via the WaitForReady timeout diagnostic.
+var sensitiveEnvKeyFragments = []string{"TOKEN", "KEY", "SECRET", "PASSWORD"}
+
+// redactSecrets replaces each secret value in secrets with "***" wherever it appears in s.
+// Empty secret values are skipped (replacing "" would corrupt the whole string).
+func redactSecrets(s string, secrets []string) string {
+	for _, secret := range secrets {
+		if secret == "" {
+			continue
+		}
+		s = strings.ReplaceAll(s, secret, "***")
+	}
+	return s
+}
+
+// collectSensitiveEnvValues inspects the container and returns the values of any env var
+// whose name matches sensitiveEnvKeyFragments, so they can be scrubbed from log output.
+// Best-effort: returns whatever it can, plus the config-level ANTHROPIC_API_KEY as a floor
+// so redaction still occurs even if the inspect fails.
+func (r *Runtime) collectSensitiveEnvValues(ctx context.Context, sessionID string) []string {
+	var secrets []string
+	if r.cfg != nil && r.cfg.AnthropicAPIKey != "" {
+		secrets = append(secrets, r.cfg.AnthropicAPIKey)
+	}
+	if r.client == nil {
+		return secrets
+	}
+	res, err := r.client.ContainerInspect(ctx, containerName(sessionID), dockerclient.ContainerInspectOptions{})
+	if err != nil || res.Container.Config == nil {
+		return secrets // best-effort — fall back to config-level floor
+	}
+	for _, kv := range res.Container.Config.Env {
+		eq := strings.IndexByte(kv, '=')
+		if eq < 0 {
+			continue
+		}
+		name, value := kv[:eq], kv[eq+1:]
+		if value == "" {
+			continue
+		}
+		upper := strings.ToUpper(name)
+		for _, frag := range sensitiveEnvKeyFragments {
+			if strings.Contains(upper, frag) {
+				secrets = append(secrets, value)
+				break
+			}
+		}
+	}
+	return secrets
+}
+
 // captureStartupLogs returns a bounded tail of the container's combined stdout+stderr
 // startup logs for the given session (DEVX-01, D-08). It is fully best-effort: it returns
 // "" on ANY error (missing container, log-fetch failure, demux error) so a caller — the
@@ -482,6 +538,11 @@ func (r *Runtime) Exec(ctx context.Context, sessionID string, command string, ar
 // stream and must be demuxed with the same stdcopy.StdCopy (a raw read is garbled). The
 // Tail is bounded to 50 lines (D-08 discretion) to limit both log volume and the
 // information disclosure surface (T-03-06).
+//
+// Secret redaction (WR-02, T-03-06): the agent container is started with sensitive env
+// (AGENT_SESSION_TOKEN, ANTHROPIC_API_KEY, ...). If the agent echoes its environment on
+// boot those values would otherwise be copied verbatim into the returned/logged timeout
+// error. Values of sensitively-named env vars are scrubbed to "***" before returning.
 func (r *Runtime) captureStartupLogs(ctx context.Context, sessionID string) string {
 	if r.client == nil {
 		return "" // best-effort — no daemon client (e.g. daemon-free Runtime literal)
@@ -500,7 +561,9 @@ func (r *Runtime) captureStartupLogs(ctx context.Context, sessionID string) stri
 	// Combine stdout+stderr into one buffer — the timeout diagnostic wants everything
 	// the container emitted, not split streams.
 	_, _ = stdcopy.StdCopy(&out, &out, rc)
-	return out.String()
+
+	// Scrub secret env values before the logs escape into an error/log sink (WR-02).
+	return redactSecrets(out.String(), r.collectSensitiveEnvValues(ctx, sessionID))
 }
 
 // ---------------------------------------------------------------------------
