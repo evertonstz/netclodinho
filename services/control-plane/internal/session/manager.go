@@ -1082,14 +1082,28 @@ func (m *Manager) Resume(ctx context.Context, id string) (*pb.Session, error) {
 	m.ensureActiveSlot(ctx, id)
 
 	if status.Exists {
-		// Sandbox exists but not ready yet - just wait for it
+		// Sandbox exists but not ready yet.
 		m.mu.Lock()
 		state.Session.Status = pb.SessionStatus_SESSION_STATUS_RESUMING
 		m.mu.Unlock()
 
 		_ = m.storage.UpdateSessionStatus(ctx, id, pb.SessionStatus_SESSION_STATUS_RESUMING)
 
-		// Wait for existing sandbox to become ready
+		if m.config.IsDockerEngineMode() {
+			// Docker mode: a paused session persists as a STOPPED container, so GetStatus
+			// reports Exists:true, Ready:false. Unlike k8s/BoxLite — where an existing but
+			// not-ready sandbox is already spinning up and only needs waiting — a stopped
+			// Docker container never auto-starts. Resume must explicitly restart it via
+			// createSandboxDirect, which routes to runtime.CreateSandbox's ExistingPVCEnvKey
+			// branch (ContainerStart on the existing container + persisted volume). Without
+			// this, resume would set RESUMING and wait forever on a container nothing starts
+			// (PAUSE-02).
+			slog.InfoContext(ctx, "Resuming session (docker: restart existing stopped container)", "sessionID", id)
+			go m.createSandboxDirect(context.Background(), id, state.Session.Repos, state.Session.RepoAccess, state.Session.TailnetEnabled, state.Session.Resources)
+			return state.Session, nil
+		}
+
+		// k8s/BoxLite: existing sandbox is already coming up — wait for it to become ready.
 		go m.waitForSandbox(context.Background(), id)
 
 		return state.Session, nil
