@@ -2,6 +2,7 @@ package docker
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -12,6 +13,57 @@ import (
 	"github.com/angristan/netclode/services/control-plane/internal/config"
 	"github.com/angristan/netclode/services/control-plane/internal/k8s"
 )
+
+// TestSnapshotOpsNotSupported proves PAUSE-03: every snapshot-related method on the
+// Docker Runtime returns ErrNotSupported, in exact behavioral parity with BoxLite. These
+// methods never touch the Docker client, so the test constructs a bare Runtime literal and
+// must NOT skip — it runs (and asserts) regardless of whether a daemon is present.
+func TestSnapshotOpsNotSupported(t *testing.T) {
+	r := &Runtime{}
+	ctx := context.Background()
+
+	cases := []struct {
+		name string
+		call func() error
+	}{
+		{
+			name: "CreateVolumeSnapshot",
+			call: func() error { return r.CreateVolumeSnapshot(ctx, "sess", "snap") },
+		},
+		{
+			name: "WaitForSnapshotReady",
+			call: func() error { return r.WaitForSnapshotReady(ctx, "sess", "snap", time.Second) },
+		},
+		{
+			name: "DeleteVolumeSnapshot",
+			call: func() error { return r.DeleteVolumeSnapshot(ctx, "sess", "snap") },
+		},
+		{
+			name: "ListVolumeSnapshots",
+			call: func() error { _, err := r.ListVolumeSnapshots(ctx, "sess"); return err },
+		},
+		{
+			name: "RestoreFromSnapshot",
+			call: func() error { _, err := r.RestoreFromSnapshot(ctx, "sess", "snap"); return err },
+		},
+		{
+			name: "CreatePVCFromSnapshot",
+			call: func() error { _, err := r.CreatePVCFromSnapshot(ctx, "sess", "snap"); return err },
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.call()
+			if err == nil {
+				t.Fatalf("%s() returned nil error, want ErrNotSupported", tc.name)
+			}
+			if !errors.Is(err, ErrNotSupported) {
+				t.Errorf("%s() error = %v, want errors.Is(..., ErrNotSupported)", tc.name, err)
+			}
+		})
+	}
+}
 
 // TestNewRuntime_MissingNetwork verifies that NewRuntime returns a non-nil error
 // when cfg.DockerNetwork is empty — this fail-fast requires no live daemon.
