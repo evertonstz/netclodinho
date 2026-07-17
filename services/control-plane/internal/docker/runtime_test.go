@@ -910,3 +910,196 @@ func TestOrphanCleanup(t *testing.T) {
 		t.Errorf("known volume %q was incorrectly removed by CleanupOrphans: %v", volumeName(knownID), err)
 	}
 }
+
+// TestPauseKeepsContainerAndVolume proves PAUSE-01's stop-not-remove + volume-survives
+// invariant: after DeleteSandbox (the pause path), the container is stopped but still
+// exists (ContainerInspect succeeds, State.Running false) and the workspace volume still
+// exists (VolumeInspect succeeds). This test deliberately does NOT call DeletePVC — removing
+// the volume would defeat the invariant it asserts.
+//
+// Daemon+image-gated: skips cleanly (t.Skipf) when no daemon or the agent image is absent.
+func TestPauseKeepsContainerAndVolume(t *testing.T) {
+	const network = "netclode_default"
+	const image = "netclode-agent:local"
+
+	cfg := &config.Config{
+		RuntimeMode:   config.RuntimeModeDocker,
+		DockerNetwork: network,
+		AgentImage:    image,
+	}
+
+	rt, err := NewRuntime(cfg)
+	if err != nil {
+		t.Skipf("docker daemon not reachable, skipping: %v", err)
+	}
+	defer rt.Close()
+
+	if _, inspectErr := rt.client.ImageInspect(context.Background(), image); inspectErr != nil {
+		t.Skipf("agent image %q not present locally; skipping integration test: %v", image, inspectErr)
+	}
+
+	sessionID := "test-pause-keeps"
+
+	// Register cleanup BEFORE creating to avoid name-collision residue on re-run (Pitfall 5).
+	t.Cleanup(func() {
+		ctx := context.Background()
+		_, _ = rt.client.ContainerRemove(ctx, containerName(sessionID), dockerclient.ContainerRemoveOptions{Force: true})
+		_, _ = rt.client.VolumeRemove(ctx, volumeName(sessionID), dockerclient.VolumeRemoveOptions{Force: true})
+	})
+
+	if err := rt.CreateSandbox(context.Background(), sessionID, map[string]string{}, nil); err != nil {
+		t.Fatalf("CreateSandbox() setup failed: %v", err)
+	}
+
+	// Pause = DeleteSandbox (stop-only, never remove).
+	if err := rt.DeleteSandbox(context.Background(), sessionID); err != nil {
+		t.Fatalf("DeleteSandbox() (pause) returned unexpected error: %v", err)
+	}
+
+	// Container must still exist and be stopped — NOT removed (PAUSE-01).
+	inspectResult, err := rt.client.ContainerInspect(context.Background(), containerName(sessionID), dockerclient.ContainerInspectOptions{})
+	if err != nil {
+		t.Fatalf("ContainerInspect() after pause failed: %v — container must still exist (PAUSE-01)", err)
+	}
+	if inspectResult.Container.State != nil && inspectResult.Container.State.Running {
+		t.Errorf("container should be stopped after pause, but State.Running = true")
+	}
+
+	// Workspace volume must still exist — this is the pause persistence invariant.
+	if _, err := rt.client.VolumeInspect(context.Background(), volumeName(sessionID), dockerclient.VolumeInspectOptions{}); err != nil {
+		t.Errorf("VolumeInspect() after pause failed: %v — volume must persist across pause (PAUSE-01)", err)
+	}
+}
+
+// TestGetStatusPausedTriState proves PAUSE-01's tri-state: after CreateSandbox +
+// DeleteSandbox (pause), GetStatus returns Exists:true, Ready:false — the PAUSED state the
+// manager reconciles. A stopped container reporting Exists:false would break PAUSED
+// reconciliation (Pitfall 3), so this test explicitly asserts Exists is NOT false.
+//
+// Daemon+image-gated: skips cleanly (t.Skipf) when no daemon or the agent image is absent.
+func TestGetStatusPausedTriState(t *testing.T) {
+	const network = "netclode_default"
+	const image = "netclode-agent:local"
+
+	cfg := &config.Config{
+		RuntimeMode:   config.RuntimeModeDocker,
+		DockerNetwork: network,
+		AgentImage:    image,
+	}
+
+	rt, err := NewRuntime(cfg)
+	if err != nil {
+		t.Skipf("docker daemon not reachable, skipping: %v", err)
+	}
+	defer rt.Close()
+
+	if _, inspectErr := rt.client.ImageInspect(context.Background(), image); inspectErr != nil {
+		t.Skipf("agent image %q not present locally; skipping integration test: %v", image, inspectErr)
+	}
+
+	sessionID := "test-status-paused"
+
+	t.Cleanup(func() {
+		ctx := context.Background()
+		_, _ = rt.client.ContainerRemove(ctx, containerName(sessionID), dockerclient.ContainerRemoveOptions{Force: true})
+		_, _ = rt.client.VolumeRemove(ctx, volumeName(sessionID), dockerclient.VolumeRemoveOptions{Force: true})
+	})
+
+	if err := rt.CreateSandbox(context.Background(), sessionID, map[string]string{}, nil); err != nil {
+		t.Fatalf("CreateSandbox() setup failed: %v", err)
+	}
+
+	// Pause via DeleteSandbox (stop-only).
+	if err := rt.DeleteSandbox(context.Background(), sessionID); err != nil {
+		t.Fatalf("DeleteSandbox() (pause) setup failed: %v", err)
+	}
+
+	status, err := rt.GetStatus(context.Background(), sessionID)
+	if err != nil {
+		t.Fatalf("GetStatus() on paused container returned error: %v", err)
+	}
+	// The PAUSED tri-state: Exists must be true (NOT false), Ready must be false.
+	if !status.Exists {
+		t.Errorf("GetStatus() on paused container: Exists = false, want true (a stopped container must NOT report Exists:false — Pitfall 3)")
+	}
+	if status.Ready {
+		t.Errorf("GetStatus() on paused container: Ready = true, want false")
+	}
+}
+
+// TestResumeRestartsExistingContainer proves PAUSE-02: resume restarts the SAME stopped
+// container (does not create a new one) via the ExistingPVCEnvKey branch. The test captures
+// the container ID before pause and asserts the resumed container has the identical ID and
+// is running again. Resume reuses the baked-in env, so no new token is expected.
+//
+// Workspace-file survival across pause/resume is covered by the live UAT in plan 04-02
+// (there is no in-package exec helper to write a marker file here); same-container-ID
+// identity is the honest unit-level proof that the persistent named volume is retained.
+//
+// Daemon+image-gated: skips cleanly (t.Skipf) when no daemon or the agent image is absent.
+func TestResumeRestartsExistingContainer(t *testing.T) {
+	const network = "netclode_default"
+	const image = "netclode-agent:local"
+
+	cfg := &config.Config{
+		RuntimeMode:   config.RuntimeModeDocker,
+		DockerNetwork: network,
+		AgentImage:    image,
+	}
+
+	rt, err := NewRuntime(cfg)
+	if err != nil {
+		t.Skipf("docker daemon not reachable, skipping: %v", err)
+	}
+	defer rt.Close()
+
+	if _, inspectErr := rt.client.ImageInspect(context.Background(), image); inspectErr != nil {
+		t.Skipf("agent image %q not present locally; skipping integration test: %v", image, inspectErr)
+	}
+
+	sessionID := "test-resume-restarts"
+
+	t.Cleanup(func() {
+		ctx := context.Background()
+		_, _ = rt.client.ContainerRemove(ctx, containerName(sessionID), dockerclient.ContainerRemoveOptions{Force: true})
+		_, _ = rt.client.VolumeRemove(ctx, volumeName(sessionID), dockerclient.VolumeRemoveOptions{Force: true})
+	})
+
+	// Create the sandbox and capture the original container ID.
+	if err := rt.CreateSandbox(context.Background(), sessionID, map[string]string{}, nil); err != nil {
+		t.Fatalf("CreateSandbox() setup failed: %v", err)
+	}
+	before, err := rt.client.ContainerInspect(context.Background(), containerName(sessionID), dockerclient.ContainerInspectOptions{})
+	if err != nil {
+		t.Fatalf("ContainerInspect() before pause failed: %v", err)
+	}
+	originalID := before.Container.ID
+	if originalID == "" {
+		t.Fatal("ContainerInspect() returned empty container ID before pause")
+	}
+
+	// Pause via DeleteSandbox (stop-only, volume persists).
+	if err := rt.DeleteSandbox(context.Background(), sessionID); err != nil {
+		t.Fatalf("DeleteSandbox() (pause) setup failed: %v", err)
+	}
+
+	// Resume via the ExistingPVCEnvKey branch — must restart the existing container.
+	resumeEnv := map[string]string{
+		k8s.ExistingPVCEnvKey: containerName(sessionID),
+	}
+	if err := rt.CreateSandbox(context.Background(), sessionID, resumeEnv, nil); err != nil {
+		t.Fatalf("CreateSandbox(resume) returned unexpected error: %v", err)
+	}
+
+	// The resumed container must be the SAME container (identical ID) and running again.
+	after, err := rt.client.ContainerInspect(context.Background(), containerName(sessionID), dockerclient.ContainerInspectOptions{})
+	if err != nil {
+		t.Fatalf("ContainerInspect() after resume failed: %v", err)
+	}
+	if after.Container.ID != originalID {
+		t.Errorf("resume created a NEW container: ID before = %q, after = %q; PAUSE-02 requires restarting the same container", originalID, after.Container.ID)
+	}
+	if after.Container.State == nil || !after.Container.State.Running {
+		t.Errorf("container should be running after resume, got state: %+v", after.Container.State)
+	}
+}
