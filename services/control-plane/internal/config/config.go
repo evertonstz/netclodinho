@@ -2,11 +2,24 @@ package config
 
 import (
 	"encoding/base64"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+)
+
+// RuntimeMode identifies which sandbox runtime backend is active.
+type RuntimeMode string
+
+const (
+	// RuntimeModeKubernetes selects the Kubernetes runtime (default).
+	RuntimeModeKubernetes RuntimeMode = "kubernetes"
+	// RuntimeModeBoxlite selects the embedded BoxLite microVM runtime.
+	RuntimeModeBoxlite RuntimeMode = "boxlite"
+	// RuntimeModeDocker selects the Docker Engine container runtime.
+	RuntimeModeDocker RuntimeMode = "docker"
 )
 
 type Config struct {
@@ -61,10 +74,15 @@ type Config struct {
 	// OpenRouter (optional)
 	OpenRouterAPIKey string // OpenRouter API key (for OpenCode SDK multi-provider gateway)
 
-	// Runtime mode: "kubernetes" (default) or "docker"
-	RuntimeMode string
+	// Runtime mode: "kubernetes" (default), "boxlite", or "docker"
+	RuntimeMode RuntimeMode
 
-	// Boxlite runtime settings (only used when RuntimeMode == "docker")
+	// Docker Engine runtime settings (only used when RuntimeMode == "docker")
+	DockerNetwork    string // Docker compose network name sandboxes join (required in docker mode)
+	DockerHost       string // Override Docker daemon socket/URL; empty = client.FromEnv default
+	DockerAgentCPURL string // URL agents inside Docker containers use to reach control-plane; empty = compose-DNS default resolved in runtime
+
+	// Boxlite runtime settings (only used when RuntimeMode == "boxlite")
 	BoxliteHomeDir             string // BoxLite home directory for the embedded runtime
 	BoxliteAgentCPURL          string // URL agents inside Boxlite VMs use to reach control-plane
 	BoxliteDefaultDiskSizeGb   int    // Default QCOW2 disk size in GB for BoxLite sessions
@@ -120,7 +138,12 @@ func Load() *Config {
 		OpenRouterAPIKey: getEnv("OPENROUTER_API_KEY", ""),
 
 		// Runtime mode
-		RuntimeMode: getEnv("RUNTIME_MODE", "kubernetes"),
+		RuntimeMode: RuntimeMode(getEnv("RUNTIME_MODE", "kubernetes")),
+
+		// Docker Engine runtime settings
+		DockerNetwork:    getEnv("DOCKER_NETWORK", ""),
+		DockerHost:       getEnv("DOCKER_HOST", ""),
+		DockerAgentCPURL: getEnv("DOCKER_AGENT_CP_URL", ""),
 
 		// Boxlite runtime settings
 		BoxliteHomeDir:             getEnv("BOXLITE_HOME_DIR", ""),
@@ -157,9 +180,25 @@ func (c *Config) EffectiveBoxliteHomeDir() string {
 	return "/var/lib/boxlite"
 }
 
-// IsDockerMode returns true if the runtime is Boxlite/Docker mode.
-func (c *Config) IsDockerMode() bool {
-	return c.RuntimeMode == "docker"
+// IsBoxliteMode returns true if the runtime is the embedded BoxLite mode.
+func (c *Config) IsBoxliteMode() bool {
+	return c.RuntimeMode == RuntimeModeBoxlite
+}
+
+// IsDockerEngineMode returns true if the runtime is the Docker Engine mode.
+func (c *Config) IsDockerEngineMode() bool {
+	return c.RuntimeMode == RuntimeModeDocker
+}
+
+// Validate returns an error if RuntimeMode is not a known value.
+func (c *Config) Validate() error {
+	switch c.RuntimeMode {
+	case RuntimeModeKubernetes, RuntimeModeBoxlite, RuntimeModeDocker:
+		return nil
+	default:
+		return fmt.Errorf("unknown RUNTIME_MODE %q: valid values are %q, %q, %q",
+			c.RuntimeMode, RuntimeModeKubernetes, RuntimeModeBoxlite, RuntimeModeDocker)
+	}
 }
 
 // HasGitHubApp returns true if GitHub App is configured.

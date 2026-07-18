@@ -16,6 +16,7 @@ import (
 	"github.com/angristan/netclode/services/control-plane/internal/api"
 	"github.com/angristan/netclode/services/control-plane/internal/boxlite"
 	"github.com/angristan/netclode/services/control-plane/internal/config"
+	"github.com/angristan/netclode/services/control-plane/internal/docker"
 	"github.com/angristan/netclode/services/control-plane/internal/github"
 	"github.com/angristan/netclode/services/control-plane/internal/k8s"
 	"github.com/angristan/netclode/services/control-plane/internal/metrics"
@@ -76,6 +77,9 @@ func run() error {
 
 	// Load configuration
 	cfg := config.Load()
+	if err := cfg.Validate(); err != nil {
+		return err
+	}
 	slog.Info("Configuration loaded",
 		"port", cfg.Port,
 		"namespace", cfg.K8sNamespace,
@@ -98,11 +102,13 @@ func run() error {
 	// Create session manager (needed before Docker runtime to satisfy TokenIssuer).
 	manager := session.NewManager(store, nil, cfg, nil) // runtime injected below
 
-	// Initialize runtime: Docker or Kubernetes.
+	// Initialize runtime based on RUNTIME_MODE.
+	// cfg.Validate() above ensures only known values reach this switch.
 	var runtime k8s.Runtime
-	if cfg.IsDockerMode() {
-		slog.Info("Runtime mode: docker (boxlite)")
-		// Force warm pool off in Docker/Boxlite mode.
+	switch cfg.RuntimeMode {
+	case config.RuntimeModeBoxlite:
+		slog.Info("Runtime mode: boxlite")
+		// Force warm pool off in BoxLite mode.
 		cfg.UseWarmPool = false
 		boxliteRuntime, err := boxlite.NewRuntime(cfg, manager)
 		if err != nil {
@@ -113,7 +119,26 @@ func run() error {
 			boxliteRuntime.Close()
 		}()
 		runtime = boxliteRuntime
-	} else {
+	case config.RuntimeModeDocker:
+		// D-01: RUNTIME_MODE=docker now selects the Docker Engine container runtime.
+		// Legacy BoxLite users who previously set RUNTIME_MODE=docker must update
+		// to RUNTIME_MODE=boxlite to continue using the BoxLite microVM backend.
+		slog.Warn("Runtime mode: docker (Docker Engine)",
+			"notice", "RUNTIME_MODE=docker now selects the Docker Engine container runtime; "+
+				"legacy BoxLite users must set RUNTIME_MODE=boxlite instead")
+		// Force warm pool off — Docker Engine runtime does not support warm pool.
+		cfg.UseWarmPool = false
+		dockerRuntime, err := docker.NewRuntime(cfg)
+		if err != nil {
+			return fmt.Errorf("init docker runtime: %w", err)
+		}
+		defer func() {
+			slog.Info("Closing Docker Engine runtime")
+			dockerRuntime.Close()
+		}()
+		runtime = dockerRuntime
+	default:
+		// Kubernetes is the default runtime; Validate() ensures only "kubernetes" reaches here.
 		slog.Info("Runtime mode: kubernetes")
 		k8sRuntime, err := k8s.NewRuntime(cfg)
 		if err != nil {
@@ -152,6 +177,25 @@ func run() error {
 	// Initialize manager (load sessions, reconcile with K8s)
 	if err := manager.Initialize(ctx); err != nil {
 		return fmt.Errorf("init manager: %w", err)
+	}
+
+	// Startup orphan cleanup for the Docker Engine runtime (DEVX-02, D-08).
+	// CleanupOrphans is not on the k8s.Runtime interface — reached via concrete-type assertion
+	// so the interface is not modified (project constraint).
+	// Runs AFTER manager.Initialize so all storage sessions are already loaded.
+	if dr, ok := runtime.(*docker.Runtime); ok {
+		sessions, err := store.GetAllSessions(ctx)
+		if err != nil {
+			slog.Warn("Docker orphan cleanup: failed to list sessions, skipping", "error", err)
+		} else {
+			knownSessionIDs := make(map[string]bool, len(sessions))
+			for _, s := range sessions {
+				knownSessionIDs[s.Id] = true
+			}
+			if err := dr.CleanupOrphans(ctx, knownSessionIDs); err != nil {
+				slog.Warn("Docker orphan cleanup failed", "error", err)
+			}
+		}
 	}
 
 	// Create HTTP/Connect server

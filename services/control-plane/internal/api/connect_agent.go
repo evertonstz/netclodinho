@@ -96,11 +96,16 @@ func (h *ConnectAgentServiceHandler) Connect(ctx context.Context, stream *connec
 	// K8s mode uses a JWT ServiceAccount token (contains dots).
 	var podName string
 	if !strings.Contains(k8sToken, ".") {
-		// Docker mode: redeem the single-use session token.
+		// Docker mode: NON-DESTRUCTIVE lookup (CR-01). The same baked-in token must serve
+		// the initial registration, repeated ValidateProxyAuth lookups, AND an agent
+		// re-registration after a pause/resume container restart (the restarted container
+		// carries its original AGENT_SESSION_TOKEN). Destructive single-use redemption
+		// broke resume re-auth and repeated proxy auth. The token is revoked explicitly on
+		// session teardown instead.
 		var ok bool
-		podName, ok = h.manager.RedeemDockerToken(k8sToken)
+		podName, ok = h.manager.LookupDockerToken(k8sToken)
 		if !ok {
-			slog.WarnContext(ctx, "Agent Docker token unknown or already redeemed", "version", reg.Version)
+			slog.WarnContext(ctx, "Agent Docker token unknown or revoked", "version", reg.Version)
 			conn.send(&v1.ControlPlaneMessage{
 				Message: &v1.ControlPlaneMessage_Registered{
 					Registered: &v1.AgentRegistered{

@@ -476,6 +476,11 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 		"ANTHROPIC_API_KEY": m.config.AnthropicAPIKey,
 	}
 
+	// Docker-mode session-token issuance is deferred until AFTER the ExistingPVCEnvKey
+	// resolution block below (CR-01). On resume the runtime restarts the existing
+	// container with its ORIGINAL baked-in AGENT_SESSION_TOKEN — issuing a fresh token
+	// here would orphan it (never delivered, never revoked) and break re-registration.
+
 	// Inject per-session Codex OAuth tokens as BoxLite secret carriers.
 	// The runtime strips these before building the guest env and registers them
 	// as per-session BoxLite secrets so tokens are substituted in-flight.
@@ -562,6 +567,21 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 		}
 	}
 
+	// Docker mode: thread a manager-issued per-session token into the container env so
+	// the agent can authenticate back to the control-plane (D-03, SESS-02). This runs
+	// AFTER ExistingPVCEnvKey resolution (CR-01): only the genuine full-create path issues
+	// a token. On resume the runtime restarts the existing container with its original
+	// baked-in AGENT_SESSION_TOKEN, so re-issuing would orphan a token and break
+	// re-registration. Registration and proxy auth both look the token up
+	// non-destructively (LookupDockerToken); it is revoked on session teardown.
+	// BoxLite/k8s mode is untouched — it injects its own token inside its runtime.
+	if m.config.IsDockerEngineMode() {
+		if _, resuming := env[k8s.ExistingPVCEnvKey]; !resuming {
+			env["AGENT_SESSION_TOKEN"] = m.IssueDockerToken(sessionID)
+		}
+		// else: the existing container already holds its original token; do not re-issue.
+	}
+
 	if tailnetEnabled {
 		env["_BOXLITE_TAILNET"] = "true"
 	}
@@ -601,6 +621,8 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 	// Create sandbox
 	if err := m.k8s.CreateSandbox(ctx, sessionID, env, k8sResources); err != nil {
 		slog.ErrorContext(ctx, "Failed to create sandbox", "sessionID", sessionID, "error", err)
+		// Revoke any issued docker token so a failed create does not leak it (WR-01).
+		m.RevokeDockerTokensForSession(sessionID)
 		m.updateSessionStatus(ctx, sessionID, pb.SessionStatus_SESSION_STATUS_ERROR)
 		m.emitSessionError(ctx, sessionID, err.Error())
 		return
@@ -618,6 +640,10 @@ func (m *Manager) createSandboxDirect(ctx context.Context, sessionID string, rep
 		} else {
 			slog.InfoContext(ctx, "Cleaned up sandbox after timeout", "sessionID", sessionID)
 		}
+		// Revoke the issued docker token: the agent never registered (this is the
+		// WaitForReady-timeout leak WR-01 names), so the token would otherwise stay
+		// resident forever.
+		m.RevokeDockerTokensForSession(sessionID)
 		m.updateSessionStatus(ctx, sessionID, pb.SessionStatus_SESSION_STATUS_ERROR)
 		m.emitSessionError(ctx, sessionID, err.Error())
 		return
@@ -1056,14 +1082,28 @@ func (m *Manager) Resume(ctx context.Context, id string) (*pb.Session, error) {
 	m.ensureActiveSlot(ctx, id)
 
 	if status.Exists {
-		// Sandbox exists but not ready yet - just wait for it
+		// Sandbox exists but not ready yet.
 		m.mu.Lock()
 		state.Session.Status = pb.SessionStatus_SESSION_STATUS_RESUMING
 		m.mu.Unlock()
 
 		_ = m.storage.UpdateSessionStatus(ctx, id, pb.SessionStatus_SESSION_STATUS_RESUMING)
 
-		// Wait for existing sandbox to become ready
+		if m.config.IsDockerEngineMode() {
+			// Docker mode: a paused session persists as a STOPPED container, so GetStatus
+			// reports Exists:true, Ready:false. Unlike k8s/BoxLite — where an existing but
+			// not-ready sandbox is already spinning up and only needs waiting — a stopped
+			// Docker container never auto-starts. Resume must explicitly restart it via
+			// createSandboxDirect, which routes to runtime.CreateSandbox's ExistingPVCEnvKey
+			// branch (ContainerStart on the existing container + persisted volume). Without
+			// this, resume would set RESUMING and wait forever on a container nothing starts
+			// (PAUSE-02).
+			slog.InfoContext(ctx, "Resuming session (docker: restart existing stopped container)", "sessionID", id)
+			go m.createSandboxDirect(context.Background(), id, state.Session.Repos, state.Session.RepoAccess, state.Session.TailnetEnabled, state.Session.Resources)
+			return state.Session, nil
+		}
+
+		// k8s/BoxLite: existing sandbox is already coming up — wait for it to become ready.
 		go m.waitForSandbox(context.Background(), id)
 
 		return state.Session, nil
@@ -1183,6 +1223,10 @@ func (m *Manager) Delete(ctx context.Context, id string) error {
 	_ = m.k8s.DeleteSecret(ctx, id)
 	_ = m.k8s.DeleteSessionAnchor(ctx, id)
 	_ = m.k8s.DeletePVC(ctx, id)
+
+	// Docker mode: revoke any issued session token so it does not outlive the session
+	// (WR-01). No-op in BoxLite/k8s mode where no docker token was issued.
+	m.RevokeDockerTokensForSession(id)
 
 	// Delete from storage
 	if err := m.storage.DeleteSession(ctx, id); err != nil {
@@ -2111,12 +2155,19 @@ func (m *Manager) SendTerminalInput(ctx context.Context, sessionID, data string)
 	m.mu.RLock()
 	agent, ok := m.agents[sessionID]
 	m.mu.RUnlock()
-
 	if !ok {
+		// Expected transient during pause/reconnect/resume churn — a client may
+		// type into a terminal whose agent is briefly disconnected. Logging Warn
+		// per input frame floods logs for a client-recoverable condition, so this
+		// is Debug. The returned error still surfaces the condition to the caller.
+		slog.Debug("terminal: no agent connected", "sessionID", sessionID)
 		return fmt.Errorf("no agent connected for session %s", sessionID)
 	}
-
-	return agent.SendTerminalInput(data)
+	err := agent.SendTerminalInput(data)
+	if err != nil {
+		slog.Warn("terminal: send to agent failed", "sessionID", sessionID, "error", err)
+	}
+	return err
 }
 
 // ResizeTerminal resizes the agent terminal.
@@ -3648,6 +3699,22 @@ func (m *Manager) RevokeDockerToken(token string) {
 	m.dockerTokensMu.Lock()
 	delete(m.dockerTokens, token)
 	m.dockerTokensMu.Unlock()
+}
+
+// RevokeDockerTokensForSession removes every token mapped to sessionID (WR-01).
+// The dockerTokens map is keyed by token → sessionID, and a session's baked-in token is
+// not tracked on the session state, so teardown scans by value. This bounds map growth:
+// without it, any session whose agent never registers (crash-on-boot, image failure, the
+// WaitForReady timeout path) would leak its token forever, keeping a live credential
+// resident. Idempotent — a no-op when the session has no issued tokens (BoxLite/k8s mode).
+func (m *Manager) RevokeDockerTokensForSession(sessionID string) {
+	m.dockerTokensMu.Lock()
+	defer m.dockerTokensMu.Unlock()
+	for token, sid := range m.dockerTokens {
+		if sid == sessionID {
+			delete(m.dockerTokens, token)
+		}
+	}
 }
 
 // Config returns the manager's configuration (read-only).

@@ -84,7 +84,7 @@ services:
       - boxlite-home:/var/lib/boxlite
     environment:
       PORT: "3000"
-      RUNTIME_MODE: docker
+      RUNTIME_MODE: boxlite
       LOG_LEVEL: ${LOG_LEVEL:-info}
       DEBUG_REST_EP: ${DEBUG_REST_EP:-false}
       BOXLITE_HOME_DIR: /var/lib/boxlite

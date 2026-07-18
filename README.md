@@ -37,6 +37,25 @@ In short:
 - snapshots don't currently work (also TBD when Boxlite Go SDK matures)
 - network isolation is designed for practical self-hosted hygiene, not hostile multi-tenant strong isolation, *tailnet isolation currently doesn't work*, this could change depending on future Boxlite features
 
+#### Docker mode
+
+Docker mode (`RUNTIME_MODE=docker`) runs each sandbox as a plain Docker container instead of a BoxLite microVM. It exists so you can run and iterate on the full stack locally with nothing but Docker. It provides **container isolation only** — there is no microVM boundary, no secret-injection proxy, and no network allowlist in v1 — so it is **not suitable for hostile multi-tenant use**.
+
+Tradeoffs:
+
+- **Secrets are plain env vars.** `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` enter the sandbox as ordinary container environment variables — there is no secret-injection proxy in Docker mode.
+- **The per-session agent token is reusable within a session.** A resumed container re-registers with its original baked-in token (non-destructive lookup), so the token is valid for the life of the session and is revoked only on full session teardown.
+- **Pause/resume is container stop/start over a persistent named volume.** Snapshots are not supported and return a clear "not supported" error, matching BoxLite.
+- **The dev compose stack runs the control plane as `user: "0:0"`** so it can read the mounted Docker socket. This is a dev-only override and is documented as container-isolation-only.
+
+Runbook: always rebuild before validating with
+
+```
+docker compose -f docker-compose.dev.yml up -d --build
+```
+
+A stale control-plane image silently runs old code, so `--build` is not optional when validating a change.
+
 If you are evaluating this fork for production use, read the BoxLite sandbox docs first.
 
 
