@@ -2,12 +2,16 @@ package client
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
+	"net"
 	"net/http"
+	"strings"
 
 	"connectrpc.com/connect"
 	pb "github.com/angristan/netclode/services/control-plane/gen/netclode/v1"
 	"github.com/angristan/netclode/services/control-plane/gen/netclode/v1/netclodev1connect"
+	"golang.org/x/net/http2"
 )
 
 // Client wraps the Connect client for CLI operations.
@@ -19,6 +23,18 @@ type Client struct {
 // New creates a new CLI client.
 func New(baseURL string) *Client {
 	httpClient := &http.Client{}
+	// Bidirectional Connect streams require HTTP/2. Over https:// ALPN
+	// negotiates h2, but plain http:// (local dev) needs h2c with prior
+	// knowledge — otherwise the server rejects bidi streams with HTTP 505.
+	if strings.HasPrefix(baseURL, "http://") {
+		httpClient.Transport = &http2.Transport{
+			AllowHTTP: true,
+			DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.Config) (net.Conn, error) {
+				var d net.Dialer
+				return d.DialContext(ctx, network, addr)
+			},
+		}
+	}
 	return &Client{
 		baseURL: baseURL,
 		client:  netclodev1connect.NewClientServiceClient(httpClient, baseURL),
