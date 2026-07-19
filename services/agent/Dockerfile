@@ -93,6 +93,9 @@ RUN --mount=type=cache,target=/root/.npm npm install
 # Agent source copy + bundle
 # =============================================================================
 COPY proto/ /build/proto/
+# Install proto's codegen deps (tsx, @bufbuild/protoplugin) for the buf plugin.
+# Host node_modules are excluded via .dockerignore, so install for this platform.
+RUN --mount=type=cache,target=/root/.npm npm ci --prefix /build/proto
 COPY services/agent /build/services/agent
 
 # Bundle agent (prebuild runs buf generate first)
@@ -135,6 +138,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends unzip && \
     mv /tmp/bun-linux-*/bun /opt/bun && \
     chmod +x /opt/bun && \
     rm -rf /tmp/bun.zip /tmp/bun-linux-* /var/lib/apt/lists/*
+# Common CLI tools for the sandbox (devcontainer common-utils-style curated
+# set, ~59MB): network diagnostics, process tools, and the utilities coding
+# agents and users reach for constantly (jq, ripgrep, fd).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    iputils-ping dnsutils iproute2 netcat-openbsd procps less wget rsync \
+    openssh-client lsof psmisc htop tree file unzip zip jq nano vim-tiny \
+    ripgrep fd-find \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Ghostty's terminfo (vendored from Ghostty v1.3.1 — matches the
+# libghostty renderer pinned in the iOS client) so shells inside the VM can
+# use TERM=xterm-ghostty with full capability advertisement.
+COPY services/agent/terminfo/xterm-ghostty.terminfo /tmp/xterm-ghostty.terminfo
+RUN tic -x -o /usr/share/terminfo /tmp/xterm-ghostty.terminfo && \
+    rm /tmp/xterm-ghostty.terminfo
+
 # Install zmx (terminal session manager, replaces node-pty/tmux)
 ARG ZMX_VERSION=0.6.0
 RUN ZMX_ARCH=$([ "$TARGETARCH" = "arm64" ] && echo "aarch64" || echo "x86_64") && \

@@ -6,6 +6,7 @@
  * via sessionId + optional tabId.
  */
 
+import { StringDecoder } from "node:string_decoder";
 import { Tag, type ZmxSocket } from "./zmx-socket.js";
 import { getZmxService } from "./zmx-service.js";
 
@@ -17,6 +18,11 @@ const terminalOutputCallbacks = new Set<(data: string) => void>();
 
 // Active zmx sockets by session key: "sessionId.tabId"
 const activeSockets = new Map<string, ZmxSocket>();
+
+// In-flight socket creations, so concurrent input+resize before the socket
+// exists share one connection instead of racing into two sockets with
+// duplicate frame listeners (duplicated output for every client).
+const pendingSockets = new Map<string, Promise<ZmxSocket>>();
 
 /** Build a session key from sessionId and optional tabId */
 function sessionKey(sessionId: string, tabId: string = "0"): string {
@@ -42,43 +48,64 @@ async function getOrCreateSocket(sessionId: string, tabId: string = "0"): Promis
   const existing = activeSockets.get(key);
   if (existing) return existing;
 
-  const zmx = getZmxService();
-  const sock = await zmx.ensureSession(sessionId, tabId);
+  const pending = pendingSockets.get(key);
+  if (pending) return pending;
 
-  // Forward output to all registered callbacks
-  sock.on("frame", (tag: Tag, payload: Buffer) => {
-    if (tag !== Tag.Output) return;
-    const data = payload.toString("utf-8");
-    for (const cb of terminalOutputCallbacks) {
-      cb(data);
-    }
-    if (globalTerminalOutputCallback) {
-      globalTerminalOutputCallback(data);
-    }
-  });
+  const creation = (async () => {
+    const zmx = getZmxService();
+    console.log("[zmx] creating session for", key);
+    const sock = await zmx.ensureSession(sessionId, tabId);
+    // Frames split multi-byte UTF-8 characters at arbitrary boundaries; a
+    // per-socket StringDecoder buffers partial codepoints across frames so
+    // clients never see U+FFFD replacement characters.
+    const decoder = new StringDecoder("utf8");
+    sock.on("frame", (tag: Tag, payload: Buffer) => {
+      if (tag !== Tag.Output) return;
+      const data = decoder.write(payload);
+      if (!data) return; // partial multi-byte character buffered
+      for (const cb of terminalOutputCallbacks) {
+        cb(data);
+      }
+      if (globalTerminalOutputCallback) {
+        globalTerminalOutputCallback(data);
+      }
+    });
+    sock.on("close", () => {
+      console.log("[zmx] socket closed for", key);
+      activeSockets.delete(key);
+    });
+    sock.on("error", (err: Error) => {
+      console.error("[zmx] socket error for", key, ":", err.message);
+    });
+    activeSockets.set(key, sock);
+    return sock;
+  })();
 
-  sock.on("close", () => {
-    activeSockets.delete(key);
-  });
-
-  activeSockets.set(key, sock);
-  return sock;
+  pendingSockets.set(key, creation);
+  try {
+    return await creation;
+  } catch (err) {
+    console.error("[zmx] failed to create session for", key, ":", err);
+    throw err;
+  } finally {
+    pendingSockets.delete(key);
+  }
 }
 
 /** Write data to the terminal PTY */
 export function writeToTerminal(data: string, sessionId: string = "default"): void {
   const key = sessionKey(sessionId);
   const sock = activeSockets.get(key);
-  console.log("[terminal-debug] writeToTerminal sessionId=%s key=%s hasSock=%s len=%d", sessionId, key, !!sock, data.length);
   if (sock) {
     sock.writeInput(data);
   } else {
-    getOrCreateSocket(sessionId).then((s) => s.writeInput(data));
+    getOrCreateSocket(sessionId)
+      .then((s) => s.writeInput(data))
+      .catch((err) => console.error("[zmx] dropped input, session unavailable:", err?.message ?? err));
   }
 }
 /** Resize the terminal */
 export async function resizeTerminal(cols: number, rows: number, sessionId: string = "default"): Promise<void> {
-  console.log("[terminal-debug] resizeTerminal sessionId=%s cols=%d rows=%d", sessionId, cols, rows);
   const sock = await getOrCreateSocket(sessionId);
   sock.writeResize({ cols, rows });
 }

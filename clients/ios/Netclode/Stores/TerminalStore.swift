@@ -1,67 +1,78 @@
 import Foundation
 
+/// Owns one persistent `GhosttyTerminalBridge` per session.
+///
+/// Bridges (and the terminal views/surfaces they own) live for the duration
+/// of the session — tab switches and SwiftUI view recreation never destroy
+/// terminal state. Teardown happens only on session delete via
+/// `clearOutput(for:)`.
 @MainActor
 @Observable
 final class TerminalStore {
-    /// Raw output buffer per session (for session restore)
-    private var rawOutputBySession: [String: [UInt8]] = [:]
-    
     /// Bridges per session
-    private var bridgesBySession: [String: SwiftTermBridge] = [:]
-    
+    private var bridgesBySession: [String: GhosttyTerminalBridge] = [:]
+
     /// Reference to Connect service (set during init)
     weak var connectService: ConnectService?
-    
-    private let maxOutputLength = 100_000 // 100KB buffer per session
-    
-    /// Get or create a bridge for a session
-    func bridge(for sessionId: String) -> SwiftTermBridge {
+
+    @ObservationIgnored private var reconnectObserver: (any NSObjectProtocol)?
+
+    init() {
+        // Terminal PTY sizes are state, not events: resizes sent while the
+        // stream is down are dropped, so every (re)connect re-syncs all
+        // bridges' last-known sizes. Owned here — the terminal layer keeps
+        // its own invariant instead of relying on views to restore it.
+        reconnectObserver = NotificationCenter.default.addObserver(
+            forName: ConnectService.didConnectNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.resyncPTYSizes()
+            }
+        }
+    }
+
+    /// Re-send every live terminal's last-known size after a (re)connect.
+    func resyncPTYSizes() {
+        for bridge in bridgesBySession.values {
+            bridge.resyncSize()
+        }
+    }
+
+    /// Re-send one session's last-known size (e.g. after its VM/agent
+    /// restarted and the new PTY booted at the default size). Does not
+    /// create a bridge.
+    func resyncSize(sessionId: String) {
+        bridgesBySession[sessionId]?.resyncSize()
+    }
+
+    /// Get or create the persistent bridge for a session
+    func bridge(for sessionId: String) -> GhosttyTerminalBridge {
         if let existing = bridgesBySession[sessionId] {
             return existing
         }
-        
-        let bridge = SwiftTermBridge(sessionId: sessionId, connectService: connectService)
+        let bridge = GhosttyTerminalBridge(sessionId: sessionId, connectService: connectService)
         bridgesBySession[sessionId] = bridge
-        
-        // Feed any buffered output to the new bridge
-        if let bufferedOutput = rawOutputBySession[sessionId], !bufferedOutput.isEmpty {
-            bridge.feedData(bufferedOutput)
-        }
-        
         return bridge
     }
-    
+
     /// Append output for a session (called from MessageRouter)
     func appendOutput(sessionId: String, data: String) {
         guard let bytes = data.data(using: .utf8) else { return }
-        let byteArray = [UInt8](bytes)
-        
-        // Buffer raw output
-        var buffer = rawOutputBySession[sessionId] ?? []
-        buffer.append(contentsOf: byteArray)
-        
-        // Trim if too long, keeping the most recent content
-        if buffer.count > maxOutputLength {
-            buffer.removeFirst(buffer.count - maxOutputLength)
-        }
-        rawOutputBySession[sessionId] = buffer
-        
-        // Feed to bridge if it exists
-        if let bridge = bridgesBySession[sessionId] {
-            bridge.feedData(byteArray)
-        }
+        bridge(for: sessionId).feed([UInt8](bytes))
     }
-    
-    /// Clear output and bridge for a session
+
+    /// Seed persisted scrollback from session history (app relaunch restore).
+    /// No-op if the session's terminal already has content, so reconnect
+    /// refreshes never duplicate scrollback.
+    func seedHistory(sessionId: String, data: String) {
+        guard let bytes = data.data(using: .utf8) else { return }
+        bridge(for: sessionId).seedIfEmpty([UInt8](bytes))
+    }
+
+    /// Tear down the terminal for a session (session deleted)
     func clearOutput(for sessionId: String) {
-        rawOutputBySession.removeValue(forKey: sessionId)
-        if let bridge = bridgesBySession.removeValue(forKey: sessionId) {
-            bridge.detach()
-        }
-    }
-    
-    /// Get buffered output for a session (for debugging/export)
-    func bufferedOutput(for sessionId: String) -> [UInt8] {
-        rawOutputBySession[sessionId] ?? []
+        bridgesBySession.removeValue(forKey: sessionId)?.teardown()
     }
 }

@@ -127,6 +127,10 @@ struct ReconnectionStrategy {
 @MainActor
 @Observable
 final class ConnectService {
+    /// Posted (on the main actor) each time the bidirectional stream becomes
+    /// connected and validated — including reconnects after drops.
+    static let didConnectNotification = Notification.Name("ConnectService.didConnect")
+
     private(set) var connectionState: ConnectionState = .disconnected(reason: .initial)
     
     private var client: ProtocolClient?
@@ -274,6 +278,10 @@ final class ConnectService {
         print("[Connect] Connected and validated successfully")
         connectionState = .connected
         recordActivity()
+
+        // Let stateful consumers re-synchronize anything whose sends were
+        // dropped while disconnected (e.g. terminal PTY sizes).
+        NotificationCenter.default.post(name: Self.didConnectNotification, object: nil)
 
         // Keep-alive to detect dead connections
         startKeepAlive()
@@ -444,12 +452,26 @@ final class ConnectService {
             let sessionId = msg.session.id
             // Convert unified StreamEntry list to separate messages and events for backward compatibility
             let (messages, events) = convertStreamEntriesToMessagesAndEvents(msg.entries, sessionId: sessionId)
+            // Join persisted terminal output for the relaunch seed, capped to
+            // the most recent 512KB (matches the bridge's scrollback cap) so a
+            // long-lived session's history can't balloon memory here.
+            let maxSeedBytes = 512 * 1024
+            var terminalChunks: [String] = []
+            var terminalSeedBytes = 0
+            for entry in msg.entries.reversed() {
+                guard case .terminalOutput(let termOut) = entry.payload else { continue }
+                terminalChunks.append(termOut.data)
+                terminalSeedBytes += termOut.data.utf8.count
+                if terminalSeedBytes >= maxSeedBytes { break }
+            }
+            let terminalHistory = terminalChunks.reversed().joined()
             return .sessionState(
                 session: convertSession(msg.session),
                 messages: messages,
                 events: events,
                 hasMore: msg.hasMore_p,
-                lastNotificationId: msg.hasLastStreamID ? msg.lastStreamID : nil
+                lastNotificationId: msg.hasLastStreamID ? msg.lastStreamID : nil,
+                terminalHistory: terminalHistory.isEmpty ? nil : terminalHistory
             )
             
         case .syncResponse(let msg):

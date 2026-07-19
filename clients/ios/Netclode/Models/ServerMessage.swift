@@ -75,7 +75,7 @@ enum ServerMessage: Sendable {
 
     // Sync responses
     case syncResponse(sessions: [SessionWithMeta], serverTime: Date)
-    case sessionState(session: Session, messages: [PersistedMessage], events: [PersistedEvent], hasMore: Bool, lastNotificationId: String?)
+    case sessionState(session: Session, messages: [PersistedMessage], events: [PersistedEvent], hasMore: Bool, lastNotificationId: String?, terminalHistory: String?)
 
     // GitHub
     case githubRepos(repos: [GitHubRepo])
@@ -208,7 +208,7 @@ extension ServerMessage: Decodable {
             let events = try container.decodeIfPresent([PersistedEvent].self, forKey: .events) ?? []
             let hasMore = try container.decodeIfPresent(Bool.self, forKey: .hasMore) ?? false
             let lastNotificationId = try container.decodeIfPresent(String.self, forKey: .lastNotificationId)
-            self = .sessionState(session: session, messages: messages, events: events, hasMore: hasMore, lastNotificationId: lastNotificationId)
+            self = .sessionState(session: session, messages: messages, events: events, hasMore: hasMore, lastNotificationId: lastNotificationId, terminalHistory: nil)
 
         case "github.repos":
             let repos = try container.decodeIfPresent([GitHubRepo].self, forKey: .repos) ?? []

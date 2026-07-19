@@ -46,8 +46,8 @@
 		A10000000000000000000037 /* PromptSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000037 /* PromptSheet.swift */; };
 		A10000000000000000000038 /* ToolEventCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000038 /* ToolEventCard.swift */; };
 		A10000000000000000000039 /* PreviewsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000039 /* PreviewsView.swift */; };
-		A10000000000000000000040 /* SwiftTermBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000040 /* SwiftTermBridge.swift */; };
-		A10000000000000000000041 /* SwiftTerminalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000041 /* SwiftTerminalView.swift */; };
+		A10000000000000000000040 /* GhosttyTerminalBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000040 /* GhosttyTerminalBridge.swift */; };
+		A10000000000000000000041 /* GhosttyTerminalHostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000041 /* GhosttyTerminalHostView.swift */; };
 		A10000000000000000000042 /* MarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000042 /* MarkdownView.swift */; };
 		A10000000000000000000043 /* GitHubRepo.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000043 /* GitHubRepo.swift */; };
 		A10000000000000000000044 /* GitHubStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000044 /* GitHubStore.swift */; };
@@ -74,7 +74,8 @@
 		A10000000000000000000100 /* SyntaxHighlighter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000100 /* SyntaxHighlighter.swift */; };
 		A10000000000000000000200 /* SpeechService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000200 /* SpeechService.swift */; };
 		A543EC685A195D406156E1D8 /* SessionCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12DBC1BE0A00A0DBAE848A4C /* SessionCache.swift */; };
-		D10000000000000000000002 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = P20000000000000000000001 /* SwiftTerm */; };
+		D10000000000000000000007 /* GhosttyTerminal in Frameworks */ = {isa = PBXBuildFile; productRef = P20000000000000000000007 /* GhosttyTerminal */; };
+		D10000000000000000000008 /* GhosttyKit in Frameworks */ = {isa = PBXBuildFile; productRef = P20000000000000000000008 /* GhosttyKit */; };
 		D10000000000000000000003 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = P20000000000000000000002 /* MarkdownUI */; };
 		D10000000000000000000004 /* Connect in Frameworks */ = {isa = PBXBuildFile; productRef = P20000000000000000000003 /* Connect */; };
 		D10000000000000000000005 /* SwiftProtobuf in Frameworks */ = {isa = PBXBuildFile; productRef = P20000000000000000000004 /* SwiftProtobuf */; };
@@ -83,6 +84,7 @@
 		DF9F26ACF8BF83FD430B743F /* ConnectionStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CAF6A8D5A8196F805E063AA /* ConnectionStateManager.swift */; };
 		E005A63F1A5E9FE1FF92834A /* ConnectionBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDB084D9964A7CA4C0002B95 /* ConnectionBanner.swift */; };
 		T10000000000000000000001 /* EventStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T20000000000000000000001 /* EventStoreTests.swift */; };
+		T10000000000000000000003 /* TerminalStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T20000000000000000000003 /* TerminalStoreTests.swift */; };
 		T10000000000000000000002 /* MessageRouterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T20000000000000000000002 /* MessageRouterTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -138,8 +140,8 @@
 		B10000000000000000000037 /* PromptSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptSheet.swift; sourceTree = "<group>"; };
 		B10000000000000000000038 /* ToolEventCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolEventCard.swift; sourceTree = "<group>"; };
 		B10000000000000000000039 /* PreviewsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewsView.swift; sourceTree = "<group>"; };
-		B10000000000000000000040 /* SwiftTermBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftTermBridge.swift; sourceTree = "<group>"; };
-		B10000000000000000000041 /* SwiftTerminalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftTerminalView.swift; sourceTree = "<group>"; };
+		B10000000000000000000040 /* GhosttyTerminalBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GhosttyTerminalBridge.swift; sourceTree = "<group>"; };
+		B10000000000000000000041 /* GhosttyTerminalHostView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GhosttyTerminalHostView.swift; sourceTree = "<group>"; };
 		B10000000000000000000042 /* MarkdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownView.swift; sourceTree = "<group>"; };
 		B10000000000000000000043 /* GitHubRepo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubRepo.swift; sourceTree = "<group>"; };
 		B10000000000000000000044 /* GitHubStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubStore.swift; sourceTree = "<group>"; };
@@ -169,6 +171,7 @@
 		CDB084D9964A7CA4C0002B95 /* ConnectionBanner.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ConnectionBanner.swift; sourceTree = "<group>"; };
 		F77D885E40DDA412EA4A8EB1 /* MessageQueue.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MessageQueue.swift; sourceTree = "<group>"; };
 		T20000000000000000000001 /* EventStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventStoreTests.swift; sourceTree = "<group>"; };
+		T20000000000000000000003 /* TerminalStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalStoreTests.swift; sourceTree = "<group>"; };
 		T20000000000000000000002 /* MessageRouterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageRouterTests.swift; sourceTree = "<group>"; };
 		T30000000000000000000001 /* NetclodeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NetclodeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -178,7 +181,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D10000000000000000000002 /* SwiftTerm in Frameworks */,
+				D10000000000000000000007 /* GhosttyTerminal in Frameworks */,
+				D10000000000000000000008 /* GhosttyKit in Frameworks */,
 				D10000000000000000000003 /* MarkdownUI in Frameworks */,
 				D10000000000000000000004 /* Connect in Frameworks */,
 				D10000000000000000000005 /* SwiftProtobuf in Frameworks */,
@@ -262,7 +266,7 @@
 			children = (
 				B10000000000000000000008 /* ConnectService.swift */,
 				B10000000000000000000009 /* MessageRouter.swift */,
-				B10000000000000000000040 /* SwiftTermBridge.swift */,
+				B10000000000000000000040 /* GhosttyTerminalBridge.swift */,
 				B10000000000000000000100 /* SyntaxHighlighter.swift */,
 				AB110327863973131E7B68E5 /* AppStateCoordinator.swift */,
 				4CAF6A8D5A8196F805E063AA /* ConnectionStateManager.swift */,
@@ -342,7 +346,7 @@
 			isa = PBXGroup;
 			children = (
 				B10000000000000000000022 /* TerminalView.swift */,
-				B10000000000000000000041 /* SwiftTerminalView.swift */,
+				B10000000000000000000041 /* GhosttyTerminalHostView.swift */,
 			);
 			path = Terminal;
 			sourceTree = "<group>";
@@ -464,6 +468,7 @@
 			isa = PBXGroup;
 			children = (
 				T20000000000000000000001 /* EventStoreTests.swift */,
+				T20000000000000000000003 /* TerminalStoreTests.swift */,
 				T20000000000000000000002 /* MessageRouterTests.swift */,
 			);
 			path = NetclodeTests;
@@ -486,12 +491,13 @@
 			);
 			name = Netclode;
 			packageProductDependencies = (
-				P20000000000000000000001 /* SwiftTerm */,
 				P20000000000000000000002 /* MarkdownUI */,
 				P20000000000000000000003 /* Connect */,
 				P20000000000000000000004 /* SwiftProtobuf */,
 				P20000000000000000000005 /* ConnectNIO */,
 				P20000000000000000000006 /* Highlightr */,
+				P20000000000000000000007 /* GhosttyTerminal */,
+				P20000000000000000000008 /* GhosttyKit */,
 			);
 			productName = Netclode;
 			productReference = C10000000000000000000001 /* Netclode.app */;
@@ -543,11 +549,11 @@
 			mainGroup = E10000000000000000000001;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				P10000000000000000000001 /* XCRemoteSwiftPackageReference "SwiftTerm" */,
 				P10000000000000000000002 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
 				P10000000000000000000003 /* XCRemoteSwiftPackageReference "connect-swift" */,
 				P10000000000000000000004 /* XCRemoteSwiftPackageReference "swift-protobuf" */,
 				P10000000000000000000005 /* XCRemoteSwiftPackageReference "Highlightr" */,
+				P10000000000000000000006 /* XCRemoteSwiftPackageReference "libghostty-spm" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = E10000000000000000000099 /* Products */;
@@ -603,8 +609,8 @@
 				A10000000000000000000021 /* ChatInputBar.swift in Sources */,
 				A10000000000000000000038 /* ToolEventCard.swift in Sources */,
 				A10000000000000000000022 /* TerminalView.swift in Sources */,
-				A10000000000000000000040 /* SwiftTermBridge.swift in Sources */,
-				A10000000000000000000041 /* SwiftTerminalView.swift in Sources */,
+				A10000000000000000000040 /* GhosttyTerminalBridge.swift in Sources */,
+				A10000000000000000000041 /* GhosttyTerminalHostView.swift in Sources */,
 				A10000000000000000000024 /* SettingsView.swift in Sources */,
 				A10000000000000000000025 /* GlassCard.swift in Sources */,
 				A10000000000000000000026 /* GlassButton.swift in Sources */,
@@ -652,6 +658,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				T10000000000000000000001 /* EventStoreTests.swift in Sources */,
+				T10000000000000000000003 /* TerminalStoreTests.swift in Sources */,
 				T10000000000000000000002 /* MessageRouterTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -929,14 +936,6 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		P10000000000000000000001 /* XCRemoteSwiftPackageReference "SwiftTerm" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/migueldeicaza/SwiftTerm.git";
-			requirement = {
-				kind = exactVersion;
-				version = 1.2.5;
-			};
-		};
 		P10000000000000000000002 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/gonzalezreal/swift-markdown-ui.git";
@@ -969,14 +968,17 @@
 				minimumVersion = 2.1.0;
 			};
 		};
+		P10000000000000000000006 /* XCRemoteSwiftPackageReference "libghostty-spm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/evertonstz/libghostty-spm.git";
+			requirement = {
+				kind = revision;
+				revision = 80f74c7d5e4399452f9652c6864140fdfc6a0518;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		P20000000000000000000001 /* SwiftTerm */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = P10000000000000000000001 /* XCRemoteSwiftPackageReference "SwiftTerm" */;
-			productName = SwiftTerm;
-		};
 		P20000000000000000000002 /* MarkdownUI */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = P10000000000000000000002 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */;
@@ -1001,6 +1003,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = P10000000000000000000005 /* XCRemoteSwiftPackageReference "Highlightr" */;
 			productName = Highlightr;
+		};
+		P20000000000000000000007 /* GhosttyTerminal */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = P10000000000000000000006 /* XCRemoteSwiftPackageReference "libghostty-spm" */;
+			productName = GhosttyTerminal;
+		};
+		P20000000000000000000008 /* GhosttyKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = P10000000000000000000006 /* XCRemoteSwiftPackageReference "libghostty-spm" */;
+			productName = GhosttyKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

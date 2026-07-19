@@ -1,0 +1,86 @@
+# Netclodinho — local dev stack for the Docker sandbox backend (RUNTIME_MODE=docker)
+#
+# Standalone file; does NOT extend docker-compose.yml (the BoxLite production stack
+# needs /dev/kvm and a Tailscale sidecar, neither of which exists on macOS).
+# Builds everything from source for the host arch — native arm64 on Apple Silicon
+# (OrbStack / Docker Desktop), no emulation.
+#
+# Usage:
+#   docker compose -f docker-compose.dev.yml --profile build build agent-image
+#   docker compose -f docker-compose.dev.yml up --build -d
+#   docker compose -f docker-compose.dev.yml logs -f control-plane
+#
+# The sandbox network is pinned to netclode_default — the name the control plane
+# hands to sandbox containers (DOCKER_NETWORK) and the one the daemon-gated
+# integration tests expect:
+#   cd services/control-plane && go test ./internal/docker/... -count=1 -v
+
+name: netclode-dev
+
+services:
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - netclode-dev-redis-data:/data
+
+  control-plane:
+    build:
+      context: .
+      dockerfile: services/control-plane/Dockerfile
+    image: netclode-control-plane:local
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    # The image drops to uid 65534, which cannot read the mounted Docker socket.
+    # Dev-only override; Docker mode is container-isolation-only by design.
+    user: "0:0"
+    environment:
+      PORT: "3000"
+      RUNTIME_MODE: docker
+      DOCKER_NETWORK: netclode_default
+      # Enables the /debug/session/{id}/exec endpoint for TERM-02 UAT (off by default in real deployments).
+      DEBUG_REST_EP: "true"
+      # Hard-coded (not ${AGENT_IMAGE:-…}): the root .env sets AGENT_IMAGE for the
+      # BoxLite prod compose and would silently override the local-image default.
+      AGENT_IMAGE: netclode-agent:local
+      REDIS_URL: redis://redis:6379
+      WARM_POOL_ENABLED: "false"
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      MAX_ACTIVE_SESSIONS: ${MAX_ACTIVE_SESSIONS:-5}
+      DEFAULT_CPUS: ${DEFAULT_CPUS:-4}
+      DEFAULT_MEMORY_MB: ${DEFAULT_MEMORY_MB:-4096}
+      # LLM keys (optional for phase-2 lifecycle testing)
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "3000:3000"
+
+  # Build-only helper: produces the netclode-agent:local tag CreateSandbox uses.
+  # Gated behind a profile so `up` never starts it:
+  #   docker compose -f docker-compose.dev.yml --profile build build agent-image
+  agent-image:
+    profiles: ["build"]
+    build:
+      context: .
+      dockerfile: services/agent/Dockerfile
+    image: netclode-agent:local
+    command: ["true"]
+
+networks:
+  # Sandbox containers created by the control plane join this network by name;
+  # pin it so the compose project prefix (netclode-dev_) doesn't change it.
+  default:
+    name: netclode_default
+
+volumes:
+  netclode-dev-redis-data:

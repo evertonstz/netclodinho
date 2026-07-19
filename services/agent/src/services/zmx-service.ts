@@ -11,7 +11,7 @@
  */
 
 import { spawn, type ChildProcess, exec } from "node:child_process";
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { ZmxSocket, Tag } from "./zmx-socket.js";
 
 /** Session naming prefix to avoid collisions with non-Netclode zmx sessions */
@@ -48,31 +48,47 @@ export class ZmxService {
     const existing = this.sockets.get(name);
     if (existing) return existing;
 
-    // Check if daemon socket already exists on disk
+    // Check if daemon socket already exists on disk. Connection errors are
+    // async, so we must await `ready` — a try/catch around the constructor
+    // can never fire and would cache a dead socket.
     if (existsSync(path)) {
+      const sock = new ZmxSocket(path);
       try {
-        const sock = new ZmxSocket(path);
+        await sock.ready;
         this.sockets.set(name, sock);
         return sock;
       } catch {
-        // Socket exists but is stale — remove and recreate
+        // Socket file exists but the daemon is gone — remove and respawn.
+        sock.close();
+        rmSync(path, { force: true });
       }
     }
 
     // Spawn new zmx daemon
     console.log(`[zmx] Spawning session: ${name}`);
     const proc = spawn("zmx", ["attach", name], {
-      env: { ...process.env, ZMX_DIR },
+      // The daemon's forkpty'd shell inherits this env. The agent container
+      // has no TERM, which breaks clear/less/vim and degrades bash line
+      // editing to dumb-terminal redraws. xterm-ghostty is vendored into the
+      // agent image (Dockerfile tic step) and matches the client's libghostty
+      // renderer.
+      env: {
+        ...process.env,
+        ZMX_DIR,
+        TERM: process.env.TERM || "xterm-ghostty",
+        COLORTERM: process.env.COLORTERM || "truecolor",
+      },
       stdio: "ignore",
       detached: true,
     });
     proc.unref();
     this.processes.set(name, proc);
 
-    // Wait for socket to appear
+    // Wait for socket to appear, then verify the connection actually opens.
     await this.waitForSocket(path, 5000);
 
     const sock = new ZmxSocket(path);
+    await sock.ready;
     this.sockets.set(name, sock);
     return sock;
   }

@@ -63,6 +63,10 @@ struct WorkspaceView: View {
     }
 
     var body: some View {
+        // The terminal view can be freely destroyed on tab switches: the
+        // bridge-owned UITerminalView (and its ghostty surface, thanks to the
+        // patched wrapper preserving surfaces across window detach) keeps all
+        // terminal state; SwiftUI only re-presents it.
         Group {
             switch selectedTab {
             case .chat:
@@ -207,6 +211,20 @@ struct WorkspaceView: View {
             // Don't auto-resume: only resume when user sends a new message
             connectService.openSession(id: sessionId, resume: false)
             hasOpenedSession = true
+
+            // Pre-spawn the terminal PTY while the user is still on Chat:
+            // the zmx daemon + shell boot in the VM (hundreds of ms over the
+            // network) so the prompt is already buffered client-side when the
+            // Terminal tab is first opened. The dimensions are corrected by
+            // the real surface resize on first render; ghostty reflows.
+            if session?.status == .ready || session?.status == .running {
+                let bridge = terminalStore.bridge(for: sessionId)
+                connectService.send(.terminalResize(
+                    sessionId: sessionId,
+                    cols: bridge.cols > 0 ? bridge.cols : 80,
+                    rows: bridge.rows > 0 ? bridge.rows : 24
+                ))
+            }
         }
         .onChange(of: connectService.connectionState) { oldState, newState in
             // Detect reconnection: was disconnected/reconnecting, now connected
@@ -217,6 +235,7 @@ struct WorkspaceView: View {
                 // Reconnected - fetch full session state (no cursor = full history)
                 print("[WorkspaceView] Reconnected, reopening session (full refresh)")
                 connectService.openSession(id: sessionId, resume: false)
+                // (PTY size re-sync on reconnect is owned by TerminalStore.)
             }
         }
         .onDisappear {

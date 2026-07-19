@@ -4,10 +4,21 @@
 .github
 
 # Dependencies (installed in Docker)
+# Bare "node_modules" only matches the repo root — nested ones (proto/,
+# services/agent/) must be excluded too, or host-arch native binaries
+# (e.g. darwin-arm64 esbuild) leak into the Linux image and break builds.
 node_modules
+**/node_modules
 
 # Build artifacts
 dist
+**/dist
+
+# BoxLite native artifacts from local dev setup (host-arch; the control-plane
+# Dockerfile downloads the correct Linux ones inside the builder — a leftover
+# darwin libboxlite.a from `cmd/setup` would overwrite them and break the link)
+**/libboxlite.a
+**/libboxlite.so
 .turbo
 .next
 
