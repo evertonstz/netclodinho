@@ -973,7 +973,7 @@
 			repositoryURL = "https://github.com/evertonstz/libghostty-spm.git";
 			requirement = {
 				kind = revision;
-				revision = f6b7e2a7ea32556d957e5aad83bac6407308a46b;
+				revision = 80f74c7d5e4399452f9652c6864140fdfc6a0518;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
