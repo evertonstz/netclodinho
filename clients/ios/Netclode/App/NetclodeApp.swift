@@ -79,6 +79,13 @@ struct NetclodeApp: App {
                 .onAppear {
                     setupApp()
                 }
+                .task {
+                    // Pre-warm the ghostty runtime (ghostty_init, config parse,
+                    // font discovery, Metal setup) off the first-terminal-open
+                    // path. Runs after first render so app launch isn't blocked;
+                    // matches vvterm/Ghostty.app initializing the runtime at boot.
+                    GhosttyTerminalBridge.prewarm()
+                }
         }
         .onChange(of: scenePhase) { _, newPhase in
             coordinator.handleScenePhase(newPhase)
