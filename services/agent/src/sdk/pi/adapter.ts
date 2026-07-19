@@ -14,7 +14,7 @@
 import * as fs from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { Agent } from "@earendil-works/pi-agent-core";
-import { getModel } from "@earendil-works/pi-ai";
+import { getBuiltinModel } from "@earendil-works/pi-ai/providers/all";
 import {
   createCodingTools,
   createGrepTool,
@@ -101,7 +101,7 @@ export class PiAdapter implements NetclodePromptBackend {
 
   private async createAgent(config: SDKConfig): Promise<Agent> {
     const { provider, modelId } = parseModelString(config.model);
-    const model = getModel(provider as never, modelId as never);
+    const model = getBuiltinModel(provider as never, modelId as never);
 
     if (!model) {
       throw new Error(
