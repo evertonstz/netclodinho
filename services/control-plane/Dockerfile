@@ -22,7 +22,8 @@ ARG BUF_VERSION=1.51.0
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential ca-certificates curl git && rm -rf /var/lib/apt/lists/*
 
 # Install buf (remote plugins only — no local protoc needed)
-RUN curl -sSL "https://github.com/bufbuild/buf/releases/download/v${BUF_VERSION}/buf-Linux-x86_64" -o /usr/local/bin/buf && \
+# uname -m resolves to x86_64 or aarch64, matching buf's release asset names.
+RUN curl -sSL "https://github.com/bufbuild/buf/releases/download/v${BUF_VERSION}/buf-Linux-$(uname -m)" -o /usr/local/bin/buf && \
     chmod +x /usr/local/bin/buf
 
 # Copy go mod files plus the vendored BoxLite SDK source first so `go mod download`
@@ -32,13 +33,20 @@ COPY services/control-plane/third_party/boxlite-go-sdk ./third_party/boxlite-go-
 RUN go mod download
 
 # Download the BoxLite native library and runtime assets at build time.
+# BoxLite names its Linux assets linux-x64-gnu / linux-arm64-gnu; map from uname -m
+# so native arm64 builds (Apple Silicon) work without emulation.
 RUN set -eux; \
+    case "$(uname -m)" in \
+      x86_64)  BOXLITE_ARCH=x64 ;; \
+      aarch64) BOXLITE_ARCH=arm64 ;; \
+      *) echo "unsupported arch: $(uname -m)" >&2; exit 1 ;; \
+    esac; \
     mkdir -p /tmp/boxlite-c /tmp/boxlite-runtime; \
-    curl -fsSL "$BOXLITE_RELEASE_URL/boxlite-c-v0.8.2-linux-x64-gnu.tar.gz" -o /tmp/boxlite-c.tgz; \
+    curl -fsSL "$BOXLITE_RELEASE_URL/boxlite-c-${BOXLITE_VERSION}-linux-${BOXLITE_ARCH}-gnu.tar.gz" -o /tmp/boxlite-c.tgz; \
     tar -xzf /tmp/boxlite-c.tgz -C /tmp/boxlite-c --strip-components=1; \
     cp /tmp/boxlite-c/include/boxlite.h ./third_party/boxlite-go-sdk/boxlite.h; \
     cp /tmp/boxlite-c/lib/libboxlite.a ./third_party/boxlite-go-sdk/libboxlite.a; \
-    curl -fsSL "$BOXLITE_RELEASE_URL/boxlite-runtime-v0.8.2-linux-x64-gnu.tar.gz" -o /tmp/boxlite-runtime.tgz; \
+    curl -fsSL "$BOXLITE_RELEASE_URL/boxlite-runtime-${BOXLITE_VERSION}-linux-${BOXLITE_ARCH}-gnu.tar.gz" -o /tmp/boxlite-runtime.tgz; \
     tar -xzf /tmp/boxlite-runtime.tgz -C /tmp/boxlite-runtime --strip-components=1
 
 # Copy proto definitions and generate Go code (self-contained — no CI dependency).
