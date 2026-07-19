@@ -77,6 +77,15 @@ final class MessageRouter {
         case .sessionUpdated(let session):
             print("[MessageRouter] session.updated received: id=\(session.id), name=\(session.name), status=\(session.status)")
             sessionStore.updateSession(session)
+
+            // A session becoming ready may mean a fresh VM/agent (resume,
+            // restart) whose new PTY booted at the 80x24 default — re-sync
+            // the last-known terminal size so output wraps correctly without
+            // waiting for the user to revisit the terminal tab. No-op when
+            // no terminal bridge exists for the session.
+            if session.status == .ready {
+                terminalStore.resyncSize(sessionId: session.id)
+            }
             
             // Handle status transitions
             if session.status == .running {
@@ -282,8 +291,14 @@ final class MessageRouter {
             // Update sessions from server sync
             sessionStore.setSessions(sessions.map { $0.toSession() })
 
-        case .sessionState(let session, let messages, let events, _, let lastNotificationId):
+        case .sessionState(let session, let messages, let events, _, let lastNotificationId, let terminalHistory):
             print("[MessageRouter] session.state: status=\(session.status), \(messages.count) messages, \(events.count) events")
+
+            // Seed the terminal with persisted scrollback (app relaunch restore).
+            // No-op when the bridge already has content (e.g. reconnect).
+            if let terminalHistory {
+                terminalStore.seedHistory(sessionId: session.id, data: terminalHistory)
+            }
             
             sessionStore.updateSession(session)
             
