@@ -159,8 +159,8 @@ final class MessageRouterTests: XCTestCase {
         let router = makeRouter(sessionStore: sessionStore, chatStore: chatStore)
 
         // When: Receiving partial agent messages
-        router.route(.agentMessage(sessionId: "sess-1", content: "Hello ", partial: true))
-        router.route(.agentMessage(sessionId: "sess-1", content: "world!", partial: true))
+        router.route(.agentMessage(sessionId: "sess-1", content: "Hello ", partial: true, messageId: nil))
+        router.route(.agentMessage(sessionId: "sess-1", content: "world!", partial: true, messageId: nil))
 
         // Then: Should have one message with accumulated content
         let messages = chatStore.messages(for: "sess-1")

@@ -75,7 +75,7 @@ deploy: ## Wait for CI then rollout control-plane
 	$(MAKE) rollout-control-plane
 
 test-ios: proto ## Run iOS unit tests
-	cd clients/ios && xcodebuild test -scheme NetclodeTests -destination 'platform=macOS' -quiet
+	cd clients/ios && xcodebuild test -project Netclode.xcodeproj -scheme Netclode -destination 'platform=macOS,variant=Mac Catalyst' -quiet CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO
 
 run-macos: proto ## Build and run macOS (Catalyst) app
 	cd clients/ios && xcodebuild -scheme Netclode -destination 'platform=macOS,variant=Mac Catalyst' -derivedDataPath .build $(XCODE_SIGN_ARGS) build
