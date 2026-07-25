@@ -1272,8 +1272,13 @@ final class ConnectService {
 
         recordActivity()
         let protoMessage = convertToProtoMessage(message)
-        
-        Task {
+
+        // Chain sends so messages hit the stream in call order: independent
+        // unstructured Tasks carry no ordering guarantee, and reordering
+        // terminal keystrokes (or input vs. resize) corrupts the remote PTY.
+        let previousSend = lastSendTask
+        lastSendTask = Task {
+            await previousSend?.value
             do {
                 try await stream.send(protoMessage)
             } catch {
@@ -1285,6 +1290,9 @@ final class ConnectService {
             }
         }
     }
+
+    /// Tail of the ordered send chain (see `send(_:)`).
+    private var lastSendTask: Task<Void, Never>?
 
     private func startKeepAlive() {
         keepAliveTask?.cancel()

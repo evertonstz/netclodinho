@@ -42,12 +42,29 @@ final class TerminalStoreTests: XCTestCase {
         let store = TerminalStore()
         // Relaunch path: empty terminal accepts the seed.
         store.seedHistory(sessionId: "sess1", data: "restored scrollback")
-        // Reconnect path: live output already present — the second seed must be a no-op
-        // (verified indirectly: seeding again does not crash and bridge persists).
+        let bridge = store.bridge(for: "sess1")
+        let afterSeed = bridge.bufferedByteCount
+        XCTAssertEqual(afterSeed, "restored scrollback".utf8.count)
+
+        // Live output grows the buffer.
         store.appendOutput(sessionId: "sess1", data: "live output")
-        let before = store.bridge(for: "sess1")
+        let afterLive = bridge.bufferedByteCount
+        XCTAssertGreaterThan(afterLive, afterSeed)
+
+        // Reconnect path: the second seed must be a strict no-op — the buffer
+        // must not grow, shrink, or be replaced.
         store.seedHistory(sessionId: "sess1", data: "restored scrollback")
-        XCTAssertTrue(before === store.bridge(for: "sess1"))
+        XCTAssertEqual(bridge.bufferedByteCount, afterLive)
+        XCTAssertTrue(bridge === store.bridge(for: "sess1"))
+    }
+
+    func testResyncSizeDoesNotCreateBridges() {
+        let store = TerminalStore()
+        // Resync for a session with no terminal must be a no-op and must NOT
+        // materialize a bridge (MessageRouter calls this on every session
+        // → ready transition).
+        store.resyncSize(sessionId: "never-opened")
+        XCTAssertEqual(store.bridgeCount, 0)
     }
 
     func testInitialGridSizeIsZeroUntilSurfaceReports() {

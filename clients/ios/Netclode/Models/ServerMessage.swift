@@ -107,7 +107,7 @@ extension ServerMessage: Decodable {
         case session, sessions, id, error, message
         case sessionId, content, partial, event, data, messageId
         case port, previewUrl
-        case serverTime, messages, events, hasMore, lastNotificationId
+        case serverTime, messages, events, hasMore, lastNotificationId, terminalHistory
         case repos
         case deletedIds
         case files, diff
@@ -208,7 +208,8 @@ extension ServerMessage: Decodable {
             let events = try container.decodeIfPresent([PersistedEvent].self, forKey: .events) ?? []
             let hasMore = try container.decodeIfPresent(Bool.self, forKey: .hasMore) ?? false
             let lastNotificationId = try container.decodeIfPresent(String.self, forKey: .lastNotificationId)
-            self = .sessionState(session: session, messages: messages, events: events, hasMore: hasMore, lastNotificationId: lastNotificationId, terminalHistory: nil)
+            let terminalHistory = try container.decodeIfPresent(String.self, forKey: .terminalHistory)
+            self = .sessionState(session: session, messages: messages, events: events, hasMore: hasMore, lastNotificationId: lastNotificationId, terminalHistory: terminalHistory)
 
         case "github.repos":
             let repos = try container.decodeIfPresent([GitHubRepo].self, forKey: .repos) ?? []

@@ -195,6 +195,79 @@ final class MessageRouterTests: XCTestCase {
         router.stop()
     }
 
+    @MainActor
+    func testSessionStateSeedsTerminalHistory() {
+        let terminalStore = TerminalStore()
+        let sessionStore = SessionStore()
+        let router = makeRouter(sessionStore: sessionStore, terminalStore: terminalStore)
+
+        let session = Session(
+            id: "sess-term",
+            name: "Terminal Session",
+            status: .ready,
+            repos: [],
+            createdAt: Date(),
+            lastActiveAt: Date()
+        )
+        router.route(.sessionState(
+            session: session,
+            messages: [],
+            events: [],
+            hasMore: false,
+            lastNotificationId: nil,
+            terminalHistory: "prompt$ ls\r\nfile.txt\r\n"
+        ))
+
+        // The persisted scrollback must be seeded into the session's terminal.
+        let bridge = terminalStore.bridge(for: "sess-term")
+        XCTAssertEqual(bridge.bufferedByteCount, "prompt$ ls\r\nfile.txt\r\n".utf8.count)
+
+        // A second session.state (reconnect refresh) must not duplicate.
+        router.route(.sessionState(
+            session: session,
+            messages: [],
+            events: [],
+            hasMore: false,
+            lastNotificationId: nil,
+            terminalHistory: "prompt$ ls\r\nfile.txt\r\n"
+        ))
+        XCTAssertEqual(bridge.bufferedByteCount, "prompt$ ls\r\nfile.txt\r\n".utf8.count)
+
+        router.stop()
+    }
+
+    @MainActor
+    func testSessionReadyTransitionDoesNotCreateTerminalBridges() {
+        let terminalStore = TerminalStore()
+        let sessionStore = SessionStore()
+        let router = makeRouter(sessionStore: sessionStore, terminalStore: terminalStore)
+
+        let session = Session(
+            id: "sess-ready",
+            name: "Becomes Ready",
+            status: .creating,
+            repos: [],
+            createdAt: Date(),
+            lastActiveAt: Date()
+        )
+        sessionStore.addSession(session)
+
+        // Session transitions to ready (e.g. VM resume) — the resize resync
+        // must be a no-op for sessions whose terminal was never opened.
+        let readySession = Session(
+            id: "sess-ready",
+            name: "Becomes Ready",
+            status: .ready,
+            repos: [],
+            createdAt: session.createdAt,
+            lastActiveAt: Date()
+        )
+        router.route(.sessionUpdated(session: readySession))
+        XCTAssertEqual(terminalStore.bridgeCount, 0)
+
+        router.stop()
+    }
+
     // MARK: - Helpers
 
     @MainActor

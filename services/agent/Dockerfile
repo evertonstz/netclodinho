@@ -143,8 +143,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends unzip && \
 # agents and users reach for constantly (jq, ripgrep, fd).
 RUN apt-get update && apt-get install -y --no-install-recommends \
     iputils-ping dnsutils iproute2 netcat-openbsd procps less wget rsync \
-    openssh-client lsof psmisc htop tree file unzip zip jq nano vim-tiny \
-    ripgrep fd-find \
+    openssh-client lsof psmisc htop tree file zip jq nano vim-tiny \
+    ripgrep fd-find ncurses-bin \
+    && ln -s "$(command -v fdfind)" /usr/local/bin/fd \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Ghostty's terminfo (vendored from Ghostty v1.3.1 — matches the

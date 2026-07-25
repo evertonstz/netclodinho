@@ -72,6 +72,17 @@ async function getOrCreateSocket(sessionId: string, tabId: string = "0"): Promis
     });
     sock.on("close", () => {
       console.log("[zmx] socket closed for", key);
+      // Flush any partial multi-byte character still buffered in the decoder
+      // so trailing output isn't silently dropped when the session ends.
+      const remaining = decoder.end();
+      if (remaining) {
+        for (const cb of terminalOutputCallbacks) {
+          cb(remaining);
+        }
+        if (globalTerminalOutputCallback) {
+          globalTerminalOutputCallback(remaining);
+        }
+      }
       activeSockets.delete(key);
     });
     sock.on("error", (err: Error) => {
