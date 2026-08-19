@@ -63,12 +63,15 @@ final class GhosttyTerminalBridge: NSObject {
         self.connectService = connectService
         super.init()
 
+        // DispatchQueue.main.async (not Task { @MainActor }): unstructured
+        // tasks carry no ordering guarantee, and keystrokes emitted in quick
+        // succession from the session's callback thread must stay FIFO.
         session = InMemoryTerminalSession(
             write: { [weak self] data in
-                Task { @MainActor in self?.sendInput(data) }
+                DispatchQueue.main.async { self?.sendInput(data) }
             },
             resize: { [weak self] viewport in
-                Task { @MainActor in self?.sendResize(viewport) }
+                DispatchQueue.main.async { self?.sendResize(viewport) }
             }
         )
     }
@@ -93,9 +96,30 @@ final class GhosttyTerminalBridge: NSObject {
         scrollback.append(contentsOf: bytes)
         if scrollback.count > maxScrollbackBytes {
             scrollback.removeFirst(scrollback.count - maxScrollbackBytes)
+            trimScrollbackToSafeBoundary()
         }
         session.receive(Data(bytes))
     }
+
+    /// A byte-offset trim can cut mid-escape-sequence or mid-UTF-8-codepoint,
+    /// corrupting the replay's first line / color state. Drop through the next
+    /// newline (bounded scan) so replay starts at a line boundary; fall back
+    /// to skipping UTF-8 continuation bytes if no newline is near.
+    private func trimScrollbackToSafeBoundary() {
+        let scanLimit = min(scrollback.count, 4096)
+        if let newlineIndex = scrollback[..<scanLimit].firstIndex(of: 0x0A) {
+            scrollback.removeFirst(newlineIndex + 1)
+            return
+        }
+        var skip = 0
+        while skip < scrollback.count, scrollback[skip] & 0xC0 == 0x80 {
+            skip += 1
+        }
+        if skip > 0 { scrollback.removeFirst(skip) }
+    }
+
+    /// Testable view of the buffered scrollback (seed/no-op assertions).
+    var bufferedByteCount: Int { scrollback.count }
 
     /// Seed scrollback from persisted history, only when the terminal has no
     /// content yet (app relaunch). Reconnect refreshes hit the guard and skip.

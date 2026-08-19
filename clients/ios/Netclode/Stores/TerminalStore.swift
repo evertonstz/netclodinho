@@ -15,7 +15,9 @@ final class TerminalStore {
     /// Reference to Connect service (set during init)
     weak var connectService: ConnectService?
 
-    @ObservationIgnored private var reconnectObserver: (any NSObjectProtocol)?
+    // nonisolated(unsafe): written once in init, read once in deinit — the
+    // nonisolated deinit could not otherwise access a @MainActor property.
+    @ObservationIgnored nonisolated(unsafe) private var reconnectObserver: (any NSObjectProtocol)?
 
     init() {
         // Terminal PTY sizes are state, not events: resizes sent while the
@@ -33,6 +35,15 @@ final class TerminalStore {
         }
     }
 
+    deinit {
+        // Block-based observers are NOT auto-removed on dealloc; without this,
+        // deallocated stores (tests create many) keep firing on every connect.
+        // removeObserver is thread-safe, so the nonisolated deinit is fine.
+        if let reconnectObserver {
+            NotificationCenter.default.removeObserver(reconnectObserver)
+        }
+    }
+
     /// Re-send every live terminal's last-known size after a (re)connect.
     func resyncPTYSizes() {
         for bridge in bridgesBySession.values {
@@ -46,6 +57,9 @@ final class TerminalStore {
     func resyncSize(sessionId: String) {
         bridgesBySession[sessionId]?.resyncSize()
     }
+
+    /// Testable view of how many bridges exist (bridge-creation assertions).
+    var bridgeCount: Int { bridgesBySession.count }
 
     /// Get or create the persistent bridge for a session
     func bridge(for sessionId: String) -> GhosttyTerminalBridge {

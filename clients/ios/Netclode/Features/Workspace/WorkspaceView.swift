@@ -12,6 +12,7 @@ struct WorkspaceView: View {
 
     @State private var selectedTab: WorkspaceTab = .chat
     @State private var hasOpenedSession = false
+    @State private var hasPreSpawnedTerminal = false
     @State private var showDeleteConfirmation = false
     @State private var showSnapshotSheet = false
 
@@ -212,19 +213,13 @@ struct WorkspaceView: View {
             connectService.openSession(id: sessionId, resume: false)
             hasOpenedSession = true
 
-            // Pre-spawn the terminal PTY while the user is still on Chat:
-            // the zmx daemon + shell boot in the VM (hundreds of ms over the
-            // network) so the prompt is already buffered client-side when the
-            // Terminal tab is first opened. The dimensions are corrected by
-            // the real surface resize on first render; ghostty reflows.
-            if session?.status == .ready || session?.status == .running {
-                let bridge = terminalStore.bridge(for: sessionId)
-                connectService.send(.terminalResize(
-                    sessionId: sessionId,
-                    cols: bridge.cols > 0 ? bridge.cols : 80,
-                    rows: bridge.rows > 0 ? bridge.rows : 24
-                ))
-            }
+            // Covers sessions that are already active when the workspace opens.
+            preSpawnTerminalIfNeeded()
+        }
+        .onChange(of: session?.status) { _, _ in
+            // Covers fresh sessions: status is typically still starting when
+            // `.task` runs and only becomes active on a later server update.
+            preSpawnTerminalIfNeeded()
         }
         .onChange(of: connectService.connectionState) { oldState, newState in
             // Detect reconnection: was disconnected/reconnecting, now connected
@@ -241,7 +236,7 @@ struct WorkspaceView: View {
         .onDisappear {
             sessionStore.setCurrentSession(id: nil)
         }
-        .onChange(of: selectedTab) { oldTab, newTab in
+        .onChange(of: selectedTab) { _, newTab in
             // When switching to terminal tab, send resize to ensure PTY is spawned
             if newTab == .terminal {
                 let bridge = terminalStore.bridge(for: sessionId)
@@ -254,6 +249,23 @@ struct WorkspaceView: View {
                 }
             }
         }
+    }
+
+    /// Pre-spawn the terminal PTY while the user is still on Chat: the zmx
+    /// daemon + shell boot in the VM (hundreds of ms over the network) so the
+    /// prompt is already buffered client-side when the Terminal tab is first
+    /// opened. Dimensions are corrected by the real surface resize on first
+    /// render; ghostty reflows. Fires once per workspace, as soon as the
+    /// session is (or becomes) active.
+    private func preSpawnTerminalIfNeeded() {
+        guard !hasPreSpawnedTerminal, hasOpenedSession, session?.isActive == true else { return }
+        hasPreSpawnedTerminal = true
+        let bridge = terminalStore.bridge(for: sessionId)
+        connectService.send(.terminalResize(
+            sessionId: sessionId,
+            cols: bridge.cols > 0 ? bridge.cols : 80,
+            rows: bridge.rows > 0 ? bridge.rows : 24
+        ))
     }
 }
 
